@@ -16,7 +16,11 @@ export default [
       },
     },
     plugins: { "@typescript-eslint": tseslint },
-    rules: { "@typescript-eslint/no-explicit-any": "error" },
+    rules: {
+      "no-unused-vars": "off",
+      "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-unused-vars": "error",
+    },
   },
   { ignores: ["**/dist/**", "**/.next/**", "**/node_modules/**"] },
 ];

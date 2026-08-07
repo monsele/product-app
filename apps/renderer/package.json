@@ -11,6 +11,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests"
   },
+  "dependencies": {
+    "@avlp/config": "workspace:*"
+  },
   "devDependencies": {
     "tsx": "^4.20.0"
   }

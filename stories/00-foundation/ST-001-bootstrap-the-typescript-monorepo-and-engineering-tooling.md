@@ -2,7 +2,7 @@
 story_id: ST-001
 title: "Bootstrap the TypeScript Monorepo and Engineering Tooling"
 phase: "00 \u2014 Foundation"
-status: In Review
+status: Done
 priority: must-have
 epics: ["E21"]
 prd_user_stories: ["E21-US1", "E21-US2", "E21-US3"]
@@ -128,3 +128,4 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 - **Decisions and assumptions:** Used pnpm 10 and Turborepo, Next.js for the web placeholder, and NestJS with Fastify for the API, per ADR-001. Empty placeholder packages explicitly allow a zero-test result while environment and workspace-import smoke tests run in Vitest.
 - **Deviations from story/technical guide:** No architecture deviation. The local Docker daemon and Python runtime were unavailable, so Compose runtime health checks and the Python endpoint could not be executed locally; CI contains the Compose health job.
 - **Known risks or follow-up:** Start Docker Desktop and install Python before relying on local Compose/ingestion health verification. Next.js emits a non-blocking warning that its ESLint plugin is not configured; add it when web-specific lint rules are introduced.
+- **Review follow-up (2026-08-07):** Corrected the CI invocation to `pnpm run ci`, configured Playwright to manage the web placeholder server, enabled the web-health smoke test, and added browser installation plus the smoke test to CI. Verified with `pnpm install --frozen-lockfile`, `pnpm run ci`, `CI=true pnpm exec playwright test`, `pnpm format:check`, and `docker compose up -d --wait` (PostgreSQL and Redis healthy; containers then removed with `docker compose down -v`).

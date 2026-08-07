@@ -1,27 +1,19 @@
-import "reflect-metadata";
-import { Controller, Get, Module } from "@nestjs/common";
-import { NestFactory } from "@nestjs/core";
-import {
-  FastifyAdapter,
-  NestFastifyApplication,
-} from "@nestjs/platform-fastify";
-
-@Controller()
-class HealthController {
-  @Get("health") health(): { status: "ok"; service: "api" } {
-    return { status: "ok", service: "api" };
-  }
-}
-
-@Module({ controllers: [HealthController] })
-class AppModule {}
+import { parseEnvironment } from "@avlp/config";
+import { createDatabaseConnection } from "@avlp/database";
+import { createApp } from "./app.js";
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestFastifyApplication>(
-    AppModule,
-    new FastifyAdapter(),
-  );
-  await app.listen({ port: Number(process.env.PORT ?? 3001), host: "0.0.0.0" });
+  const environment = parseEnvironment(process.env);
+  const database = createDatabaseConnection(environment.DATABASE_URL);
+  try {
+    await database.healthCheck();
+    const app = await createApp({ database });
+    app.enableShutdownHooks();
+    await app.listen({ port: environment.PORT, host: "0.0.0.0" });
+  } catch (error) {
+    await database.close();
+    throw error;
+  }
 }
 
 void bootstrap();

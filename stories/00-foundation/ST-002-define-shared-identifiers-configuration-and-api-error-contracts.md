@@ -2,7 +2,7 @@
 story_id: ST-002
 title: "Define Shared Identifiers, Configuration, and API Error Contracts"
 phase: "00 \u2014 Foundation"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E21"]
 prd_user_stories: ["E21-US1", "E21-US3"]
@@ -114,15 +114,15 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-07
+- **Completed:** 2026-08-07
+- **Branch/PR:** `main` (existing worktree contained unrelated ST-001 review-follow-up changes, so no branch switch was made)
+- **Files changed:** `packages/config/src/index.ts`, `packages/config/src/index.test.ts`, `apps/api/src/app.ts`, `apps/api/src/app.test.ts`, `apps/api/src/error-filter.ts`, `apps/api/src/error-filter.test.ts`, `apps/api/src/main.ts`, `apps/web/next.config.ts`, `apps/web/package.json`, `apps/pipeline-worker/src/main.ts`, `apps/pipeline-worker/package.json`, `apps/renderer/src/main.ts`, `apps/renderer/package.json`, `pnpm-lock.yaml`, `STORY_INDEX.md`, and this story record.
+- **Migrations:** None.
+- **Contracts changed:** UUIDv7 identifiers, UTC timestamp serialization, cursor pagination, lowercase API error envelope/code registry, correlation context, exported database/Redis/storage plus application environment schemas/loaders, safe error mapper, API correlation hook, and global exception filter.
+- **Commands/tests run:** `pnpm install`; focused config/API/worker tests and typechecks; `pnpm format:check`; `pnpm run ci` (all passed).
+- **Screenshots or representative output:** API integration test confirms `x-correlation-id` is returned unchanged when valid and generated as a UUIDv7 when absent.
+- **Decisions and assumptions:** API database and Redis configuration is required at startup. Worker configuration validates supplied database, Redis, and storage values without requiring infrastructure unused by the current health-only workers; ST-004 owns concrete storage-provider requirements. Web configuration is parsed in `next.config.ts`. Correlation logging emits only a stable event and correlation ID; Fastify request URLs and sensitive headers are redacted. Framework 5xx errors use the retryable generic internal-error envelope.
+- **Deviations from story/technical guide:** None.
+- **Known risks or follow-up:** The NestJS/Fastify dependency tree currently contains two compatible Fastify patch versions; the hook uses inferred framework types to avoid cross-package type incompatibility. Consolidate the version when dependency upgrades are scheduled. Job/queue propagation will be added with ST-005.
