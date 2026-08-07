@@ -1,0 +1,682 @@
+{
+  "story_count": 71,
+  "generated_at_utc": "2026-08-06T23:30:52.947417+00:00",
+  "stories": [
+    {
+      "id": "ST-001",
+      "title": "Bootstrap the TypeScript Monorepo and Engineering Tooling",
+      "phase": "00",
+      "depends_on": [],
+      "epics": ["E21"],
+      "prd_user_stories": ["E21-US1", "E21-US2", "E21-US3"]
+    },
+    {
+      "id": "ST-002",
+      "title": "Define Shared Identifiers, Configuration, and API Error Contracts",
+      "phase": "00",
+      "depends_on": ["ST-001"],
+      "epics": ["E21"],
+      "prd_user_stories": ["E21-US1", "E21-US3"]
+    },
+    {
+      "id": "ST-003",
+      "title": "Establish PostgreSQL and Drizzle Database Foundations",
+      "phase": "00",
+      "depends_on": ["ST-001", "ST-002"],
+      "epics": ["E21"],
+      "prd_user_stories": ["E21-US1", "E21-US3"]
+    },
+    {
+      "id": "ST-004",
+      "title": "Implement Private Object Storage and Signed-URL Abstractions",
+      "phase": "00",
+      "depends_on": ["ST-001", "ST-002"],
+      "epics": ["E3", "E13", "E17", "E18", "E21"],
+      "prd_user_stories": ["E3-US1", "E13-US2", "E17-US1", "E18-US1", "E21-US3"]
+    },
+    {
+      "id": "ST-005",
+      "title": "Build the Job, Outbox, Retry, and Idempotency Platform",
+      "phase": "00",
+      "depends_on": ["ST-001", "ST-002", "ST-003"],
+      "epics": ["E21"],
+      "prd_user_stories": ["E21-US1", "E21-US2"]
+    },
+    {
+      "id": "ST-006",
+      "title": "Add Structured Observability, Audit Events, and Usage Metering",
+      "phase": "00",
+      "depends_on": ["ST-002", "ST-003", "ST-005"],
+      "epics": ["E21"],
+      "prd_user_stories": ["E21-US1", "E21-US2", "E21-US3"]
+    },
+    {
+      "id": "ST-007",
+      "title": "Define LessonSpec v1 and Scene Discriminated Unions",
+      "phase": "00",
+      "depends_on": ["ST-001", "ST-002"],
+      "epics": ["E10", "E11", "E12", "E14", "E15", "E16", "E17", "E19", "E20"],
+      "prd_user_stories": [
+        "E10-US1",
+        "E11-US1",
+        "E12-US4",
+        "E19-US1",
+        "E20-US1"
+      ]
+    },
+    {
+      "id": "ST-008",
+      "title": "Define NormalizedDocument v1 and Provenance Contracts",
+      "phase": "00",
+      "depends_on": ["ST-001", "ST-002"],
+      "epics": ["E4", "E5", "E19"],
+      "prd_user_stories": ["E4-US2", "E4-US3", "E5-US1", "E19-US1"]
+    },
+    {
+      "id": "ST-009",
+      "title": "Create the Test-Fixture and AI Evaluation Baseline",
+      "phase": "00",
+      "depends_on": ["ST-001", "ST-007", "ST-008"],
+      "epics": ["E21"],
+      "prd_user_stories": ["E21-US1", "E21-US2"]
+    },
+    {
+      "id": "ST-010",
+      "title": "Create the MVP Video Design System and Motion Tokens",
+      "phase": "01",
+      "depends_on": ["ST-001", "ST-007"],
+      "epics": ["E11"],
+      "prd_user_stories": ["E11-US2"]
+    },
+    {
+      "id": "ST-011",
+      "title": "Implement the Scene Registry, Runtime Contract, and Layout Validation",
+      "phase": "01",
+      "depends_on": ["ST-007", "ST-010"],
+      "epics": ["E11", "E15", "E16"],
+      "prd_user_stories": ["E11-US1", "E15-US1", "E16-US1"]
+    },
+    {
+      "id": "ST-012",
+      "title": "Implement the Hook or Question Scene Template",
+      "phase": "01",
+      "depends_on": ["ST-010", "ST-011"],
+      "epics": ["E11"],
+      "prd_user_stories": ["E11-US1", "E11-US2"]
+    },
+    {
+      "id": "ST-013",
+      "title": "Implement the Definition Scene Template",
+      "phase": "01",
+      "depends_on": ["ST-010", "ST-011"],
+      "epics": ["E11"],
+      "prd_user_stories": ["E11-US1", "E11-US2"]
+    },
+    {
+      "id": "ST-014",
+      "title": "Implement the Process or Sequence Scene Template",
+      "phase": "01",
+      "depends_on": ["ST-010", "ST-011"],
+      "epics": ["E11"],
+      "prd_user_stories": ["E11-US1", "E11-US2"]
+    },
+    {
+      "id": "ST-015",
+      "title": "Implement the Input\u2013Process\u2013Output Scene Template",
+      "phase": "01",
+      "depends_on": ["ST-010", "ST-011"],
+      "epics": ["E11"],
+      "prd_user_stories": ["E11-US1", "E11-US2"]
+    },
+    {
+      "id": "ST-016",
+      "title": "Implement the Comparison Scene Template",
+      "phase": "01",
+      "depends_on": ["ST-010", "ST-011"],
+      "epics": ["E11"],
+      "prd_user_stories": ["E11-US1", "E11-US2"]
+    },
+    {
+      "id": "ST-017",
+      "title": "Implement the Cause-and-Effect Scene Template",
+      "phase": "01",
+      "depends_on": ["ST-010", "ST-011"],
+      "epics": ["E11"],
+      "prd_user_stories": ["E11-US1", "E11-US2"]
+    },
+    {
+      "id": "ST-018",
+      "title": "Implement the Labelled Diagram Scene Template",
+      "phase": "01",
+      "depends_on": ["ST-010", "ST-011"],
+      "epics": ["E11", "E13"],
+      "prd_user_stories": ["E11-US1", "E11-US2", "E13-US1"]
+    },
+    {
+      "id": "ST-019",
+      "title": "Implement the Analogy Scene Template",
+      "phase": "01",
+      "depends_on": ["ST-010", "ST-011"],
+      "epics": ["E11", "E19"],
+      "prd_user_stories": ["E11-US1", "E11-US2", "E19-US1"]
+    },
+    {
+      "id": "ST-020",
+      "title": "Implement the Worked Example Scene Template",
+      "phase": "01",
+      "depends_on": ["ST-010", "ST-011"],
+      "epics": ["E11"],
+      "prd_user_stories": ["E11-US1", "E11-US2"]
+    },
+    {
+      "id": "ST-021",
+      "title": "Implement the Summary Scene Template",
+      "phase": "01",
+      "depends_on": ["ST-010", "ST-011"],
+      "epics": ["E11"],
+      "prd_user_stories": ["E11-US1", "E11-US2"]
+    },
+    {
+      "id": "ST-022",
+      "title": "Build Single-Scene Browser Preview with Remotion Player",
+      "phase": "01",
+      "depends_on": [
+        "ST-011",
+        "ST-012",
+        "ST-013",
+        "ST-014",
+        "ST-015",
+        "ST-016",
+        "ST-017",
+        "ST-018",
+        "ST-019",
+        "ST-020",
+        "ST-021"
+      ],
+      "epics": ["E15"],
+      "prd_user_stories": ["E15-US1"]
+    },
+    {
+      "id": "ST-023",
+      "title": "Assemble a Manual Three-Minute LessonSpec and Full Composition",
+      "phase": "01",
+      "depends_on": [
+        "ST-007",
+        "ST-012",
+        "ST-013",
+        "ST-015",
+        "ST-021",
+        "ST-022"
+      ],
+      "epics": ["E10", "E11", "E15"],
+      "prd_user_stories": ["E10-US1", "E15-US2"]
+    },
+    {
+      "id": "ST-024",
+      "title": "Implement the Initial Remotion Render Worker and MP4 Smoke Test",
+      "phase": "01",
+      "depends_on": ["ST-004", "ST-005", "ST-006", "ST-023"],
+      "epics": ["E17"],
+      "prd_user_stories": ["E17-US1", "E17-US2", "E17-US3"]
+    },
+    {
+      "id": "ST-025",
+      "title": "Implement Email Registration, Sign-In, Sign-Out, and Session Protection",
+      "phase": "02",
+      "depends_on": ["ST-001", "ST-002", "ST-003", "ST-006"],
+      "epics": ["E1"],
+      "prd_user_stories": ["E1-US1", "E1-US2"]
+    },
+    {
+      "id": "ST-026",
+      "title": "Implement Secure Password Reset",
+      "phase": "02",
+      "depends_on": ["ST-025"],
+      "epics": ["E1"],
+      "prd_user_stories": ["E1-US3"]
+    },
+    {
+      "id": "ST-027",
+      "title": "Enforce Project Resource Authorization and Tenant Isolation",
+      "phase": "02",
+      "depends_on": ["ST-025", "ST-003", "ST-004"],
+      "epics": ["E1", "E21"],
+      "prd_user_stories": ["E1-US4", "E21-US3"]
+    },
+    {
+      "id": "ST-028",
+      "title": "Create and List Teacher Projects with Workspace Status",
+      "phase": "02",
+      "depends_on": ["ST-025", "ST-027", "ST-003"],
+      "epics": ["E2"],
+      "prd_user_stories": ["E2-US1", "E2-US2"]
+    },
+    {
+      "id": "ST-029",
+      "title": "Duplicate and Delete Projects with Cleanup Scheduling",
+      "phase": "02",
+      "depends_on": ["ST-028", "ST-005", "ST-004"],
+      "epics": ["E2", "E20", "E21"],
+      "prd_user_stories": ["E2-US3", "E2-US4", "E21-US3"]
+    },
+    {
+      "id": "ST-030",
+      "title": "Implement Private PDF and DOCX Upload Sessions",
+      "phase": "02",
+      "depends_on": ["ST-004", "ST-005", "ST-027", "ST-028"],
+      "epics": ["E3"],
+      "prd_user_stories": ["E3-US1"]
+    },
+    {
+      "id": "ST-031",
+      "title": "Validate Uploaded Files, Page Limits, and Malware Safety",
+      "phase": "02",
+      "depends_on": ["ST-030"],
+      "epics": ["E3", "E21"],
+      "prd_user_stories": ["E3-US2", "E21-US3"]
+    },
+    {
+      "id": "ST-032",
+      "title": "Detect Duplicate Source Uploads and Reuse Safe Ingestion Results",
+      "phase": "02",
+      "depends_on": ["ST-030", "ST-031"],
+      "epics": ["E3", "E21"],
+      "prd_user_stories": ["E3-US3", "E21-US2"]
+    },
+    {
+      "id": "ST-033",
+      "title": "Run Docling Ingestion in an Isolated Python Worker",
+      "phase": "03",
+      "depends_on": ["ST-005", "ST-008", "ST-030", "ST-031"],
+      "epics": ["E4"],
+      "prd_user_stories": ["E4-US1"]
+    },
+    {
+      "id": "ST-034",
+      "title": "Normalize Docling Output into NormalizedDocument v1",
+      "phase": "03",
+      "depends_on": ["ST-008", "ST-033", "ST-003", "ST-004"],
+      "epics": ["E4"],
+      "prd_user_stories": ["E4-US1", "E4-US2"]
+    },
+    {
+      "id": "ST-035",
+      "title": "Extract and Persist Figures, Captions, and Tables",
+      "phase": "03",
+      "depends_on": ["ST-034", "ST-004"],
+      "epics": ["E4"],
+      "prd_user_stories": ["E4-US3"]
+    },
+    {
+      "id": "ST-036",
+      "title": "Generate Ingestion Quality Reports and Recovery States",
+      "phase": "03",
+      "depends_on": ["ST-006", "ST-033", "ST-034", "ST-035"],
+      "epics": ["E4", "E21"],
+      "prd_user_stories": ["E4-US4", "E21-US1"]
+    },
+    {
+      "id": "ST-037",
+      "title": "Build the Ingestion Review Document Viewer",
+      "phase": "03",
+      "depends_on": ["ST-027", "ST-034", "ST-035", "ST-036"],
+      "epics": ["E5"],
+      "prd_user_stories": ["E5-US1"]
+    },
+    {
+      "id": "ST-038",
+      "title": "Let Teachers Rename, Include, Exclude, and Reorder Source Sections",
+      "phase": "03",
+      "depends_on": ["ST-037", "ST-003"],
+      "epics": ["E5"],
+      "prd_user_stories": ["E5-US2"]
+    },
+    {
+      "id": "ST-039",
+      "title": "Implement Corrected-Text Overlays and Restore Original Text",
+      "phase": "03",
+      "depends_on": ["ST-037", "ST-038"],
+      "epics": ["E5", "E19"],
+      "prd_user_stories": ["E5-US3", "E19-US2"]
+    },
+    {
+      "id": "ST-040",
+      "title": "Let Teachers Include or Exclude Extracted Figures",
+      "phase": "03",
+      "depends_on": ["ST-035", "ST-037"],
+      "epics": ["E5"],
+      "prd_user_stories": ["E5-US4"]
+    },
+    {
+      "id": "ST-041",
+      "title": "Capture and Validate Lesson Configuration",
+      "phase": "03",
+      "depends_on": ["ST-028", "ST-038", "ST-039", "ST-040"],
+      "epics": ["E6"],
+      "prd_user_stories": ["E6-US1", "E6-US2", "E6-US3"]
+    },
+    {
+      "id": "ST-042",
+      "title": "Create Approved Source Snapshots and Bounded AI Source Packages",
+      "phase": "04",
+      "depends_on": ["ST-038", "ST-039", "ST-040", "ST-041", "ST-008"],
+      "epics": ["E5", "E7", "E8", "E9", "E10", "E19", "E20"],
+      "prd_user_stories": ["E5-US2", "E5-US3", "E7-US1", "E19-US1", "E20-US1"]
+    },
+    {
+      "id": "ST-043",
+      "title": "Implement AI Provider Adapters, Prompt Registry, Structured Output, and Model-Call Logging",
+      "phase": "04",
+      "depends_on": [
+        "ST-005",
+        "ST-006",
+        "ST-007",
+        "ST-008",
+        "ST-009",
+        "ST-042"
+      ],
+      "epics": ["E7", "E8", "E9", "E10", "E19", "E21"],
+      "prd_user_stories": ["E7-US1", "E8-US1", "E9-US1", "E10-US1", "E21-US2"]
+    },
+    {
+      "id": "ST-044",
+      "title": "Generate Grounded Learning Objectives and Instructional Analysis",
+      "phase": "04",
+      "depends_on": ["ST-041", "ST-042", "ST-043"],
+      "epics": ["E7"],
+      "prd_user_stories": ["E7-US1"]
+    },
+    {
+      "id": "ST-045",
+      "title": "Edit, Reorder, Regenerate, and Approve Learning Objectives",
+      "phase": "04",
+      "depends_on": ["ST-044"],
+      "epics": ["E7", "E20"],
+      "prd_user_stories": ["E7-US2", "E20-US1"]
+    },
+    {
+      "id": "ST-046",
+      "title": "Generate a Grounded Duration-Aware Lesson Outline",
+      "phase": "04",
+      "depends_on": ["ST-045", "ST-043", "ST-042"],
+      "epics": ["E8"],
+      "prd_user_stories": ["E8-US1"]
+    },
+    {
+      "id": "ST-047",
+      "title": "Edit, Reorder, Link, and Approve the Lesson Outline",
+      "phase": "04",
+      "depends_on": ["ST-046"],
+      "epics": ["E8", "E20"],
+      "prd_user_stories": ["E8-US2", "E20-US1"]
+    },
+    {
+      "id": "ST-048",
+      "title": "Generate Grounded Spoken Narration by Outline Section",
+      "phase": "04",
+      "depends_on": ["ST-047", "ST-043", "ST-042"],
+      "epics": ["E9"],
+      "prd_user_stories": ["E9-US1"]
+    },
+    {
+      "id": "ST-049",
+      "title": "Edit or Regenerate Individual Narration Blocks with Dependency Invalidation",
+      "phase": "04",
+      "depends_on": ["ST-048"],
+      "epics": ["E9", "E14", "E15", "E16", "E17", "E20"],
+      "prd_user_stories": ["E9-US2"]
+    },
+    {
+      "id": "ST-050",
+      "title": "Generate a Valid LessonSpec Storyboard from Approved Narration",
+      "phase": "04",
+      "depends_on": [
+        "ST-007",
+        "ST-021",
+        "ST-047",
+        "ST-048",
+        "ST-043",
+        "ST-042"
+      ],
+      "epics": ["E10"],
+      "prd_user_stories": ["E10-US1"]
+    },
+    {
+      "id": "ST-051",
+      "title": "Regenerate One Storyboard Scene Without Altering Neighboring Teacher Edits",
+      "phase": "04",
+      "depends_on": ["ST-050", "ST-049"],
+      "epics": ["E10"],
+      "prd_user_stories": ["E10-US2"]
+    },
+    {
+      "id": "ST-052",
+      "title": "Resolve and Display Scene Source Citations",
+      "phase": "04",
+      "depends_on": ["ST-042", "ST-050", "ST-037"],
+      "epics": ["E19"],
+      "prd_user_stories": ["E19-US1"]
+    },
+    {
+      "id": "ST-053",
+      "title": "Recheck Grounding After Teacher Edits and Preserve Citation History",
+      "phase": "04",
+      "depends_on": ["ST-049", "ST-051", "ST-052", "ST-043"],
+      "epics": ["E19", "E20"],
+      "prd_user_stories": ["E19-US2"]
+    },
+    {
+      "id": "ST-054",
+      "title": "Build Storyboard Scene List, Selection, and Navigation",
+      "phase": "05",
+      "depends_on": ["ST-050", "ST-022", "ST-052"],
+      "epics": ["E12"],
+      "prd_user_stories": ["E12-US1"]
+    },
+    {
+      "id": "ST-055",
+      "title": "Reorder, Add, Duplicate, and Delete Storyboard Scenes",
+      "phase": "05",
+      "depends_on": ["ST-054", "ST-011"],
+      "epics": ["E12"],
+      "prd_user_stories": ["E12-US2", "E12-US3"]
+    },
+    {
+      "id": "ST-056",
+      "title": "Implement Schema-Driven Scene Editing and Template Switching",
+      "phase": "05",
+      "depends_on": ["ST-011", "ST-054", "ST-055"],
+      "epics": ["E12"],
+      "prd_user_stories": ["E12-US4"]
+    },
+    {
+      "id": "ST-057",
+      "title": "Create the Approved Reusable Asset Catalog and Scene Asset Picker",
+      "phase": "05",
+      "depends_on": ["ST-004", "ST-011", "ST-040", "ST-056"],
+      "epics": ["E13"],
+      "prd_user_stories": ["E13-US1"]
+    },
+    {
+      "id": "ST-058",
+      "title": "Upload and Manage Teacher Replacement Assets",
+      "phase": "05",
+      "depends_on": ["ST-004", "ST-027", "ST-031", "ST-057"],
+      "epics": ["E13", "E21"],
+      "prd_user_stories": ["E13-US2", "E21-US3"]
+    },
+    {
+      "id": "ST-059",
+      "title": "Generate Limited Scene Illustrations with Review and Cost Controls",
+      "phase": "05",
+      "depends_on": ["ST-043", "ST-057", "ST-058"],
+      "epics": ["E13", "E21"],
+      "prd_user_stories": ["E13-US3", "E21-US2"]
+    },
+    {
+      "id": "ST-060",
+      "title": "Create Immutable Lesson Versions at Approval and Explicit Save Points",
+      "phase": "05",
+      "depends_on": [
+        "ST-007",
+        "ST-045",
+        "ST-047",
+        "ST-049",
+        "ST-050",
+        "ST-056"
+      ],
+      "epics": ["E20"],
+      "prd_user_stories": ["E20-US1"]
+    },
+    {
+      "id": "ST-061",
+      "title": "Browse and Restore a Previous Lesson Version as a New Current Version",
+      "phase": "05",
+      "depends_on": ["ST-060"],
+      "epics": ["E20"],
+      "prd_user_stories": ["E20-US2"]
+    },
+    {
+      "id": "ST-062",
+      "title": "Provide Voice Catalog, Preview, Pronunciation, and Speaking-Rate Configuration",
+      "phase": "06",
+      "depends_on": ["ST-041", "ST-043"],
+      "epics": ["E14"],
+      "prd_user_stories": ["E14-US1"]
+    },
+    {
+      "id": "ST-063",
+      "title": "Generate and Retry Text-to-Speech Audio Per Scene",
+      "phase": "06",
+      "depends_on": ["ST-005", "ST-006", "ST-049", "ST-060", "ST-062"],
+      "epics": ["E14", "E21"],
+      "prd_user_stories": ["E14-US2", "E21-US1", "E21-US2"]
+    },
+    {
+      "id": "ST-064",
+      "title": "Generate, Preview, and Export Synchronized Captions",
+      "phase": "06",
+      "depends_on": ["ST-063", "ST-049"],
+      "epics": ["E14", "E18"],
+      "prd_user_stories": ["E14-US3", "E18-US3"]
+    },
+    {
+      "id": "ST-065",
+      "title": "Build Full-Lesson Preview, Timeline Seeking, and Scene Navigation",
+      "phase": "06",
+      "depends_on": ["ST-023", "ST-054", "ST-063", "ST-064", "ST-056"],
+      "epics": ["E15"],
+      "prd_user_stories": ["E15-US2"]
+    },
+    {
+      "id": "ST-066",
+      "title": "Implement the Deterministic Lesson Quality Validation Engine",
+      "phase": "06",
+      "depends_on": [
+        "ST-011",
+        "ST-045",
+        "ST-047",
+        "ST-053",
+        "ST-057",
+        "ST-063",
+        "ST-064",
+        "ST-060"
+      ],
+      "epics": ["E16", "E19"],
+      "prd_user_stories": ["E16-US1"]
+    },
+    {
+      "id": "ST-067",
+      "title": "Build Validation Issue Resolution UI and Warning Acknowledgment",
+      "phase": "06",
+      "depends_on": ["ST-066", "ST-054", "ST-056"],
+      "epics": ["E16"],
+      "prd_user_stories": ["E16-US2"]
+    },
+    {
+      "id": "ST-068",
+      "title": "Implement Production Video Render Lifecycle, Progress, Retry, and Thumbnail",
+      "phase": "06",
+      "depends_on": [
+        "ST-024",
+        "ST-060",
+        "ST-066",
+        "ST-067",
+        "ST-005",
+        "ST-006"
+      ],
+      "epics": ["E17", "E21"],
+      "prd_user_stories": [
+        "E17-US1",
+        "E17-US2",
+        "E17-US3",
+        "E21-US1",
+        "E21-US2"
+      ]
+    },
+    {
+      "id": "ST-069",
+      "title": "Securely Download Video and Export Captions, Narration, and Storyboard",
+      "phase": "06",
+      "depends_on": ["ST-004", "ST-027", "ST-060", "ST-064", "ST-068"],
+      "epics": ["E18"],
+      "prd_user_stories": ["E18-US1", "E18-US3"]
+    },
+    {
+      "id": "ST-070",
+      "title": "Create Revocable View-Only Share Links and Public Playback",
+      "phase": "06",
+      "depends_on": ["ST-027", "ST-068", "ST-004"],
+      "epics": ["E18", "E21"],
+      "prd_user_stories": ["E18-US2", "E21-US3"]
+    },
+    {
+      "id": "ST-071",
+      "title": "Complete End-to-End MVP Acceptance, Security, Cost, and Recovery Hardening",
+      "phase": "07",
+      "depends_on": [
+        "ST-026",
+        "ST-029",
+        "ST-032",
+        "ST-036",
+        "ST-041",
+        "ST-045",
+        "ST-047",
+        "ST-051",
+        "ST-053",
+        "ST-056",
+        "ST-059",
+        "ST-061",
+        "ST-065",
+        "ST-067",
+        "ST-068",
+        "ST-069",
+        "ST-070"
+      ],
+      "epics": [
+        "E1",
+        "E2",
+        "E3",
+        "E4",
+        "E5",
+        "E6",
+        "E7",
+        "E8",
+        "E9",
+        "E10",
+        "E11",
+        "E12",
+        "E13",
+        "E14",
+        "E15",
+        "E16",
+        "E17",
+        "E18",
+        "E19",
+        "E20",
+        "E21"
+      ],
+      "prd_user_stories": ["E21-US1", "E21-US2", "E21-US3"]
+    }
+  ]
+}

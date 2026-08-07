@@ -1,0 +1,16 @@
+{
+  "name": "@avlp/test-fixtures",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@avlp/config": "workspace:*",
+    "@avlp/schemas": "workspace:*"
+  }
+}

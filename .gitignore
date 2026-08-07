@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.next/
+.turbo/
+*.tsbuildinfo
+coverage/
+.env
+.env.local
+playwright-report/
+test-results/
+__pycache__/
+.venv/
