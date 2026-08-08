@@ -12,7 +12,11 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@avlp/config": "workspace:*"
+    "@avlp/config": "workspace:*",
+    "@avlp/database": "workspace:*",
+    "@avlp/jobs": "workspace:*",
+    "@avlp/observability": "workspace:*",
+    "@avlp/schemas": "workspace:*"
   },
   "devDependencies": {
     "tsx": "^4.20.0"

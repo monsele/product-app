@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "1.0",
+  "id": "018f0000-0000-7000-8000-000000000011",
+  "sourceDocumentId": "018f0000-0000-7000-8000-000000000012",
+  "parsedDocumentVersion": 1,
+  "language": "en",
+  "pageCount": 1,
+  "sections": [
+    {
+      "id": "018f0000-0000-7000-8000-000000000013",
+      "order": 1,
+      "level": 1,
+      "heading": "Water cycle",
+      "pageStart": 1,
+      "blockIds": ["018f0000-0000-7000-8000-000000000014"],
+      "figureIds": ["018f0000-0000-7000-8000-000000000015"],
+      "tableIds": []
+    }
+  ],
+  "blocks": [
+    {
+      "id": "018f0000-0000-7000-8000-000000000014",
+      "sectionId": "018f0000-0000-7000-8000-000000000013",
+      "order": 1,
+      "pageStart": 1,
+      "kind": "caption",
+      "text": "The water cycle."
+    }
+  ],
+  "figures": [
+    {
+      "id": "018f0000-0000-7000-8000-000000000015",
+      "sectionId": "018f0000-0000-7000-8000-000000000013",
+      "pageStart": 1,
+      "order": 1,
+      "captionBlockId": "018f0000-0000-7000-8000-000000000014",
+      "altText": "Water cycle arrows.",
+      "sourceLocator": "figure-1"
+    }
+  ],
+  "tables": [],
+  "warnings": []
+}

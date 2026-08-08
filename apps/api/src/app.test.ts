@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { createId, identifierSchema } from "@avlp/config";
+import { createStructuredLogger } from "@avlp/observability";
 import { createApp } from "./app.js";
 
 describe("API correlation middleware", () => {
@@ -52,5 +53,22 @@ describe("API correlation middleware", () => {
     expect(response.json()).toMatchObject({
       error: { code: "internal_error", retryable: true },
     });
+  });
+
+  it("continues serving requests when the diagnostic log sink fails", async () => {
+    app = await createApp({
+      logger: createStructuredLogger({
+        service: "api-test",
+        sink: () => {
+          throw new Error("collector unavailable");
+        },
+      }),
+    });
+
+    const response = await app
+      .getHttpAdapter()
+      .getInstance()
+      .inject({ method: "GET", url: "/health" });
+    expect(response.statusCode).toBe(200);
   });
 });

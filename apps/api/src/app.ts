@@ -13,11 +13,18 @@ import {
   FastifyAdapter,
   type NestFastifyApplication,
 } from "@nestjs/platform-fastify";
-import { getCorrelationId, PublicError } from "@avlp/config";
+import { PublicError } from "@avlp/config";
 import type { DatabaseConnection } from "@avlp/database";
+import {
+  correlationIdFromHeader,
+  createStructuredLogger,
+  withCorrelationContext,
+  type StructuredLogger,
+} from "@avlp/observability";
 import { ApiExceptionFilter } from "./error-filter.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
+const TELEMETRY_SHUTDOWN = Symbol("TELEMETRY_SHUTDOWN");
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
 @Injectable()
@@ -58,10 +65,13 @@ class DatabaseShutdown implements OnApplicationShutdown {
   public constructor(
     @Inject(DATABASE_CONNECTION)
     private readonly database: ApiDatabaseConnection,
+    @Inject(TELEMETRY_SHUTDOWN)
+    private readonly telemetryShutdown: () => Promise<void>,
   ) {}
 
   public async onApplicationShutdown(): Promise<void> {
     await this.database.close();
+    await this.telemetryShutdown();
   }
 }
 
@@ -76,24 +86,49 @@ const healthyDatabase: ApiDatabaseConnection = {
   close: () => Promise.resolve(),
 };
 
-function createAppModule(database: ApiDatabaseConnection): DynamicModule {
+function createAppModule(
+  database: ApiDatabaseConnection,
+  telemetryShutdown: () => Promise<void>,
+): DynamicModule {
   return {
     module: AppModule,
-    providers: [{ provide: DATABASE_CONNECTION, useValue: database }],
+    providers: [
+      { provide: DATABASE_CONNECTION, useValue: database },
+      { provide: TELEMETRY_SHUTDOWN, useValue: telemetryShutdown },
+    ],
   };
 }
 
-export type CreateAppOptions = { database?: ApiDatabaseConnection };
+export type CreateAppOptions = {
+  database?: ApiDatabaseConnection;
+  logger?: StructuredLogger;
+  telemetryShutdown?: () => Promise<void>;
+  configure?: (app: NestFastifyApplication) => void | Promise<void>;
+};
 
 export async function createApp(
   options: CreateAppOptions = {},
 ): Promise<NestFastifyApplication> {
+  const logger = options.logger ?? createStructuredLogger({ service: "api" });
   const app = await NestFactory.create<NestFastifyApplication>(
-    createAppModule(options.database ?? healthyDatabase),
+    createAppModule(
+      options.database ?? healthyDatabase,
+      options.telemetryShutdown ?? (() => Promise.resolve()),
+    ),
     new FastifyAdapter({
       logger: {
         level: "info",
-        redact: ["req.headers.authorization", "req.headers.cookie", "req.url"],
+        redact: {
+          paths: [
+            "req.headers.authorization",
+            "req.headers.cookie",
+            "req.headers.x-api-key",
+            "req.url",
+            "req.body",
+            "res.headers.set-cookie",
+          ],
+          censor: "[REDACTED]",
+        },
       },
     }),
     { logger: false },
@@ -106,17 +141,20 @@ export async function createApp(
         correlationId?: string;
       };
       const header = request.headers["x-correlation-id"];
-      correlationRequest.correlationId = getCorrelationId(
-        Array.isArray(header) ? header[0] : header,
-      );
+      correlationRequest.correlationId = correlationIdFromHeader(header);
       reply.header("x-correlation-id", correlationRequest.correlationId);
-      request.log.info(
+      logger.info("api.request_received", {
+        correlationId: correlationRequest.correlationId,
+        method: request.method,
+        route: request.routeOptions.url,
+      });
+      withCorrelationContext(
         { correlationId: correlationRequest.correlationId },
-        "api_request_received",
+        done,
       );
-      done();
     });
   app.useGlobalFilters(new ApiExceptionFilter());
+  await options.configure?.(app);
   await app.init();
   return app;
 }

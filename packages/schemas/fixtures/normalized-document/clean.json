@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "1.0",
+  "id": "018f0000-0000-7000-8000-000000000001",
+  "sourceDocumentId": "018f0000-0000-7000-8000-000000000002",
+  "parsedDocumentVersion": 1,
+  "language": "en",
+  "pageCount": 2,
+  "title": "Water States",
+  "sections": [
+    {
+      "id": "018f0000-0000-7000-8000-000000000003",
+      "order": 1,
+      "level": 1,
+      "heading": "States",
+      "pageStart": 1,
+      "pageEnd": 2,
+      "blockIds": ["018f0000-0000-7000-8000-000000000004"],
+      "figureIds": [],
+      "tableIds": []
+    }
+  ],
+  "blocks": [
+    {
+      "id": "018f0000-0000-7000-8000-000000000004",
+      "sectionId": "018f0000-0000-7000-8000-000000000003",
+      "order": 1,
+      "pageStart": 1,
+      "boundingBox": { "x": 0.1, "y": 0.2, "width": 0.7, "height": 0.1 },
+      "kind": "paragraph",
+      "text": "Water changes state when heated or cooled."
+    }
+  ],
+  "figures": [],
+  "tables": [],
+  "warnings": []
+}

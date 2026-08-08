@@ -1,0 +1,891 @@
+{
+  "$ref": "#/definitions/LessonSpec",
+  "definitions": {
+    "LessonSpec": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": { "type": "string", "const": "1.0" },
+        "lessonId": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "projectId": { "$ref": "#/definitions/LessonSpec/properties/lessonId" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "subject": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "audience": {
+          "type": "object",
+          "properties": {
+            "ageBand": {
+              "type": "string",
+              "enum": ["8-10", "11-13", "14-16", "adult-beginner"]
+            },
+            "difficulty": {
+              "type": "string",
+              "enum": ["introductory", "intermediate"]
+            },
+            "priorKnowledge": {
+              "type": "array",
+              "items": { "type": "string", "minLength": 1, "maxLength": 300 },
+              "maxItems": 20
+            }
+          },
+          "required": ["ageBand", "difficulty", "priorKnowledge"],
+          "additionalProperties": false
+        },
+        "targetDurationSeconds": { "type": "number", "enum": [180, 300, 420] },
+        "tone": {
+          "type": "string",
+          "enum": ["friendly", "academic", "conversational"]
+        },
+        "themeId": { "type": "string", "const": "mvp-default" },
+        "objectiveIds": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/LessonSpec/properties/lessonId" },
+          "minItems": 1,
+          "maxItems": 50
+        },
+        "voice": {
+          "type": "object",
+          "properties": {
+            "providerVoiceId": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "speakingRate": { "type": "number", "minimum": 0.5, "maximum": 2 }
+          },
+          "required": ["providerVoiceId", "speakingRate"],
+          "additionalProperties": false
+        },
+        "scenes": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                  },
+                  "order": { "type": "integer", "exclusiveMinimum": 0 },
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "narration": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 5000
+                  },
+                  "durationSeconds": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 300
+                  },
+                  "onScreenText": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 300
+                    },
+                    "maxItems": 12
+                  },
+                  "transition": {
+                    "type": "string",
+                    "enum": ["cut", "fade", "slide"]
+                  },
+                  "assetBindings": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "assetId": {
+                          "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                        },
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "background",
+                            "diagram",
+                            "icon",
+                            "illustration",
+                            "photo",
+                            "supporting"
+                          ]
+                        },
+                        "altText": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        }
+                      },
+                      "required": ["assetId", "role"],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 20
+                  },
+                  "sourceRefs": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "documentId": {
+                          "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                        },
+                        "parsedDocumentVersion": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0
+                        },
+                        "pageStart": {
+                          "type": "integer",
+                          "exclusiveMinimum": 0
+                        },
+                        "pageEnd": { "type": "integer", "exclusiveMinimum": 0 },
+                        "sectionId": {
+                          "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                        },
+                        "blockIds": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                          },
+                          "minItems": 1,
+                          "maxItems": 100
+                        },
+                        "figureIds": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                          },
+                          "maxItems": 100
+                        },
+                        "tableIds": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                          },
+                          "maxItems": 100
+                        }
+                      },
+                      "required": [
+                        "documentId",
+                        "parsedDocumentVersion",
+                        "pageStart",
+                        "blockIds"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1,
+                    "maxItems": 100
+                  },
+                  "generatedAdditions": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "analogy",
+                            "example",
+                            "illustration",
+                            "clarification"
+                          ]
+                        },
+                        "content": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 2000
+                        },
+                        "rationale": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        }
+                      },
+                      "required": ["kind", "content", "rationale"],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 20
+                  },
+                  "template": { "type": "string", "const": "hook" },
+                  "visual": {
+                    "type": "object",
+                    "properties": {
+                      "question": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                      },
+                      "prompt": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                      }
+                    },
+                    "required": ["question"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "id",
+                  "order",
+                  "narration",
+                  "durationSeconds",
+                  "onScreenText",
+                  "transition",
+                  "assetBindings",
+                  "sourceRefs",
+                  "generatedAdditions",
+                  "template",
+                  "visual"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                  },
+                  "order": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/order"
+                  },
+                  "title": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/title"
+                  },
+                  "narration": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/narration"
+                  },
+                  "durationSeconds": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/durationSeconds"
+                  },
+                  "onScreenText": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/onScreenText"
+                  },
+                  "transition": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/transition"
+                  },
+                  "assetBindings": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/assetBindings"
+                  },
+                  "sourceRefs": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/sourceRefs"
+                  },
+                  "generatedAdditions": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/generatedAdditions"
+                  },
+                  "template": { "type": "string", "const": "definition" },
+                  "visual": {
+                    "type": "object",
+                    "properties": {
+                      "term": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "definition": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      }
+                    },
+                    "required": ["term", "definition"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "id",
+                  "order",
+                  "narration",
+                  "durationSeconds",
+                  "onScreenText",
+                  "transition",
+                  "assetBindings",
+                  "sourceRefs",
+                  "generatedAdditions",
+                  "template",
+                  "visual"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                  },
+                  "order": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/order"
+                  },
+                  "title": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/title"
+                  },
+                  "narration": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/narration"
+                  },
+                  "durationSeconds": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/durationSeconds"
+                  },
+                  "onScreenText": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/onScreenText"
+                  },
+                  "transition": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/transition"
+                  },
+                  "assetBindings": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/assetBindings"
+                  },
+                  "sourceRefs": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/sourceRefs"
+                  },
+                  "generatedAdditions": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/generatedAdditions"
+                  },
+                  "template": { "type": "string", "const": "process" },
+                  "visual": {
+                    "type": "object",
+                    "properties": {
+                      "steps": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 300
+                        },
+                        "minItems": 1,
+                        "maxItems": 12
+                      }
+                    },
+                    "required": ["steps"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "id",
+                  "order",
+                  "narration",
+                  "durationSeconds",
+                  "onScreenText",
+                  "transition",
+                  "assetBindings",
+                  "sourceRefs",
+                  "generatedAdditions",
+                  "template",
+                  "visual"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                  },
+                  "order": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/order"
+                  },
+                  "title": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/title"
+                  },
+                  "narration": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/narration"
+                  },
+                  "durationSeconds": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/durationSeconds"
+                  },
+                  "onScreenText": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/onScreenText"
+                  },
+                  "transition": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/transition"
+                  },
+                  "assetBindings": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/assetBindings"
+                  },
+                  "sourceRefs": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/sourceRefs"
+                  },
+                  "generatedAdditions": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/generatedAdditions"
+                  },
+                  "template": {
+                    "type": "string",
+                    "const": "input-process-output"
+                  },
+                  "visual": {
+                    "type": "object",
+                    "properties": {
+                      "input": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                      },
+                      "process": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                      },
+                      "output": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                      }
+                    },
+                    "required": ["input", "process", "output"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "id",
+                  "order",
+                  "narration",
+                  "durationSeconds",
+                  "onScreenText",
+                  "transition",
+                  "assetBindings",
+                  "sourceRefs",
+                  "generatedAdditions",
+                  "template",
+                  "visual"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                  },
+                  "order": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/order"
+                  },
+                  "title": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/title"
+                  },
+                  "narration": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/narration"
+                  },
+                  "durationSeconds": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/durationSeconds"
+                  },
+                  "onScreenText": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/onScreenText"
+                  },
+                  "transition": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/transition"
+                  },
+                  "assetBindings": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/assetBindings"
+                  },
+                  "sourceRefs": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/sourceRefs"
+                  },
+                  "generatedAdditions": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/generatedAdditions"
+                  },
+                  "template": { "type": "string", "const": "comparison" },
+                  "visual": {
+                    "type": "object",
+                    "properties": {
+                      "leftLabel": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "rightLabel": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "similarities": {
+                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/2/properties/visual/properties/steps"
+                      },
+                      "differences": {
+                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/2/properties/visual/properties/steps"
+                      }
+                    },
+                    "required": [
+                      "leftLabel",
+                      "rightLabel",
+                      "similarities",
+                      "differences"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "id",
+                  "order",
+                  "narration",
+                  "durationSeconds",
+                  "onScreenText",
+                  "transition",
+                  "assetBindings",
+                  "sourceRefs",
+                  "generatedAdditions",
+                  "template",
+                  "visual"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                  },
+                  "order": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/order"
+                  },
+                  "title": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/title"
+                  },
+                  "narration": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/narration"
+                  },
+                  "durationSeconds": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/durationSeconds"
+                  },
+                  "onScreenText": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/onScreenText"
+                  },
+                  "transition": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/transition"
+                  },
+                  "assetBindings": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/assetBindings"
+                  },
+                  "sourceRefs": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/sourceRefs"
+                  },
+                  "generatedAdditions": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/generatedAdditions"
+                  },
+                  "template": { "type": "string", "const": "cause-effect" },
+                  "visual": {
+                    "type": "object",
+                    "properties": {
+                      "causes": {
+                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/2/properties/visual/properties/steps"
+                      },
+                      "effects": {
+                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/2/properties/visual/properties/steps"
+                      }
+                    },
+                    "required": ["causes", "effects"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "id",
+                  "order",
+                  "narration",
+                  "durationSeconds",
+                  "onScreenText",
+                  "transition",
+                  "assetBindings",
+                  "sourceRefs",
+                  "generatedAdditions",
+                  "template",
+                  "visual"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                  },
+                  "order": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/order"
+                  },
+                  "title": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/title"
+                  },
+                  "narration": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/narration"
+                  },
+                  "durationSeconds": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/durationSeconds"
+                  },
+                  "onScreenText": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/onScreenText"
+                  },
+                  "transition": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/transition"
+                  },
+                  "assetBindings": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/assetBindings"
+                  },
+                  "sourceRefs": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/sourceRefs"
+                  },
+                  "generatedAdditions": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/generatedAdditions"
+                  },
+                  "template": { "type": "string", "const": "labelled-diagram" },
+                  "visual": {
+                    "type": "object",
+                    "properties": {
+                      "diagramDescription": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      },
+                      "labels": {
+                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/2/properties/visual/properties/steps"
+                      }
+                    },
+                    "required": ["diagramDescription", "labels"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "id",
+                  "order",
+                  "narration",
+                  "durationSeconds",
+                  "onScreenText",
+                  "transition",
+                  "assetBindings",
+                  "sourceRefs",
+                  "generatedAdditions",
+                  "template",
+                  "visual"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                  },
+                  "order": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/order"
+                  },
+                  "title": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/title"
+                  },
+                  "narration": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/narration"
+                  },
+                  "durationSeconds": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/durationSeconds"
+                  },
+                  "onScreenText": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/onScreenText"
+                  },
+                  "transition": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/transition"
+                  },
+                  "assetBindings": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/assetBindings"
+                  },
+                  "sourceRefs": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/sourceRefs"
+                  },
+                  "generatedAdditions": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/generatedAdditions"
+                  },
+                  "template": { "type": "string", "const": "analogy" },
+                  "visual": {
+                    "type": "object",
+                    "properties": {
+                      "sourceConcept": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                      },
+                      "analogy": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      },
+                      "mapping": {
+                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/2/properties/visual/properties/steps"
+                      }
+                    },
+                    "required": ["sourceConcept", "analogy", "mapping"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "id",
+                  "order",
+                  "narration",
+                  "durationSeconds",
+                  "onScreenText",
+                  "transition",
+                  "assetBindings",
+                  "sourceRefs",
+                  "generatedAdditions",
+                  "template",
+                  "visual"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                  },
+                  "order": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/order"
+                  },
+                  "title": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/title"
+                  },
+                  "narration": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/narration"
+                  },
+                  "durationSeconds": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/durationSeconds"
+                  },
+                  "onScreenText": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/onScreenText"
+                  },
+                  "transition": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/transition"
+                  },
+                  "assetBindings": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/assetBindings"
+                  },
+                  "sourceRefs": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/sourceRefs"
+                  },
+                  "generatedAdditions": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/generatedAdditions"
+                  },
+                  "template": { "type": "string", "const": "worked-example" },
+                  "visual": {
+                    "type": "object",
+                    "properties": {
+                      "problem": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      },
+                      "steps": {
+                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/2/properties/visual/properties/steps"
+                      },
+                      "answer": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      }
+                    },
+                    "required": ["problem", "steps", "answer"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "id",
+                  "order",
+                  "narration",
+                  "durationSeconds",
+                  "onScreenText",
+                  "transition",
+                  "assetBindings",
+                  "sourceRefs",
+                  "generatedAdditions",
+                  "template",
+                  "visual"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                  },
+                  "order": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/order"
+                  },
+                  "title": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/title"
+                  },
+                  "narration": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/narration"
+                  },
+                  "durationSeconds": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/durationSeconds"
+                  },
+                  "onScreenText": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/onScreenText"
+                  },
+                  "transition": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/transition"
+                  },
+                  "assetBindings": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/assetBindings"
+                  },
+                  "sourceRefs": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/sourceRefs"
+                  },
+                  "generatedAdditions": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/generatedAdditions"
+                  },
+                  "template": { "type": "string", "const": "summary" },
+                  "visual": {
+                    "type": "object",
+                    "properties": {
+                      "takeaways": {
+                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/2/properties/visual/properties/steps"
+                      },
+                      "callToAction": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 500
+                      }
+                    },
+                    "required": ["takeaways"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "id",
+                  "order",
+                  "narration",
+                  "durationSeconds",
+                  "onScreenText",
+                  "transition",
+                  "assetBindings",
+                  "sourceRefs",
+                  "generatedAdditions",
+                  "template",
+                  "visual"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 100
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "lessonId",
+        "projectId",
+        "title",
+        "subject",
+        "audience",
+        "targetDurationSeconds",
+        "tone",
+        "themeId",
+        "objectiveIds",
+        "voice",
+        "scenes"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}
