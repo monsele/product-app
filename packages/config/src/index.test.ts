@@ -21,6 +21,7 @@ describe("parseEnvironment", () => {
       parseEnvironment({
         DATABASE_URL: "postgresql://localhost/app",
         REDIS_URL: "redis://localhost:6379",
+        AUTH_SESSION_SECRET: "a".repeat(32),
       }).PORT,
     ).toBe(3001);
   });
@@ -30,14 +31,47 @@ describe("parseEnvironment", () => {
       parseEnvironment({
         DATABASE_URL: "not-a-url",
         REDIS_URL: "redis://localhost:6379",
+        AUTH_SESSION_SECRET: "a".repeat(32),
       }),
     ).toThrow();
     expect(() =>
       parseEnvironment({
         DATABASE_URL: "https://database.example.test/app",
         REDIS_URL: "redis://localhost:6379",
+        AUTH_SESSION_SECRET: "a".repeat(32),
       }),
     ).toThrow("PostgreSQL connection URL");
+  });
+
+  it("requires the browser origin for production cookie authentication", () => {
+    expect(() =>
+      parseEnvironment({
+        NODE_ENV: "production",
+        DATABASE_URL: "postgresql://localhost/app",
+        REDIS_URL: "redis://localhost:6379",
+        AUTH_SESSION_SECRET: "a".repeat(32),
+      }),
+    ).toThrow("WEB_ORIGIN");
+    expect(() =>
+      parseEnvironment({
+        NODE_ENV: "production",
+        DATABASE_URL: "postgresql://localhost/app",
+        REDIS_URL: "redis://localhost:6379",
+        AUTH_SESSION_SECRET: "a".repeat(32),
+        WEB_ORIGIN: "https://app.example.test",
+      }),
+    ).toThrow("PASSWORD_RESET_EMAIL_WEBHOOK_URL");
+    expect(
+      parseEnvironment({
+        NODE_ENV: "production",
+        DATABASE_URL: "postgresql://localhost/app",
+        REDIS_URL: "redis://localhost:6379",
+        AUTH_SESSION_SECRET: "a".repeat(32),
+        WEB_ORIGIN: "https://app.example.test",
+        PASSWORD_RESET_EMAIL_WEBHOOK_URL:
+          "https://mail.example.test/password-reset",
+      }).PASSWORD_RESET_TTL_SECONDS,
+    ).toBe(900);
   });
 
   it("validates optional worker values when they are supplied", () => {

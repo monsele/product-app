@@ -2,7 +2,7 @@
 story_id: ST-009
 title: "Create the Test-Fixture and AI Evaluation Baseline"
 phase: "00 \u2014 Foundation"
-status: Ready
+status: In Review
 priority: must-have
 epics: ["E21"]
 prd_user_stories: ["E21-US1", "E21-US2"]
@@ -111,15 +111,15 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-08
+- **Completed:** 2026-08-08; approval-ready after scoped review.
+- **Branch/PR:** Current local branch; no PR created.
+- **Files changed:** `packages/evals`, CI workflow, lockfile, story index, and this record.
+- **Migrations:** None.
+- **Contracts changed:** Added internal `EvaluationCase`, `EvaluationResult`, and rubric-dimension schemas.
+- **Commands/tests run:** `pnpm --filter @avlp/schemas build`; `pnpm --filter @avlp/evals test`; `pnpm --filter @avlp/evals eval`; `pnpm --filter @avlp/evals typecheck`; `pnpm --filter @avlp/evals lint`; `pnpm --filter @avlp/evals build`.
+- **Screenshots or representative output:** CLI emitted deterministic JSON with five expected-pass cases plus one deliberately invalid LessonSpec reported as an expected failed result; each result includes schema, duration, text-density, objective-placeholder, and citation checks as applicable.
+- **Decisions and assumptions:** Fixtures use original synthetic science text to avoid licensing/sensitivity risk. Provider and visual-frame checks remain explicitly isolated/manual until the respective implementations exist.
+- **Deviations from story/technical guide:** Initial baseline has five cases, as scoped; guide target is approximately twenty over time.
+- **Known risks or follow-up:** Approved with follow-ups: (1) add a CLI-output schema/snapshot test; (2) add a malformed-case-metadata failure-path test; (3) replace shared audio-timing and expected-render-frame placeholders with scenario-specific expectations when audio and renderer stages are implemented. These do not block the provider-free baseline because those stages are not yet available.

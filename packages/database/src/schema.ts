@@ -39,6 +39,98 @@ export const databaseMetadata = pgTable("database_metadata", {
   ...auditColumns(),
 });
 
+export const userStatusValues = ["active", "disabled"] as const;
+export const userStatus = pgEnum("user_status", userStatusValues);
+
+/** Application-owned user profiles are the durable ownership root. */
+export const users = pgTable(
+  "users",
+  {
+    id: primaryId(),
+    emailNormalized: text("email_normalized").notNull(),
+    displayName: text("display_name").notNull(),
+    status: userStatus("status").notNull().default("active"),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("users_email_normalized_unique").on(table.emailNormalized),
+  ],
+);
+
+/** Maps the application user to its authentication provider subject. */
+export const authIdentities = pgTable(
+  "auth_identities",
+  {
+    id: primaryId(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull(),
+    providerSubject: text("provider_subject").notNull(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("auth_identities_provider_subject_unique").on(
+      table.provider,
+      table.providerSubject,
+    ),
+    uniqueIndex("auth_identities_user_provider_unique").on(
+      table.userId,
+      table.provider,
+    ),
+  ],
+);
+
+/** Credential hashes remain separate from profile and provider mapping records. */
+export const passwordCredentials = pgTable("password_credentials", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  passwordHash: text("password_hash").notNull(),
+  ...auditColumns(),
+});
+
+/** Browser session tokens are stored only as keyed hashes. */
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: primaryId(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: utcTimestamp("expires_at").notNull(),
+    revokedAt: utcTimestamp("revoked_at"),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("sessions_token_hash_unique").on(table.tokenHash),
+    index("sessions_user_expiry_idx").on(table.userId, table.expiresAt),
+  ],
+);
+
+/** Password-reset secrets are persisted only as keyed hashes and consumed once. */
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: primaryId(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: utcTimestamp("expires_at").notNull(),
+    usedAt: utcTimestamp("used_at"),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("password_reset_tokens_token_hash_unique").on(table.tokenHash),
+    index("password_reset_tokens_user_expiry_idx").on(
+      table.userId,
+      table.expiresAt,
+    ),
+  ],
+);
+
 export const jobStateValues = [
   "queued",
   "running",

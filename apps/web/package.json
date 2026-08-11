@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@avlp/config": "workspace:*",
+    "@avlp/design-system": "workspace:*",
     "@avlp/schemas": "workspace:*",
     "next": "^15.5.0",
     "react": "^19.1.0",

@@ -1,15 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { z, ZodError } from "zod";
+import { identifierSchema, type Identifier } from "./identifiers.js";
 
-const uuidV7Pattern =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const utcTimestampPattern =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
 
-export const identifierSchema = z
-  .string()
-  .regex(uuidV7Pattern, "Expected a UUIDv7.");
-export type Identifier = z.infer<typeof identifierSchema>;
+export { identifierSchema, type Identifier } from "./identifiers.js";
 
 export function createId(now = new Date()): Identifier {
   const milliseconds = BigInt(now.getTime());
@@ -247,6 +243,42 @@ export const apiEnvironmentSchema = baseEnvironmentSchema
   .merge(redisEnvironmentSchema)
   .extend({
     PORT: z.coerce.number().int().positive().max(65535).default(3001),
+    AUTH_SESSION_SECRET: z.string().min(32),
+    WEB_ORIGIN: z.string().url().optional(),
+    PASSWORD_RESET_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(60)
+      .max(3600)
+      .default(900),
+    PASSWORD_RESET_EMAIL_WEBHOOK_URL: z
+      .string()
+      .url()
+      .refine(
+        (value) => new URL(value).protocol === "https:",
+        "Password-reset email webhook URLs must use HTTPS.",
+      )
+      .optional(),
+    PASSWORD_RESET_EMAIL_WEBHOOK_TOKEN: z.string().min(1).optional(),
+  })
+  .superRefine((value, context) => {
+    if (value.NODE_ENV === "production" && value.WEB_ORIGIN === undefined)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["WEB_ORIGIN"],
+        message:
+          "WEB_ORIGIN is required in production for CORS and CSRF protection.",
+      });
+    if (
+      value.NODE_ENV === "production" &&
+      value.PASSWORD_RESET_EMAIL_WEBHOOK_URL === undefined
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["PASSWORD_RESET_EMAIL_WEBHOOK_URL"],
+        message:
+          "PASSWORD_RESET_EMAIL_WEBHOOK_URL is required in production for password-reset delivery.",
+      });
   });
 export const workerEnvironmentSchema = baseEnvironmentSchema
   .merge(databaseEnvironmentSchema.partial())

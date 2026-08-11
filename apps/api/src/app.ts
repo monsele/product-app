@@ -1,10 +1,17 @@
 import "reflect-metadata";
+import fastifyCookie from "@fastify/cookie";
+import fastifyCors from "@fastify/cors";
 import {
+  Body,
   Controller,
+  Delete,
   Get,
   Inject,
   Injectable,
   Module,
+  Post,
+  Req,
+  Res,
   type DynamicModule,
   type OnApplicationShutdown,
 } from "@nestjs/common";
@@ -14,6 +21,16 @@ import {
   type NestFastifyApplication,
 } from "@nestjs/platform-fastify";
 import { PublicError } from "@avlp/config";
+import {
+  DuplicateEmailError,
+  InvalidPasswordResetTokenError,
+  InMemoryAuthRateLimiter,
+  loginInputSchema,
+  passwordResetConfirmInputSchema,
+  passwordResetRequestInputSchema,
+  registerInputSchema,
+  type AuthGateway,
+} from "@avlp/auth";
 import type { DatabaseConnection } from "@avlp/database";
 import {
   correlationIdFromHeader,
@@ -22,9 +39,14 @@ import {
   type StructuredLogger,
 } from "@avlp/observability";
 import { ApiExceptionFilter } from "./error-filter.js";
+import type { FastifyReply, FastifyRequest } from "fastify";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
 const TELEMETRY_SHUTDOWN = Symbol("TELEMETRY_SHUTDOWN");
+const AUTH_GATEWAY = Symbol("AUTH_GATEWAY");
+const TRUSTED_ORIGIN = Symbol("TRUSTED_ORIGIN");
+const AUTH_RATE_LIMITER = Symbol("AUTH_RATE_LIMITER");
+export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
 @Injectable()
@@ -60,6 +82,179 @@ class HealthController {
   }
 }
 
+type RequestWithAuth = FastifyRequest & { correlationId?: string };
+
+@Controller("auth")
+class AuthController {
+  public constructor(
+    @Inject(AUTH_GATEWAY) private readonly auth: AuthGateway,
+    @Inject(TRUSTED_ORIGIN) private readonly trustedOrigin: string | undefined,
+    @Inject(AUTH_RATE_LIMITER)
+    private readonly rateLimiter: InMemoryAuthRateLimiter,
+  ) {}
+
+  @Post("register")
+  public async register(
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ): Promise<{ user: unknown }> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    try {
+      const parsed = registerInputSchema.parse(input);
+      assertRateLimit(this.rateLimiter, "register", parsed.email, request.ip);
+      const result = await this.auth.register(parsed, {
+        correlationId:
+          request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+      });
+      setSessionCookie(reply, result.sessionToken, result.expiresAt);
+      return { user: result.user };
+    } catch (error) {
+      if (error instanceof DuplicateEmailError)
+        throw new PublicError(
+          "bad_request",
+          "An account already exists for this email.",
+          409,
+        );
+      throw error;
+    }
+  }
+
+  @Post("login")
+  public async login(
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ): Promise<{ user: unknown }> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const parsed = loginInputSchema.parse(input);
+    assertRateLimit(this.rateLimiter, "login", parsed.email, request.ip);
+    const result = await this.auth.signIn(parsed, {
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+    if (result === null)
+      throw new PublicError("unauthorized", "Invalid email or password.", 401);
+    setSessionCookie(reply, result.sessionToken, result.expiresAt);
+    return { user: result.user };
+  }
+
+  @Delete("session")
+  public async logout(
+    @Req() request: RequestWithAuth,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ): Promise<{ status: "signed_out" }> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const token = request.cookies[sessionCookieName];
+    if (token !== undefined)
+      await this.auth.signOut(token, {
+        correlationId:
+          request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+      });
+    reply.clearCookie(sessionCookieName, sessionCookieOptions());
+    return { status: "signed_out" };
+  }
+
+  @Get("session")
+  public async currentSession(
+    @Req() request: RequestWithAuth,
+  ): Promise<{ user: unknown }> {
+    const token = request.cookies[sessionCookieName];
+    const user =
+      token === undefined ? null : await this.auth.currentSession(token);
+    if (user === null)
+      throw new PublicError("unauthorized", "Authentication is required.", 401);
+    return { user };
+  }
+
+  @Post("password-reset/request")
+  public async requestPasswordReset(
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth,
+  ): Promise<{ status: "accepted" }> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const parsed = passwordResetRequestInputSchema.parse(input);
+    assertRateLimit(
+      this.rateLimiter,
+      "password_reset",
+      parsed.email,
+      request.ip,
+    );
+    await this.auth.requestPasswordReset(parsed, {
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+    return { status: "accepted" };
+  }
+
+  @Post("password-reset/confirm")
+  public async confirmPasswordReset(
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth,
+  ): Promise<{ status: "password_reset" }> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    try {
+      const parsed = passwordResetConfirmInputSchema.parse(input);
+      await this.auth.confirmPasswordReset(parsed, {
+        correlationId:
+          request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+      });
+      return { status: "password_reset" };
+    } catch (error) {
+      if (error instanceof InvalidPasswordResetTokenError)
+        throw new PublicError(
+          "bad_request",
+          "This password reset link is invalid or has expired.",
+          400,
+        );
+      throw error;
+    }
+  }
+}
+
+export function sessionCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+  };
+}
+
+function setSessionCookie(
+  reply: FastifyReply,
+  token: string,
+  expiresAt: Date,
+): void {
+  reply.setCookie(sessionCookieName, token, {
+    ...sessionCookieOptions(),
+    expires: expiresAt,
+  });
+}
+
+function assertTrustedOrigin(
+  request: FastifyRequest,
+  trustedOrigin: string | undefined,
+): void {
+  if (trustedOrigin === undefined) return;
+  if (request.headers.origin !== trustedOrigin)
+    throw new PublicError("forbidden", "Request origin is not allowed.", 403);
+}
+
+function assertRateLimit(
+  limiter: InMemoryAuthRateLimiter,
+  operation: "register" | "login" | "password_reset",
+  email: string,
+  network: string,
+): void {
+  if (!limiter.check({ operation, email, network }))
+    throw new PublicError(
+      "rate_limited",
+      "Too many attempts. Please try again later.",
+      429,
+    );
+}
+
 @Injectable()
 class DatabaseShutdown implements OnApplicationShutdown {
   public constructor(
@@ -76,7 +271,7 @@ class DatabaseShutdown implements OnApplicationShutdown {
 }
 
 @Module({
-  controllers: [HealthController],
+  controllers: [HealthController, AuthController],
   providers: [HealthService, DatabaseShutdown],
 })
 class AppModule {}
@@ -89,12 +284,18 @@ const healthyDatabase: ApiDatabaseConnection = {
 function createAppModule(
   database: ApiDatabaseConnection,
   telemetryShutdown: () => Promise<void>,
+  authGateway: AuthGateway,
+  trustedOrigin: string | undefined,
+  authRateLimiter: InMemoryAuthRateLimiter,
 ): DynamicModule {
   return {
     module: AppModule,
     providers: [
       { provide: DATABASE_CONNECTION, useValue: database },
       { provide: TELEMETRY_SHUTDOWN, useValue: telemetryShutdown },
+      { provide: AUTH_GATEWAY, useValue: authGateway },
+      { provide: TRUSTED_ORIGIN, useValue: trustedOrigin },
+      { provide: AUTH_RATE_LIMITER, useValue: authRateLimiter },
     ],
   };
 }
@@ -103,7 +304,67 @@ export type CreateAppOptions = {
   database?: ApiDatabaseConnection;
   logger?: StructuredLogger;
   telemetryShutdown?: () => Promise<void>;
+  authGateway?: AuthGateway;
+  trustedOrigin?: string;
+  authRateLimiter?: InMemoryAuthRateLimiter;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
+};
+
+const unavailableAuthGateway: AuthGateway = {
+  register: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Authentication is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  signIn: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Authentication is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  currentSession: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Authentication is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  signOut: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Authentication is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  requestPasswordReset: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Authentication is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  confirmPasswordReset: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Authentication is unavailable.",
+        503,
+        true,
+      ),
+    ),
 };
 
 export async function createApp(
@@ -114,6 +375,10 @@ export async function createApp(
     createAppModule(
       options.database ?? healthyDatabase,
       options.telemetryShutdown ?? (() => Promise.resolve()),
+      options.authGateway ?? unavailableAuthGateway,
+      options.trustedOrigin,
+      options.authRateLimiter ??
+        new InMemoryAuthRateLimiter("development-only-rate-limit-key"),
     ),
     new FastifyAdapter({
       logger: {
@@ -133,6 +398,18 @@ export async function createApp(
     }),
     { logger: false },
   );
+  await app.register(
+    fastifyCookie as unknown as Parameters<typeof app.register>[0],
+  );
+  if (options.trustedOrigin !== undefined)
+    await app.register(
+      fastifyCors as unknown as Parameters<typeof app.register>[0],
+      {
+        origin: options.trustedOrigin,
+        credentials: true,
+        methods: ["GET", "POST", "DELETE"],
+      },
+    );
   app
     .getHttpAdapter()
     .getInstance()

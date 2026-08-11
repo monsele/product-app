@@ -2,7 +2,7 @@
 story_id: ST-010
 title: "Create the MVP Video Design System and Motion Tokens"
 phase: "01 \u2014 Visual Runtime Proof"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E11"]
 prd_user_stories: ["E11-US2"]
@@ -114,15 +114,16 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-08
+- **Completed:** 2026-08-08
+- **Branch/PR:** Existing local worktree; no branch or PR created.
+- **Files changed:** `packages/design-system` theme, provider, preview composition, tests, package metadata, and lockfile; browser preview test route and Playwright coverage in `apps/web` and `e2e`; minimal token-consumer import package in `packages/scene-library`; `STORY_INDEX.md`.
+- **Migrations:** None.
+- **Contracts changed:** Added exported `VideoTheme`, `MotionPreset`, `SafeArea`, transition presets, `VideoThemeProvider`, and design-preview composition contract. `@avlp/scene-library` now consumes the public theme, safe-area, motion, and transition contracts.
+- **Commands/tests run:** `pnpm --filter @avlp/design-system test` (9 passing, including a PNG frame-regression and render smoke); `lint`, `typecheck`, and `build` for the design-system workspace; `pnpm --filter @avlp/scene-library lint`, `typecheck`, `test`, and `build` (passing); `pnpm --filter @avlp/web typecheck`; `pnpm --filter @avlp/web build`; `pnpm exec playwright test e2e/video-design-preview.spec.ts`; targeted Prettier check; `git diff --check` (all passing). Root `pnpm format:check` remains blocked by pre-existing ST-009 eval/lockfile formatting changes.
+- **Screenshots or representative output:** Deterministic token-driven enter transition reaches fully visible at frame 18; the browser Player waits for the font set and verifies that Atkinson Hyperlegible loaded before capturing a 1920×1080 decoded-pixel baseline at frame 18. The renderer uses the same Playwright Chromium executable, has decoded-pixel and PNG baselines at frame 18, and has a PNG baseline during the fade at frame 96. The browser and renderer comparison permits at most 40,000 differing channels and 200,000 aggregate channel levels; its measured shared-Chromium baseline is 38,933 and 181,497 respectively, covering only isolated compositing edges.
+- **Decisions and assumptions:** One 1920x1080, 30fps theme uses bundled Atkinson Hyperlegible font assets and controlled cut/fade/slide transitions; video tokens remain separate from web UI tokens.
+- **Deviations from story/technical guide:** No material deviations. The design-system package supplies the Remotion root for the shared preview/render composition.
+- **Known risks or follow-up:** ST-011 must extend `@avlp/scene-library` with the runtime registry, template schemas, layout validation, and components; this story adds only the token-consumer boundary.
+- **Review outcome:** Approved. The provider is fixed to the one approved theme, preview animation consumes shared enter/exit presets, the preview demonstrates the approved fade transition, browser Player plus renderer representative frames have SHA-256 baselines, the preview root explicitly fills the 1920×1080 canvas, and browser font loading is explicitly verified before parity capture.

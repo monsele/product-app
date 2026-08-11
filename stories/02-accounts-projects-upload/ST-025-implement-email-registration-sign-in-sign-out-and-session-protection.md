@@ -2,7 +2,7 @@
 story_id: ST-025
 title: "Implement Email Registration, Sign-In, Sign-Out, and Session Protection"
 phase: "02 \u2014 Accounts, Projects, and Upload"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E1"]
 prd_user_stories: ["E1-US1", "E1-US2"]
@@ -118,15 +118,41 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-08
+- **Completed:** 2026-08-08
+- **Branch/PR:** No branch or PR created.
+- **Files changed:** Added `@avlp/auth`, authentication routes and web pages,
+  a database migration, and focused tests; updated API/config/database package
+  surfaces and `STORY_INDEX.md`.
+- **Migrations:** `0006_wise_mystique` adds `users`, `auth_identities`,
+  `password_credentials`, and `sessions` with forward-compatibility notes.
+- **Contracts changed:** Public `AuthenticatedUser`, `AuthGateway`,
+  register/login input schemas, and the `POST /auth/register`, `POST
+/auth/login`, `DELETE /auth/session`, and `GET /auth/session` endpoints.
+- **Commands/tests run:** Affected package lint, typecheck, test, and build
+  commands passed. API route tests cover registration cookie/CORS/CSRF,
+  generic invalid credentials, logout revocation; web tests cover protected
+  route middleware; Next production build passed. The Postgres auth integration
+  suite was also run successfully against a disposable local PostgreSQL 18
+  cluster: 6 tests passed, including registration persistence, normalized
+  duplicate-email rejection, generic invalid credentials, session lookup, and
+  logout revocation.
+- **Screenshots or representative output:** Next production build completed
+  with `/workspace` as a dynamic protected route.
+- **Decisions and assumptions:** Used the application-managed adapter permitted
+  by the story, with Argon2id credential hashes, keyed opaque session hashes,
+  secure HttpOnly SameSite=Lax cookies, explicit production browser origin,
+  audit entries, and bounded per-account/per-network rate limits. API is
+  deployed behind the web origin so session cookies stay first-party.
+- **Deviations from story/technical guide:** No material deviations. Password
+  reset, social login, and roles remain out of scope.
+- **Known risks or follow-up:** Configure `AUTH_SESSION_SECRET`, `WEB_ORIGIN`,
+  and a same-origin API proxy before deployment. Run the included Postgres
+  integration suite where `TEST_DATABASE_URL` is available; add shared edge
+  rate limiting before horizontally scaling the API.
+- **Review outcome:** Approved after requiring production `WEB_ORIGIN`, adding
+  explicit origin/CORS protection and session validation at the workspace
+  boundary. Follow-up review fixed Drizzle-wrapped duplicate-key detection and
+  safe network/non-JSON error handling in the authentication form, then passed
+  the formerly skipped Postgres integration suite.

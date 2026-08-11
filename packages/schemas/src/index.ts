@@ -1,4 +1,4 @@
-import { identifierSchema } from "@avlp/config";
+import { identifierSchema } from "@avlp/config/identifiers";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
