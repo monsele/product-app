@@ -4,7 +4,7 @@
     "LessonSpec": {
       "type": "object",
       "properties": {
-        "schemaVersion": { "type": "string", "const": "1.7" },
+        "schemaVersion": { "type": "string", "const": "1.8" },
         "lessonId": {
           "type": "string",
           "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
@@ -959,6 +959,11 @@
                   "visual": {
                     "type": "object",
                     "properties": {
+                      "answer": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 1000
+                      },
                       "problem": {
                         "type": "string",
                         "minLength": 1,
@@ -973,14 +978,9 @@
                         },
                         "minItems": 1,
                         "maxItems": 12
-                      },
-                      "answer": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 1000
                       }
                     },
-                    "required": ["problem", "steps", "answer"],
+                    "required": ["answer", "problem", "steps"],
                     "additionalProperties": false
                   }
                 },
@@ -1037,12 +1037,38 @@
                     "type": "object",
                     "properties": {
                       "takeaways": {
-                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/8/properties/visual/properties/steps"
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "text": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 140
+                            },
+                            "objectiveId": {
+                              "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                            }
+                          },
+                          "required": ["text"],
+                          "additionalProperties": false
+                        },
+                        "minItems": 1,
+                        "maxItems": 4
+                      },
+                      "centralModel": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 140
+                      },
+                      "centralAssetSlot": {
+                        "type": "string",
+                        "const": "central-visual"
                       },
                       "callToAction": {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 500
+                        "maxLength": 120
                       }
                     },
                     "required": ["takeaways"],

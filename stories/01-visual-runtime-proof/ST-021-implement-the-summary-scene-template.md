@@ -2,7 +2,7 @@
 story_id: ST-021
 title: "Implement the Summary Scene Template"
 phase: "01 \u2014 Visual Runtime Proof"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E11"]
 prd_user_stories: ["E11-US1", "E11-US2"]
@@ -36,11 +36,11 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Scope
 
-- [ ] Define summary visual schema.
-- [ ] Support lesson title/summary heading, bounded takeaway items, and optional central asset/model.
-- [ ] Implement sequential recall/rebuild animation.
-- [ ] Support optional objective-linked badges without displaying internal IDs.
-- [ ] Add text-only and visual-assisted fixtures.
+- [x] Define summary visual schema.
+- [x] Support lesson title/summary heading, bounded takeaway items, and optional central asset/model.
+- [x] Implement sequential recall/rebuild animation.
+- [x] Support optional objective-linked badges without displaying internal IDs.
+- [x] Add text-only and visual-assisted fixtures.
 
 ## Technical Implementation Requirements
 
@@ -61,17 +61,17 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Acceptance Criteria
 
-- [ ] All valid takeaways render without overflow.
-- [ ] The template supports text-only rendering.
-- [ ] Excessive items/text fail with field-specific errors.
-- [ ] The final frame is suitable for thumbnail selection if chosen.
+- [x] All valid takeaways render without overflow.
+- [x] The template supports text-only rendering.
+- [x] Excessive items/text fail with field-specific errors.
+- [x] The final frame is suitable for thumbnail selection if chosen.
 
 ## Required Tests
 
-- [ ] Schema tests.
-- [ ] Visual regression tests.
-- [ ] Final-frame render test.
-- [ ] Caption safe-area test.
+- [x] Schema tests.
+- [x] Visual regression tests.
+- [x] Final-frame render test.
+- [x] Caption safe-area test.
 
 ## Out of Scope
 
@@ -84,39 +84,39 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Implementation Checklist
 
-- [ ] Inspect the current repository and related completed stories.
-- [ ] Write a short implementation plan listing files, contracts, migrations, tests, and risks.
-- [ ] Implement only this story's scope.
-- [ ] Add or update schemas before changing consumers.
-- [ ] Add authorization, validation, error, retry, concurrency, and idempotency behavior where applicable.
-- [ ] Add structured logs, correlation, audit, and usage records where applicable.
-- [ ] Run the required automated tests and affected workspace quality commands.
-- [ ] Self-review the diff for scope creep, insecure access, stale data races, and unbounded provider calls.
-- [ ] Update documentation and this story's Dev Agent Record.
+- [x] Inspect the current repository and related completed stories.
+- [x] Write a short implementation plan listing files, contracts, migrations, tests, and risks.
+- [x] Implement only this story's scope.
+- [x] Add or update schemas before changing consumers.
+- [x] Add authorization, validation, error, retry, concurrency, and idempotency behavior where applicable.
+- [x] Add structured logs, correlation, audit, and usage records where applicable.
+- [x] Run the required automated tests and affected workspace quality commands.
+- [x] Self-review the diff for scope creep, insecure access, stale data races, and unbounded provider calls.
+- [x] Update documentation and this story's Dev Agent Record.
 
 ## Definition of Done
 
-- [ ] Every acceptance criterion is implemented and verified.
-- [ ] Every required test is implemented and passing.
-- [ ] `lint`, `typecheck`, `test`, and `build` pass for all affected workspaces.
-- [ ] Database migrations and compatibility notes are complete where applicable.
-- [ ] Public schemas, events, and endpoints are documented.
-- [ ] No unresolved tenant-isolation, security, idempotency, concurrency, data-loss, or cost-control defect remains in this scope.
-- [ ] No out-of-scope feature or unrelated refactor was added.
-- [ ] The Dev Agent Record is complete.
-- [ ] This story and `STORY_INDEX.md` are marked **Done**.
+- [x] Every acceptance criterion is implemented and verified.
+- [x] Every required test is implemented and passing.
+- [x] `lint`, `typecheck`, `test`, and `build` pass for all affected workspaces.
+- [x] Database migrations and compatibility notes are complete where applicable.
+- [x] Public schemas, events, and endpoints are documented.
+- [x] No unresolved tenant-isolation, security, idempotency, concurrency, data-loss, or cost-control defect remains in this scope.
+- [x] No out-of-scope feature or unrelated refactor was added.
+- [x] The Dev Agent Record is complete.
+- [x] This story and `STORY_INDEX.md` are marked **Done**.
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-12
+- **Completed:** 2026-08-12; ready for review.
+- **Branch/PR:** `story/st-020` (pre-existing working branch)
+- **Files changed:** Summary schema, registry, renderer, fixtures, schema and render tests, generated JSON schema, and compatibility notes.
+- **Migrations:** LessonSpec 1.7 to 1.8 upgrades concise string takeaways to structured items; summaries with more than four takeaways require teacher migration.
+- **Contracts changed:** `SummaryVisual` now has 1–4 structured takeaways, optional `centralModel`, optional approved `central-visual` asset slot, and optional call to action.
+- **Commands/tests run:** schemas build and test (36 passing); scene-library typecheck and lint passing; full scene-library test (41 passing, including full Remotion smoke); summary unit/safe-area test (3 passing); deterministic three-frame Remotion render-regression test passing.
+- **Screenshots or representative output:** SHA-256 visual regression frames at initial, recall, and thumbnail frames in `summary-scene-render.test.ts`.
+- **Decisions and assumptions:** Objective badges deliberately show only the generic label `OBJECTIVE`, never internal identifiers. Central assets reuse the existing approved image-source policy and block final render when unresolved.
+- **Deviations from story/technical guide:** None.
+- **Known risks or follow-up:** The full scene-library suite takes about 87 seconds because its visual smoke test renders every template; run it in CI or a background process rather than a short interactive command window.

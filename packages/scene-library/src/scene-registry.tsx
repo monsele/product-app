@@ -8,6 +8,8 @@ import {
   hookVisualSchema,
   ipoVisualSchema,
   processVisualSchema,
+  summaryVisualSchema,
+  workedExampleVisualSchema,
   sceneSpecSchema,
   sceneTemplateSchema,
   sceneTemplateValues,
@@ -30,6 +32,8 @@ import { ComparisonScene } from "./comparison-scene.js";
 import { CauseEffectScene } from "./cause-effect-scene.js";
 import { LabelledDiagramScene } from "./labelled-diagram-scene.js";
 import { AnalogyScene } from "./analogy-scene.js";
+import { WorkedExampleScene } from "./worked-example-scene.js";
+import { SummaryScene } from "./summary-scene.js";
 import { planDiagramCallouts } from "./diagram-layout.js";
 
 export type SceneValidationIssue = Readonly<{
@@ -100,9 +104,6 @@ export type SceneRegistry = Readonly<
   Record<SceneTemplate, SceneDefinition<z.ZodTypeAny>>
 >;
 
-const text = (maximum: number) => z.string().trim().min(1).max(maximum);
-const itemList = z.array(text(300)).min(1).max(12);
-
 const visualSchemas = {
   hook: hookVisualSchema,
   definition: definitionVisualSchema,
@@ -112,19 +113,8 @@ const visualSchemas = {
   "cause-effect": causeEffectVisualSchema,
   "labelled-diagram": diagramVisualSchema,
   analogy: analogyVisualSchema,
-  "worked-example": z
-    .object({
-      problem: text(1_000),
-      steps: itemList,
-      answer: text(1_000),
-    })
-    .strict(),
-  summary: z
-    .object({
-      takeaways: itemList,
-      callToAction: text(500).optional(),
-    })
-    .strict(),
+  "worked-example": workedExampleVisualSchema,
+  summary: summaryVisualSchema,
 } satisfies Record<SceneTemplate, ZodType<unknown>>;
 
 const defaults = {
@@ -165,9 +155,11 @@ const defaults = {
     steps: ["First step"],
     answer: "Answer",
   },
-  summary: { takeaways: ["Key takeaway"] },
+  summary: { takeaways: [{ text: "Key takeaway" }] },
 } as const;
 
+// Kept as a preview-safe fallback helper for future registered templates.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function PlaceholderScene({ scene }: SceneComponentProps): JSX.Element {
   const visual = Object.values(scene.visual)
     .flatMap((value) => (Array.isArray(value) ? value : [value]))
@@ -273,7 +265,13 @@ const layouts: Record<SceneTemplate, SceneLayout> = {
   "worked-example": {
     visualTextPaths: ["visual.problem", "visual.steps", "visual.answer"],
   },
-  summary: { visualTextPaths: ["visual.takeaways", "visual.callToAction"] },
+  summary: {
+    visualTextPaths: [
+      "visual.takeaways.text",
+      "visual.centralModel",
+      "visual.callToAction",
+    ],
+  },
 };
 
 const metadataByTemplate: Record<SceneTemplate, TemplateMetadataBase> = {
@@ -384,7 +382,7 @@ const metadataByTemplate: Record<SceneTemplate, TemplateMetadataBase> = {
     },
   },
   analogy: {
-    assetSlots: [],
+    assetSlots: ["central-visual"],
     itemLimits: { "visual.mappings": 4 },
     migrationBehavior: "none",
     textLimits: {
@@ -404,17 +402,20 @@ const metadataByTemplate: Record<SceneTemplate, TemplateMetadataBase> = {
       narration: 5000,
       onScreenText: 300,
       "visual.problem": 1000,
+      "visual.steps": 300,
       "visual.answer": 1000,
     },
   },
   summary: {
     assetSlots: [],
-    itemLimits: { "visual.takeaways": 12 },
+    itemLimits: { "visual.takeaways.text": 4 },
     migrationBehavior: "none",
     textLimits: {
       narration: 5000,
       onScreenText: 300,
-      "visual.callToAction": 500,
+      "visual.takeaways.text": 140,
+      "visual.centralModel": 140,
+      "visual.callToAction": 120,
     },
   },
 };
@@ -465,7 +466,9 @@ export const sceneRegistry: SceneRegistry = Object.freeze(
                         ? LabelledDiagramScene
                         : template === "analogy"
                           ? AnalogyScene
-                          : PlaceholderScene,
+                          : template === "worked-example"
+                            ? WorkedExampleScene
+                            : SummaryScene,
         createDefault: () => makeDefault(template),
         durationGuidance: Object.freeze({
           maximumSeconds: 60,
@@ -628,6 +631,45 @@ export function validateScene(
         }),
       ];
   }
+  if (
+    parsed.data.template === "summary" &&
+    parsed.data.visual.centralAssetSlot !== undefined
+  ) {
+    const centralAssetSlot = parsed.data.visual.centralAssetSlot;
+    const asset = parsed.data.assetBindings.find(
+      (binding) =>
+        binding.slot === centralAssetSlot && binding.role === "illustration",
+    );
+    if (asset === undefined)
+      return [
+        Object.freeze({
+          code: "missing_asset" as const,
+          fieldPath: "assetBindings.central-visual",
+          message: "The required central summary asset is missing.",
+          sceneId: parsed.data.id,
+          severity: "error" as const,
+          suggestedCorrection:
+            "Bind an approved illustration to the central-visual slot.",
+        }),
+      ];
+    if (
+      options.requireResolvedAssets &&
+      resolveSafeDiagramAsset(asset.assetId, options.resolvedAssets) ===
+        undefined
+    )
+      return [
+        Object.freeze({
+          code: "missing_asset" as const,
+          fieldPath: "resolvedAssets.central-visual",
+          message:
+            "The required central summary asset could not be resolved safely.",
+          sceneId: parsed.data.id,
+          severity: "error" as const,
+          suggestedCorrection:
+            "Resolve the approved summary asset before final rendering.",
+        }),
+      ];
+  }
   const values: SceneTextBlock[] = [];
   if (parsed.data.title !== undefined)
     values.push({ path: "title", value: parsed.data.title });
@@ -695,7 +737,8 @@ export function validateScene(
             ]
               .map((group) => measureSceneContent(group))
               .find((item) => !item.fits) ?? measureSceneContent([]))
-          : parsed.data.template === "analogy"
+          : parsed.data.template === "analogy" ||
+              parsed.data.template === "worked-example"
             ? (values
                 .map((value) => measureSceneContent([value]))
                 .find((item) => !item.fits) ?? measureSceneContent([]))

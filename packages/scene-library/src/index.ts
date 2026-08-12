@@ -35,3 +35,7 @@ export * from "./labelled-diagram-scene.js";
 export * from "./labelled-diagram-scene.fixtures.js";
 export * from "./analogy-scene.js";
 export * from "./analogy-scene.fixtures.js";
+export * from "./worked-example-scene.js";
+export * from "./worked-example-scene.fixtures.js";
+export * from "./summary-scene.js";
+export * from "./summary-scene.fixtures.js";

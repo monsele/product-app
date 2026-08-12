@@ -2,8 +2,8 @@ import { identifierSchema } from "@avlp/config/identifiers";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
-export const lessonSpecVersion = "1.7" as const;
-export const previousLessonSpecVersion = "1.6" as const;
+export const lessonSpecVersion = "1.8" as const;
+export const previousLessonSpecVersion = "1.7" as const;
 const lessonSpecV1_5Version = "1.5" as const;
 export const previousPreviousLessonSpecVersion = "1.4" as const;
 export const legacyPreviousLessonSpecVersion = "1.3" as const;
@@ -334,6 +334,39 @@ export const analogyVisualSchema = z
     });
   });
 export type AnalogyVisual = z.infer<typeof analogyVisualSchema>;
+export const workedExampleStepSchema = boundedText(300);
+export type WorkedExampleStep = z.infer<typeof workedExampleStepSchema>;
+export const workedExampleVisualSchema = z
+  .object({
+    answer: boundedText(1_000),
+    problem: boundedText(1_000),
+    steps: z.array(workedExampleStepSchema).min(1).max(12),
+  })
+  .strict();
+export type WorkedExampleVisual = z.infer<typeof workedExampleVisualSchema>;
+export const summaryTakeawaySchema = z
+  .object({
+    text: boundedText(140),
+    objectiveId: identifierSchema.optional(),
+  })
+  .strict();
+export const summaryVisualSchema = z
+  .object({
+    takeaways: z.array(summaryTakeawaySchema).min(1).max(4),
+    centralModel: boundedText(140).optional(),
+    centralAssetSlot: z.literal("central-visual").optional(),
+    callToAction: boundedText(120).optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.centralModel !== undefined && value.centralAssetSlot !== undefined)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["centralAssetSlot"],
+        message: "Choose either a central model or a central asset.",
+      });
+  });
+export type SummaryVisual = z.infer<typeof summaryVisualSchema>;
 const visual = <T extends z.ZodRawShape>(shape: T) => z.object(shape).strict();
 
 export const sceneSpecSchema = z.discriminatedUnion("template", [
@@ -397,21 +430,14 @@ export const sceneSpecSchema = z.discriminatedUnion("template", [
     .object({
       ...sceneBaseShape,
       template: z.literal("worked-example"),
-      visual: visual({
-        problem: boundedText(1_000),
-        steps: labelledItems,
-        answer: boundedText(1_000),
-      }),
+      visual: workedExampleVisualSchema,
     })
     .strict(),
   z
     .object({
       ...sceneBaseShape,
       template: z.literal("summary"),
-      visual: visual({
-        takeaways: labelledItems,
-        callToAction: boundedText(500).optional(),
-      }),
+      visual: summaryVisualSchema,
     })
     .strict(),
 ]);
@@ -739,10 +765,56 @@ const previousAnalogyVisualSchema = visual({
 });
 const previousLessonSpecV1_6EnvelopeSchema = z
   .object({
+    schemaVersion: z.literal("1.6"),
+    scenes: z.array(z.unknown()).min(1).max(100),
+  })
+  .passthrough();
+const previousLessonSpecV1_7EnvelopeSchema = z
+  .object({
     schemaVersion: z.literal(previousLessonSpecVersion),
     scenes: z.array(z.unknown()).min(1).max(100),
   })
   .passthrough();
+
+export function migrateLessonSpecV1_7ToV1_8(input: unknown): LessonSpec {
+  const parsed = previousLessonSpecV1_7EnvelopeSchema.safeParse(input);
+  if (!parsed.success)
+    throw new Error("LessonSpec 1.7 is not a valid migration input.");
+  const migrated = lessonSpecSchema.safeParse({
+    ...parsed.data,
+    schemaVersion: lessonSpecVersion,
+    scenes: parsed.data.scenes.map((scene) => {
+      const prior = z
+        .object({
+          template: z.literal("summary"),
+          visual: z
+            .object({
+              takeaways: z.array(boundedText(300)).min(1).max(12),
+              callToAction: boundedText(500).optional(),
+            })
+            .strict(),
+        })
+        .passthrough()
+        .safeParse(scene);
+      if (!prior.success) return scene;
+      if (prior.data.visual.takeaways.length > 4)
+        throw new Error(
+          "LessonSpec 1.7 summary content requires an explicit teacher migration before it can become 1.8.",
+        );
+      return {
+        ...prior.data,
+        visual: {
+          ...prior.data.visual,
+          takeaways: prior.data.visual.takeaways.map((text) => ({ text })),
+        },
+      };
+    }),
+  });
+  if (migrated.success) return migrated.data;
+  throw new Error(
+    "LessonSpec 1.7 contains content that requires an explicit teacher migration before it can become 1.8.",
+  );
+}
 
 export function migrateLessonSpecV1_6ToV1_7(input: unknown): LessonSpec {
   const parsed = previousLessonSpecV1_6EnvelopeSchema.safeParse(input);
@@ -762,14 +834,10 @@ export function migrateLessonSpecV1_6ToV1_7(input: unknown): LessonSpec {
     throw new Error(
       "LessonSpec 1.6 analogy content requires an explicit teacher migration before it can become 1.7.",
     );
-  const migrated = lessonSpecSchema.safeParse({
+  return migrateLessonSpecV1_7ToV1_8({
     ...parsed.data,
-    schemaVersion: lessonSpecVersion,
+    schemaVersion: previousLessonSpecVersion,
   });
-  if (migrated.success) return migrated.data;
-  throw new Error(
-    "LessonSpec 1.6 contains content that requires an explicit teacher migration before it can become 1.7.",
-  );
 }
 
 const previousPreviousLessonSpecEnvelopeSchema = z
@@ -819,7 +887,7 @@ export function parseLessonSpec(input: unknown): LessonSpec {
     "schemaVersion" in input &&
     input.schemaVersion === previousLessonSpecVersion
   )
-    return migrateLessonSpecV1_6ToV1_7(input);
+    return migrateLessonSpecV1_7ToV1_8(input);
   if (
     typeof input === "object" &&
     input !== null &&

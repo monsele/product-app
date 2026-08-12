@@ -7,6 +7,8 @@ import {
   diagramVisualSchema,
   ipoVisualSchema,
   processVisualSchema,
+  workedExampleVisualSchema,
+  summaryVisualSchema,
   initialLessonSpecVersion,
   lessonSpecJsonSchema,
   lessonSpecSchema,
@@ -47,7 +49,7 @@ const baseScene = {
   generatedAdditions: [],
 };
 const validLesson: LessonSpec = {
-  schemaVersion: "1.7",
+  schemaVersion: "1.8",
   lessonId: ids[0],
   projectId: ids[1],
   title: "States of matter",
@@ -152,7 +154,7 @@ describe("LessonSpec v1", () => {
         answer: "It melts.",
       },
     ],
-    ["summary", { takeaways: ["Matter changes state"] }],
+    ["summary", { takeaways: [{ text: "Matter changes state" }] }],
   ] as const)("accepts the %s template", (template, visual) => {
     expect(
       sceneSpecSchema.safeParse({ ...baseScene, template, visual }).success,
@@ -240,7 +242,7 @@ describe("LessonSpec v1", () => {
         ...validLesson,
         schemaVersion: "1.6",
       }),
-    ).toMatchObject({ schemaVersion: "1.7" });
+    ).toMatchObject({ schemaVersion: "1.8" });
     expect(() =>
       migrateLessonSpecV1_6ToV1_7({
         ...validLesson,
@@ -395,7 +397,7 @@ describe("LessonSpec v1", () => {
         ],
       }),
     ).toMatchObject({
-      schemaVersion: "1.7",
+      schemaVersion: "1.8",
       scenes: [
         expect.objectContaining({
           visual: expect.objectContaining({
@@ -424,7 +426,7 @@ describe("LessonSpec v1", () => {
       ],
     };
     expect(migrateLessonSpecV1_3ToV1_4(prior)).toMatchObject({
-      schemaVersion: "1.7",
+      schemaVersion: "1.8",
       scenes: [
         expect.objectContaining({
           visual: expect.objectContaining({
@@ -459,7 +461,7 @@ describe("LessonSpec v1", () => {
       ],
     };
     expect(migrateLessonSpecV1_2ToV1_3(scalarIpo)).toMatchObject({
-      schemaVersion: "1.7",
+      schemaVersion: "1.8",
       scenes: [
         expect.objectContaining({
           template: "input-process-output",
@@ -472,7 +474,7 @@ describe("LessonSpec v1", () => {
       ],
     });
     expect(migrateLessonSpecV1_2ToV1_3(compatible)).toMatchObject({
-      schemaVersion: "1.7",
+      schemaVersion: "1.8",
       scenes: [
         expect.objectContaining({
           template: "process",
@@ -514,6 +516,30 @@ describe("LessonSpec v1", () => {
     ).toBe(false);
   });
 
+  it("accepts bounded worked-example content and rejects unsafe density", () => {
+    expect(
+      workedExampleVisualSchema.safeParse({
+        problem: "What is 24 ÷ 8?",
+        steps: ["Divide 24 by 8."],
+        answer: "3",
+      }).success,
+    ).toBe(true);
+    expect(
+      workedExampleVisualSchema.safeParse({
+        problem: "Problem",
+        steps: Array.from({ length: 13 }, () => "Step"),
+        answer: "Answer",
+      }).success,
+    ).toBe(false);
+    expect(
+      workedExampleVisualSchema.safeParse({
+        problem: "p".repeat(1001),
+        steps: ["Step"],
+        answer: "Answer",
+      }).success,
+    ).toBe(false);
+  });
+
   it("migrates legacy labelled diagrams to the shapes-only semantic fallback", () => {
     expect(
       migrateLessonSpecV1_5ToV1_6({
@@ -528,7 +554,7 @@ describe("LessonSpec v1", () => {
         ],
       }),
     ).toMatchObject({
-      schemaVersion: "1.7",
+      schemaVersion: "1.8",
       scenes: [
         expect.objectContaining({
           visual: {
@@ -539,5 +565,23 @@ describe("LessonSpec v1", () => {
         }),
       ],
     });
+  });
+
+  it("requires concise structured summary takeaways and optional objective links", () => {
+    expect(
+      summaryVisualSchema.safeParse({
+        centralModel: "Energy changes particle movement.",
+        takeaways: [
+          { text: "Heating speeds particles up.", objectiveId: ids[4] },
+        ],
+      }).success,
+    ).toBe(true);
+    expect(summaryVisualSchema.safeParse({ takeaways: [] }).success).toBe(
+      false,
+    );
+    const excessive = summaryVisualSchema.safeParse({
+      takeaways: Array.from({ length: 5 }, () => ({ text: "Takeaway" })),
+    });
+    expect(excessive.success).toBe(false);
   });
 });

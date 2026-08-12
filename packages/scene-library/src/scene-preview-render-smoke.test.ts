@@ -14,6 +14,11 @@ import { maximumProcessFixture } from "./process-scene.fixtures.js";
 import { maximumDensityIpoFixture } from "./ipo-scene.fixtures.js";
 import { imageAssistedComparisonFixture } from "./comparison-scene.fixtures.js";
 import { generatedAnalogyFixture } from "./analogy-scene.fixtures.js";
+import { numericalWorkedExampleFixture } from "./worked-example-scene.fixtures.js";
+import {
+  assetAssistedSummaryFixture,
+  resolvedSummaryAssets,
+} from "./summary-scene.fixtures.js";
 import { branchingCauseEffectFixture } from "./cause-effect-scene.fixtures.js";
 import {
   assetDiagramFixture,
@@ -192,6 +197,96 @@ describe("scene runtime Remotion smoke", () => {
     });
     expect(analogy.contentType).toBe("image/png");
     expect(analogy.buffer).toEqual(repeatedAnalogy.buffer);
+
+    const workedExampleComposition = await selectComposition({
+      browserExecutable,
+      id: sceneRuntimeCompositionId,
+      inputProps: { scene: numericalWorkedExampleFixture },
+      serveUrl,
+    });
+    const workedExample = await renderStill({
+      browserExecutable,
+      composition: workedExampleComposition,
+      frame: 90,
+      imageFormat: "png",
+      inputProps: { scene: numericalWorkedExampleFixture },
+      serveUrl,
+    });
+    const repeatedWorkedExample = await renderStill({
+      browserExecutable,
+      composition: workedExampleComposition,
+      frame: 90,
+      imageFormat: "png",
+      inputProps: { scene: numericalWorkedExampleFixture },
+      serveUrl,
+    });
+    expect(workedExample.contentType).toBe("image/png");
+    expect(workedExample.buffer).toEqual(repeatedWorkedExample.buffer);
+    expect(
+      createHash("sha256")
+        .update(workedExample.buffer ?? Buffer.alloc(0))
+        .digest("hex"),
+    ).toMatchInlineSnapshot(
+      `"fcf22e2fce47733b187c1e5e197c8d16ea3e04d1988a4792ff4961bd9a4c2837"`,
+    );
+
+    const workedExampleFinalStep = await renderStill({
+      browserExecutable,
+      composition: workedExampleComposition,
+      frame: 180,
+      imageFormat: "png",
+      inputProps: { scene: numericalWorkedExampleFixture },
+      serveUrl,
+    });
+    const workedExampleResult = await renderStill({
+      browserExecutable,
+      composition: workedExampleComposition,
+      frame: 240,
+      imageFormat: "png",
+      inputProps: { scene: numericalWorkedExampleFixture },
+      serveUrl,
+    });
+    expect(
+      createHash("sha256")
+        .update(workedExampleFinalStep.buffer ?? Buffer.alloc(0))
+        .digest("hex"),
+    ).toMatchInlineSnapshot(
+      `"e2029498e738253ec6a48f41bde1d6ecb5245056c05ff5e58b33fe42fdeacd49"`,
+    );
+    expect(
+      createHash("sha256")
+        .update(workedExampleResult.buffer ?? Buffer.alloc(0))
+        .digest("hex"),
+    ).toMatchInlineSnapshot(
+      `"ae28d65d7ce222696c7f10d1c227decf54f3e3b57cb84559e8281f5ce98911c7"`,
+    );
+
+    const summaryComposition = await selectComposition({
+      browserExecutable,
+      id: sceneRuntimeCompositionId,
+      inputProps: {
+        resolvedAssets: resolvedSummaryAssets,
+        scene: assetAssistedSummaryFixture,
+      },
+      serveUrl,
+    });
+    const summaryFinal = await renderStill({
+      browserExecutable,
+      composition: summaryComposition,
+      frame: 270,
+      imageFormat: "png",
+      inputProps: {
+        resolvedAssets: resolvedSummaryAssets,
+        scene: assetAssistedSummaryFixture,
+      },
+      serveUrl,
+    });
+    expect(summaryFinal.contentType).toBe("image/png");
+    expect(
+      createHash("sha256")
+        .update(summaryFinal.buffer ?? Buffer.alloc(0))
+        .digest("hex"),
+    ).toMatchInlineSnapshot(`"80b61c05e75a00de59695d1920e5d791fea891e7ad4caeb26216d94e28ea4c65"`);
 
     const causeEffectComposition = await selectComposition({
       browserExecutable,
