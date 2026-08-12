@@ -19,6 +19,7 @@
     "@avlp/design-system": "workspace:*",
     "@avlp/schemas": "workspace:*",
     "@fontsource/atkinson-hyperlegible": "5.2.7",
+    "@remotion/player": "4.0.507",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "remotion": "4.0.507",

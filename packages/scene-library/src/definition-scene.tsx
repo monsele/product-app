@@ -1,7 +1,10 @@
 import { videoTheme } from "@avlp/design-system/video-theme";
 import { Easing, interpolate, useCurrentFrame } from "remotion";
 import type { CSSProperties, JSX } from "react";
-import type { SceneComponentProps } from "./scene-registry.js";
+import {
+  resolveSafeDiagramAsset,
+  type SceneComponentProps,
+} from "./scene-registry.js";
 import { getSceneFrameTiming } from "./timing.js";
 
 export type DefinitionSceneFrameState = Readonly<{
@@ -52,19 +55,30 @@ export function getDefinitionSceneFrameState(
 }
 
 function exampleAsset(scene: SceneComponentProps["scene"]) {
-  return scene.assetBindings.find((binding) =>
-    ["diagram", "icon", "illustration", "photo"].includes(binding.role),
+  return scene.assetBindings.find(
+    (binding) =>
+      binding.slot === "visual-example" &&
+      ["diagram", "icon", "illustration", "photo"].includes(binding.role),
   );
 }
 
 export function DefinitionSceneFrame({
   frame,
+  resolvedAssets,
+  runtimeMode = "preview",
   scene,
 }: SceneComponentProps & Readonly<{ frame: number }>): JSX.Element {
   if (scene.template !== "definition")
     throw new Error("DefinitionScene requires a definition scene.");
   const state = getDefinitionSceneFrameState(frame, scene.durationSeconds);
   const asset = exampleAsset(scene);
+  const resolvedAsset = resolveSafeDiagramAsset(asset?.assetId, resolvedAssets);
+  if (
+    asset !== undefined &&
+    runtimeMode === "render" &&
+    resolvedAsset === undefined
+  )
+    throw new Error("Definition render requires a resolved visual asset.");
   const hasExample =
     scene.visual.exampleLabel !== undefined &&
     scene.visual.exampleText !== undefined;
@@ -163,10 +177,10 @@ export function DefinitionSceneFrame({
             </aside>
           )}
         </div>
-        {asset === undefined ? null : (
+        {asset === undefined ? null : resolvedAsset === undefined ? (
           <aside
             aria-label={asset.altText ?? "Definition visual example"}
-            data-definition-visual-asset={asset.assetId}
+            data-definition-visual-asset-placeholder="visual-example"
             style={{
               alignSelf: "center",
               background: videoTheme.colors.surface,
@@ -192,12 +206,37 @@ export function DefinitionSceneFrame({
               />
             </svg>
           </aside>
+        ) : (
+          <img
+            alt={resolvedAsset.altText}
+            data-definition-visual-asset="visual-example"
+            data-definition-visual-asset-source={resolvedAsset.source}
+            src={resolvedAsset.src}
+            style={{
+              alignSelf: "center",
+              borderRadius: videoTheme.radii.md,
+              height: 360,
+              objectFit: "contain",
+              width: 360,
+            }}
+          />
         )}
       </section>
     </main>
   );
 }
 
-export function DefinitionScene({ scene }: SceneComponentProps): JSX.Element {
-  return <DefinitionSceneFrame frame={useCurrentFrame()} scene={scene} />;
+export function DefinitionScene({
+  resolvedAssets,
+  runtimeMode,
+  scene,
+}: SceneComponentProps): JSX.Element {
+  return (
+    <DefinitionSceneFrame
+      frame={useCurrentFrame()}
+      {...(resolvedAssets === undefined ? {} : { resolvedAssets })}
+      {...(runtimeMode === undefined ? {} : { runtimeMode })}
+      scene={scene}
+    />
+  );
 }

@@ -2,7 +2,7 @@
 story_id: ST-022
 title: "Build Single-Scene Browser Preview with Remotion Player"
 phase: "01 \u2014 Visual Runtime Proof"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E15"]
 prd_user_stories: ["E15-US1"]
@@ -135,15 +135,15 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-12
+- **Completed:** 2026-08-12
+- **Branch/PR:** Existing `story/st-020` worktree; no branch or PR created because unrelated uncommitted ST-013 work was already present.
+- **Files changed:** `packages/scene-library/src/scene-preview.tsx`, its tests and exports; the web fixture preview route; Playwright preview tests; package manifests and lockfile; this story and `STORY_INDEX.md`.
+- **Migrations:** None.
+- **Contracts changed:** Added validated `ScenePreviewInput`, `PreviewAssetManifest`, and `CaptionCue` contracts. Media URLs are transient manifest values; scenes retain only asset IDs.
+- **Commands/tests run:** `pnpm --filter @avlp/scene-library lint`; `pnpm --filter @avlp/web lint`; both affected typechecks; `pnpm --filter @avlp/web test`; `pnpm --filter @avlp/scene-library test` (48 tests); `pnpm --filter @avlp/web build`; `pnpm exec playwright test e2e/video-design-preview.spec.ts` (2 tests).
+- **Screenshots or representative output:** The Playwright gallery test selected and displayed all ten scene templates with Remotion controls; invalid input and missing asset states rendered actionable alerts.
+- **Decisions and assumptions:** The existing browser-only preview route is the scoped fixture gallery. It loads one selected scene at a time, uses the shared runtime, and intentionally does not implement the future authenticated manifest endpoint or full lesson timeline.
+- **Deviations from story/technical guide:** No material deviations. The authenticated preview-manifest endpoint and signed-URL refresh lifecycle belong to later project/editor/API stories; this increment validates the transient manifest contract and uses local fixtures.
+- **Known risks or follow-up:** Real authorized signed-URL resolution, refresh after expiry, and draft-save cache invalidation require project-owned data APIs not yet available in the dependency frontier.

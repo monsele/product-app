@@ -500,7 +500,8 @@ export function createDefaultScene<TTemplate extends SceneTemplate>(
 function isSafeDiagramImageSource(src: string): boolean {
   return (
     /^\/assets\/[a-z0-9/_-]+\.(png|jpe?g|webp)$/i.test(src) ||
-    /^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(src)
+    /^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(src) ||
+    /^https:\/\/[^\s]+$/i.test(src)
   );
 }
 
@@ -579,6 +580,47 @@ export function validateScene(
         suggestedCorrection: "Correct the template visual input.",
       }),
     );
+  if (parsed.data.template === "definition") {
+    const definitionAsset = parsed.data.assetBindings.find(
+      (binding) => binding.slot === "visual-example",
+    );
+    if (
+      definitionAsset !== undefined &&
+      !["diagram", "icon", "illustration", "photo"].includes(
+        definitionAsset.role,
+      )
+    )
+      return [
+        Object.freeze({
+          code: "missing_asset" as const,
+          fieldPath: "assetBindings.visual-example",
+          message: "The definition visual asset has an unsupported role.",
+          sceneId: parsed.data.id,
+          severity: "error" as const,
+          suggestedCorrection:
+            "Bind an approved diagram, icon, illustration, or photo to the visual-example slot.",
+        }),
+      ];
+    if (
+      definitionAsset !== undefined &&
+      options.requireResolvedAssets &&
+      resolveSafeDiagramAsset(
+        definitionAsset.assetId,
+        options.resolvedAssets,
+      ) === undefined
+    )
+      return [
+        Object.freeze({
+          code: "missing_asset" as const,
+          fieldPath: "resolvedAssets.visual-example",
+          message: "The definition visual asset could not be resolved safely.",
+          sceneId: parsed.data.id,
+          severity: "error" as const,
+          suggestedCorrection:
+            "Resolve the approved definition visual asset before final rendering.",
+        }),
+      ];
+  }
   if (parsed.data.template === "labelled-diagram") {
     const diagram = parsed.data;
     const diagramAsset = diagram.assetBindings.find(

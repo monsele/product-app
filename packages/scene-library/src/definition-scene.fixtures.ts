@@ -19,9 +19,19 @@ export const assetAssistedDefinitionFixture = Object.freeze({
       assetId: "00000000-0000-7000-8000-000000000004",
       role: "illustration",
       altText: "Water vapour rising from a puddle",
+      slot: "visual-example",
     },
   ],
 } satisfies Extract<SceneSpec, { template: "definition" }>);
+
+export const resolvedDefinitionAssets = Object.freeze({
+  "00000000-0000-7000-8000-000000000004": {
+    assetId: "00000000-0000-7000-8000-000000000004",
+    altText: "Water vapour rising from a puddle",
+    source: "library" as const,
+    src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl8gWYAAAAASUVORK5CYII=",
+  },
+});
 
 export const maximumDensityDefinitionFixture = Object.freeze({
   ...createDefaultScene("definition"),

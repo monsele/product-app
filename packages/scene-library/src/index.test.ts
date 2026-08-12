@@ -20,6 +20,7 @@ import {
   HookSceneFrame,
   DefinitionSceneFrame,
   assetAssistedDefinitionFixture,
+  resolvedDefinitionAssets,
   getDefinitionSceneFrameState,
   invalidHookFixture,
   maximumDensityHookFixture,
@@ -317,6 +318,7 @@ describe("scene registry runtime", () => {
     const withAsset = renderToStaticMarkup(
       createElement(DefinitionSceneFrame, {
         frame: 48,
+        resolvedAssets: resolvedDefinitionAssets,
         scene: assetAssistedDefinitionFixture,
       }),
     );
@@ -324,6 +326,46 @@ describe("scene registry runtime", () => {
     expect(textOnly).not.toContain("data-definition-visual-asset");
     expect(withAsset).toContain("data-definition-visual-asset");
     expect(withAsset).toContain("Water vapour rising from a puddle");
+  });
+
+  it("allows a definition asset placeholder only in preview and blocks final rendering without safe media", () => {
+    expect(
+      validateScene(assetAssistedDefinitionFixture, {
+        requireResolvedAssets: true,
+      }),
+    ).toContainEqual(
+      expect.objectContaining({
+        code: "missing_asset",
+        fieldPath: "resolvedAssets.visual-example",
+      }),
+    );
+    expect(
+      renderToStaticMarkup(
+        createElement(DefinitionSceneFrame, {
+          frame: 48,
+          runtimeMode: "preview",
+          scene: assetAssistedDefinitionFixture,
+        }),
+      ),
+    ).toContain('data-definition-visual-asset-placeholder="visual-example"');
+    expect(() =>
+      renderToStaticMarkup(
+        createElement(DefinitionSceneFrame, {
+          frame: 48,
+          runtimeMode: "render",
+          scene: assetAssistedDefinitionFixture,
+        }),
+      ),
+    ).toThrow("Definition render requires a resolved visual asset.");
+    expect(() =>
+      SceneRenderRuntime({ scene: assetAssistedDefinitionFixture }),
+    ).toThrow("Scene render blocked for resolvedAssets.visual-example");
+    expect(
+      validateScene(assetAssistedDefinitionFixture, {
+        requireResolvedAssets: true,
+        resolvedAssets: resolvedDefinitionAssets,
+      }),
+    ).toEqual([]);
   });
 
   it("renders comparison subjects before shared traits and differences", () => {

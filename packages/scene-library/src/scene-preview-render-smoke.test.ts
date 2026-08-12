@@ -9,7 +9,11 @@ import {
   sceneRuntimeComposition,
   sceneRuntimeCompositionId,
 } from "./scene-preview-composition.js";
-import { assetAssistedDefinitionFixture } from "./definition-scene.fixtures.js";
+import {
+  assetAssistedDefinitionFixture,
+  resolvedDefinitionAssets,
+  textOnlyDefinitionFixture,
+} from "./definition-scene.fixtures.js";
 import { maximumProcessFixture } from "./process-scene.fixtures.js";
 import { maximumDensityIpoFixture } from "./ipo-scene.fixtures.js";
 import { imageAssistedComparisonFixture } from "./comparison-scene.fixtures.js";
@@ -86,7 +90,10 @@ describe("scene runtime Remotion smoke", () => {
     const definitionComposition = await selectComposition({
       browserExecutable,
       id: sceneRuntimeCompositionId,
-      inputProps: { scene: assetAssistedDefinitionFixture },
+      inputProps: {
+        resolvedAssets: resolvedDefinitionAssets,
+        scene: assetAssistedDefinitionFixture,
+      },
       serveUrl,
     });
     const definition = await renderStill({
@@ -94,7 +101,10 @@ describe("scene runtime Remotion smoke", () => {
       composition: definitionComposition,
       frame: 48,
       imageFormat: "png",
-      inputProps: { scene: assetAssistedDefinitionFixture },
+      inputProps: {
+        resolvedAssets: resolvedDefinitionAssets,
+        scene: assetAssistedDefinitionFixture,
+      },
       serveUrl,
     });
     const repeatedDefinition = await renderStill({
@@ -102,12 +112,45 @@ describe("scene runtime Remotion smoke", () => {
       composition: definitionComposition,
       frame: 48,
       imageFormat: "png",
-      inputProps: { scene: assetAssistedDefinitionFixture },
+      inputProps: {
+        resolvedAssets: resolvedDefinitionAssets,
+        scene: assetAssistedDefinitionFixture,
+      },
       serveUrl,
     });
 
     expect(definition.contentType).toBe("image/png");
     expect(definition.buffer).toEqual(repeatedDefinition.buffer);
+    expect(
+      createHash("sha256")
+        .update(definition.buffer ?? Buffer.alloc(0))
+        .digest("hex"),
+    ).toMatchInlineSnapshot(
+      `"25cf92bd7131498a034e565a78872bf223dd521372627829fa9b515cc372c645"`,
+    );
+
+    const textOnlyDefinitionComposition = await selectComposition({
+      browserExecutable,
+      id: sceneRuntimeCompositionId,
+      inputProps: { scene: textOnlyDefinitionFixture },
+      serveUrl,
+    });
+    const textOnlyDefinition = await renderStill({
+      browserExecutable,
+      composition: textOnlyDefinitionComposition,
+      frame: 48,
+      imageFormat: "png",
+      inputProps: { scene: textOnlyDefinitionFixture },
+      serveUrl,
+    });
+    expect(textOnlyDefinition.contentType).toBe("image/png");
+    expect(
+      createHash("sha256")
+        .update(textOnlyDefinition.buffer ?? Buffer.alloc(0))
+        .digest("hex"),
+    ).toMatchInlineSnapshot(
+      `"746ed409f9daf4290a7af70ea324b620ee970205e41cb91f1e30b680029ece89"`,
+    );
 
     const processComposition = await selectComposition({
       browserExecutable,
@@ -286,7 +329,9 @@ describe("scene runtime Remotion smoke", () => {
       createHash("sha256")
         .update(summaryFinal.buffer ?? Buffer.alloc(0))
         .digest("hex"),
-    ).toMatchInlineSnapshot(`"80b61c05e75a00de59695d1920e5d791fea891e7ad4caeb26216d94e28ea4c65"`);
+    ).toMatchInlineSnapshot(
+      `"80b61c05e75a00de59695d1920e5d791fea891e7ad4caeb26216d94e28ea4c65"`,
+    );
 
     const causeEffectComposition = await selectComposition({
       browserExecutable,

@@ -146,6 +146,9 @@ importers:
       '@avlp/design-system':
         specifier: workspace:*
         version: link:../../packages/design-system
+      '@avlp/scene-library':
+        specifier: workspace:*
+        version: link:../../packages/scene-library
       '@avlp/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
@@ -330,6 +333,9 @@ importers:
       '@fontsource/atkinson-hyperlegible':
         specifier: 5.2.7
         version: 5.2.7
+      '@remotion/player':
+        specifier: 4.0.507
+        version: 4.0.507(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       react:
         specifier: 19.2.8
         version: 19.2.8

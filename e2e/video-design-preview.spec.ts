@@ -1,112 +1,68 @@
-import { createHash } from "node:crypto";
-import { resolve } from "node:path";
-import { chromium, expect, test } from "@playwright/test";
-import { bundle } from "@remotion/bundler";
-import { renderStill, selectComposition } from "@remotion/renderer";
-import { PNG } from "pngjs";
+import { expect, test } from "@playwright/test";
 
-// The shared Chromium baseline differs only at isolated compositing edges:
-// 38,933 channels and 181,497 aggregate levels across the 1920x1080 frame.
-// Keeping a small budget above that deterministic baseline catches any layout,
-// colour, typography, or content regression without accepting material drift.
-const visualParityBudget = Object.freeze({
-  differingChannels: 40_000,
-  totalChannelDelta: 200_000,
-});
-
-test("renders the design preview player in the browser", async ({ page }) => {
-  await page.setViewportSize({ width: 1920, height: 1080 });
+test("plays one selected scene fixture with browser controls", async ({
+  page,
+}) => {
   await page.goto("/video-design-preview");
-  await expect(
-    page.getByRole("heading", { name: "How plants make food" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("complementary", { name: "fade transition preview" }),
-  ).toBeAttached();
-  await expect(page.getByRole("button", { name: "Play video" })).toHaveCount(0);
-  await page.evaluate(async () => document.fonts.ready);
-  expect(
-    await page.evaluate(() =>
-      document.fonts.check('42px "Atkinson Hyperlegible"'),
-    ),
-  ).toBe(true);
-  expect(
-    await page
-      .getByRole("heading", { name: "How plants make food" })
-      .evaluate(
-        (heading) =>
-          getComputedStyle(heading.closest("main") ?? heading).opacity,
-      ),
-  ).toBe("1");
+  await expect(page.getByTestId("scene-preview-gallery")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "hook scene" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Play video" })).toBeVisible();
+  await expect(page.getByTestId("scene-preview-caption")).toContainText(
+    "Preview fixture for the hook",
+  );
+  await expect(page.getByText(/Preview frame: 0; muted/)).toBeVisible();
+  await page.getByRole("button", { name: "Play scene", exact: true }).click();
+  await page.getByRole("button", { name: "Pause scene", exact: true }).click();
+  await page.getByLabel("Seek scene").fill("30");
+  await expect(page.getByText(/Preview frame: 30/)).toBeVisible();
+  await page.getByRole("button", { name: "Replay scene" }).click();
+  await expect(page.getByText(/Preview frame: 0/)).toBeVisible();
+  await page.getByRole("button", { name: "Unmute scene", exact: true }).click();
+  await expect(page.getByText(/unmuted/)).toBeVisible();
+  await page.getByRole("button", { name: "Mute scene", exact: true }).click();
+  await expect(page.getByText(/muted/)).toBeVisible();
 
-  const browserPng = await page
-    .getByTestId("video-design-preview")
-    .screenshot();
-  expect(createHash("sha256").update(browserPng).digest("hex")).toBe(
-    "e38300e1e9d4fbde80ee665a88d24154c5955eb70f8a48f57f6ed999e409747e",
-  );
-  const browserImage = PNG.sync.read(browserPng);
-  expect([browserImage.width, browserImage.height]).toEqual([1920, 1080]);
-  expect(createHash("sha256").update(browserImage.data).digest("hex")).toBe(
-    "4190e29255e3ffc5659178a3177c11f121bda85c3b06a04071937ef513ce879b",
-  );
-
-  const browserExecutable = chromium.executablePath();
-  const serveUrl = await bundle({
-    entryPoint: resolve(
-      process.cwd(),
-      "packages/design-system/dist/remotion-root.js",
-    ),
-  });
-  const composition = await selectComposition({
-    browserExecutable,
-    id: "VideoDesignPreview",
-    inputProps: {},
-    serveUrl,
-  });
-  const rendererPng = await renderStill({
-    browserExecutable,
-    composition,
-    frame: 18,
-    imageFormat: "png",
-    serveUrl,
-  });
-  const rendererImage = PNG.sync.read(rendererPng.buffer ?? Buffer.alloc(0));
-  expect([rendererImage.width, rendererImage.height]).toEqual([1920, 1080]);
-  const pixelDifference = getPixelDifference(
-    browserImage.data,
-    rendererImage.data,
-  );
-  expect(pixelDifference.differingChannels).toBeLessThanOrEqual(
-    visualParityBudget.differingChannels,
-  );
-  expect(pixelDifference.totalChannelDelta).toBeLessThanOrEqual(
-    visualParityBudget.totalChannelDelta,
-  );
+  for (const template of [
+    "definition",
+    "process",
+    "input-process-output",
+    "comparison",
+    "cause-effect",
+    "labelled-diagram",
+    "analogy",
+    "worked-example",
+    "summary",
+  ]) {
+    await page.getByRole("button", { name: template, exact: true }).click();
+    await expect(
+      page.getByRole("heading", { name: `${template} scene` }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Play scene", exact: true }),
+    ).toBeVisible();
+    await expect(page.getByText(/Preview frame: 0; muted/)).toBeVisible();
+  }
 });
 
-function getPixelDifference(
-  browserPixels: Buffer,
-  rendererPixels: Buffer,
-): Readonly<{
-  differingChannels: number;
-  totalChannelDelta: number;
-}> {
-  let differingChannels = 0;
-  let totalChannelDelta = 0;
+test("shows actionable invalid input and missing media errors", async ({
+  page,
+}) => {
+  await page.goto("/video-design-preview");
+  await page.getByRole("button", { name: "invalid input" }).click();
+  await expect(page.getByTestId("scene-preview-error")).toContainText(
+    "Preview unavailable",
+  );
+  await expect(page.getByTestId("scene-preview-error")).toContainText(
+    "refresh its authorized media",
+  );
 
-  for (let index = 0; index < browserPixels.length; index += 1) {
-    const browserPixel = browserPixels[index] ?? 0;
-    const rendererPixel = rendererPixels[index] ?? 0;
-    const delta = Math.abs(browserPixel - rendererPixel);
-    if (delta > 0) {
-      differingChannels += 1;
-      totalChannelDelta += delta;
-    }
-  }
+  await page.getByRole("button", { name: "missing asset" }).click();
+  await expect(page.getByTestId("scene-preview-error")).toContainText(
+    "Missing preview asset",
+  );
 
-  return Object.freeze({
-    differingChannels,
-    totalChannelDelta,
-  });
-}
+  await page.getByRole("button", { name: "missing audio" }).click();
+  await expect(
+    page.getByRole("button", { name: "Play scene", exact: true }),
+  ).toBeVisible();
+});
