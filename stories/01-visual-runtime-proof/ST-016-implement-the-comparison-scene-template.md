@@ -2,7 +2,7 @@
 story_id: ST-016
 title: "Implement the Comparison Scene Template"
 phase: "01 \u2014 Visual Runtime Proof"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E11"]
 prd_user_stories: ["E11-US1", "E11-US2"]
@@ -108,15 +108,15 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-11
+- **Completed:** 2026-08-11
+- **Branch/PR:** `story/st-005-job-platform` (pre-existing branch; no PR created)
+- **Files changed:** schemas contract, compatibility docs/JSON Schema/tests; comparison scene, fixtures, registry, exports, smoke and layout tests; status records.
+- **Migrations:** None. Compatibility migration added from 1.3 comparison labels to 1.4 structured subjects.
+- **Contracts changed:** `LessonSpec` 1.4; `ComparisonVisual` has bounded left/right subjects, optional image slots, and at most four similarities or differences.
+- **Commands/tests run:** `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build` all passed.
+- **Screenshots or representative output:** Deterministic Remotion PNG smoke render for the image-assisted comparison fixture passed.
+- **Decisions and assumptions:** Fixed two-column layout using shared tokens; missing image bindings use text-only subject cards.
+- **Deviations from story/technical guide:** None.
+- **Known risks or follow-up:** Human review is required to transition In Review to Done.

@@ -2,7 +2,7 @@
 story_id: ST-019
 title: "Implement the Analogy Scene Template"
 phase: "01 \u2014 Visual Runtime Proof"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E11", "E19"]
 prd_user_stories: ["E11-US1", "E11-US2", "E19-US1"]
@@ -109,15 +109,16 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-12
+- **Completed:** 2026-08-12
+- **Approved:** 2026-08-12
+- **Branch/PR:** Existing local branch; no branch or PR published.
+- **Files changed:** LessonSpec schema, generated JSON Schema, compatibility notes and tests; analogy scene, fixtures, registry, exports, and focused tests; this story and `STORY_INDEX.md`.
+- **Migrations:** LessonSpec 1.6 to 1.7 rejects legacy free-text analogies for teacher-led migration; non-analogy documents upgrade automatically.
+- **Contracts changed:** `AnalogyVisual` now requires a bounded source concept, familiar system, and one to four explicit mapping pairs. AI-added analogies use the existing `generatedAdditions` contract with `kind: analogy`.
+- **Commands/tests run:** Passed: LessonSpec JSON Schema generation; schemas test (34 tests), lint, typecheck, and build; scene-library test (33 tests, including 1920x1080 Playwright caption-safe bounds and deterministic Remotion PNG smoke), lint, typecheck, and build; scoped Prettier check and `git diff --check`.
+- **Screenshots or representative output:** Playwright bounds test covers the 1920x1080 maximum-density fixture above the caption-safe area.
+- **Decisions and assumptions:** The generated label is rendered only when a scene includes a `generatedAdditions` entry of kind `analogy`; it explicitly states that the comparison is a learning aid rather than a source fact.
+- **Deviations from story/technical guide:** None.
+- **Known risks or follow-up:** Legacy analogy payloads must be explicitly remapped by a teacher rather than inferred or silently altered.

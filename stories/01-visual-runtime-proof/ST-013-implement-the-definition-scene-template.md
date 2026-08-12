@@ -2,7 +2,7 @@
 story_id: ST-013
 title: "Implement the Definition Scene Template"
 phase: "01 \u2014 Visual Runtime Proof"
-status: Ready
+status: In Review
 priority: must-have
 epics: ["E11"]
 prd_user_stories: ["E11-US1", "E11-US2"]
@@ -108,15 +108,15 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-11
+- **Completed:** 2026-08-11
+- **Branch/PR:** Pre-existing `story/st-005-job-platform`; no PR created.
+- **Files changed:** `packages/schemas/src/index.ts`, `packages/schemas/src/lesson-spec.test.ts`, `packages/schemas/LESSONSPEC_COMPATIBILITY.md`, `packages/schemas/lesson-spec-v1.schema.json`, `packages/scene-library/src/definition-scene.tsx`, `packages/scene-library/src/definition-scene.fixtures.ts`, `packages/scene-library/src/scene-registry.tsx`, `packages/scene-library/src/index.ts`, `packages/scene-library/src/index.test.ts`, and `packages/scene-library/src/scene-preview-render-smoke.test.ts`.
+- **Migrations:** Added in-memory `LessonSpec 1.0 -> 1.1` migration; compatible documents upgrade automatically, while unsafe definition-density changes require teacher migration.
+- **Contracts changed:** Added versioned `DefinitionVisual`: bounded term (80), definition (120), and optional paired example label/text (48 each). LessonSpec 1.1 and its generated JSON Schema now explicitly migrate compatible 1.0 inputs; over-limit legacy definitions require teacher migration rather than being truncated. Registry metadata exposes matching limits and an optional `visual-example` asset slot.
+- **Commands/tests run:** Passed: schemas build/lint/typecheck/test (24 tests), generated LessonSpec JSON Schema, evals test (2 tests), and scene-library build/lint/typecheck/test (16 tests, including deterministic 30fps Remotion PNG smoke for text-only and asset-assisted fixtures and 1920x1080 caption-safe-area browser checks); `git diff --check`. Workspace `pnpm typecheck` remains blocked by the pre-existing missing `packageBoundary` export consumed by `@avlp/test-fixtures`.
+- **Screenshots or representative output:** The max-density browser layout test verified every definition content element remains inside 1920x1080 bounds and above the caption safe area. Existing Remotion smoke produced deterministic valid PNG frames at 30fps.
+- **Decisions and assumptions:** A visual asset is represented by an approved existing `assetBinding` and rendered as a deterministic placeholder; resolving catalog media is out of scope. Definition density limits were tightened from the inherited generic limits to values proven by the 1080p layout test. The explicit 1.0-to-1.1 migration preserves compatible content and rejects unsafe conversion rather than silently changing source meaning.
+- **Deviations from story/technical guide:** No material deviations.
+- **Known risks or follow-up:** The optional visual remains a placeholder until the asset catalog/resolver story provides approved media. Repository-wide gates may be affected by the unrelated pre-existing ST-012 worktree changes.

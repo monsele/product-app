@@ -20,9 +20,15 @@ export const sceneRuntimeComposition = Object.freeze({
 });
 
 export function SceneRuntimeComposition({
+  resolvedAssets,
   scene,
 }: SceneComponentProps): JSX.Element {
-  return <SceneRenderRuntime scene={scene} />;
+  return (
+    <SceneRenderRuntime
+      {...(resolvedAssets === undefined ? {} : { resolvedAssets })}
+      scene={scene}
+    />
+  );
 }
 
 export function SceneRuntimeRoot(): JSX.Element {

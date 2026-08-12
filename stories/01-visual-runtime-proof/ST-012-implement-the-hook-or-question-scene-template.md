@@ -2,7 +2,7 @@
 story_id: ST-012
 title: "Implement the Hook or Question Scene Template"
 phase: "01 \u2014 Visual Runtime Proof"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E11"]
 prd_user_stories: ["E11-US1", "E11-US2"]
@@ -110,15 +110,15 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-11
+- **Completed:** 2026-08-11
+- **Branch/PR:** Pre-existing `story/st-005-job-platform`; no PR created.
+- **Files changed:** `packages/schemas/src/index.ts`, `packages/schemas/src/lesson-spec.test.ts`, `packages/scene-library/package.json`, `pnpm-lock.yaml`, `packages/scene-library/src/hook-scene.tsx`, `packages/scene-library/src/hook-scene.fixtures.ts`, `packages/scene-library/src/scene-registry.tsx`, `packages/scene-library/src/remotion-root.tsx`, `packages/scene-library/src/index.ts`, `packages/scene-library/src/index.test.ts`, and `packages/scene-library/src/scene-preview-render-smoke.test.ts`.
+- **Migrations:** None.
+- **Contracts changed:** Finalized the backward-compatible `HookVisual` v1 fields: required `question` (80 chars), optional `prompt` (48 chars), and up to three 12-character `supportingElements`; hook editor metadata exposes these limits and one optional `subject` asset slot. Existing `assetBindings` remain the asset contract.
+- **Commands/tests run:** Passed: `pnpm install`, `pnpm --filter @avlp/schemas build`, `pnpm --filter @avlp/schemas test` (21 tests), `pnpm --filter @avlp/scene-library typecheck`, `pnpm --filter @avlp/scene-library lint`, `pnpm --filter @avlp/scene-library test` (13 tests, including 30fps Remotion PNG smoke and a 1920×1080 maximum-density bounds check), scoped Prettier check, and `git diff --check`. Workspace `typecheck`, `test`, and `build` remain blocked by the unrelated missing `packageBoundary` export consumed by `@avlp/test-fixtures`; repository-wide formatting reports pre-existing unrelated files.
+- **Screenshots or representative output:** The hook Remotion smoke test emitted valid 1920×1080 PNGs at 30fps. SHA-256 baselines cover entrance and fully entered key frames; repeated frame-zero rendering produces the same PNG. Key animation-frame states, no-asset rendering, and optional-asset rendering are covered by automated tests.
+- **Decisions and assumptions:** The initial optional subject illustration is represented only by an approved `assetBinding` and a deterministic placeholder treatment; no remote/provider URL or asset lookup was added because asset management is out of scope. The existing generic scene preview composition now uses the hook default fixture.
+- **Deviations from story/technical guide:** No material deviations. The `HookVisual` bounds are intentionally conservative to guarantee a readable title layout; the Remotion root now bundles the declared approved font deterministically.
+- **Known risks or follow-up:** The optional asset treatment is intentionally a placeholder until the asset catalog/resolver story supplies approved asset media. Resolve the unrelated `packageBoundary` contract inconsistency before relying on workspace-wide quality gates.

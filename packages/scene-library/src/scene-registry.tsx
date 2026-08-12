@@ -1,5 +1,13 @@
 import { videoTheme } from "@avlp/design-system/video-theme";
 import {
+  comparisonVisualSchema,
+  analogyVisualSchema,
+  causeEffectVisualSchema,
+  diagramVisualSchema,
+  definitionVisualSchema,
+  hookVisualSchema,
+  ipoVisualSchema,
+  processVisualSchema,
   sceneSpecSchema,
   sceneTemplateSchema,
   sceneTemplateValues,
@@ -14,9 +22,23 @@ import {
   type LayoutMeasurement,
   type SceneTextBlock,
 } from "./layout.js";
+import { HookScene } from "./hook-scene.js";
+import { DefinitionScene } from "./definition-scene.js";
+import { ProcessScene } from "./process-scene.js";
+import { IpoScene } from "./ipo-scene.js";
+import { ComparisonScene } from "./comparison-scene.js";
+import { CauseEffectScene } from "./cause-effect-scene.js";
+import { LabelledDiagramScene } from "./labelled-diagram-scene.js";
+import { AnalogyScene } from "./analogy-scene.js";
+import { planDiagramCallouts } from "./diagram-layout.js";
 
 export type SceneValidationIssue = Readonly<{
-  code: "unsupported_template" | "invalid_scene" | "text_overflow";
+  code:
+    | "unsupported_template"
+    | "invalid_scene"
+    | "text_overflow"
+    | "missing_asset"
+    | "diagram_collision";
   fieldPath: string;
   message: string;
   sceneId: string;
@@ -45,7 +67,21 @@ type SceneLayout = Readonly<{
   visualTextPaths: readonly string[];
 }>;
 
-export type SceneComponentProps = Readonly<{ scene: SceneSpec }>;
+export const resolvedSceneAssetSourceValues = ["library", "source"] as const;
+export type ResolvedSceneAssetSource =
+  (typeof resolvedSceneAssetSourceValues)[number];
+export type ResolvedSceneAsset = Readonly<{
+  altText: string;
+  assetId: string;
+  source: ResolvedSceneAssetSource;
+  src: string;
+}>;
+export type SceneRuntimeMode = "preview" | "render";
+export type SceneComponentProps = Readonly<{
+  resolvedAssets?: Readonly<Record<string, ResolvedSceneAsset>>;
+  runtimeMode?: SceneRuntimeMode;
+  scene: SceneSpec;
+}>;
 
 export type SceneDefinition<TVisual extends z.ZodTypeAny> = Readonly<{
   component: (props: SceneComponentProps) => JSX.Element;
@@ -68,33 +104,14 @@ const text = (maximum: number) => z.string().trim().min(1).max(maximum);
 const itemList = z.array(text(300)).min(1).max(12);
 
 const visualSchemas = {
-  hook: z
-    .object({ question: text(500), prompt: text(500).optional() })
-    .strict(),
-  definition: z.object({ term: text(200), definition: text(1_000) }).strict(),
-  process: z.object({ steps: itemList }).strict(),
-  "input-process-output": z
-    .object({ input: text(500), process: text(500), output: text(500) })
-    .strict(),
-  comparison: z
-    .object({
-      leftLabel: text(200),
-      rightLabel: text(200),
-      similarities: itemList,
-      differences: itemList,
-    })
-    .strict(),
-  "cause-effect": z.object({ causes: itemList, effects: itemList }).strict(),
-  "labelled-diagram": z
-    .object({ diagramDescription: text(1_000), labels: itemList })
-    .strict(),
-  analogy: z
-    .object({
-      sourceConcept: text(500),
-      analogy: text(1_000),
-      mapping: itemList,
-    })
-    .strict(),
+  hook: hookVisualSchema,
+  definition: definitionVisualSchema,
+  process: processVisualSchema,
+  "input-process-output": ipoVisualSchema,
+  comparison: comparisonVisualSchema,
+  "cause-effect": causeEffectVisualSchema,
+  "labelled-diagram": diagramVisualSchema,
+  analogy: analogyVisualSchema,
   "worked-example": z
     .object({
       problem: text(1_000),
@@ -112,28 +129,36 @@ const visualSchemas = {
 
 const defaults = {
   hook: { question: "What will you discover?" },
-  definition: { term: "Key term", definition: "A concise explanation." },
-  process: { steps: ["First step"] },
+  definition: {
+    term: "Key term",
+    definition: "A concise explanation.",
+  },
+  process: { steps: ["First step", "Second step"] },
   "input-process-output": {
-    input: "Input",
-    process: "Process",
-    output: "Output",
+    inputs: [{ label: "Input" }],
+    process: { label: "Process" },
+    outputs: [{ label: "Output" }],
   },
   comparison: {
-    leftLabel: "Left",
-    rightLabel: "Right",
+    leftSubject: { label: "Left subject" },
+    rightSubject: { label: "Right subject" },
     similarities: ["Shared feature"],
     differences: ["Key difference"],
   },
-  "cause-effect": { causes: ["Cause"], effects: ["Effect"] },
+  "cause-effect": {
+    causes: [{ id: "cause-1", label: "Cause", assetSlot: "cause-1-icon" }],
+    effects: [{ id: "effect-1", label: "Effect", assetSlot: "effect-1-icon" }],
+    connections: [{ from: "cause-1", to: "effect-1" }],
+  },
   "labelled-diagram": {
-    diagramDescription: "A labelled diagram.",
-    labels: ["Label"],
+    kind: "shapes",
+    shape: "system",
+    labels: [{ anchor: "top-left", id: "label-1", text: "Label" }],
   },
   analogy: {
     sourceConcept: "Concept",
-    analogy: "Familiar comparison.",
-    mapping: ["Connection"],
+    familiarSystem: "Familiar system",
+    mappings: [{ concept: "Concept part", analogy: "Familiar part" }],
   },
   "worked-example": {
     problem: "Example problem",
@@ -179,9 +204,9 @@ function PlaceholderScene({ scene }: SceneComponentProps): JSX.Element {
   ]);
 }
 
-function makeDefault(
-  template: SceneTemplate,
-): Extract<SceneSpec, { template: SceneTemplate }> {
+function makeDefault<TTemplate extends SceneTemplate>(
+  template: TTemplate,
+): Extract<SceneSpec, { template: TTemplate }> {
   return {
     id: "00000000-0000-7000-8000-000000000001",
     order: 1,
@@ -201,33 +226,48 @@ function makeDefault(
     durationSeconds: 10,
     template,
     visual: defaults[template],
-  } as Extract<SceneSpec, { template: SceneTemplate }>;
+  } as unknown as Extract<SceneSpec, { template: TTemplate }>;
 }
 
 const layouts: Record<SceneTemplate, SceneLayout> = {
-  hook: { visualTextPaths: ["visual.question", "visual.prompt"] },
-  definition: { visualTextPaths: ["visual.term", "visual.definition"] },
+  hook: {
+    visualTextPaths: [
+      "visual.question",
+      "visual.prompt",
+      "visual.supportingElements",
+    ],
+  },
+  definition: {
+    visualTextPaths: [
+      "visual.term",
+      "visual.definition",
+      "visual.exampleLabel",
+      "visual.exampleText",
+    ],
+  },
   process: { visualTextPaths: ["visual.steps"] },
   "input-process-output": {
-    visualTextPaths: ["visual.input", "visual.process", "visual.output"],
+    visualTextPaths: ["visual.inputs", "visual.process", "visual.outputs"],
   },
   comparison: {
     visualTextPaths: [
-      "visual.leftLabel",
-      "visual.rightLabel",
+      "visual.leftSubject.label",
+      "visual.rightSubject.label",
       "visual.similarities",
       "visual.differences",
     ],
   },
-  "cause-effect": { visualTextPaths: ["visual.causes", "visual.effects"] },
+  "cause-effect": {
+    visualTextPaths: ["visual.causes", "visual.mechanism", "visual.effects"],
+  },
   "labelled-diagram": {
-    visualTextPaths: ["visual.diagramDescription", "visual.labels"],
+    visualTextPaths: ["visual.labels"],
   },
   analogy: {
     visualTextPaths: [
       "visual.sourceConcept",
-      "visual.analogy",
-      "visual.mapping",
+      "visual.familiarSystem",
+      "visual.mappings",
     ],
   },
   "worked-example": {
@@ -238,81 +278,122 @@ const layouts: Record<SceneTemplate, SceneLayout> = {
 
 const metadataByTemplate: Record<SceneTemplate, TemplateMetadataBase> = {
   hook: {
-    assetSlots: [],
-    itemLimits: {},
+    assetSlots: ["subject"],
+    itemLimits: { "visual.supportingElements": 3 },
     migrationBehavior: "none",
     textLimits: {
       narration: 5000,
       onScreenText: 300,
-      "visual.question": 500,
-      "visual.prompt": 500,
+      "visual.question": 80,
+      "visual.prompt": 48,
     },
   },
   definition: {
-    assetSlots: [],
+    assetSlots: ["visual-example"],
     itemLimits: {},
     migrationBehavior: "none",
     textLimits: {
       narration: 5000,
       onScreenText: 300,
-      "visual.term": 200,
-      "visual.definition": 1000,
+      "visual.term": 80,
+      "visual.definition": 120,
+      "visual.exampleLabel": 48,
+      "visual.exampleText": 48,
     },
   },
   process: {
-    assetSlots: [],
-    itemLimits: { "visual.steps": 12 },
+    assetSlots: [
+      "step-1-icon",
+      "step-2-icon",
+      "step-3-icon",
+      "step-4-icon",
+      "step-5-icon",
+      "step-6-icon",
+    ],
+    itemLimits: { "visual.steps": 6 },
     migrationBehavior: "none",
-    textLimits: { narration: 5000, onScreenText: 300 },
+    textLimits: { narration: 5000, onScreenText: 300, "visual.steps": 80 },
   },
   "input-process-output": {
-    assetSlots: [],
-    itemLimits: {},
+    assetSlots: [
+      "input-1-icon",
+      "input-2-icon",
+      "input-3-icon",
+      "input-4-icon",
+      "process-icon",
+      "output-1-icon",
+      "output-2-icon",
+      "output-3-icon",
+      "output-4-icon",
+    ],
+    itemLimits: { "visual.inputs": 4, "visual.outputs": 4 },
     migrationBehavior: "none",
     textLimits: {
       narration: 5000,
       onScreenText: 300,
-      "visual.input": 500,
-      "visual.process": 500,
-      "visual.output": 500,
+      "visual.inputs": 80,
+      "visual.process.label": 80,
+      "visual.outputs": 80,
     },
   },
   comparison: {
-    assetSlots: [],
-    itemLimits: { "visual.similarities": 12, "visual.differences": 12 },
+    assetSlots: ["left-subject-image", "right-subject-image"],
+    itemLimits: { "visual.similarities": 4, "visual.differences": 4 },
     migrationBehavior: "none",
     textLimits: {
       narration: 5000,
       onScreenText: 300,
-      "visual.leftLabel": 200,
-      "visual.rightLabel": 200,
+      "visual.leftSubject.label": 80,
+      "visual.rightSubject.label": 80,
+      "visual.similarities": 80,
+      "visual.differences": 80,
     },
   },
   "cause-effect": {
-    assetSlots: [],
-    itemLimits: { "visual.causes": 12, "visual.effects": 12 },
-    migrationBehavior: "none",
-    textLimits: { narration: 5000, onScreenText: 300 },
-  },
-  "labelled-diagram": {
-    assetSlots: ["diagram"],
-    itemLimits: { "visual.labels": 12 },
+    assetSlots: [
+      "cause-1-icon",
+      "cause-2-icon",
+      "cause-3-icon",
+      "mechanism-icon",
+      "effect-1-icon",
+      "effect-2-icon",
+      "effect-3-icon",
+    ],
+    itemLimits: {
+      "visual.causes": 3,
+      "visual.effects": 3,
+      "visual.connections": 9,
+    },
     migrationBehavior: "none",
     textLimits: {
       narration: 5000,
       onScreenText: 300,
-      "visual.diagramDescription": 1000,
+      "visual.causes.label": 80,
+      "visual.mechanism.label": 80,
+      "visual.effects.label": 80,
+    },
+  },
+  "labelled-diagram": {
+    assetSlots: ["diagram"],
+    itemLimits: { "visual.labels": 6 },
+    migrationBehavior: "none",
+    textLimits: {
+      narration: 5000,
+      onScreenText: 300,
+      "visual.labels.text": 80,
     },
   },
   analogy: {
     assetSlots: [],
-    itemLimits: { "visual.mapping": 12 },
+    itemLimits: { "visual.mappings": 4 },
     migrationBehavior: "none",
     textLimits: {
       narration: 5000,
       onScreenText: 300,
-      "visual.sourceConcept": 500,
-      "visual.analogy": 1000,
+      "visual.sourceConcept": 80,
+      "visual.familiarSystem": 80,
+      "visual.mappings.concept": 60,
+      "visual.mappings.analogy": 60,
     },
   },
   "worked-example": {
@@ -349,7 +430,11 @@ function metadata(template: SceneTemplate): TemplateFormMetadata {
           control: value.itemLimits[path] === undefined ? "text" : "text-list",
           label: path.slice("visual.".length),
           path,
-          required: !path.endsWith("prompt") && !path.endsWith("callToAction"),
+          required:
+            !path.endsWith("prompt") &&
+            !path.endsWith("callToAction") &&
+            !path.endsWith("exampleLabel") &&
+            !path.endsWith("exampleText"),
         }),
       ),
     ),
@@ -363,7 +448,24 @@ export const sceneRegistry: SceneRegistry = Object.freeze(
     sceneTemplateValues.map((template) => [
       template,
       Object.freeze({
-        component: PlaceholderScene,
+        component:
+          template === "hook"
+            ? HookScene
+            : template === "definition"
+              ? DefinitionScene
+              : template === "process"
+                ? ProcessScene
+                : template === "input-process-output"
+                  ? IpoScene
+                  : template === "comparison"
+                    ? ComparisonScene
+                    : template === "cause-effect"
+                      ? CauseEffectScene
+                      : template === "labelled-diagram"
+                        ? LabelledDiagramScene
+                        : template === "analogy"
+                          ? AnalogyScene
+                          : PlaceholderScene,
         createDefault: () => makeDefault(template),
         durationGuidance: Object.freeze({
           maximumSeconds: 60,
@@ -386,13 +488,44 @@ export function resolveSceneDefinition(
   return sceneRegistry[scene.template as SceneTemplate];
 }
 
-export function createDefaultScene(
-  template: SceneTemplate,
-): Extract<SceneSpec, { template: SceneTemplate }> {
-  return resolveSceneDefinition({ template }).createDefault();
+export function createDefaultScene<TTemplate extends SceneTemplate>(
+  template: TTemplate,
+): Extract<SceneSpec, { template: TTemplate }> {
+  return makeDefault(template);
 }
 
-export function validateScene(scene: unknown): readonly SceneValidationIssue[] {
+function isSafeDiagramImageSource(src: string): boolean {
+  return (
+    /^\/assets\/[a-z0-9/_-]+\.(png|jpe?g|webp)$/i.test(src) ||
+    /^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(src)
+  );
+}
+
+export function resolveSafeDiagramAsset(
+  assetId: string | undefined,
+  resolvedAssets: SceneComponentProps["resolvedAssets"],
+): ResolvedSceneAsset | undefined {
+  if (assetId === undefined) return undefined;
+  const asset = resolvedAssets?.[assetId];
+  if (
+    asset === undefined ||
+    asset.assetId !== assetId ||
+    !resolvedSceneAssetSourceValues.includes(asset.source) ||
+    !isSafeDiagramImageSource(asset.src)
+  )
+    return undefined;
+  return asset;
+}
+
+export type SceneValidationOptions = Readonly<{
+  requireResolvedAssets?: boolean;
+  resolvedAssets?: SceneComponentProps["resolvedAssets"];
+}>;
+
+export function validateScene(
+  scene: unknown,
+  options: SceneValidationOptions = {},
+): readonly SceneValidationIssue[] {
   const sceneId =
     typeof scene === "object" &&
     scene !== null &&
@@ -443,23 +576,130 @@ export function validateScene(scene: unknown): readonly SceneValidationIssue[] {
         suggestedCorrection: "Correct the template visual input.",
       }),
     );
+  if (parsed.data.template === "labelled-diagram") {
+    const diagram = parsed.data;
+    const diagramAsset = diagram.assetBindings.find(
+      (binding) =>
+        binding.slot === diagram.visual.baseAssetSlot &&
+        binding.role === "diagram",
+    );
+    if (diagram.visual.kind === "asset" && diagramAsset === undefined)
+      return [
+        Object.freeze({
+          code: "missing_asset" as const,
+          fieldPath: "assetBindings.diagram",
+          message: "The required diagram asset is missing.",
+          sceneId: diagram.id,
+          severity: "error" as const,
+          suggestedCorrection:
+            "Bind an approved source or library diagram to the diagram slot.",
+        }),
+      ];
+    if (
+      diagram.visual.kind === "asset" &&
+      options.requireResolvedAssets &&
+      resolveSafeDiagramAsset(diagramAsset?.assetId, options.resolvedAssets) ===
+        undefined
+    )
+      return [
+        Object.freeze({
+          code: "missing_asset" as const,
+          fieldPath: "resolvedAssets.diagram",
+          message: "The required diagram asset could not be resolved safely.",
+          sceneId: diagram.id,
+          severity: "error" as const,
+          suggestedCorrection:
+            "Resolve the approved source or library diagram before final rendering.",
+        }),
+      ];
+    const collisionLabelIds = planDiagramCallouts(
+      diagram.visual.labels,
+    ).collisionLabelIds;
+    if (collisionLabelIds.length > 0)
+      return [
+        Object.freeze({
+          code: "diagram_collision" as const,
+          fieldPath: "visual.labels",
+          message: `Diagram callouts overlap: ${collisionLabelIds.join(", ")}.`,
+          sceneId: diagram.id,
+          severity: "error" as const,
+          suggestedCorrection:
+            "Choose distinct semantic anchors for the affected labels.",
+        }),
+      ];
+  }
   const values: SceneTextBlock[] = [];
   if (parsed.data.title !== undefined)
     values.push({ path: "title", value: parsed.data.title });
   parsed.data.onScreenText.forEach((value, index) =>
     values.push({ path: `onScreenText.${index}`, value }),
   );
+  const collectText = (value: unknown, path: string): void => {
+    if (typeof value === "string") {
+      values.push({ path, value });
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => collectText(item, `${path}.${index}`));
+      return;
+    }
+    if (typeof value === "object" && value !== null)
+      Object.entries(value)
+        .filter(
+          ([key]) =>
+            parsed.data.template !== "labelled-diagram" ||
+            !path.startsWith("visual.labels") ||
+            key === "text",
+        )
+        .forEach(([key, nested]) => collectText(nested, `${path}.${key}`));
+  };
   for (const path of definition.layout.visualTextPaths) {
-    const key = path.slice("visual.".length) as keyof typeof parsed.data.visual;
-    const value: unknown = parsed.data.visual[key];
-    if (typeof value === "string") values.push({ path, value });
-    else if (Array.isArray(value))
-      value.forEach((item: unknown, index: number) => {
-        if (typeof item === "string")
-          values.push({ path: `${path}.${index}`, value: item });
-      });
+    const keys = path.slice("visual.".length).split(".");
+    let value: unknown = parsed.data.visual;
+    for (const key of keys)
+      value =
+        typeof value === "object" && value !== null && key in value
+          ? (value as Record<string, unknown>)[key]
+          : undefined;
+    collectText(value, path);
   }
-  const measurement = measureSceneContent(values);
+  const measurement =
+    parsed.data.template === "input-process-output"
+      ? (values
+          .map((value) => measureSceneContent([value]))
+          .find((item) => !item.fits) ?? measureSceneContent([]))
+      : parsed.data.template === "comparison"
+        ? ([
+            values.filter((value) =>
+              value.path.startsWith("visual.leftSubject"),
+            ),
+            values.filter((value) =>
+              value.path.startsWith("visual.rightSubject"),
+            ),
+            values.filter((value) =>
+              value.path.startsWith("visual.similarities"),
+            ),
+            values.filter((value) =>
+              value.path.startsWith("visual.differences"),
+            ),
+          ]
+            .map((group) => measureSceneContent(group))
+            .find((item) => !item.fits) ?? measureSceneContent([]))
+        : parsed.data.template === "cause-effect"
+          ? ([
+              values.filter((value) => value.path.startsWith("visual.causes")),
+              values.filter((value) =>
+                value.path.startsWith("visual.mechanism"),
+              ),
+              values.filter((value) => value.path.startsWith("visual.effects")),
+            ]
+              .map((group) => measureSceneContent(group))
+              .find((item) => !item.fits) ?? measureSceneContent([]))
+          : parsed.data.template === "analogy"
+            ? (values
+                .map((value) => measureSceneContent([value]))
+                .find((item) => !item.fits) ?? measureSceneContent([]))
+            : measureSceneContent(values);
   if (measurement.fits) return [];
   return [
     Object.freeze({
@@ -477,20 +717,47 @@ export function measureSceneLayout(text: string): LayoutMeasurement {
   return measureSceneText(text);
 }
 
-export function SceneRuntime({ scene }: SceneComponentProps): JSX.Element {
-  return createElement(resolveSceneDefinition(scene).component, { scene });
+export function SceneRuntime({
+  resolvedAssets,
+  runtimeMode,
+  scene,
+}: SceneComponentProps): JSX.Element {
+  return createElement(resolveSceneDefinition(scene).component, {
+    ...(resolvedAssets === undefined ? {} : { resolvedAssets }),
+    ...(runtimeMode === undefined ? {} : { runtimeMode }),
+    scene,
+  });
 }
 
 export function ScenePreviewRuntime({
+  resolvedAssets,
   scene,
 }: SceneComponentProps): JSX.Element {
-  return createElement(SceneRuntime, { scene });
+  return createElement(SceneRuntime, {
+    ...(resolvedAssets === undefined ? {} : { resolvedAssets }),
+    runtimeMode: "preview",
+    scene,
+  });
 }
 
 export function SceneRenderRuntime({
+  resolvedAssets,
   scene,
 }: SceneComponentProps): JSX.Element {
-  return createElement(SceneRuntime, { scene });
+  const issues = validateScene(scene, {
+    requireResolvedAssets: true,
+    ...(resolvedAssets === undefined ? {} : { resolvedAssets }),
+  });
+  const blockingIssue = issues.find((issue) => issue.severity === "error");
+  if (blockingIssue !== undefined)
+    throw new Error(
+      `Scene render blocked for ${blockingIssue.fieldPath}: ${blockingIssue.message}`,
+    );
+  return createElement(SceneRuntime, {
+    ...(resolvedAssets === undefined ? {} : { resolvedAssets }),
+    runtimeMode: "render",
+    scene,
+  });
 }
 
-export const sceneRegistryPreviewFixture = createDefaultScene("definition");
+export const sceneRegistryPreviewFixture = createDefaultScene("hook");

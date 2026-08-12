@@ -2,7 +2,14 @@ import { identifierSchema } from "@avlp/config/identifiers";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
-export const lessonSpecVersion = "1.0" as const;
+export const lessonSpecVersion = "1.7" as const;
+export const previousLessonSpecVersion = "1.6" as const;
+const lessonSpecV1_5Version = "1.5" as const;
+export const previousPreviousLessonSpecVersion = "1.4" as const;
+export const legacyPreviousLessonSpecVersion = "1.3" as const;
+export const legacyLessonSpecVersion = "1.2" as const;
+export const initialLessonSpecVersion = "1.0" as const;
+export const packageBoundary = "schemas" as const;
 const boundedText = (maximum: number) => z.string().trim().min(1).max(maximum);
 
 export const sourceRefSchema = z
@@ -47,6 +54,7 @@ export const sceneAssetBindingSchema = z
       "supporting",
     ]),
     altText: boundedText(500).optional(),
+    slot: boundedText(64).optional(),
   })
   .strict();
 export type SceneAssetBinding = z.infer<typeof sceneAssetBindingSchema>;
@@ -79,6 +87,253 @@ const sceneBaseShape = {
 } as const;
 export const sceneBaseSchema = z.object(sceneBaseShape).strict();
 const labelledItems = z.array(boundedText(300)).min(1).max(12);
+export const hookVisualSchema = z
+  .object({
+    question: boundedText(80),
+    prompt: boundedText(48).optional(),
+    supportingElements: z.array(boundedText(12)).max(3).optional(),
+  })
+  .strict();
+export type HookVisual = z.infer<typeof hookVisualSchema>;
+export const definitionVisualSchema = z
+  .object({
+    term: boundedText(80),
+    definition: boundedText(120),
+    exampleLabel: boundedText(48).optional(),
+    exampleText: boundedText(48).optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (
+      (value.exampleLabel === undefined) !==
+      (value.exampleText === undefined)
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [
+          value.exampleLabel === undefined ? "exampleLabel" : "exampleText",
+        ],
+        message: "exampleLabel and exampleText must be provided together.",
+      });
+  });
+export type DefinitionVisual = z.infer<typeof definitionVisualSchema>;
+export const processVisualSchema = z
+  .object({
+    steps: z.array(boundedText(80)).min(2).max(6),
+  })
+  .strict();
+export type ProcessVisual = z.infer<typeof processVisualSchema>;
+export const ipoAssetSlotSchema = z.enum([
+  "input-1-icon",
+  "input-2-icon",
+  "input-3-icon",
+  "input-4-icon",
+  "process-icon",
+  "output-1-icon",
+  "output-2-icon",
+  "output-3-icon",
+  "output-4-icon",
+]);
+export const ipoItemSchema = z
+  .object({
+    label: boundedText(80),
+    assetSlot: ipoAssetSlotSchema.optional(),
+  })
+  .strict();
+export type IpoItem = z.infer<typeof ipoItemSchema>;
+export const ipoVisualSchema = z
+  .object({
+    inputs: z.array(ipoItemSchema).min(1).max(4),
+    process: ipoItemSchema,
+    outputs: z.array(ipoItemSchema).min(1).max(4),
+  })
+  .strict();
+export type IpoVisual = z.infer<typeof ipoVisualSchema>;
+export const comparisonAssetSlotSchema = z.enum([
+  "left-subject-image",
+  "right-subject-image",
+]);
+export const comparisonSubjectSchema = z
+  .object({
+    label: boundedText(80),
+    assetSlot: comparisonAssetSlotSchema.optional(),
+  })
+  .strict();
+export type ComparisonSubject = z.infer<typeof comparisonSubjectSchema>;
+export const comparisonVisualSchema = z
+  .object({
+    leftSubject: comparisonSubjectSchema,
+    rightSubject: comparisonSubjectSchema,
+    similarities: z.array(boundedText(80)).min(1).max(4),
+    differences: z.array(boundedText(80)).min(1).max(4),
+  })
+  .strict();
+export type ComparisonVisual = z.infer<typeof comparisonVisualSchema>;
+export const causeEffectAssetSlotSchema = z.enum([
+  "cause-1-icon",
+  "cause-2-icon",
+  "cause-3-icon",
+  "mechanism-icon",
+  "effect-1-icon",
+  "effect-2-icon",
+  "effect-3-icon",
+]);
+export const causeEffectNodeSchema = z
+  .object({
+    id: boundedText(40).regex(/^[a-z][a-z0-9-]*$/),
+    label: boundedText(80),
+    assetSlot: causeEffectAssetSlotSchema.optional(),
+  })
+  .strict();
+export type CauseEffectNode = z.infer<typeof causeEffectNodeSchema>;
+export const causeEffectConnectionSchema = z
+  .object({ from: boundedText(40), to: boundedText(40) })
+  .strict();
+export type CauseEffectConnection = z.infer<typeof causeEffectConnectionSchema>;
+export const causeEffectVisualSchema = z
+  .object({
+    causes: z.array(causeEffectNodeSchema).min(1).max(3),
+    mechanism: causeEffectNodeSchema.optional(),
+    effects: z.array(causeEffectNodeSchema).min(1).max(3),
+    connections: z.array(causeEffectConnectionSchema).min(1).max(9),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const nodes = [
+      ...value.causes,
+      ...(value.mechanism === undefined ? [] : [value.mechanism]),
+      ...value.effects,
+    ];
+    const ids = new Set<string>();
+    nodes.forEach((node, index) => {
+      if (ids.has(node.id))
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [
+            index < value.causes.length
+              ? "causes"
+              : index === value.causes.length
+                ? "mechanism"
+                : "effects",
+            "id",
+          ],
+          message: "Causal node IDs must be unique.",
+        });
+      ids.add(node.id);
+    });
+    const expected = new Set<string>();
+    if (value.mechanism === undefined)
+      value.causes.forEach((cause) =>
+        value.effects.forEach((effect) =>
+          expected.add(`${cause.id}:${effect.id}`),
+        ),
+      );
+    else {
+      value.causes.forEach((cause) =>
+        expected.add(`${cause.id}:${value.mechanism?.id}`),
+      );
+      value.effects.forEach((effect) =>
+        expected.add(`${value.mechanism?.id}:${effect.id}`),
+      );
+    }
+    const actual = value.connections.map(
+      (connection) => `${connection.from}:${connection.to}`,
+    );
+    if (
+      new Set(actual).size !== actual.length ||
+      actual.length !== expected.size ||
+      actual.some((connection) => !expected.has(connection))
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["connections"],
+        message:
+          "Connections must define the complete directed cause-to-mechanism-to-effect chain.",
+      });
+  });
+export type CauseEffectVisual = z.infer<typeof causeEffectVisualSchema>;
+export const diagramAnchorSchema = z.enum([
+  "top-left",
+  "top",
+  "top-right",
+  "right",
+  "bottom-right",
+  "bottom",
+  "bottom-left",
+  "left",
+  "center",
+]);
+export type DiagramAnchor = z.infer<typeof diagramAnchorSchema>;
+export const diagramLabelSchema = z
+  .object({
+    anchor: diagramAnchorSchema,
+    id: boundedText(40).regex(/^[a-z][a-z0-9-]*$/),
+    text: boundedText(80),
+  })
+  .strict();
+export type DiagramLabel = z.infer<typeof diagramLabelSchema>;
+export const diagramVisualSchema = z
+  .object({
+    baseAssetSlot: z.literal("diagram").optional(),
+    kind: z.enum(["asset", "shapes"]),
+    labels: z.array(diagramLabelSchema).min(1).max(6),
+    shape: z.enum(["cell", "cycle", "plant", "system"]).optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.kind === "asset" && value.baseAssetSlot === undefined)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["baseAssetSlot"],
+        message: "Asset diagrams require the diagram asset slot.",
+      });
+    if (value.kind === "shapes" && value.shape === undefined)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["shape"],
+        message: "Shapes-only diagrams require an approved shape.",
+      });
+    const ids = new Set<string>();
+    value.labels.forEach((label, index) => {
+      if (ids.has(label.id))
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["labels", index, "id"],
+          message: "Diagram label IDs must be unique.",
+        });
+      ids.add(label.id);
+    });
+  });
+export type DiagramVisual = z.infer<typeof diagramVisualSchema>;
+export const analogyMappingPairSchema = z
+  .object({ analogy: boundedText(60), concept: boundedText(60) })
+  .strict();
+export type AnalogyMappingPair = z.infer<typeof analogyMappingPairSchema>;
+export const analogyVisualSchema = z
+  .object({
+    familiarSystem: boundedText(80),
+    mappings: z.array(analogyMappingPairSchema).min(1).max(4),
+    sourceConcept: boundedText(80),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const concepts = new Set<string>();
+    const analogies = new Set<string>();
+    value.mappings.forEach((mapping, index) => {
+      const concept = mapping.concept.toLocaleLowerCase();
+      const analogy = mapping.analogy.toLocaleLowerCase();
+      if (concepts.has(concept) || analogies.has(analogy))
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["mappings", index],
+          message:
+            "Each analogy mapping must use distinct concept and familiar-system terms.",
+        });
+      concepts.add(concept);
+      analogies.add(analogy);
+    });
+  });
+export type AnalogyVisual = z.infer<typeof analogyVisualSchema>;
 const visual = <T extends z.ZodRawShape>(shape: T) => z.object(shape).strict();
 
 export const sceneSpecSchema = z.discriminatedUnion("template", [
@@ -86,78 +341,56 @@ export const sceneSpecSchema = z.discriminatedUnion("template", [
     .object({
       ...sceneBaseShape,
       template: z.literal("hook"),
-      visual: visual({
-        question: boundedText(500),
-        prompt: boundedText(500).optional(),
-      }),
+      visual: hookVisualSchema,
     })
     .strict(),
   z
     .object({
       ...sceneBaseShape,
       template: z.literal("definition"),
-      visual: visual({
-        term: boundedText(200),
-        definition: boundedText(1_000),
-      }),
+      visual: definitionVisualSchema,
     })
     .strict(),
   z
     .object({
       ...sceneBaseShape,
       template: z.literal("process"),
-      visual: visual({ steps: labelledItems }),
+      visual: processVisualSchema,
     })
     .strict(),
   z
     .object({
       ...sceneBaseShape,
       template: z.literal("input-process-output"),
-      visual: visual({
-        input: boundedText(500),
-        process: boundedText(500),
-        output: boundedText(500),
-      }),
+      visual: ipoVisualSchema,
     })
     .strict(),
   z
     .object({
       ...sceneBaseShape,
       template: z.literal("comparison"),
-      visual: visual({
-        leftLabel: boundedText(200),
-        rightLabel: boundedText(200),
-        similarities: labelledItems,
-        differences: labelledItems,
-      }),
+      visual: comparisonVisualSchema,
     })
     .strict(),
   z
     .object({
       ...sceneBaseShape,
       template: z.literal("cause-effect"),
-      visual: visual({ causes: labelledItems, effects: labelledItems }),
+      visual: causeEffectVisualSchema,
     })
     .strict(),
   z
     .object({
       ...sceneBaseShape,
       template: z.literal("labelled-diagram"),
-      visual: visual({
-        diagramDescription: boundedText(1_000),
-        labels: labelledItems,
-      }),
+      visual: diagramVisualSchema,
     })
     .strict(),
   z
     .object({
       ...sceneBaseShape,
       template: z.literal("analogy"),
-      visual: visual({
-        sourceConcept: boundedText(500),
-        analogy: boundedText(1_000),
-        mapping: labelledItems,
-      }),
+      visual: analogyVisualSchema,
     })
     .strict(),
   z
@@ -187,6 +420,67 @@ export type SceneBase = Omit<
   "template" | "visual"
 >;
 export type SceneSpec = z.infer<typeof sceneSpecSchema>;
+const previousIpoSceneSpecSchema = z
+  .object({
+    ...sceneBaseShape,
+    template: z.literal("input-process-output"),
+    visual: visual({
+      input: boundedText(500),
+      process: boundedText(500),
+      output: boundedText(500),
+    }),
+  })
+  .strict();
+const previousComparisonSceneSpecSchema = z
+  .object({
+    ...sceneBaseShape,
+    template: z.literal("comparison"),
+    visual: visual({
+      leftLabel: boundedText(200),
+      rightLabel: boundedText(200),
+      similarities: labelledItems,
+      differences: labelledItems,
+    }),
+  })
+  .strict();
+const previousCauseEffectSceneSpecSchema = z
+  .object({
+    ...sceneBaseShape,
+    template: z.literal("cause-effect"),
+    visual: visual({ causes: labelledItems, effects: labelledItems }),
+  })
+  .strict();
+const previousSceneSpecSchema = z.union([
+  sceneSpecSchema,
+  previousIpoSceneSpecSchema,
+  previousComparisonSceneSpecSchema,
+  previousCauseEffectSceneSpecSchema,
+]);
+const previousProcessSceneSpecSchema = z
+  .object({
+    ...sceneBaseShape,
+    template: z.literal("process"),
+    visual: visual({ steps: labelledItems }),
+  })
+  .strict();
+const previousPreviousSceneSpecSchema = z.union([
+  previousSceneSpecSchema,
+  previousProcessSceneSpecSchema,
+]);
+const legacyDefinitionSceneSpecSchema = z
+  .object({
+    ...sceneBaseShape,
+    template: z.literal("definition"),
+    visual: visual({
+      term: boundedText(200),
+      definition: boundedText(1_000),
+    }),
+  })
+  .strict();
+const legacySceneSpecSchema = z.union([
+  previousPreviousSceneSpecSchema,
+  legacyDefinitionSceneSpecSchema,
+]);
 
 export const lessonSpecSchema = z
   .object({
@@ -244,7 +538,316 @@ export const lessonSpecJsonSchema = zodToJsonSchema(
   lessonSpecSchema,
   "LessonSpec",
 );
+
+const previousLessonSpecEnvelopeSchema = z
+  .object({
+    schemaVersion: z.literal(legacyLessonSpecVersion),
+    scenes: z.array(previousSceneSpecSchema).min(1).max(100),
+  })
+  .passthrough();
+
+function migrateIpoVisuals(
+  scenes: readonly z.infer<typeof previousSceneSpecSchema>[],
+): LessonSpec["scenes"] {
+  return scenes.map((scene) => {
+    if (scene.template !== "input-process-output" || "inputs" in scene.visual)
+      return scene;
+    return {
+      ...scene,
+      visual: {
+        inputs: [{ label: scene.visual.input }],
+        process: { label: scene.visual.process },
+        outputs: [{ label: scene.visual.output }],
+      },
+    };
+  }) as LessonSpec["scenes"];
+}
+
+export function migrateLessonSpecV1_2ToV1_3(input: unknown): LessonSpec {
+  const parsed = previousLessonSpecEnvelopeSchema.safeParse(input);
+  if (!parsed.success)
+    throw new Error(
+      "LessonSpec 1.2 contains content that requires an explicit teacher migration before it can become 1.3.",
+    );
+  return migrateLessonSpecV1_3ToV1_4({
+    ...parsed.data,
+    schemaVersion: "1.3",
+    scenes: migrateIpoVisuals(parsed.data.scenes),
+  });
+}
+
+const previousComparisonVisualSchema = visual({
+  leftLabel: boundedText(200),
+  rightLabel: boundedText(200),
+  similarities: labelledItems,
+  differences: labelledItems,
+});
+const previousLessonSpecV1_3EnvelopeSchema = z
+  .object({
+    schemaVersion: z.literal("1.3"),
+    scenes: z.array(z.unknown()).min(1).max(100),
+  })
+  .passthrough();
+
+export function migrateLessonSpecV1_3ToV1_4(input: unknown): LessonSpec {
+  const parsed = previousLessonSpecV1_3EnvelopeSchema.safeParse(input);
+  if (!parsed.success)
+    throw new Error("LessonSpec 1.3 is not a valid migration input.");
+  const migrated = previousLessonSpecV1_4EnvelopeSchema.safeParse({
+    ...parsed.data,
+    schemaVersion: previousPreviousLessonSpecVersion,
+    scenes: parsed.data.scenes.map((scene) => {
+      const prior = z
+        .object({
+          template: z.literal("comparison"),
+          visual: previousComparisonVisualSchema,
+        })
+        .passthrough()
+        .safeParse(scene);
+      if (!prior.success) return scene;
+      return {
+        ...prior.data,
+        visual: {
+          leftSubject: { label: prior.data.visual.leftLabel },
+          rightSubject: { label: prior.data.visual.rightLabel },
+          similarities: prior.data.visual.similarities,
+          differences: prior.data.visual.differences,
+        },
+      };
+    }),
+  });
+  if (migrated.success) return migrateLessonSpecV1_4ToV1_5(migrated.data);
+  throw new Error(
+    "LessonSpec 1.3 contains content that requires an explicit teacher migration before it can become 1.4.",
+  );
+}
+
+const previousCauseEffectVisualSchema = visual({
+  causes: labelledItems,
+  effects: labelledItems,
+});
+const previousLessonSpecV1_4EnvelopeSchema = z
+  .object({
+    schemaVersion: z.literal(previousPreviousLessonSpecVersion),
+    scenes: z.array(z.unknown()).min(1).max(100),
+  })
+  .passthrough();
+const previousLessonSpecV1_5EnvelopeSchema = z
+  .object({
+    schemaVersion: z.literal(lessonSpecV1_5Version),
+    scenes: z.array(z.unknown()).min(1).max(100),
+  })
+  .passthrough();
+
+export function migrateLessonSpecV1_4ToV1_5(input: unknown): LessonSpec {
+  const parsed = previousLessonSpecV1_4EnvelopeSchema.safeParse(input);
+  if (!parsed.success)
+    throw new Error("LessonSpec 1.4 is not a valid migration input.");
+  const migrated = previousLessonSpecV1_5EnvelopeSchema.safeParse({
+    ...parsed.data,
+    schemaVersion: lessonSpecV1_5Version,
+    scenes: parsed.data.scenes.map((scene) => {
+      const prior = z
+        .object({
+          template: z.literal("cause-effect"),
+          visual: previousCauseEffectVisualSchema,
+        })
+        .passthrough()
+        .safeParse(scene);
+      if (!prior.success) return scene;
+      const causes = prior.data.visual.causes.map((label, index) => ({
+        id: `cause-${index + 1}`,
+        label,
+        assetSlot: `cause-${index + 1}-icon` as const,
+      }));
+      const effects = prior.data.visual.effects.map((label, index) => ({
+        id: `effect-${index + 1}`,
+        label,
+        assetSlot: `effect-${index + 1}-icon` as const,
+      }));
+      return {
+        ...prior.data,
+        visual: {
+          causes,
+          effects,
+          connections: causes.flatMap((cause) =>
+            effects.map((effect) => ({ from: cause.id, to: effect.id })),
+          ),
+        },
+      };
+    }),
+  });
+  if (migrated.success) return migrateLessonSpecV1_5ToV1_6(migrated.data);
+  throw new Error(
+    "LessonSpec 1.4 contains content that requires an explicit teacher migration before it can become 1.5.",
+  );
+}
+
+const previousDiagramVisualSchema = visual({
+  diagramDescription: boundedText(1_000),
+  labels: labelledItems,
+});
+const diagramMigrationAnchors: readonly DiagramAnchor[] = [
+  "top-left",
+  "top-right",
+  "right",
+  "bottom-right",
+  "bottom-left",
+  "left",
+];
+
+export function migrateLessonSpecV1_5ToV1_6(input: unknown): LessonSpec {
+  const parsed = previousLessonSpecV1_5EnvelopeSchema.safeParse(input);
+  if (!parsed.success)
+    throw new Error("LessonSpec 1.5 is not a valid migration input.");
+  const migrated = lessonSpecSchema.safeParse({
+    ...parsed.data,
+    schemaVersion: lessonSpecVersion,
+    scenes: parsed.data.scenes.map((scene) => {
+      const prior = z
+        .object({
+          template: z.literal("labelled-diagram"),
+          visual: previousDiagramVisualSchema,
+        })
+        .passthrough()
+        .safeParse(scene);
+      if (!prior.success) return scene;
+      return {
+        ...prior.data,
+        visual: {
+          kind: "shapes",
+          shape: "system",
+          labels: prior.data.visual.labels.slice(0, 6).map((text, index) => ({
+            anchor: diagramMigrationAnchors[index] ?? "center",
+            id: `label-${index + 1}`,
+            text,
+          })),
+        },
+      };
+    }),
+  });
+  if (migrated.success) return migrated.data;
+  throw new Error(
+    "LessonSpec 1.5 contains content that requires an explicit teacher migration before it can become 1.6.",
+  );
+}
+
+const previousAnalogyVisualSchema = visual({
+  analogy: boundedText(1_000),
+  mapping: labelledItems,
+  sourceConcept: boundedText(500),
+});
+const previousLessonSpecV1_6EnvelopeSchema = z
+  .object({
+    schemaVersion: z.literal(previousLessonSpecVersion),
+    scenes: z.array(z.unknown()).min(1).max(100),
+  })
+  .passthrough();
+
+export function migrateLessonSpecV1_6ToV1_7(input: unknown): LessonSpec {
+  const parsed = previousLessonSpecV1_6EnvelopeSchema.safeParse(input);
+  if (!parsed.success)
+    throw new Error("LessonSpec 1.6 is not a valid migration input.");
+  const hasLegacyAnalogy = parsed.data.scenes.some(
+    (scene) =>
+      z
+        .object({
+          template: z.literal("analogy"),
+          visual: previousAnalogyVisualSchema,
+        })
+        .passthrough()
+        .safeParse(scene).success,
+  );
+  if (hasLegacyAnalogy)
+    throw new Error(
+      "LessonSpec 1.6 analogy content requires an explicit teacher migration before it can become 1.7.",
+    );
+  const migrated = lessonSpecSchema.safeParse({
+    ...parsed.data,
+    schemaVersion: lessonSpecVersion,
+  });
+  if (migrated.success) return migrated.data;
+  throw new Error(
+    "LessonSpec 1.6 contains content that requires an explicit teacher migration before it can become 1.7.",
+  );
+}
+
+const previousPreviousLessonSpecEnvelopeSchema = z
+  .object({
+    schemaVersion: z.literal("1.1"),
+    scenes: z.array(previousPreviousSceneSpecSchema).min(1).max(100),
+  })
+  .passthrough();
+
+export function migrateLessonSpecV1_1ToV1_3(input: unknown): LessonSpec {
+  const previous = previousPreviousLessonSpecEnvelopeSchema.parse(input);
+  return migrateLessonSpecV1_2ToV1_3({
+    ...previous,
+    schemaVersion: legacyLessonSpecVersion,
+  });
+}
+
+const legacyLessonSpecEnvelopeSchema = z
+  .object({
+    schemaVersion: z.literal(initialLessonSpecVersion),
+    scenes: z.array(legacySceneSpecSchema).min(1).max(100),
+  })
+  .passthrough();
+
+export function migrateLessonSpecV1_0ToV1_1(input: unknown): LessonSpec {
+  const legacy = legacyLessonSpecEnvelopeSchema.parse(input);
+  return migrateLessonSpecV1_2ToV1_3({
+    ...legacy,
+    schemaVersion: legacyLessonSpecVersion,
+    scenes: migrateIpoVisuals(legacy.scenes),
+  });
+}
+
 export function parseLessonSpec(input: unknown): LessonSpec {
+  const current = lessonSpecSchema.safeParse(input);
+  if (current.success) return current.data;
+  if (
+    typeof input === "object" &&
+    input !== null &&
+    "schemaVersion" in input &&
+    input.schemaVersion === initialLessonSpecVersion
+  )
+    return migrateLessonSpecV1_0ToV1_1(input);
+  if (
+    typeof input === "object" &&
+    input !== null &&
+    "schemaVersion" in input &&
+    input.schemaVersion === previousLessonSpecVersion
+  )
+    return migrateLessonSpecV1_6ToV1_7(input);
+  if (
+    typeof input === "object" &&
+    input !== null &&
+    "schemaVersion" in input &&
+    input.schemaVersion === previousPreviousLessonSpecVersion
+  )
+    return migrateLessonSpecV1_4ToV1_5(input);
+  if (
+    typeof input === "object" &&
+    input !== null &&
+    "schemaVersion" in input &&
+    input.schemaVersion === legacyPreviousLessonSpecVersion
+  )
+    return migrateLessonSpecV1_3ToV1_4(input);
+  if (
+    typeof input === "object" &&
+    input !== null &&
+    "schemaVersion" in input &&
+    input.schemaVersion === legacyLessonSpecVersion
+  )
+    return migrateLessonSpecV1_2ToV1_3(input);
+  if (
+    typeof input === "object" &&
+    input !== null &&
+    "schemaVersion" in input &&
+    input.schemaVersion === "1.1"
+  )
+    return migrateLessonSpecV1_1ToV1_3(input);
   return lessonSpecSchema.parse(input);
 }
 

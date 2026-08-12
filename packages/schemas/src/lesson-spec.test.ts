@@ -1,7 +1,21 @@
 import { describe, expect, it } from "vitest";
 import {
+  definitionVisualSchema,
+  analogyVisualSchema,
+  comparisonVisualSchema,
+  causeEffectVisualSchema,
+  diagramVisualSchema,
+  ipoVisualSchema,
+  processVisualSchema,
+  initialLessonSpecVersion,
   lessonSpecJsonSchema,
   lessonSpecSchema,
+  migrateLessonSpecV1_3ToV1_4,
+  migrateLessonSpecV1_4ToV1_5,
+  migrateLessonSpecV1_5ToV1_6,
+  migrateLessonSpecV1_6ToV1_7,
+  migrateLessonSpecV1_2ToV1_3,
+  migrateLessonSpecV1_0ToV1_1,
   parseLessonSpec,
   sceneSpecSchema,
   type LessonSpec,
@@ -33,7 +47,7 @@ const baseScene = {
   generatedAdditions: [],
 };
 const validLesson: LessonSpec = {
-  schemaVersion: "1.0",
+  schemaVersion: "1.7",
   lessonId: ids[0],
   projectId: ids[1],
   title: "States of matter",
@@ -63,34 +77,71 @@ describe("LessonSpec v1", () => {
     expect(JSON.parse(JSON.stringify(parsed))).toEqual(validLesson);
   });
 
+  it("migrates compatible 1.0 lesson specs to the current contract", () => {
+    const legacy = { ...validLesson, schemaVersion: initialLessonSpecVersion };
+    expect(migrateLessonSpecV1_0ToV1_1(legacy)).toEqual(validLesson);
+    expect(parseLessonSpec(legacy)).toEqual(validLesson);
+  });
+
+  it("refuses to truncate legacy definition content during migration", () => {
+    const legacy = {
+      ...validLesson,
+      schemaVersion: initialLessonSpecVersion,
+      scenes: [
+        {
+          ...validLesson.scenes[0],
+          visual: { term: "Term", definition: "D".repeat(121) },
+        },
+      ],
+    };
+    expect(() => migrateLessonSpecV1_0ToV1_1(legacy)).toThrow(
+      "requires an explicit teacher migration",
+    );
+  });
+
   it.each([
     ["hook", { question: "What changes water?" }],
     ["definition", { term: "Matter", definition: "Anything with mass." }],
     ["process", { steps: ["Heat", "Evaporate"] }],
     [
       "input-process-output",
-      { input: "Water", process: "Heating", output: "Vapour" },
+      {
+        inputs: [{ label: "Water" }],
+        process: { label: "Heating" },
+        outputs: [{ label: "Vapour" }],
+      },
     ],
     [
       "comparison",
       {
-        leftLabel: "Solid",
-        rightLabel: "Liquid",
+        leftSubject: { label: "Solid" },
+        rightSubject: { label: "Liquid" },
         similarities: ["Matter"],
         differences: ["Shape"],
       },
     ],
-    ["cause-effect", { causes: ["Heating"], effects: ["Evaporation"] }],
+    [
+      "cause-effect",
+      {
+        causes: [{ id: "cause-1", label: "Heating" }],
+        effects: [{ id: "effect-1", label: "Evaporation" }],
+        connections: [{ from: "cause-1", to: "effect-1" }],
+      },
+    ],
     [
       "labelled-diagram",
-      { diagramDescription: "A water-cycle diagram", labels: ["Cloud"] },
+      {
+        kind: "shapes",
+        shape: "cycle",
+        labels: [{ anchor: "top", id: "cloud", text: "Cloud" }],
+      },
     ],
     [
       "analogy",
       {
-        sourceConcept: "Particles",
-        analogy: "People moving",
-        mapping: ["Fast means warmer"],
+        sourceConcept: "Particle movement",
+        familiarSystem: "People moving through a hallway",
+        mappings: [{ concept: "Faster particles", analogy: "Faster walkers" }],
       },
     ],
     [
@@ -146,7 +197,347 @@ describe("LessonSpec v1", () => {
     ).toBe(false);
   });
 
+  it("enforces the hook template's bounded visual contract", () => {
+    expect(
+      sceneSpecSchema.safeParse({
+        ...baseScene,
+        template: "hook",
+        visual: { question: "Q".repeat(81) },
+      }).success,
+    ).toBe(false);
+    expect(
+      sceneSpecSchema.safeParse({
+        ...baseScene,
+        template: "hook",
+        visual: {
+          question: "What makes plants grow?",
+          supportingElements: ["Sunlight", "Water", "Air", "Soil"],
+        },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("requires explicit, bounded analogy mapping pairs", () => {
+    expect(
+      analogyVisualSchema.safeParse({
+        sourceConcept: "Electric current",
+        familiarSystem: "Water pipes",
+        mappings: [{ concept: "Current", analogy: "Water flow" }],
+      }).success,
+    ).toBe(true);
+    expect(
+      analogyVisualSchema.safeParse({
+        sourceConcept: "Electric current",
+        familiarSystem: "Water pipes",
+        mappings: [],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("upgrades non-analogy 1.6 documents and requires teacher mapping for legacy analogies", () => {
+    expect(
+      migrateLessonSpecV1_6ToV1_7({
+        ...validLesson,
+        schemaVersion: "1.6",
+      }),
+    ).toMatchObject({ schemaVersion: "1.7" });
+    expect(() =>
+      migrateLessonSpecV1_6ToV1_7({
+        ...validLesson,
+        schemaVersion: "1.6",
+        scenes: [
+          {
+            ...baseScene,
+            template: "analogy",
+            visual: {
+              sourceConcept: "Electric current",
+              analogy: "Water pipes",
+              mapping: ["Current is like water flow"],
+            },
+          },
+        ],
+      }),
+    ).toThrow("requires an explicit teacher migration");
+  });
+
+  it("validates definition examples as paired bounded visual fields", () => {
+    expect(
+      definitionVisualSchema.safeParse({
+        term: "T".repeat(80),
+        definition: "D".repeat(120),
+        exampleLabel: "L".repeat(48),
+        exampleText: "E".repeat(48),
+      }).success,
+    ).toBe(true);
+    expect(
+      definitionVisualSchema.safeParse({
+        term: "T".repeat(81),
+        definition: "A definition.",
+      }).success,
+    ).toBe(false);
+    expect(
+      definitionVisualSchema.safeParse({
+        term: "Term",
+        definition: "A definition.",
+        exampleLabel: "Example",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("enforces the bounded ordered process visual contract", () => {
+    expect(
+      processVisualSchema.safeParse({ steps: ["Collect", "Compare"] }).success,
+    ).toBe(true);
+    expect(processVisualSchema.safeParse({ steps: ["Only one"] }).success).toBe(
+      false,
+    );
+    expect(
+      processVisualSchema.safeParse({
+        steps: Array.from({ length: 7 }, () => "Step"),
+      }).success,
+    ).toBe(false);
+    expect(
+      processVisualSchema.safeParse({ steps: ["L".repeat(81), "Next"] })
+        .success,
+    ).toBe(false);
+  });
+
+  it("requires bounded IPO collections, labels, and optional asset slots", () => {
+    expect(
+      ipoVisualSchema.safeParse({
+        inputs: [{ label: "Water", assetSlot: "input-1-icon" }],
+        process: { label: "Heat" },
+        outputs: [{ label: "Water vapour", assetSlot: "output-1-icon" }],
+      }).success,
+    ).toBe(true);
+    expect(
+      ipoVisualSchema.safeParse({
+        inputs: [],
+        process: { label: "Heat" },
+        outputs: [{ label: "Water vapour" }],
+      }).success,
+    ).toBe(false);
+    expect(
+      ipoVisualSchema.safeParse({
+        inputs: [{ label: "Water", assetSlot: "unapproved-slot" }],
+        process: { label: "Heat" },
+        outputs: [{ label: "Water vapour" }],
+      }).success,
+    ).toBe(false);
+    expect(
+      ipoVisualSchema.safeParse({
+        inputs: [{ label: "Water" }],
+        process: { label: "" },
+        outputs: [],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("requires two bounded subjects and no more than four comparison differences", () => {
+    expect(
+      comparisonVisualSchema.safeParse({
+        leftSubject: { label: "Solid", assetSlot: "left-subject-image" },
+        rightSubject: { label: "Liquid", assetSlot: "right-subject-image" },
+        similarities: ["Matter"],
+        differences: ["Shape", "Flow", "Volume", "Particle movement"],
+      }).success,
+    ).toBe(true);
+    const tooManyDifferences = comparisonVisualSchema.safeParse({
+      leftSubject: { label: "Solid" },
+      rightSubject: { label: "Liquid" },
+      similarities: ["Matter"],
+      differences: ["One", "Two", "Three", "Four", "Five"],
+    });
+    expect(tooManyDifferences.success).toBe(false);
+    if (!tooManyDifferences.success)
+      expect(tooManyDifferences.error.issues[0]?.path).toEqual(["differences"]);
+  });
+
+  it("requires bounded explicit causal chains and migrates the former cause/effect labels", () => {
+    expect(
+      causeEffectVisualSchema.safeParse({
+        causes: [{ id: "cause-1", label: "Heating" }],
+        mechanism: { id: "mechanism", label: "Molecules gain energy" },
+        effects: [{ id: "effect-1", label: "Evaporation" }],
+        connections: [
+          { from: "cause-1", to: "mechanism" },
+          { from: "mechanism", to: "effect-1" },
+        ],
+      }).success,
+    ).toBe(true);
+    expect(
+      causeEffectVisualSchema.safeParse({
+        causes: [],
+        effects: [{ id: "effect-1", label: "Evaporation" }],
+        connections: [],
+      }).success,
+    ).toBe(false);
+    expect(
+      causeEffectVisualSchema.safeParse({
+        causes: Array.from({ length: 4 }, (_, index) => ({
+          id: `cause-${index + 1}`,
+          label: "Cause",
+        })),
+        effects: [{ id: "effect-1", label: "Effect" }],
+        connections: [],
+      }).success,
+    ).toBe(false);
+    expect(
+      migrateLessonSpecV1_4ToV1_5({
+        ...validLesson,
+        schemaVersion: "1.4",
+        scenes: [
+          {
+            ...validLesson.scenes[0],
+            template: "cause-effect",
+            visual: { causes: ["Heating"], effects: ["Evaporation"] },
+          },
+        ],
+      }),
+    ).toMatchObject({
+      schemaVersion: "1.7",
+      scenes: [
+        expect.objectContaining({
+          visual: expect.objectContaining({
+            connections: [{ from: "cause-1", to: "effect-1" }],
+          }),
+        }),
+      ],
+    });
+  });
+
+  it("migrates 1.3 comparison labels to structured subjects", () => {
+    const prior = {
+      ...validLesson,
+      schemaVersion: "1.3",
+      scenes: [
+        {
+          ...validLesson.scenes[0],
+          template: "comparison" as const,
+          visual: {
+            leftLabel: "Solid",
+            rightLabel: "Liquid",
+            similarities: ["Matter"],
+            differences: ["Shape"],
+          },
+        },
+      ],
+    };
+    expect(migrateLessonSpecV1_3ToV1_4(prior)).toMatchObject({
+      schemaVersion: "1.7",
+      scenes: [
+        expect.objectContaining({
+          visual: expect.objectContaining({
+            leftSubject: { label: "Solid" },
+            rightSubject: { label: "Liquid" },
+          }),
+        }),
+      ],
+    });
+  });
+
+  it("migrates scalar IPO data from 1.2 and rejects incompatible process content", () => {
+    const compatible = {
+      ...validLesson,
+      schemaVersion: "1.2",
+      scenes: [
+        {
+          ...validLesson.scenes[0],
+          template: "process",
+          visual: { steps: ["Collect", "Compare"] },
+        },
+      ],
+    };
+    const scalarIpo = {
+      ...compatible,
+      scenes: [
+        {
+          ...validLesson.scenes[0],
+          template: "input-process-output" as const,
+          visual: { input: "Water", process: "Heat", output: "Vapour" },
+        },
+      ],
+    };
+    expect(migrateLessonSpecV1_2ToV1_3(scalarIpo)).toMatchObject({
+      schemaVersion: "1.7",
+      scenes: [
+        expect.objectContaining({
+          template: "input-process-output",
+          visual: {
+            inputs: [{ label: "Water" }],
+            process: { label: "Heat" },
+            outputs: [{ label: "Vapour" }],
+          },
+        }),
+      ],
+    });
+    expect(migrateLessonSpecV1_2ToV1_3(compatible)).toMatchObject({
+      schemaVersion: "1.7",
+      scenes: [
+        expect.objectContaining({
+          template: "process",
+          visual: { steps: ["Collect", "Compare"] },
+        }),
+      ],
+    });
+    expect(() =>
+      migrateLessonSpecV1_2ToV1_3({
+        ...compatible,
+        scenes: [
+          {
+            ...compatible.scenes[0],
+            visual: { steps: Array.from({ length: 7 }, () => "Step") },
+          },
+        ],
+      }),
+    ).toThrow("requires an explicit teacher migration");
+  });
+
   it("exports a named JSON Schema for external consumers", () => {
     expect(lessonSpecJsonSchema.definitions?.LessonSpec).toBeDefined();
+  });
+
+  it("accepts only bounded semantic labelled-diagram anchors", () => {
+    expect(
+      diagramVisualSchema.safeParse({
+        kind: "asset",
+        baseAssetSlot: "diagram",
+        labels: [{ id: "nucleus", anchor: "left", text: "Nucleus" }],
+      }).success,
+    ).toBe(true);
+    expect(
+      diagramVisualSchema.safeParse({
+        kind: "asset",
+        baseAssetSlot: "diagram",
+        labels: [{ id: "nucleus", anchor: "x-472", text: "Nucleus" }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("migrates legacy labelled diagrams to the shapes-only semantic fallback", () => {
+    expect(
+      migrateLessonSpecV1_5ToV1_6({
+        ...validLesson,
+        schemaVersion: "1.5",
+        scenes: [
+          {
+            ...validLesson.scenes[0],
+            template: "labelled-diagram",
+            visual: { diagramDescription: "Water cycle", labels: ["Cloud"] },
+          },
+        ],
+      }),
+    ).toMatchObject({
+      schemaVersion: "1.7",
+      scenes: [
+        expect.objectContaining({
+          visual: {
+            kind: "shapes",
+            shape: "system",
+            labels: [{ anchor: "top-left", id: "label-1", text: "Cloud" }],
+          },
+        }),
+      ],
+    });
   });
 });

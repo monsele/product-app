@@ -4,7 +4,7 @@
     "LessonSpec": {
       "type": "object",
       "properties": {
-        "schemaVersion": { "type": "string", "const": "1.0" },
+        "schemaVersion": { "type": "string", "const": "1.7" },
         "lessonId": {
           "type": "string",
           "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
@@ -119,6 +119,11 @@
                           "type": "string",
                           "minLength": 1,
                           "maxLength": 500
+                        },
+                        "slot": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64
                         }
                       },
                       "required": ["assetId", "role"],
@@ -217,12 +222,21 @@
                       "question": {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 500
+                        "maxLength": 80
                       },
                       "prompt": {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 500
+                        "maxLength": 48
+                      },
+                      "supportingElements": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 12
+                        },
+                        "maxItems": 3
                       }
                     },
                     "required": ["question"],
@@ -284,12 +298,22 @@
                       "term": {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 200
+                        "maxLength": 80
                       },
                       "definition": {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 1000
+                        "maxLength": 120
+                      },
+                      "exampleLabel": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 48
+                      },
+                      "exampleText": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 48
                       }
                     },
                     "required": ["term", "definition"],
@@ -353,10 +377,10 @@
                         "items": {
                           "type": "string",
                           "minLength": 1,
-                          "maxLength": 300
+                          "maxLength": 80
                         },
-                        "minItems": 1,
-                        "maxItems": 12
+                        "minItems": 2,
+                        "maxItems": 6
                       }
                     },
                     "required": ["steps"],
@@ -418,23 +442,50 @@
                   "visual": {
                     "type": "object",
                     "properties": {
-                      "input": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 500
+                      "inputs": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "label": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "assetSlot": {
+                              "type": "string",
+                              "enum": [
+                                "input-1-icon",
+                                "input-2-icon",
+                                "input-3-icon",
+                                "input-4-icon",
+                                "process-icon",
+                                "output-1-icon",
+                                "output-2-icon",
+                                "output-3-icon",
+                                "output-4-icon"
+                              ]
+                            }
+                          },
+                          "required": ["label"],
+                          "additionalProperties": false
+                        },
+                        "minItems": 1,
+                        "maxItems": 4
                       },
                       "process": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 500
+                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/3/properties/visual/properties/inputs/items"
                       },
-                      "output": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 500
+                      "outputs": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/3/properties/visual/properties/inputs/items"
+                        },
+                        "minItems": 1,
+                        "maxItems": 4
                       }
                     },
-                    "required": ["input", "process", "output"],
+                    "required": ["inputs", "process", "outputs"],
                     "additionalProperties": false
                   }
                 },
@@ -490,26 +541,52 @@
                   "visual": {
                     "type": "object",
                     "properties": {
-                      "leftLabel": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 200
+                      "leftSubject": {
+                        "type": "object",
+                        "properties": {
+                          "label": {
+                            "type": "string",
+                            "minLength": 1,
+                            "maxLength": 80
+                          },
+                          "assetSlot": {
+                            "type": "string",
+                            "enum": [
+                              "left-subject-image",
+                              "right-subject-image"
+                            ]
+                          }
+                        },
+                        "required": ["label"],
+                        "additionalProperties": false
                       },
-                      "rightLabel": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 200
+                      "rightSubject": {
+                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/4/properties/visual/properties/leftSubject"
                       },
                       "similarities": {
-                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/2/properties/visual/properties/steps"
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 80
+                        },
+                        "minItems": 1,
+                        "maxItems": 4
                       },
                       "differences": {
-                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/2/properties/visual/properties/steps"
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 80
+                        },
+                        "minItems": 1,
+                        "maxItems": 4
                       }
                     },
                     "required": [
-                      "leftLabel",
-                      "rightLabel",
+                      "leftSubject",
+                      "rightSubject",
                       "similarities",
                       "differences"
                     ],
@@ -569,13 +646,75 @@
                     "type": "object",
                     "properties": {
                       "causes": {
-                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/2/properties/visual/properties/steps"
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 40,
+                              "pattern": "^[a-z][a-z0-9-]*$"
+                            },
+                            "label": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            },
+                            "assetSlot": {
+                              "type": "string",
+                              "enum": [
+                                "cause-1-icon",
+                                "cause-2-icon",
+                                "cause-3-icon",
+                                "mechanism-icon",
+                                "effect-1-icon",
+                                "effect-2-icon",
+                                "effect-3-icon"
+                              ]
+                            }
+                          },
+                          "required": ["id", "label"],
+                          "additionalProperties": false
+                        },
+                        "minItems": 1,
+                        "maxItems": 3
+                      },
+                      "mechanism": {
+                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/5/properties/visual/properties/causes/items"
                       },
                       "effects": {
-                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/2/properties/visual/properties/steps"
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/5/properties/visual/properties/causes/items"
+                        },
+                        "minItems": 1,
+                        "maxItems": 3
+                      },
+                      "connections": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "from": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 40
+                            },
+                            "to": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 40
+                            }
+                          },
+                          "required": ["from", "to"],
+                          "additionalProperties": false
+                        },
+                        "minItems": 1,
+                        "maxItems": 9
                       }
                     },
-                    "required": ["causes", "effects"],
+                    "required": ["causes", "effects", "connections"],
                     "additionalProperties": false
                   }
                 },
@@ -631,16 +770,51 @@
                   "visual": {
                     "type": "object",
                     "properties": {
-                      "diagramDescription": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 1000
-                      },
+                      "baseAssetSlot": { "type": "string", "const": "diagram" },
+                      "kind": { "type": "string", "enum": ["asset", "shapes"] },
                       "labels": {
-                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/2/properties/visual/properties/steps"
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "anchor": {
+                              "type": "string",
+                              "enum": [
+                                "top-left",
+                                "top",
+                                "top-right",
+                                "right",
+                                "bottom-right",
+                                "bottom",
+                                "bottom-left",
+                                "left",
+                                "center"
+                              ]
+                            },
+                            "id": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 40,
+                              "pattern": "^[a-z][a-z0-9-]*$"
+                            },
+                            "text": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 80
+                            }
+                          },
+                          "required": ["anchor", "id", "text"],
+                          "additionalProperties": false
+                        },
+                        "minItems": 1,
+                        "maxItems": 6
+                      },
+                      "shape": {
+                        "type": "string",
+                        "enum": ["cell", "cycle", "plant", "system"]
                       }
                     },
-                    "required": ["diagramDescription", "labels"],
+                    "required": ["kind", "labels"],
                     "additionalProperties": false
                   }
                 },
@@ -696,21 +870,40 @@
                   "visual": {
                     "type": "object",
                     "properties": {
+                      "familiarSystem": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      },
+                      "mappings": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "analogy": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 60
+                            },
+                            "concept": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 60
+                            }
+                          },
+                          "required": ["analogy", "concept"],
+                          "additionalProperties": false
+                        },
+                        "minItems": 1,
+                        "maxItems": 4
+                      },
                       "sourceConcept": {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 500
-                      },
-                      "analogy": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 1000
-                      },
-                      "mapping": {
-                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/2/properties/visual/properties/steps"
+                        "maxLength": 80
                       }
                     },
-                    "required": ["sourceConcept", "analogy", "mapping"],
+                    "required": ["familiarSystem", "mappings", "sourceConcept"],
                     "additionalProperties": false
                   }
                 },
@@ -772,7 +965,14 @@
                         "maxLength": 1000
                       },
                       "steps": {
-                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/2/properties/visual/properties/steps"
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 300
+                        },
+                        "minItems": 1,
+                        "maxItems": 12
                       },
                       "answer": {
                         "type": "string",
@@ -837,7 +1037,7 @@
                     "type": "object",
                     "properties": {
                       "takeaways": {
-                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/2/properties/visual/properties/steps"
+                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/8/properties/visual/properties/steps"
                       },
                       "callToAction": {
                         "type": "string",
