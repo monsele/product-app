@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { Buffer } from "node:buffer";
 
 test("workspace requires a teacher session", async ({ page }) => {
   await page.goto("/workspace");
@@ -49,7 +50,30 @@ test("workspace rejects malformed project-list responses", async ({ page }) => {
   expect(response?.status()).toBe(500);
 });
 
-test("create-project proxy rejects malformed project responses", async ({ page }) => {
+test("source upload shows progress and completion", async ({ page }) => {
+  await page.context().addCookies([
+    {
+      name: "avlp_session",
+      value: "teacher-session",
+      url: "http://127.0.0.1:3000",
+    },
+  ]);
+  await page.goto("/workspace/019ffbf1-610e-738a-b087-6775ff97568c/upload");
+  await page.getByLabel("PDF or DOCX file").setInputFiles({
+    name: "water-cycle.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("fixture PDF content"),
+  });
+  await page.getByRole("button", { name: "Upload document" }).click();
+  await expect(page.getByRole("status")).toHaveText(/Uploading: \d+%/);
+  await expect(
+    page.getByText(/Upload complete\. Your document is being prepared\./),
+  ).toBeVisible();
+});
+
+test("create-project proxy rejects malformed project responses", async ({
+  page,
+}) => {
   await page.context().addCookies([
     {
       name: "avlp_session",

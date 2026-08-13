@@ -28,6 +28,7 @@ import {
   type StorageKey,
   type StorageLifecycleRule,
   type StorageObjectMetadata,
+  StorageObjectNotFoundError,
 } from "./contracts.js";
 
 type SignableCommand = PutObjectCommand | GetObjectCommand;
@@ -251,13 +252,19 @@ export class S3CompatibleObjectStorage implements ObjectStorage {
     keyInput: StorageKey,
   ): Promise<StorageObjectMetadata> {
     const key = this.#authorizeKey(keyInput);
-    const result = await this.#client.send(
-      new HeadObjectCommand({
-        Bucket: this.#bucket,
-        Key: key,
-        ChecksumMode: "ENABLED",
-      }),
-    );
+    let result;
+    try {
+      result = await this.#client.send(
+        new HeadObjectCommand({
+          Bucket: this.#bucket,
+          Key: key,
+          ChecksumMode: "ENABLED",
+        }),
+      );
+    } catch (error) {
+      if (isNotFoundError(error)) throw new StorageObjectNotFoundError(key);
+      throw error;
+    }
     const metadataChecksum = result.Metadata?.["sha256"];
     const checksumSha256 =
       (result.ChecksumSHA256 === undefined

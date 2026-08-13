@@ -1432,6 +1432,57 @@ export const projectDeleteResponseSchema = z
   .strict();
 export type ProjectDeleteResponse = z.infer<typeof projectDeleteResponseSchema>;
 
+export const sourceDocumentMediaTypeSchema = z.enum([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
+export type SourceDocumentMediaType = z.infer<
+  typeof sourceDocumentMediaTypeSchema
+>;
+
+export const sourceDocumentStatusSchema = z.enum(["active"]);
+export type SourceDocumentStatus = z.infer<typeof sourceDocumentStatusSchema>;
+
+export const createSourceUploadSessionInputSchema = z
+  .object({
+    fileName: z.string().trim().min(1).max(255),
+    mediaType: sourceDocumentMediaTypeSchema,
+    sizeBytes: z.number().int().positive(),
+    sha256: z
+      .string()
+      .regex(/^[0-9a-f]{64}$/i)
+      .transform((value) => value.toLowerCase()),
+  })
+  .strict();
+export type CreateSourceUploadSessionInput = z.infer<
+  typeof createSourceUploadSessionInputSchema
+>;
+
+export const uploadSessionResponseSchema = z
+  .object({
+    sessionId: identifierSchema,
+    documentId: identifierSchema,
+    uploadUrl: z.string().url(),
+    method: z.literal("PUT"),
+    requiredHeaders: z.record(z.string()),
+    expiresAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type UploadSessionResponse = z.infer<typeof uploadSessionResponseSchema>;
+
+export const completeSourceUploadInputSchema = z.object({}).strict();
+
+export const completeSourceUploadResponseSchema = z
+  .object({
+    documentId: identifierSchema,
+    status: sourceDocumentStatusSchema,
+    ingestionRequested: z.literal(true),
+  })
+  .strict();
+export type CompleteSourceUploadResponse = z.infer<
+  typeof completeSourceUploadResponseSchema
+>;
+
 /**
  * The cleanup worker receives identifiers and timestamps only; stable storage
  * keys are resolved server-side after its tenant check.

@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { SourceUploadForm } from "./source-upload-form";
 
 type ProjectPayload = { project: { id: string; title: string } };
 
@@ -38,7 +39,7 @@ export default async function ProjectUploadPage({
     <main>
       <h1>Upload a source document</h1>
       <p>{payload.project.title}</p>
-      <p>Document upload will be available in the next workflow step.</p>
+      <SourceUploadForm projectId={projectId} />
       <a href="/workspace">Back to workspace</a>
     </main>
   );

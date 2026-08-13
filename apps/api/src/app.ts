@@ -7,6 +7,7 @@ import {
   Delete,
   Get,
   Headers,
+  HttpCode,
   Inject,
   Injectable,
   Module,
@@ -22,7 +23,12 @@ import {
   FastifyAdapter,
   type NestFastifyApplication,
 } from "@nestjs/platform-fastify";
-import { PublicError, toApiErrorEnvelope, type Identifier } from "@avlp/config";
+import {
+  identifierSchema,
+  PublicError,
+  toApiErrorEnvelope,
+  type Identifier,
+} from "@avlp/config";
 import {
   DuplicateEmailError,
   InvalidPasswordResetTokenError,
@@ -48,12 +54,14 @@ import {
 } from "./project-route-authorization.js";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { ProjectService } from "./projects.js";
+import { SourceUploadService } from "./source-uploads.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
 const TELEMETRY_SHUTDOWN = Symbol("TELEMETRY_SHUTDOWN");
 const AUTH_GATEWAY = Symbol("AUTH_GATEWAY");
 const TRUSTED_ORIGIN = Symbol("TRUSTED_ORIGIN");
 const AUTH_RATE_LIMITER = Symbol("AUTH_RATE_LIMITER");
+const SOURCE_UPLOAD_SERVICE = Symbol("SOURCE_UPLOAD_SERVICE");
 const PROJECT_SERVICE = Symbol("PROJECT_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
@@ -225,6 +233,7 @@ type ProjectApiService = Pick<
   ProjectService,
   "create" | "list" | "detail" | "duplicate" | "delete"
 >;
+type SourceUploadApiService = Pick<SourceUploadService, "create" | "complete">;
 
 @Controller("projects")
 class ProjectsController {
@@ -232,6 +241,8 @@ class ProjectsController {
     @Inject(AUTH_GATEWAY) private readonly auth: AuthGateway,
     @Inject(TRUSTED_ORIGIN) private readonly trustedOrigin: string | undefined,
     @Inject(PROJECT_SERVICE) private readonly projects: ProjectApiService,
+    @Inject(SOURCE_UPLOAD_SERVICE)
+    private readonly sourceUploads: SourceUploadApiService,
   ) {}
 
   @Post()
@@ -303,6 +314,45 @@ class ProjectsController {
         idempotencyKey,
       ),
     };
+  }
+
+  @Post(":projectId/source-upload")
+  public async createSourceUpload(
+    @Param("projectId") projectId: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const user = await this.authenticatedUser(request);
+    const access = assertAuthorizedProject(request, projectId);
+    return this.sourceUploads.create(user.id, access.projectId, input);
+  }
+
+  @Post(":projectId/source-upload/:sessionId/complete")
+  @HttpCode(202)
+  public async completeSourceUpload(
+    @Param("projectId") projectId: string,
+    @Param("sessionId") sessionIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const user = await this.authenticatedUser(request);
+    const access = assertAuthorizedProject(request, projectId);
+    const sessionId = identifierSchema.safeParse(sessionIdInput);
+    if (!sessionId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.sourceUploads.complete(
+      user.id,
+      access.projectId,
+      sessionId.data,
+      input,
+      request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    );
   }
 
   @Delete(":projectId")
@@ -424,6 +474,7 @@ function createAppModule(
   trustedOrigin: string | undefined,
   authRateLimiter: InMemoryAuthRateLimiter,
   projectService: ProjectApiService,
+  sourceUploadService: SourceUploadApiService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -434,6 +485,7 @@ function createAppModule(
       { provide: TRUSTED_ORIGIN, useValue: trustedOrigin },
       { provide: AUTH_RATE_LIMITER, useValue: authRateLimiter },
       { provide: PROJECT_SERVICE, useValue: projectService },
+      { provide: SOURCE_UPLOAD_SERVICE, useValue: sourceUploadService },
     ],
   };
 }
@@ -447,6 +499,7 @@ export type CreateAppOptions = {
   authRateLimiter?: InMemoryAuthRateLimiter;
   projectAuthorizer?: ProjectRouteAuthorizer;
   projectService?: ProjectService;
+  sourceUploadService?: SourceUploadApiService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -567,6 +620,27 @@ const unavailableProjectService: ProjectApiService = {
     ),
 };
 
+const unavailableSourceUploadService: SourceUploadApiService = {
+  create: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Document upload is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  complete: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Document upload is unavailable.",
+        503,
+        true,
+      ),
+    ),
+};
+
 export async function createApp(
   options: CreateAppOptions = {},
 ): Promise<NestFastifyApplication> {
@@ -580,6 +654,7 @@ export async function createApp(
       options.authRateLimiter ??
         new InMemoryAuthRateLimiter("development-only-rate-limit-key"),
       options.projectService ?? unavailableProjectService,
+      options.sourceUploadService ?? unavailableSourceUploadService,
     ),
     new FastifyAdapter({
       logger: {

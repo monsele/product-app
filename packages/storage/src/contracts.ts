@@ -84,6 +84,14 @@ export type StorageObjectMetadata = {
   metadata: Readonly<Record<string, string>>;
 };
 
+/** A requested object was confirmed absent by the storage provider. */
+export class StorageObjectNotFoundError extends Error {
+  public constructor(key: StorageKey) {
+    super(`Storage object was not found: ${key}`);
+    this.name = "StorageObjectNotFoundError";
+  }
+}
+
 export const lifecycleRuleSchema = z
   .object({
     id: z.string().min(1).max(255),

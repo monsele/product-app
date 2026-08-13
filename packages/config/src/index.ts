@@ -154,7 +154,7 @@ const baseEnvironmentSchema = z.object({
     .enum(["development", "test", "production"])
     .default("development"),
 });
-const storageEnvironmentObjectSchema = z.object({
+export const storageEnvironmentObjectSchema = z.object({
   OBJECT_STORAGE_ENDPOINT: z.string().url().optional(),
   OBJECT_STORAGE_BUCKET: z.string().min(1).optional(),
   OBJECT_STORAGE_ACCESS_KEY: z.string().min(1).optional(),
@@ -241,6 +241,7 @@ export type StorageEnvironment = z.infer<typeof storageEnvironmentSchema>;
 export const apiEnvironmentSchema = baseEnvironmentSchema
   .merge(databaseEnvironmentSchema)
   .merge(redisEnvironmentSchema)
+  .merge(storageEnvironmentObjectSchema)
   .extend({
     PORT: z.coerce.number().int().positive().max(65535).default(3001),
     AUTH_SESSION_SECRET: z.string().min(32),
@@ -262,6 +263,7 @@ export const apiEnvironmentSchema = baseEnvironmentSchema
     PASSWORD_RESET_EMAIL_WEBHOOK_TOKEN: z.string().min(1).optional(),
   })
   .superRefine((value, context) => {
+    validateStorageCredentialPair(value, context);
     if (value.NODE_ENV === "production" && value.WEB_ORIGIN === undefined)
       context.addIssue({
         code: z.ZodIssueCode.custom,

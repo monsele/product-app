@@ -18,6 +18,7 @@
     "@avlp/jobs": "workspace:*",
     "@avlp/observability": "workspace:*",
     "@avlp/schemas": "workspace:*",
+    "@avlp/storage": "workspace:*",
     "@nestjs/common": "^11.1.0",
     "@nestjs/core": "^11.1.0",
     "@nestjs/platform-fastify": "^11.1.0",

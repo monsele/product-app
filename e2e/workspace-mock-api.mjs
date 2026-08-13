@@ -17,6 +17,7 @@ const projects = new Map([
     },
   ],
 ]);
+const uploads = new Map();
 
 function send(response, status, body) {
   response.writeHead(status, { "content-type": "application/json" });
@@ -25,6 +26,17 @@ function send(response, status, body) {
 
 const server = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", "http://127.0.0.1:3002");
+  if (request.method === "OPTIONS") {
+    response.writeHead(204, {
+      "access-control-allow-origin": "http://127.0.0.1:3000",
+      "access-control-allow-credentials": "true",
+      "access-control-allow-methods": "POST, PUT, OPTIONS",
+      "access-control-allow-headers": "content-type, x-amz-checksum-sha256",
+    });
+    return response.end();
+  }
+  response.setHeader("access-control-allow-origin", "http://127.0.0.1:3000");
+  response.setHeader("access-control-allow-credentials", "true");
   if (request.method === "GET" && url.pathname === "/health")
     return send(response, 200, { status: "ok" });
   if (
@@ -54,6 +66,54 @@ const server = createServer(async (request, response) => {
     };
     projects.set(createdId, project);
     return send(response, 201, { project });
+  }
+  const uploadMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/source-upload$/,
+  );
+  if (request.method === "POST" && uploadMatch !== null) {
+    let body = "";
+    for await (const chunk of request) body += chunk;
+    const input = JSON.parse(body);
+    const sessionId = "019ffbf1-6110-738a-b087-6775ff97568c";
+    uploads.set(sessionId, {
+      uploaded: false,
+      projectId: uploadMatch[1],
+      input,
+    });
+    return send(response, 201, {
+      sessionId,
+      documentId: "019ffbf1-6111-738a-b087-6775ff97568c",
+      uploadUrl: `http://127.0.0.1:3002/signed-upload/${sessionId}`,
+      method: "PUT",
+      requiredHeaders: { "content-type": input.mediaType },
+      expiresAt: "2026-08-13T12:05:00.000Z",
+    });
+  }
+  const completionMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/source-upload\/([^/]+)\/complete$/,
+  );
+  if (request.method === "POST" && completionMatch !== null) {
+    const upload = uploads.get(completionMatch[2]);
+    return upload?.uploaded === true && upload.projectId === completionMatch[1]
+      ? send(response, 201, {
+          documentId: "019ffbf1-6111-738a-b087-6775ff97568c",
+          status: "active",
+          ingestionRequested: true,
+        })
+      : send(response, 400, { error: { code: "validation_failed" } });
+  }
+  const signedUploadMatch = url.pathname.match(/^\/signed-upload\/([^/]+)$/);
+  if (request.method === "PUT" && signedUploadMatch !== null) {
+    const upload = uploads.get(signedUploadMatch[1]);
+    if (upload === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    for await (const _chunk of request) {
+      // Consume the direct-to-storage body without proxying it through Next.js.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    upload.uploaded = true;
+    response.writeHead(200);
+    return response.end();
   }
   if (request.method === "GET" && url.pathname.startsWith("/projects/")) {
     const project = projects.get(decodeURIComponent(url.pathname.slice(10)));

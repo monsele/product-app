@@ -71,6 +71,9 @@ importers:
       '@avlp/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
+      '@avlp/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       '@fastify/cookie':
         specifier: ^11.0.2
         version: 11.1.2

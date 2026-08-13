@@ -192,6 +192,64 @@ export const projectCloneRequests = pgTable(
   ],
 );
 
+export const sourceDocumentStatusValues = ["active"] as const;
+export const sourceDocumentStatus = pgEnum(
+  "source_document_status",
+  sourceDocumentStatusValues,
+);
+
+/** Immutable original uploads; source replacement will supersede rather than overwrite. */
+export const sourceDocuments = pgTable(
+  "source_documents",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    originalName: text("original_name").notNull(),
+    mediaType: text("media_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    sha256: text("sha256").notNull(),
+    storageKey: text("storage_key").notNull(),
+    status: sourceDocumentStatus("status").notNull().default("active"),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("source_documents_project_active_unique").on(
+      table.projectId,
+      table.status,
+    ),
+    uniqueIndex("source_documents_storage_key_unique").on(table.storageKey),
+    index("source_documents_owner_checksum_idx").on(
+      table.ownerUserId,
+      table.sha256,
+    ),
+  ],
+);
+
+export const uploadSessions = pgTable(
+  "upload_sessions",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    documentId: uuid("document_id").notNull(),
+    originalName: text("original_name").notNull(),
+    expectedMediaType: text("expected_media_type").notNull(),
+    expectedSizeBytes: integer("expected_size_bytes").notNull(),
+    expectedSha256: text("expected_sha256").notNull(),
+    storageKey: text("storage_key").notNull(),
+    expiresAt: utcTimestamp("expires_at").notNull(),
+    completedAt: utcTimestamp("completed_at"),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("upload_sessions_document_unique").on(table.documentId),
+    index("upload_sessions_owner_project_expiry_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.expiresAt,
+    ),
+  ],
+);
+
 export const jobStateValues = [
   "queued",
   "running",

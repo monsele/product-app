@@ -6,8 +6,13 @@ import {
 } from "@avlp/auth";
 import { createDatabaseConnection } from "@avlp/database";
 import { ProjectAuthorizationService } from "@avlp/auth";
+import { createS3CompatibleObjectStorage } from "@avlp/storage";
 import { createApp } from "./app.js";
 import { PostgresProjectRepository, ProjectService } from "./projects.js";
+import {
+  PostgresSourceUploadRepository,
+  SourceUploadService,
+} from "./source-uploads.js";
 
 export async function runApi(input: {
   telemetryShutdown: () => Promise<void>;
@@ -17,6 +22,35 @@ export async function runApi(input: {
   try {
     await database.healthCheck();
     const projectRepository = new PostgresProjectRepository(database.client);
+    if (
+      environment.OBJECT_STORAGE_BUCKET === undefined ||
+      environment.OBJECT_STORAGE_ACCESS_KEY === undefined ||
+      environment.OBJECT_STORAGE_SECRET_KEY === undefined
+    )
+      throw new Error(
+        "Object storage must be configured before the API can accept uploads.",
+      );
+    const storage = await createS3CompatibleObjectStorage({
+      bucket: environment.OBJECT_STORAGE_BUCKET,
+      allowedPrefix: "users",
+      allowedUploadContentTypes: [
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ],
+      maxUploadBytes: environment.MAX_UPLOAD_BYTES,
+      defaultSignedUrlTtlSeconds: environment.SIGNED_URL_TTL_SECONDS,
+      region: environment.OBJECT_STORAGE_REGION,
+      forcePathStyle: environment.OBJECT_STORAGE_FORCE_PATH_STYLE,
+      allowInsecureEndpoint: environment.OBJECT_STORAGE_ALLOW_INSECURE_ENDPOINT,
+      runtimeEnvironment: environment.NODE_ENV,
+      credentials: {
+        accessKeyId: environment.OBJECT_STORAGE_ACCESS_KEY,
+        secretAccessKey: environment.OBJECT_STORAGE_SECRET_KEY,
+      },
+      ...(environment.OBJECT_STORAGE_ENDPOINT === undefined
+        ? {}
+        : { endpoint: environment.OBJECT_STORAGE_ENDPOINT }),
+    });
     const app = await createApp({
       database,
       authGateway: new PostgresAuthGateway(
@@ -36,6 +70,10 @@ export async function runApi(input: {
         environment.AUTH_SESSION_SECRET,
       ),
       projectService: new ProjectService(projectRepository),
+      sourceUploadService: new SourceUploadService(
+        new PostgresSourceUploadRepository(database.client),
+        storage,
+      ),
       projectAuthorizer: new ProjectAuthorizationService(projectRepository),
       ...(environment.WEB_ORIGIN === undefined
         ? {}

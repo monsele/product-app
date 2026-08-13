@@ -12,7 +12,10 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { describe, expect, it, vi } from "vitest";
-import type { StorageKey } from "./contracts.js";
+import {
+  StorageObjectNotFoundError,
+  type StorageKey,
+} from "./contracts.js";
 import {
   createS3CompatibleObjectStorage,
   S3CompatibleObjectStorage,
@@ -234,6 +237,15 @@ describe("S3CompatibleObjectStorage", () => {
     expect(
       (send.mock.calls[0]?.[0] as HeadObjectCommand).input.ChecksumMode,
     ).toBe("ENABLED");
+  });
+
+  it("maps only confirmed provider not-found responses while reading metadata", async () => {
+    const { storage } = createHarness(async () => {
+      throw { name: "NotFound", $metadata: { httpStatusCode: 404 } };
+    });
+    await expect(storage.getMetadata(key)).rejects.toBeInstanceOf(
+      StorageObjectNotFoundError,
+    );
   });
 
   it("supports existence checks, deletion, and scoped lifecycle hooks", async () => {

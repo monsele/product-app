@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { createId, PublicError, type Identifier } from "@avlp/config";
 import {
@@ -17,6 +17,7 @@ import {
   type ProjectRepository,
   type ProjectStage,
 } from "./projects.js";
+import type { SourceUploadService } from "./source-uploads.js";
 
 class InMemoryProjectRepository implements ProjectRepository {
   public readonly records: ProjectDetail[] = [];
@@ -154,7 +155,10 @@ describe("project API", () => {
     await app?.close();
   });
 
-  async function api(trustedOrigin?: string) {
+  async function api(
+    trustedOrigin?: string,
+    sourceUploadService?: Pick<SourceUploadService, "create" | "complete">,
+  ) {
     const ownerUserId = createId(new Date("2026-08-13T10:00:00.000Z"));
     const otherUserId = createId(new Date("2026-08-13T10:00:01.000Z"));
     const otherProjectId = createId(new Date("2026-08-13T10:00:02.000Z"));
@@ -184,6 +188,7 @@ describe("project API", () => {
       authGateway: auth,
       projectService: new ProjectService(repository),
       projectAuthorizer: new ProjectAuthorizationService(repository),
+      ...(sourceUploadService === undefined ? {} : { sourceUploadService }),
       ...(trustedOrigin === undefined ? {} : { trustedOrigin }),
     });
     return { server: app.getHttpAdapter().getInstance(), otherProjectId };
@@ -354,5 +359,72 @@ describe("project API", () => {
       });
       expect(response.statusCode).toBe(404);
     }
+  });
+
+  it("creates and completes a source upload only within the authorized project", async () => {
+    const sourceUploadService: Pick<
+      SourceUploadService,
+      "create" | "complete"
+    > = {
+      create: vi.fn(async () => ({
+        sessionId: createId(new Date("2026-08-13T10:01:00.000Z")),
+        documentId: createId(new Date("2026-08-13T10:01:01.000Z")),
+        uploadUrl: "https://storage.example.test/upload",
+        method: "PUT" as const,
+        requiredHeaders: { "content-type": "application/pdf" },
+        expiresAt: "2026-08-13T10:06:00.000Z",
+      })),
+      complete: vi.fn(async () => ({
+        documentId: createId(new Date("2026-08-13T10:01:01.000Z")),
+        status: "active" as const,
+        ingestionRequested: true as const,
+      })),
+    };
+    const { server, otherProjectId } = await api(
+      undefined,
+      sourceUploadService,
+    );
+    const created = await server.inject({
+      method: "POST",
+      url: "/projects",
+      cookies: { [sessionCookieName]: "owner" },
+      payload: { title: "Water cycle" },
+    });
+    const projectId = created.json().project.id as string;
+    const started = await server.inject({
+      method: "POST",
+      url: `/projects/${projectId}/source-upload`,
+      cookies: { [sessionCookieName]: "owner" },
+      payload: {
+        fileName: "water-cycle.pdf",
+        mediaType: "application/pdf",
+        sizeBytes: 17,
+        sha256: "a".repeat(64),
+      },
+    });
+    expect(started.statusCode).toBe(201);
+    expect(sourceUploadService.create).toHaveBeenCalledOnce();
+    const completed = await server.inject({
+      method: "POST",
+      url: `/projects/${projectId}/source-upload/${started.json().sessionId}/complete`,
+      cookies: { [sessionCookieName]: "owner" },
+      payload: {},
+    });
+    expect(completed.statusCode).toBe(202);
+    expect(sourceUploadService.complete).toHaveBeenCalledOnce();
+
+    const foreign = await server.inject({
+      method: "POST",
+      url: `/projects/${otherProjectId}/source-upload`,
+      cookies: { [sessionCookieName]: "owner" },
+      payload: {
+        fileName: "water-cycle.pdf",
+        mediaType: "application/pdf",
+        sizeBytes: 17,
+        sha256: "a".repeat(64),
+      },
+    });
+    expect(foreign.statusCode).toBe(404);
+    expect(sourceUploadService.create).toHaveBeenCalledOnce();
   });
 });
