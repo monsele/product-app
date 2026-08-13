@@ -67,6 +67,15 @@ class MemoryStorage implements ObjectStorage {
     this.objects.delete(key);
   }
 
+  public async deletePrefix(prefix: StorageKey): Promise<number> {
+    const objectPrefix = `${prefix}/`;
+    const matching = [...this.objects.keys()].filter((key) =>
+      key.startsWith(objectPrefix),
+    );
+    for (const key of matching) this.objects.delete(key);
+    return matching.length;
+  }
+
   public async replaceLifecycleConfiguration(): Promise<void> {}
 
   public put(input: {

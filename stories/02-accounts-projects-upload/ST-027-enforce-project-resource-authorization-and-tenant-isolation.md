@@ -2,7 +2,7 @@
 story_id: ST-027
 title: "Enforce Project Resource Authorization and Tenant Isolation"
 phase: "02 \u2014 Accounts, Projects, and Upload"
-status: In Review
+status: Done
 priority: must-have
 epics: ["E1", "E21"]
 prd_user_stories: ["E1-US4", "E21-US3"]
@@ -110,7 +110,7 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 - [x] No unresolved tenant-isolation, security, idempotency, concurrency, data-loss, or cost-control defect remains in this scope.
 - [x] No out-of-scope feature or unrelated refactor was added.
 - [x] The Dev Agent Record is complete.
-- [ ] This story and `STORY_INDEX.md` are marked **Done**.
+- [x] This story and `STORY_INDEX.md` are marked **Done**.
 
 ## Dev Agent Record
 
@@ -126,4 +126,4 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 - **Decisions and assumptions:** Project existence is concealed by default with a 404 policy; forbidden responses require an explicit future policy. Route authorization and owner-scoped repositories are both mandatory. Storage callers pass the authenticated principal separately and provide semantic object locators, never owner identities or raw keys, in public DTOs. Only original source documents and teacher replacement assets are user-authorized upload targets; trusted workers own parser, audio, render, and thumbnail writes. The API fails closed with 503 when project routes are registered before a production authorizer is composed.
 - **Deviations from story/technical guide:** None. A production Drizzle project repository is intentionally deferred to ST-028 with the `projects` table; ST-027 supplies and tests the mandatory owner-scoped contract and fail-closed convention now.
 - **Known risks or follow-up:** ST-028 must implement the production `OwnerScopedProjectRepository` with a query constrained by both `projects.id` and `projects.owner_user_id`, inject it into API startup, and add live Postgres cross-user coverage. Production object URL endpoints must compose `AuthorizedProjectStorage`; lower-level storage signing remains an infrastructure primitive. The unrelated `@avlp/evals` fixture drift should be resolved under ST-009 ownership.
-- **Code review:** Round 1 fixed a high-severity principal-spoofing boundary by separating the authenticated user ID from signed-URL DTOs. Round 2 fixed a medium-severity immutability boundary by restricting user-authorized uploads to original sources and replacement assets. Round 3 found no remaining findings or technical deviations and concluded **Approve**.
+- **Code review:** Round 1 fixed a high-severity principal-spoofing boundary by separating the authenticated user ID from signed-URL DTOs. Round 2 fixed a medium-severity immutability boundary by restricting user-authorized uploads to original sources and replacement assets. Round 3 found no remaining findings or technical deviations and concluded **Approve**. The repository owner subsequently approved the story and accepted the current combined ST-024/ST-027 branch as an explicit exception to the one-branch-per-story convention.

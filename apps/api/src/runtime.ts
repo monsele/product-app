@@ -5,7 +5,9 @@ import {
   WebhookPasswordResetEmailSender,
 } from "@avlp/auth";
 import { createDatabaseConnection } from "@avlp/database";
+import { ProjectAuthorizationService } from "@avlp/auth";
 import { createApp } from "./app.js";
+import { PostgresProjectRepository, ProjectService } from "./projects.js";
 
 export async function runApi(input: {
   telemetryShutdown: () => Promise<void>;
@@ -14,6 +16,7 @@ export async function runApi(input: {
   const database = createDatabaseConnection(environment.DATABASE_URL);
   try {
     await database.healthCheck();
+    const projectRepository = new PostgresProjectRepository(database.client);
     const app = await createApp({
       database,
       authGateway: new PostgresAuthGateway(
@@ -32,6 +35,8 @@ export async function runApi(input: {
       authRateLimiter: new InMemoryAuthRateLimiter(
         environment.AUTH_SESSION_SECRET,
       ),
+      projectService: new ProjectService(projectRepository),
+      projectAuthorizer: new ProjectAuthorizationService(projectRepository),
       ...(environment.WEB_ORIGIN === undefined
         ? {}
         : { trustedOrigin: environment.WEB_ORIGIN }),

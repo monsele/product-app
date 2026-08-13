@@ -114,6 +114,7 @@ export interface ObjectStorage {
   getMetadata(key: StorageKey): Promise<StorageObjectMetadata>;
   exists(key: StorageKey): Promise<boolean>;
   delete(key: StorageKey): Promise<void>;
+  deletePrefix(prefix: StorageKey): Promise<number>;
   replaceLifecycleConfiguration(
     completeRules: readonly StorageLifecycleRule[],
   ): Promise<void>;

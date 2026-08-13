@@ -6,9 +6,11 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   Inject,
   Injectable,
   Module,
+  Param,
   Post,
   Req,
   Res,
@@ -45,12 +47,14 @@ import {
   type ProjectRouteAuthorizer,
 } from "./project-route-authorization.js";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { ProjectService } from "./projects.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
 const TELEMETRY_SHUTDOWN = Symbol("TELEMETRY_SHUTDOWN");
 const AUTH_GATEWAY = Symbol("AUTH_GATEWAY");
 const TRUSTED_ORIGIN = Symbol("TRUSTED_ORIGIN");
 const AUTH_RATE_LIMITER = Symbol("AUTH_RATE_LIMITER");
+const PROJECT_SERVICE = Symbol("PROJECT_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -217,6 +221,133 @@ class AuthController {
   }
 }
 
+type ProjectApiService = Pick<
+  ProjectService,
+  "create" | "list" | "detail" | "duplicate" | "delete"
+>;
+
+@Controller("projects")
+class ProjectsController {
+  public constructor(
+    @Inject(AUTH_GATEWAY) private readonly auth: AuthGateway,
+    @Inject(TRUSTED_ORIGIN) private readonly trustedOrigin: string | undefined,
+    @Inject(PROJECT_SERVICE) private readonly projects: ProjectApiService,
+  ) {}
+
+  @Post()
+  public async create(
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth,
+  ): Promise<{ project: unknown }> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const user = await this.authenticatedUser(request);
+    return {
+      project: await this.projects.create(
+        user.id,
+        input,
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+      ),
+    };
+  }
+
+  @Get()
+  public async list(
+    @Req() request: RequestWithAuth & { query: unknown },
+  ): Promise<unknown> {
+    const user = await this.authenticatedUser(request);
+    return this.projects.list(user.id, request.query);
+  }
+
+  @Get(":projectId")
+  public async detail(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<{ project: unknown }> {
+    const access = request.projectAccess;
+    if (access === undefined || access.projectId !== projectId)
+      throw new PublicError(
+        "internal_error",
+        "Project authorization is unavailable.",
+        503,
+        true,
+      );
+    const project = await this.projects.detail(
+      access.ownerUserId,
+      access.projectId,
+    );
+    if (project === null)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return { project };
+  }
+
+  @Post(":projectId/duplicate")
+  public async duplicate(
+    @Param("projectId") projectId: string,
+    @Body() input: unknown,
+    @Headers("idempotency-key") idempotencyKey: string | undefined,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<{ project: unknown }> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const user = await this.authenticatedUser(request);
+    const access = assertAuthorizedProject(request, projectId);
+    return {
+      project: await this.projects.duplicate(
+        user.id,
+        access.projectId,
+        input,
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+        idempotencyKey,
+      ),
+    };
+  }
+
+  @Delete(":projectId")
+  public async delete(
+    @Param("projectId") projectId: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<{ deleted: true }> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const user = await this.authenticatedUser(request);
+    const access = assertAuthorizedProject(request, projectId);
+    await this.projects.delete(
+      user.id,
+      access.projectId,
+      input,
+      request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    );
+    return { deleted: true };
+  }
+
+  private async authenticatedUser(request: RequestWithAuth) {
+    const token = request.cookies[sessionCookieName];
+    const user =
+      token === undefined ? null : await this.auth.currentSession(token);
+    if (user === null)
+      throw new PublicError("unauthorized", "Authentication is required.", 401);
+    return user;
+  }
+}
+
+function assertAuthorizedProject(
+  request: AuthorizedProjectRequest,
+  projectId: string,
+): { ownerUserId: Identifier; projectId: Identifier } {
+  const access = request.projectAccess;
+  if (access === undefined || access.projectId !== projectId)
+    throw new PublicError(
+      "internal_error",
+      "Project authorization is unavailable.",
+      503,
+      true,
+    );
+  return access;
+}
+
 export function sessionCookieOptions() {
   return {
     httpOnly: true,
@@ -276,7 +407,7 @@ class DatabaseShutdown implements OnApplicationShutdown {
 }
 
 @Module({
-  controllers: [HealthController, AuthController],
+  controllers: [HealthController, AuthController, ProjectsController],
   providers: [HealthService, DatabaseShutdown],
 })
 class AppModule {}
@@ -292,6 +423,7 @@ function createAppModule(
   authGateway: AuthGateway,
   trustedOrigin: string | undefined,
   authRateLimiter: InMemoryAuthRateLimiter,
+  projectService: ProjectApiService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -301,6 +433,7 @@ function createAppModule(
       { provide: AUTH_GATEWAY, useValue: authGateway },
       { provide: TRUSTED_ORIGIN, useValue: trustedOrigin },
       { provide: AUTH_RATE_LIMITER, useValue: authRateLimiter },
+      { provide: PROJECT_SERVICE, useValue: projectService },
     ],
   };
 }
@@ -313,6 +446,7 @@ export type CreateAppOptions = {
   trustedOrigin?: string;
   authRateLimiter?: InMemoryAuthRateLimiter;
   projectAuthorizer?: ProjectRouteAuthorizer;
+  projectService?: ProjectService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -385,6 +519,54 @@ const unavailableProjectAuthorizer: ProjectRouteAuthorizer = {
     ),
 };
 
+const unavailableProjectService: ProjectApiService = {
+  create: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Project service is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  list: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Project service is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  detail: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Project service is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  duplicate: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Project service is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  delete: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Project service is unavailable.",
+        503,
+        true,
+      ),
+    ),
+};
+
 export async function createApp(
   options: CreateAppOptions = {},
 ): Promise<NestFastifyApplication> {
@@ -397,6 +579,7 @@ export async function createApp(
       options.trustedOrigin,
       options.authRateLimiter ??
         new InMemoryAuthRateLimiter("development-only-rate-limit-key"),
+      options.projectService ?? unavailableProjectService,
     ),
     new FastifyAdapter({
       logger: {

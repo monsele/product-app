@@ -2,6 +2,7 @@ import {
   databaseEnvironmentSchema,
   parseWorkerEnvironment,
   redisEnvironmentSchema,
+  storageEnvironmentSchema,
 } from "@avlp/config";
 import { createDatabaseConnection } from "@avlp/database";
 import {
@@ -20,7 +21,13 @@ import {
   OpenTelemetryJobTelemetry,
   type StructuredLogger,
 } from "@avlp/observability";
+import {
+  createS3CompatibleObjectStorage,
+  type ObjectStorage,
+} from "@avlp/storage";
+import { z } from "zod";
 import { health } from "./health.js";
+import { createProjectCleanupJobHandler } from "./project-cleanup.js";
 
 function processAbortSignal(): { signal: AbortSignal; dispose: () => void } {
   const controller = new AbortController();
@@ -36,6 +43,36 @@ function processAbortSignal(): { signal: AbortSignal; dispose: () => void } {
   };
 }
 
+async function createStorage(
+  environmentInput: Record<string, string | undefined>,
+): Promise<ObjectStorage> {
+  const environment = storageEnvironmentSchema
+    .and(z.object({ OBJECT_STORAGE_BUCKET: z.string().min(1) }))
+    .parse(environmentInput);
+  return createS3CompatibleObjectStorage({
+    allowedPrefix: "users",
+    allowedUploadContentTypes: ["application/octet-stream"],
+    allowInsecureEndpoint: environment.OBJECT_STORAGE_ALLOW_INSECURE_ENDPOINT,
+    bucket: environment.OBJECT_STORAGE_BUCKET,
+    ...(environment.OBJECT_STORAGE_ACCESS_KEY === undefined
+      ? {}
+      : {
+          credentials: {
+            accessKeyId: environment.OBJECT_STORAGE_ACCESS_KEY,
+            secretAccessKey: environment.OBJECT_STORAGE_SECRET_KEY!,
+          },
+        }),
+    ...(environment.OBJECT_STORAGE_ENDPOINT === undefined
+      ? {}
+      : { endpoint: environment.OBJECT_STORAGE_ENDPOINT }),
+    forcePathStyle: environment.OBJECT_STORAGE_FORCE_PATH_STYLE,
+    maxUploadBytes: environment.MAX_UPLOAD_BYTES,
+    defaultSignedUrlTtlSeconds: environment.SIGNED_URL_TTL_SECONDS,
+    region: environment.OBJECT_STORAGE_REGION,
+    runtimeEnvironment: environment.NODE_ENV,
+  });
+}
+
 export async function runPipelineWorker(
   environmentInput: Record<string, string | undefined>,
   options: {
@@ -49,6 +86,7 @@ export async function runPipelineWorker(
       on: (event: "error", listener: () => void) => unknown;
       close: () => Promise<void>;
     };
+    storageFactory?: () => Promise<ObjectStorage>;
   } = {},
 ): Promise<void> {
   parseWorkerEnvironment(environmentInput);
@@ -59,7 +97,6 @@ export async function runPipelineWorker(
   const processSignal =
     options.signal === undefined ? processAbortSignal() : undefined;
   const signal = options.signal ?? processSignal!.signal;
-  const handlers = options.handlers ?? [];
   const database = createDatabaseConnection(databaseEnvironment.DATABASE_URL);
   const repository = new PostgresJobRepository(database.client);
   const connection = redisConnectionFromUrl(redisEnvironment.REDIS_URL);
@@ -73,6 +110,13 @@ export async function runPipelineWorker(
 
   try {
     await database.healthCheck();
+    const handlers = options.handlers ?? [
+      createProjectCleanupJobHandler({
+        database: database.client,
+        storage: await (options.storageFactory?.() ??
+          createStorage(environmentInput)),
+      }),
+    ];
     publisher =
       options.publisherFactory?.(connection) ??
       new BullMqJobPublisher(connection);

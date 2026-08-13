@@ -359,7 +359,10 @@ export const summaryVisualSchema = z
   })
   .strict()
   .superRefine((value, context) => {
-    if (value.centralModel !== undefined && value.centralAssetSlot !== undefined)
+    if (
+      value.centralModel !== undefined &&
+      value.centralAssetSlot !== undefined
+    )
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["centralAssetSlot"],
@@ -1350,3 +1353,98 @@ export function parseNormalizedDocument(input: unknown): NormalizedDocument {
 export function parseSourcePackage(input: unknown): SourcePackage {
   return sourcePackageSchema.parse(input);
 }
+
+/** Public project-workspace API contract shared by the API and web boundaries. */
+export const projectStageValues = [
+  "draft",
+  "uploading",
+  "ingesting",
+  "ingestion_review",
+  "lesson_configuration",
+  "objectives_review",
+  "outline_review",
+  "narration_storyboard_review",
+  "audio_generation",
+  "ready_for_validation",
+  "ready_to_render",
+  "rendering",
+  "completed",
+] as const;
+
+export const projectTitleSchema = z.string().trim().min(1).max(160);
+export const projectStageSchema = z.enum(projectStageValues);
+export type ProjectStage = z.infer<typeof projectStageSchema>;
+
+export const projectSummarySchema = z
+  .object({
+    id: identifierSchema,
+    title: projectTitleSchema,
+    stage: projectStageSchema,
+    latestFailedOperation: z.string().max(120).nullable(),
+    createdAt: z.string().datetime({ offset: true }),
+    updatedAt: z.string().datetime({ offset: true }),
+    revision: z.number().int().positive(),
+  })
+  .strict();
+export type ProjectSummary = z.infer<typeof projectSummarySchema>;
+
+export const projectDetailSchema = projectSummarySchema;
+export type ProjectDetail = z.infer<typeof projectDetailSchema>;
+
+export const projectListPageSchema = z
+  .object({
+    items: z.array(projectSummarySchema),
+    nextCursor: z.string().min(1).max(512).optional(),
+  })
+  .strict();
+export type ProjectListPage = z.infer<typeof projectListPageSchema>;
+
+export const projectCreateResponseSchema = z
+  .object({ project: projectDetailSchema })
+  .strict();
+export type ProjectCreateResponse = z.infer<typeof projectCreateResponseSchema>;
+
+/** Optional title for a new draft created from an existing project. */
+export const projectDuplicateInputSchema = z
+  .object({ title: projectTitleSchema.optional() })
+  .strict();
+export type ProjectDuplicateInput = z.infer<typeof projectDuplicateInputSchema>;
+
+export const projectCloneIdempotencyKeySchema = z
+  .string()
+  .min(1)
+  .max(200)
+  .regex(/^[A-Za-z0-9][A-Za-z0-9._:-]*$/);
+
+export const projectDuplicateResponseSchema = projectCreateResponseSchema;
+export type ProjectDuplicateResponse = z.infer<
+  typeof projectDuplicateResponseSchema
+>;
+
+/** Deletion must be an explicit, affirmative user action. */
+export const projectDeleteInputSchema = z
+  .object({ confirm: z.literal(true) })
+  .strict();
+export type ProjectDeleteInput = z.infer<typeof projectDeleteInputSchema>;
+
+export const projectDeleteResponseSchema = z
+  .object({ deleted: z.literal(true) })
+  .strict();
+export type ProjectDeleteResponse = z.infer<typeof projectDeleteResponseSchema>;
+
+/**
+ * The cleanup worker receives identifiers and timestamps only; stable storage
+ * keys are resolved server-side after its tenant check.
+ */
+export const projectCleanupJobPayloadSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    projectId: identifierSchema,
+    ownerUserId: identifierSchema,
+    deletedAt: z.string().datetime({ offset: true }),
+    cleanupAfter: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type ProjectCleanupJobPayload = z.infer<
+  typeof projectCleanupJobPayloadSchema
+>;

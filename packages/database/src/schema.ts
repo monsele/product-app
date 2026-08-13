@@ -11,6 +11,7 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { projectStageValues } from "@avlp/schemas";
 
 export const primaryId = (name = "id") => uuid(name).primaryKey();
 
@@ -138,6 +139,59 @@ export const passwordResetTokens = pgTable(
   ],
 );
 
+export { projectStageValues } from "@avlp/schemas";
+export const projectStage = pgEnum("project_stage", projectStageValues);
+
+/** The ownership root for every teacher-created lesson workspace. */
+export const projects = pgTable(
+  "projects",
+  {
+    id: primaryId(),
+    ownerUserId: ownershipColumn().references(() => users.id, {
+      onDelete: "restrict",
+    }),
+    title: text("title").notNull(),
+    stage: projectStage("stage").notNull().default("draft"),
+    latestFailedOperation: text("latest_failed_operation"),
+    ...auditColumns(),
+    revision: revisionColumn(),
+    deletedAt: softDeletionColumn(),
+    cleanupAfter: utcTimestamp("cleanup_after"),
+    cleanupCompletedAt: utcTimestamp("cleanup_completed_at"),
+  },
+  (table) => [
+    index("projects_owner_active_updated_idx").on(
+      table.ownerUserId,
+      table.deletedAt,
+      table.updatedAt,
+      table.id,
+    ),
+  ],
+);
+
+/** Idempotency record for a source project clone; retained with tombstones. */
+export const projectCloneRequests = pgTable(
+  "project_clone_requests",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    duplicateProjectId: uuid("duplicate_project_id").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("project_clone_requests_source_key_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.idempotencyKey,
+    ),
+    index("project_clone_requests_duplicate_idx").on(
+      table.ownerUserId,
+      table.duplicateProjectId,
+    ),
+  ],
+);
+
 export const jobStateValues = [
   "queued",
   "running",
@@ -240,6 +294,9 @@ export const auditEventTypeValues = [
   "auth.logout",
   "auth.password_reset_requested",
   "auth.password_changed",
+  "project.created",
+  "project.duplicated",
+  "project.deleted",
   "document.uploaded",
   "document.deleted",
   "share.created",

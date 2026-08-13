@@ -1,10 +1,12 @@
 import { Buffer } from "node:buffer";
 import {
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand,
   GetBucketAclCommand,
   GetBucketPolicyStatusCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutBucketLifecycleConfigurationCommand,
   PutObjectCommand,
   S3Client,
@@ -299,6 +301,51 @@ export class S3CompatibleObjectStorage implements ObjectStorage {
     await this.#client.send(
       new DeleteObjectCommand({ Bucket: this.#bucket, Key: key }),
     );
+  }
+
+  public async deletePrefix(prefixInput: StorageKey): Promise<number> {
+    const prefix = this.#authorizeKey(prefixInput);
+    const objectPrefix = `${prefix}/`;
+    let continuationToken: string | undefined;
+    let deletedCount = 0;
+    do {
+      const listed = await this.#client.send(
+        new ListObjectsV2Command({
+          Bucket: this.#bucket,
+          MaxKeys: 1_000,
+          Prefix: objectPrefix,
+          ...(continuationToken === undefined
+            ? {}
+            : { ContinuationToken: continuationToken }),
+        }),
+      );
+      const objects = (listed.Contents ?? []).flatMap((entry) =>
+        entry.Key === undefined ? [] : [{ Key: entry.Key }],
+      );
+      if (objects.length > 0) {
+        const deleted = await this.#client.send(
+          new DeleteObjectsCommand({
+            Bucket: this.#bucket,
+            Delete: { Objects: objects, Quiet: true },
+          }),
+        );
+        if ((deleted.Errors?.length ?? 0) > 0)
+          throw new Error(
+            "Storage prefix cleanup did not delete every object.",
+          );
+        deletedCount += objects.length;
+      }
+      if (
+        listed.IsTruncated === true &&
+        listed.NextContinuationToken === undefined
+      )
+        throw new Error(
+          "Storage prefix listing did not provide a continuation token.",
+        );
+      continuationToken =
+        listed.IsTruncated === true ? listed.NextContinuationToken : undefined;
+    } while (continuationToken !== undefined);
+    return deletedCount;
   }
 
   public async replaceLifecycleConfiguration(

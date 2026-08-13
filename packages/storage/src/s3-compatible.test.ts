@@ -1,10 +1,12 @@
 import { Buffer } from "node:buffer";
 import {
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand,
   GetBucketAclCommand,
   GetBucketPolicyStatusCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutBucketLifecycleConfigurationCommand,
   PutObjectCommand,
   S3Client,
@@ -257,6 +259,43 @@ describe("S3CompatibleObjectStorage", () => {
     expect(lifecycle.input.LifecycleConfiguration?.Rules).toEqual([
       expect.objectContaining({ ID: "abandoned-sources" }),
     ]);
+  });
+
+  it("deletes every authorized object below a prefix and fails on partial deletion", async () => {
+    const prefix =
+      "users/018f3c2d-4a00-7000-8000-000000000001/projects/018f3c2d-4a00-7000-8000-000000000002" as StorageKey;
+    const commands: unknown[] = [];
+    const { storage } = createHarness(async (command) => {
+      commands.push(command);
+      if (command instanceof ListObjectsV2Command)
+        return {
+          Contents: [
+            { Key: `${prefix}/renders/one/lesson.mp4` },
+            { Key: `${prefix}/renders/one/thumbnail.png` },
+          ],
+        };
+      return {};
+    });
+    await expect(storage.deletePrefix(prefix)).resolves.toBe(2);
+    expect(commands[0]).toBeInstanceOf(ListObjectsV2Command);
+    expect((commands[0] as ListObjectsV2Command).input.Prefix).toBe(
+      `${prefix}/`,
+    );
+    expect(commands[1]).toBeInstanceOf(DeleteObjectsCommand);
+    expect(
+      (commands[1] as DeleteObjectsCommand).input.Delete?.Objects,
+    ).toHaveLength(2);
+
+    const failed = createHarness(async (command) => {
+      if (command instanceof ListObjectsV2Command)
+        return { Contents: [{ Key: `${prefix}/renders/one/lesson.mp4` }] };
+      if (command instanceof DeleteObjectsCommand)
+        return { Errors: [{ Code: "AccessDenied" }] };
+      return {};
+    });
+    await expect(failed.storage.deletePrefix(prefix)).rejects.toThrow(
+      "did not delete every object",
+    );
   });
 
   it("returns false only for provider not-found responses", async () => {
