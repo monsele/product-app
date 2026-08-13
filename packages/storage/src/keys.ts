@@ -83,4 +83,11 @@ export const storageKeys = {
       `${tenantPrefix(input)}/renders/${renderJobId}/lesson.mp4`,
     );
   },
+
+  renderThumbnail(input: RenderKey): StorageKey {
+    const renderJobId = identifierSchema.parse(input.renderJobId);
+    return validatedKey(
+      `${tenantPrefix(input)}/renders/${renderJobId}/thumbnail.png`,
+    );
+  },
 } as const;

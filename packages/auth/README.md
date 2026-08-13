@@ -32,3 +32,23 @@ instances must also apply a shared edge rate limiter.
 Expose the API behind the same public web origin (for example, through a
 reverse-proxy `/api` path). This keeps the HttpOnly session cookie first-party
 to the workspace server and avoids cross-site-cookie behavior.
+
+## Project authorization
+
+`ProjectAuthorizationService` is the shared authorization boundary for every
+project-owned command and query. Repositories implement
+`OwnerScopedProjectRepository.loadOwnedProject({ ownerUserId, projectId })`;
+loading by project ID alone and checking ownership afterward is not supported.
+The service also verifies the returned row's owner and project identifiers so
+an accidentally unscoped adapter fails closed.
+
+The version 1 `ProjectAccessPolicy` defaults to `not_found`: a missing project
+and another teacher's project both return the same 404 response. Use the
+`forbidden` policy only for a future context where resource existence is
+already safely disclosed and the policy is explicitly documented. There is no
+implicit administrator bypass.
+
+Later project stories should use `createCrossUserProjectFixture` and
+`InMemoryOwnerScopedProjectRepository` for their authorization tests, then add
+repository integration coverage proving the production query includes both
+identifiers.

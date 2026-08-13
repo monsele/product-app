@@ -95,6 +95,11 @@ export interface JobExecutionRepository {
     leaseDurationMs: number,
     now?: Date,
   ): Promise<boolean>;
+  reportProgress(
+    lease: JobLease,
+    progress: number,
+    now?: Date,
+  ): Promise<boolean>;
   completeJob(
     lease: JobLease,
     result: JobMetadata,
@@ -263,6 +268,7 @@ export class PostgresJobRepository implements JobExecutionRepository {
       .update(jobs)
       .set({
         state: "running",
+        progress: 0,
         attempts: sql`${jobs.attempts} + 1`,
         startedAt: now,
         heartbeatAt: now,
@@ -308,6 +314,27 @@ export class PostgresJobRepository implements JobExecutionRepository {
     return updated.length === 1;
   }
 
+  public async reportProgress(
+    lease: JobLease,
+    progress: number,
+    now = new Date(),
+  ): Promise<boolean> {
+    if (!Number.isFinite(progress) || progress < 0 || progress > 1)
+      throw new TypeError("Job progress must be between 0 and 1.");
+    const updated = await this.client
+      .update(jobs)
+      .set({ progress, heartbeatAt: now, updatedAt: now })
+      .where(
+        and(
+          eq(jobs.id, lease.jobId),
+          eq(jobs.state, "running"),
+          eq(jobs.attempts, lease.attempt),
+        ),
+      )
+      .returning({ id: jobs.id });
+    return updated.length === 1;
+  }
+
   public async completeJob(
     lease: JobLease,
     result: JobMetadata,
@@ -317,6 +344,7 @@ export class PostgresJobRepository implements JobExecutionRepository {
       .update(jobs)
       .set({
         state: "succeeded",
+        progress: 1,
         resultMetadata: result,
         errorClassification: null,
         errorMetadata: null,

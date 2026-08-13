@@ -5,6 +5,7 @@ import {
   numeric,
   pgEnum,
   pgTable,
+  real,
   text,
   timestamp,
   uniqueIndex,
@@ -26,6 +27,12 @@ export const revisionColumn = () => integer("revision").notNull().default(1);
 export const softDeletionColumn = () => utcTimestamp("deleted_at");
 
 export const ownershipColumn = () => uuid("owner_user_id").notNull();
+
+/** Standard columns for every future project-owned domain table. */
+export const projectOwnershipColumns = () => ({
+  projectId: uuid("project_id").notNull(),
+  ownerUserId: ownershipColumn(),
+});
 
 /**
  * Infrastructure-only smoke table. Feature stories own all domain tables.
@@ -159,14 +166,14 @@ export const jobs = pgTable(
     id: primaryId(),
     jobType: text("job_type").notNull(),
     queueName: text("queue_name").notNull(),
-    projectId: uuid("project_id").notNull(),
-    ownerUserId: ownershipColumn(),
+    ...projectOwnershipColumns(),
     inputVersion: text("input_version").notNull(),
     idempotencyKey: text("idempotency_key").notNull(),
     correlationId: uuid("correlation_id").notNull(),
     payloadVersion: integer("payload_version").notNull(),
     payload: jsonb("payload").notNull(),
     state: jobState("state").notNull().default("queued"),
+    progress: real("progress").notNull().default(0),
     attempts: integer("attempts").notNull().default(0),
     maxAttempts: integer("max_attempts").notNull().default(3),
     retryDelayMs: integer("retry_delay_ms").notNull().default(5_000),
@@ -298,8 +305,7 @@ export const usageRecords = pgTable(
   "usage_records",
   {
     id: primaryId(),
-    ownerUserId: ownershipColumn(),
-    projectId: uuid("project_id").notNull(),
+    ...projectOwnershipColumns(),
     operationType: usageOperationType("operation_type").notNull(),
     idempotencyKey: text("idempotency_key").notNull(),
     provider: text("provider"),

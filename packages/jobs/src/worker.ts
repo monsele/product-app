@@ -30,6 +30,7 @@ export type JobHandlerContext = {
   idempotencyKey: string;
   attempt: number;
   heartbeat: () => Promise<void>;
+  reportProgress: (progress: number) => Promise<void>;
 };
 
 export type JobHandler<T> = (
@@ -148,6 +149,18 @@ export async function executeJobDelivery<T>(input: {
               policy.leaseDurationMs,
             );
             if (!renewed)
+              throw new JobExecutionError(
+                "cancelled",
+                "JOB_LEASE_LOST",
+                "The job lease is no longer active.",
+              );
+          },
+          reportProgress: async (progress) => {
+            const updated = await input.repository.reportProgress(
+              lease,
+              progress,
+            );
+            if (!updated)
               throw new JobExecutionError(
                 "cancelled",
                 "JOB_LEASE_LOST",

@@ -34,6 +34,7 @@ function queuedJob(): JobRow {
     payloadVersion: 1,
     payload: { outlineVersion: "outline-v1" },
     state: "queued",
+    progress: 0,
     attempts: 0,
     maxAttempts: 3,
     retryDelayMs: 10,
@@ -52,6 +53,7 @@ function queuedJob(): JobRow {
 
 class MemoryJobRepository implements JobExecutionRepository {
   public job = queuedJob();
+  public readonly progressReports: number[] = [];
 
   public async claimJob(
     identity: ProjectJobIdentity,
@@ -76,13 +78,29 @@ class MemoryJobRepository implements JobExecutionRepository {
     return this.job.state === "running" && this.job.attempts === lease.attempt;
   }
 
+  public async reportProgress(
+    lease: JobLease,
+    progress: number,
+  ): Promise<boolean> {
+    if (this.job.state !== "running" || this.job.attempts !== lease.attempt)
+      return false;
+    this.job = { ...this.job, progress };
+    this.progressReports.push(progress);
+    return true;
+  }
+
   public async completeJob(
     lease: JobLease,
     result: Record<string, string>,
   ): Promise<boolean> {
     if (this.job.state !== "running" || this.job.attempts !== lease.attempt)
       return false;
-    this.job = { ...this.job, state: "succeeded", resultMetadata: result };
+    this.job = {
+      ...this.job,
+      state: "succeeded",
+      progress: 1,
+      resultMetadata: result,
+    };
     return true;
   }
 
@@ -146,6 +164,7 @@ describe("worker delivery contract", () => {
         handler: async (_payload, context) => {
           handlerCorrelationId = context.correlationId;
           ambientCorrelationId = currentCorrelationId();
+          await context.reportProgress(0.5);
           return { artifactVersion: "lesson-v1" };
         },
       }),
@@ -160,6 +179,8 @@ describe("worker delivery contract", () => {
     expect(
       observed.every((item) => item.projectId === repository.job.projectId),
     ).toBe(true);
+    expect(repository.progressReports).toEqual([0.5]);
+    expect(repository.job.progress).toBe(1);
   });
 
   it("executes side effects once when the same delivery is duplicated", async () => {

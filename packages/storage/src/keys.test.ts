@@ -42,6 +42,9 @@ describe("storageKeys", () => {
     expect(storageKeys.renderVideo({ ...scope, renderJobId: entityId })).toBe(
       `${prefix}/renders/${entityId}/lesson.mp4`,
     );
+    expect(
+      storageKeys.renderThumbnail({ ...scope, renderJobId: entityId }),
+    ).toBe(`${prefix}/renders/${entityId}/thumbnail.png`);
   });
 
   it("rejects invalid identifiers instead of interpolating path input", () => {

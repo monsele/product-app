@@ -20,7 +20,7 @@ import {
   FastifyAdapter,
   type NestFastifyApplication,
 } from "@nestjs/platform-fastify";
-import { PublicError } from "@avlp/config";
+import { PublicError, toApiErrorEnvelope, type Identifier } from "@avlp/config";
 import {
   DuplicateEmailError,
   InvalidPasswordResetTokenError,
@@ -39,6 +39,11 @@ import {
   type StructuredLogger,
 } from "@avlp/observability";
 import { ApiExceptionFilter } from "./error-filter.js";
+import {
+  authorizeProjectRoute,
+  type AuthorizedProjectRequest,
+  type ProjectRouteAuthorizer,
+} from "./project-route-authorization.js";
 import type { FastifyReply, FastifyRequest } from "fastify";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
@@ -82,7 +87,7 @@ class HealthController {
   }
 }
 
-type RequestWithAuth = FastifyRequest & { correlationId?: string };
+type RequestWithAuth = FastifyRequest & { correlationId?: Identifier };
 
 @Controller("auth")
 class AuthController {
@@ -307,6 +312,7 @@ export type CreateAppOptions = {
   authGateway?: AuthGateway;
   trustedOrigin?: string;
   authRateLimiter?: InMemoryAuthRateLimiter;
+  projectAuthorizer?: ProjectRouteAuthorizer;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -361,6 +367,18 @@ const unavailableAuthGateway: AuthGateway = {
       new PublicError(
         "internal_error",
         "Authentication is unavailable.",
+        503,
+        true,
+      ),
+    ),
+};
+
+const unavailableProjectAuthorizer: ProjectRouteAuthorizer = {
+  assertProjectAccess: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Project authorization is unavailable.",
         503,
         true,
       ),
@@ -429,6 +447,40 @@ export async function createApp(
         { correlationId: correlationRequest.correlationId },
         done,
       );
+    });
+  app
+    .getHttpAdapter()
+    .getInstance()
+    .addHook("onRequest", async (request, reply) => {
+      try {
+        await authorizeProjectRoute(
+          request as unknown as AuthorizedProjectRequest,
+          options.authGateway ?? unavailableAuthGateway,
+          options.projectAuthorizer ?? unavailableProjectAuthorizer,
+          sessionCookieName,
+        );
+      } catch (error) {
+        const correlationId = (request as unknown as RequestWithAuth)
+          .correlationId;
+        const safeCorrelationId =
+          correlationId ?? correlationIdFromHeader(undefined);
+        const statusCode =
+          error instanceof PublicError ? error.statusCode : 500;
+        if (
+          error instanceof PublicError &&
+          ["forbidden", "not_found", "unauthorized"].includes(error.code)
+        )
+          logger.warn("api.project_access_denied", {
+            correlationId: safeCorrelationId,
+            method: request.method,
+            route: request.routeOptions.url,
+            code: error.code,
+          });
+        await reply
+          .header("x-correlation-id", safeCorrelationId)
+          .status(statusCode)
+          .send(toApiErrorEnvelope(error, safeCorrelationId));
+      }
     });
   app.useGlobalFilters(new ApiExceptionFilter());
   await options.configure?.(app);

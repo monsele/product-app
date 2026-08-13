@@ -140,6 +140,38 @@ describeWithPostgres("PostgreSQL job repository", () => {
     expect(await database!.client.select().from(outboxEvents)).toHaveLength(2);
   });
 
+  it("records bounded progress only for the current fenced lease", async () => {
+    const now = new Date("2026-08-08T12:00:00.000Z");
+    const created = await repository.createJob(
+      command("lesson.generate:progress-test")(createId(now)),
+    );
+    const claimed = await repository.claimJob(
+      identity(created.job),
+      1_000,
+      now,
+    );
+    const lease = { jobId: created.job.id, attempt: claimed!.attempts };
+
+    await expect(repository.reportProgress(lease, 0.5, now)).resolves.toBe(
+      true,
+    );
+    await expect(
+      repository.reportProgress(
+        { ...lease, attempt: lease.attempt + 1 },
+        0.7,
+        now,
+      ),
+    ).resolves.toBe(false);
+    await expect(repository.reportProgress(lease, 1.1, now)).rejects.toThrow(
+      "between 0 and 1",
+    );
+    await expect(
+      repository.findJob(identity(created.job)),
+    ).resolves.toMatchObject({
+      progress: 0.5,
+    });
+  });
+
   it("fences a stale worker after a newer attempt claims the requeued job", async () => {
     const now = new Date("2026-08-08T12:00:00.000Z");
     const created = await repository.createJob(
@@ -191,6 +223,7 @@ describeWithPostgres("PostgreSQL job repository", () => {
     );
     const first = await repository.claimJob(identity(created.job), 1_000, now);
     const lease = { jobId: created.job.id, attempt: first!.attempts };
+    await repository.reportProgress(lease, 0.6, now);
     await repository.recordFailure(
       lease,
       {
@@ -215,7 +248,7 @@ describeWithPostgres("PostgreSQL job repository", () => {
         1_000,
         new Date(now.getTime() + 1_000),
       ),
-    ).toMatchObject({ state: "running", attempts: 2 });
+    ).toMatchObject({ state: "running", attempts: 2, progress: 0 });
   });
 
   it("audits an administrative retry with actor and correlation context", async () => {
