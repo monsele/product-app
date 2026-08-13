@@ -19,6 +19,8 @@ export * from "./scene-registry.js";
 export * from "./timing.js";
 export * from "./scene-preview-composition.js";
 export * from "./scene-preview.js";
+export * from "./full-lesson.js";
+export * from "./full-lesson.fixture.js";
 export * from "./hook-scene.js";
 export * from "./hook-scene.fixtures.js";
 export * from "./definition-scene.js";

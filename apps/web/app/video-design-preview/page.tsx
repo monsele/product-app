@@ -4,6 +4,8 @@ import { useState } from "react";
 import {
   createDefaultScene,
   createScenePreviewFixture,
+  FullLessonPreviewPlayer,
+  photosynthesisThreeMinutePreview,
   ScenePreviewPlayer,
 } from "@avlp/scene-library";
 import { sceneTemplateValues, type SceneTemplate } from "@avlp/schemas";
@@ -50,7 +52,7 @@ const missingAudioInput = Object.freeze({
 export default function VideoDesignPreviewPage() {
   const [selected, setSelected] = useState<SceneTemplate>("hook");
   const [mode, setMode] = useState<
-    "fixture" | "invalid" | "missing-asset" | "missing-audio"
+    "fixture" | "full-lesson" | "invalid" | "missing-asset" | "missing-audio"
   >("fixture");
   const input =
     mode === "fixture"
@@ -95,10 +97,23 @@ export default function VideoDesignPreviewPage() {
         <button onClick={() => setMode("missing-audio")} type="button">
           missing audio
         </button>
+        <button onClick={() => setMode("full-lesson")} type="button">
+          full lesson
+        </button>
       </nav>
       <section aria-label="Selected scene preview" style={{ marginTop: 24 }}>
-        <h2>{mode === "fixture" ? `${selected} scene` : mode}</h2>
-        <ScenePreviewPlayer input={input} />
+        <h2>
+          {mode === "fixture"
+            ? `${selected} scene`
+            : mode === "full-lesson"
+              ? "three-minute lesson"
+              : mode}
+        </h2>
+        {mode === "full-lesson" ? (
+          <FullLessonPreviewPlayer input={photosynthesisThreeMinutePreview} />
+        ) : (
+          <ScenePreviewPlayer input={input} />
+        )}
       </section>
     </main>
   );

@@ -66,3 +66,14 @@ test("shows actionable invalid input and missing media errors", async ({
     page.getByRole("button", { name: "Play scene", exact: true }),
   ).toBeVisible();
 });
+
+test("navigates the full three-minute fixture preview", async ({ page }) => {
+  await page.goto("/video-design-preview");
+  await page.getByRole("button", { name: "full lesson" }).click();
+  await expect(
+    page.getByRole("heading", { name: "three-minute lesson" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Play lesson" })).toBeVisible();
+  await page.getByRole("button", { name: "Scene 4" }).click();
+  await expect(page.getByText(/Full lesson frame: 2700/)).toBeVisible();
+});

@@ -2,6 +2,11 @@ import { Composition } from "remotion";
 import type { JSX } from "react";
 import { getSceneFrameTiming } from "./timing.js";
 import {
+  FullLessonComposition,
+  getLessonDurationInFrames,
+} from "./full-lesson.js";
+import { photosynthesisThreeMinutePreview } from "./full-lesson.fixture.js";
+import {
   sceneRegistryPreviewFixture,
   SceneRenderRuntime,
   type SceneComponentProps,
@@ -9,6 +14,7 @@ import {
 import { videoTheme } from "@avlp/design-system/video-theme";
 
 export const sceneRuntimeCompositionId = "SceneRuntimePreview";
+export const fullLessonRuntimeCompositionId = "FullLessonRuntimePreview";
 export const sceneRuntimeComposition = Object.freeze({
   id: sceneRuntimeCompositionId,
   durationInFrames: getSceneFrameTiming(
@@ -33,10 +39,23 @@ export function SceneRuntimeComposition({
 
 export function SceneRuntimeRoot(): JSX.Element {
   return (
-    <Composition
-      {...sceneRuntimeComposition}
-      component={SceneRuntimeComposition}
-      defaultProps={{ scene: sceneRegistryPreviewFixture }}
-    />
+    <>
+      <Composition
+        {...sceneRuntimeComposition}
+        component={SceneRuntimeComposition}
+        defaultProps={{ scene: sceneRegistryPreviewFixture }}
+      />
+      <Composition
+        component={FullLessonComposition}
+        defaultProps={photosynthesisThreeMinutePreview}
+        durationInFrames={getLessonDurationInFrames(
+          photosynthesisThreeMinutePreview.lesson,
+        )}
+        fps={videoTheme.canvas.fps}
+        height={videoTheme.canvas.height}
+        id={fullLessonRuntimeCompositionId}
+        width={videoTheme.canvas.width}
+      />
+    </>
   );
 }

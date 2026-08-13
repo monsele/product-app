@@ -2,7 +2,7 @@
 story_id: ST-023
 title: "Assemble a Manual Three-Minute LessonSpec and Full Composition"
 phase: "01 \u2014 Visual Runtime Proof"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E10", "E11", "E15"]
 prd_user_stories: ["E10-US1", "E15-US2"]
@@ -40,13 +40,13 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Scope
 
-- [ ] Create a licensed or original five-page-equivalent science fixture and a hand-authored LessonSpec.
-- [ ] Use at least hook, definition, input-process-output, and summary templates.
-- [ ] Implement scene-to-timeline frame calculation.
-- [ ] Implement allowed transitions and caption overlay across the full composition.
-- [ ] Create placeholder/local narration audio or deterministic silence tracks.
-- [ ] Expose a full composition preview in the development gallery.
-- [ ] Record known visual and pedagogical review notes.
+- [x] Create a licensed or original five-page-equivalent science fixture and a hand-authored LessonSpec.
+- [x] Use at least hook, definition, input-process-output, and summary templates.
+- [x] Implement scene-to-timeline frame calculation.
+- [x] Implement allowed transitions and caption overlay across the full composition.
+- [x] Create placeholder/local narration audio or deterministic silence tracks.
+- [x] Expose a full composition preview in the development gallery.
+- [x] Record known visual and pedagogical review notes.
 
 ## Technical Implementation Requirements
 
@@ -68,17 +68,17 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Acceptance Criteria
 
-- [ ] The lesson duration is approximately three minutes and matches calculated frames.
-- [ ] Scene transitions do not introduce audio/caption drift.
-- [ ] The fixture validates against LessonSpec v1.
-- [ ] The full lesson can be navigated and previewed locally.
+- [x] The lesson duration is approximately three minutes and matches calculated frames.
+- [x] Scene transitions do not introduce audio/caption drift.
+- [x] The fixture validates against LessonSpec v1.
+- [x] The full lesson can be navigated and previewed locally.
 
 ## Required Tests
 
-- [ ] Timeline calculation tests.
-- [ ] Full composition frame snapshots.
-- [ ] Caption continuity test.
-- [ ] Schema and source-reference tests.
+- [x] Timeline calculation tests.
+- [x] Full composition frame snapshots.
+- [x] Caption continuity test.
+- [x] Schema and source-reference tests.
 
 ## Out of Scope
 
@@ -92,39 +92,39 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Implementation Checklist
 
-- [ ] Inspect the current repository and related completed stories.
-- [ ] Write a short implementation plan listing files, contracts, migrations, tests, and risks.
-- [ ] Implement only this story's scope.
-- [ ] Add or update schemas before changing consumers.
-- [ ] Add authorization, validation, error, retry, concurrency, and idempotency behavior where applicable.
-- [ ] Add structured logs, correlation, audit, and usage records where applicable.
-- [ ] Run the required automated tests and affected workspace quality commands.
-- [ ] Self-review the diff for scope creep, insecure access, stale data races, and unbounded provider calls.
-- [ ] Update documentation and this story's Dev Agent Record.
+- [x] Inspect the current repository and related completed stories.
+- [x] Write a short implementation plan listing files, contracts, migrations, tests, and risks.
+- [x] Implement only this story's scope.
+- [x] Add or update schemas before changing consumers.
+- [x] Add authorization, validation, error, retry, concurrency, and idempotency behavior where applicable.
+- [x] Add structured logs, correlation, audit, and usage records where applicable.
+- [x] Run the required automated tests and affected workspace quality commands.
+- [x] Self-review the diff for scope creep, insecure access, stale data races, and unbounded provider calls.
+- [x] Update documentation and this story's Dev Agent Record.
 
 ## Definition of Done
 
-- [ ] Every acceptance criterion is implemented and verified.
-- [ ] Every required test is implemented and passing.
-- [ ] `lint`, `typecheck`, `test`, and `build` pass for all affected workspaces.
-- [ ] Database migrations and compatibility notes are complete where applicable.
-- [ ] Public schemas, events, and endpoints are documented.
-- [ ] No unresolved tenant-isolation, security, idempotency, concurrency, data-loss, or cost-control defect remains in this scope.
-- [ ] No out-of-scope feature or unrelated refactor was added.
-- [ ] The Dev Agent Record is complete.
-- [ ] This story and `STORY_INDEX.md` are marked **Done**.
+- [x] Every acceptance criterion is implemented and verified.
+- [x] Every required test is implemented and passing.
+- [x] `lint`, `typecheck`, `test`, and `build` pass for all affected workspaces.
+- [x] Database migrations and compatibility notes are complete where applicable.
+- [x] Public schemas, events, and endpoints are documented.
+- [x] No unresolved tenant-isolation, security, idempotency, concurrency, data-loss, or cost-control defect remains in this scope.
+- [x] No out-of-scope feature or unrelated refactor was added.
+- [x] The Dev Agent Record is complete.
+- [x] This story and `STORY_INDEX.md` are marked **Done**.
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-13
+- **Completed:** 2026-08-13
+- **Branch/PR:** `story/st-023`; no PR published.
+- **Files changed:** `packages/scene-library/src/full-lesson.tsx`, `full-lesson.fixture.ts`, `full-lesson.test.ts`, `full-lesson-render.test.ts`, `scene-preview-composition.tsx`, and package exports; the development preview gallery, its Playwright test, this story, and `STORY_INDEX.md`.
+- **Migrations:** None.
+- **Contracts changed:** Added validated full-lesson composition props, deterministic-silence narration tracks, full-timeline caption cues, and stable timeline segments. Caption and silence-track coverage must exactly match scene frame ranges to prevent fixture timing drift.
+- **Commands/tests run:** Passed: scene-library lint/typecheck/test (including 30fps Remotion full-composition smoke); web lint/typecheck/build; Playwright `e2e/video-design-preview.spec.ts` (3 tests); workspace `pnpm typecheck`; `git diff --check`. Workspace `pnpm test` is blocked by a pre-existing `@avlp/evals` baseline-fixture failure; affected scene-library and web tests passed.
+- **Screenshots or representative output:** Full composition registered at 1920x1080/30fps with 5,400 frames. Browser test navigated directly to Scene 4 (frame 2,700); renderer smoke produced deterministic PNG frames at the initial and transition boundaries.
+- **Decisions and assumptions:** The five-page source is original educational text, retained as an immutable fixture manifest. Each 30-second scene has a deterministic silence track until the later audio story supplies approved timed narration. Captions occupy the complete, non-overlapping scene frame range and transitions do not alter timeline duration.
+- **Deviations from story/technical guide:** The authenticated preview manifest, signed-media refresh, stale state, edit-return action, and low-quality toggle require the project/editor and audio dependencies of later stories; this development fixture intentionally has no external media.
+- **Known risks or follow-up:** Silence tracks are a regression anchor only and must be replaced with approved audio/caption assets before production render. The unrelated `@avlp/evals` baseline failure should be repaired in its owning story before repository-wide test gating.
