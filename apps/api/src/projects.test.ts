@@ -157,7 +157,10 @@ describe("project API", () => {
 
   async function api(
     trustedOrigin?: string,
-    sourceUploadService?: Pick<SourceUploadService, "create" | "complete">,
+    sourceUploadService?: Pick<
+      SourceUploadService,
+      "create" | "complete" | "status"
+    >,
   ) {
     const ownerUserId = createId(new Date("2026-08-13T10:00:00.000Z"));
     const otherUserId = createId(new Date("2026-08-13T10:00:01.000Z"));
@@ -364,7 +367,7 @@ describe("project API", () => {
   it("creates and completes a source upload only within the authorized project", async () => {
     const sourceUploadService: Pick<
       SourceUploadService,
-      "create" | "complete"
+      "create" | "complete" | "status"
     > = {
       create: vi.fn(async () => ({
         sessionId: createId(new Date("2026-08-13T10:01:00.000Z")),
@@ -376,9 +379,10 @@ describe("project API", () => {
       })),
       complete: vi.fn(async () => ({
         documentId: createId(new Date("2026-08-13T10:01:01.000Z")),
-        status: "active" as const,
-        ingestionRequested: true as const,
+        status: "pending_validation" as const,
+        ingestionRequested: false as const,
       })),
+      status: vi.fn(async () => null),
     };
     const { server, otherProjectId } = await api(
       undefined,

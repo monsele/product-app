@@ -233,7 +233,10 @@ type ProjectApiService = Pick<
   ProjectService,
   "create" | "list" | "detail" | "duplicate" | "delete"
 >;
-type SourceUploadApiService = Pick<SourceUploadService, "create" | "complete">;
+type SourceUploadApiService = Pick<
+  SourceUploadService,
+  "create" | "complete" | "status"
+>;
 
 @Controller("projects")
 class ProjectsController {
@@ -326,6 +329,15 @@ class ProjectsController {
     const user = await this.authenticatedUser(request);
     const access = assertAuthorizedProject(request, projectId);
     return this.sourceUploads.create(user.id, access.projectId, input);
+  }
+
+  @Get(":projectId/source-document")
+  public async sourceDocumentStatus(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    return this.sourceUploads.status(access.ownerUserId, access.projectId);
   }
 
   @Post(":projectId/source-upload/:sessionId/complete")
@@ -631,6 +643,15 @@ const unavailableSourceUploadService: SourceUploadApiService = {
       ),
     ),
   complete: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Document upload is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  status: () =>
     Promise.reject(
       new PublicError(
         "internal_error",

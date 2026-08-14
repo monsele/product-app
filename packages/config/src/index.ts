@@ -238,6 +238,17 @@ export const storageEnvironmentSchema = baseEnvironmentSchema
   .merge(storageEnvironmentObjectSchema)
   .superRefine(validateStorageCredentialPair);
 export type StorageEnvironment = z.infer<typeof storageEnvironmentSchema>;
+export const malwareScannerEnvironmentSchema = z.object({
+  MALWARE_SCANNER_URL: z
+    .string()
+    .url()
+    .refine(
+      (value) => new URL(value).protocol === "https:",
+      "Malware scanner URLs must use HTTPS.",
+    )
+    .optional(),
+  MALWARE_SCANNER_TOKEN: z.string().min(1).optional(),
+});
 export const apiEnvironmentSchema = baseEnvironmentSchema
   .merge(databaseEnvironmentSchema)
   .merge(redisEnvironmentSchema)
@@ -286,7 +297,19 @@ export const workerEnvironmentSchema = baseEnvironmentSchema
   .merge(databaseEnvironmentSchema.partial())
   .merge(redisEnvironmentSchema.partial())
   .merge(storageEnvironmentObjectSchema)
-  .superRefine(validateStorageCredentialPair);
+  .merge(malwareScannerEnvironmentSchema)
+  .superRefine((value, context) => {
+    validateStorageCredentialPair(value, context);
+    if (
+      value.NODE_ENV === "production" &&
+      value.MALWARE_SCANNER_URL === undefined
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["MALWARE_SCANNER_URL"],
+        message: "MALWARE_SCANNER_URL is required in production.",
+      });
+  });
 export const webEnvironmentSchema = baseEnvironmentSchema.extend({
   NEXT_PUBLIC_API_URL: z.string().url().optional(),
 });

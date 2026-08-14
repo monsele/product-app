@@ -28,6 +28,9 @@ import {
 import { z } from "zod";
 import { health } from "./health.js";
 import { createProjectCleanupJobHandler } from "./project-cleanup.js";
+import { HttpMalwareScanner } from "./document-validation.js";
+import { createDocumentValidationCleanupJobHandler } from "./document-validation-cleanup-job.js";
+import { createDocumentValidationJobHandler } from "./document-validation-job.js";
 
 function processAbortSignal(): { signal: AbortSignal; dispose: () => void } {
   const controller = new AbortController();
@@ -89,7 +92,7 @@ export async function runPipelineWorker(
     storageFactory?: () => Promise<ObjectStorage>;
   } = {},
 ): Promise<void> {
-  parseWorkerEnvironment(environmentInput);
+  const workerEnvironment = parseWorkerEnvironment(environmentInput);
   const databaseEnvironment = databaseEnvironmentSchema.parse(environmentInput);
   const redisEnvironment = redisEnvironmentSchema.parse(environmentInput);
   const logger =
@@ -110,13 +113,28 @@ export async function runPipelineWorker(
 
   try {
     await database.healthCheck();
-    const handlers = options.handlers ?? [
-      createProjectCleanupJobHandler({
-        database: database.client,
-        storage: await (options.storageFactory?.() ??
-          createStorage(environmentInput)),
-      }),
-    ];
+    let handlers = options.handlers;
+    if (handlers === undefined) {
+      const storage = await (options.storageFactory?.() ??
+        createStorage(environmentInput));
+      handlers = [
+        createDocumentValidationJobHandler({
+          database: database.client,
+          storage,
+          scanner: new HttpMalwareScanner(
+            workerEnvironment.MALWARE_SCANNER_URL,
+            workerEnvironment.MALWARE_SCANNER_TOKEN,
+          ),
+          maxUploadBytes:
+            storageEnvironmentSchema.parse(environmentInput).MAX_UPLOAD_BYTES,
+        }),
+        createDocumentValidationCleanupJobHandler({
+          database: database.client,
+          storage,
+        }),
+        createProjectCleanupJobHandler({ database: database.client, storage }),
+      ];
+    }
     publisher =
       options.publisherFactory?.(connection) ??
       new BullMqJobPublisher(connection);

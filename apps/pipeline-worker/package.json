@@ -19,6 +19,7 @@
     "@avlp/schemas": "workspace:*",
     "@avlp/storage": "workspace:*",
     "drizzle-orm": "^0.45.2",
+    "pdf-lib": "^1.17.1",
     "zod": "^3.24.2"
   },
   "devDependencies": {

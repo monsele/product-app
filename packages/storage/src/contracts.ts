@@ -84,6 +84,12 @@ export type StorageObjectMetadata = {
   metadata: Readonly<Record<string, string>>;
 };
 
+/** Server-only object body access for validation workers. */
+export type StorageObjectBytes = {
+  body: Uint8Array;
+  metadata: StorageObjectMetadata;
+};
+
 /** A requested object was confirmed absent by the storage provider. */
 export class StorageObjectNotFoundError extends Error {
   public constructor(key: StorageKey) {
@@ -120,6 +126,7 @@ export interface ObjectStorage {
     request: SignedDownloadRequest,
   ): Promise<SignedStorageRequest>;
   getMetadata(key: StorageKey): Promise<StorageObjectMetadata>;
+  getBytes(key: StorageKey, maxBytes: number): Promise<StorageObjectBytes>;
   exists(key: StorageKey): Promise<boolean>;
   delete(key: StorageKey): Promise<void>;
   deletePrefix(prefix: StorageKey): Promise<number>;

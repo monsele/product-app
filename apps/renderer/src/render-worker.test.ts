@@ -19,6 +19,7 @@ import {
   type SignedStorageRequest,
   type SignedUploadRequest,
   type StorageKey,
+  type StorageObjectBytes,
   type StorageObjectMetadata,
 } from "@avlp/storage";
 import { describe, expect, it, vi } from "vitest";
@@ -57,6 +58,15 @@ class MemoryStorage implements ObjectStorage {
     const stored = this.objects.get(key);
     if (stored === undefined) throw new Error("Object is missing.");
     return stored;
+  }
+
+  public async getBytes(
+    key: StorageKey,
+    maxBytes: number,
+  ): Promise<StorageObjectBytes> {
+    void key;
+    void maxBytes;
+    throw new Error("Object-body reads are outside renderer tests.");
   }
 
   public async exists(key: StorageKey): Promise<boolean> {

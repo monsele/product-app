@@ -106,14 +106,18 @@ function harness(
   const completeSession = vi.fn<SourceUploadRepository["completeSession"]>(
     async () => ({
       documentId,
-      status: "active",
-      ingestionRequested: true,
+      status: "pending_validation",
+      ingestionRequested: false,
     }),
+  );
+  const getStatus = vi.fn<SourceUploadRepository["getStatus"]>(
+    async () => null,
   );
   const repository: SourceUploadRepository = {
     createSession,
     findSession,
     completeSession,
+    getStatus,
   };
   const createSignedUpload = vi.fn<ObjectStorage["createSignedUpload"]>(
     async () => signed(),
@@ -135,6 +139,7 @@ function harness(
     createSession,
     findSession,
     completeSession,
+    getStatus,
     createSignedUpload,
     getMetadata,
   };
@@ -204,7 +209,9 @@ describe("SourceUploadService", () => {
   });
 
   it("preserves transient metadata failures as retryable server errors", async () => {
-    const unavailable = harness({ metadataError: new Error("storage unavailable") });
+    const unavailable = harness({
+      metadataError: new Error("storage unavailable"),
+    });
     await expect(
       unavailable.service.complete(
         ownerId,
@@ -223,8 +230,8 @@ describe("SourceUploadService", () => {
       test.service.complete(ownerId, projectId, sessionId, {}, correlationId),
     ).resolves.toEqual({
       documentId,
-      status: "active",
-      ingestionRequested: true,
+      status: "pending_validation",
+      ingestionRequested: false,
     });
     expect(test.getMetadata).toHaveBeenCalledWith(key);
     expect(test.completeSession).toHaveBeenCalledWith({
@@ -318,8 +325,10 @@ describeWithPostgres("PostgresSourceUploadRepository", () => {
     expect(await database!.client.select().from(jobs)).toHaveLength(1);
     const events = await database!.client.select().from(outboxEvents);
     expect(events).toHaveLength(1);
-    expect(events[0]?.eventType).toBe("document.ingestion.requested.v1");
-    expect(getMetadata).toHaveBeenCalledTimes(1);
+    expect(events[0]?.eventType).toBe("document.validation.requested.v1");
+    // Each concurrent request verifies the object before acquiring the
+    // completion transaction; only one document/job/outbox record is created.
+    expect(getMetadata).toHaveBeenCalledTimes(2);
   });
 
   it("refuses completion after the project has been deleted", async () => {

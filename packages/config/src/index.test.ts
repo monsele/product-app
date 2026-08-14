@@ -76,6 +76,12 @@ describe("parseEnvironment", () => {
 
   it("validates optional worker values when they are supplied", () => {
     expect(() => parseWorkerEnvironment({ REDIS_URL: "not-a-url" })).toThrow();
+    expect(() => parseWorkerEnvironment({ NODE_ENV: "production" })).toThrow(
+      "MALWARE_SCANNER_URL",
+    );
+    expect(() =>
+      parseWorkerEnvironment({ MALWARE_SCANNER_URL: "http://scanner.test" }),
+    ).toThrow("must use HTTPS");
   });
 
   it("exports reusable database, Redis, and storage schemas", () => {

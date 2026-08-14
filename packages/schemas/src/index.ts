@@ -1358,6 +1358,7 @@ export function parseSourcePackage(input: unknown): SourcePackage {
 export const projectStageValues = [
   "draft",
   "uploading",
+  "validating_source",
   "ingesting",
   "ingestion_review",
   "lesson_configuration",
@@ -1440,8 +1441,51 @@ export type SourceDocumentMediaType = z.infer<
   typeof sourceDocumentMediaTypeSchema
 >;
 
-export const sourceDocumentStatusSchema = z.enum(["active"]);
+export const sourceDocumentStatusSchema = z.enum([
+  "pending_validation",
+  "validating",
+  "active",
+  "rejected",
+  "validation_error",
+]);
 export type SourceDocumentStatus = z.infer<typeof sourceDocumentStatusSchema>;
+
+export const documentValidationCodeSchema = z.enum([
+  "EMPTY_FILE",
+  "FILE_TOO_LARGE",
+  "UNSUPPORTED_FILE_TYPE",
+  "MIME_MISMATCH",
+  "CORRUPT_DOCUMENT",
+  "PAGE_LIMIT_EXCEEDED",
+  "MALWARE_DETECTED",
+  "DOCUMENT_INSPECTION_UNAVAILABLE",
+  "MALWARE_SCAN_UNAVAILABLE",
+]);
+export type DocumentValidationCode = z.infer<
+  typeof documentValidationCodeSchema
+>;
+
+export const sourceDocumentValidationSchema = z
+  .object({
+    status: sourceDocumentStatusSchema,
+    code: documentValidationCodeSchema.nullable(),
+    pageCount: z.number().int().positive().nullable(),
+    warnings: z.array(z.string().max(500)).max(20),
+  })
+  .strict();
+export type SourceDocumentValidation = z.infer<
+  typeof sourceDocumentValidationSchema
+>;
+
+export const sourceDocumentStatusResponseSchema = z
+  .object({
+    documentId: identifierSchema,
+    validation: sourceDocumentValidationSchema,
+  })
+  .strict();
+export type SourceDocumentStatusResponse = z.infer<
+  typeof sourceDocumentStatusResponseSchema
+>;
 
 export const createSourceUploadSessionInputSchema = z
   .object({
@@ -1476,11 +1520,34 @@ export const completeSourceUploadResponseSchema = z
   .object({
     documentId: identifierSchema,
     status: sourceDocumentStatusSchema,
-    ingestionRequested: z.literal(true),
+    ingestionRequested: z.boolean(),
   })
   .strict();
 export type CompleteSourceUploadResponse = z.infer<
   typeof completeSourceUploadResponseSchema
+>;
+
+export const documentValidationJobPayloadSchema = z
+  .object({ schemaVersion: z.literal(1), sourceDocumentId: identifierSchema })
+  .strict();
+export type DocumentValidationJobPayload = z.infer<
+  typeof documentValidationJobPayloadSchema
+>;
+
+/** Removes a rejected source object after validation has committed its result. */
+export const documentValidationCleanupJobPayloadSchema = z
+  .object({ schemaVersion: z.literal(1), sourceDocumentId: identifierSchema })
+  .strict();
+export type DocumentValidationCleanupJobPayload = z.infer<
+  typeof documentValidationCleanupJobPayloadSchema
+>;
+
+/** The future ingestion worker receives only this tenant-bound source ID. */
+export const documentIngestionJobPayloadSchema = z
+  .object({ schemaVersion: z.literal(1), sourceDocumentId: identifierSchema })
+  .strict();
+export type DocumentIngestionJobPayload = z.infer<
+  typeof documentIngestionJobPayloadSchema
 >;
 
 /**

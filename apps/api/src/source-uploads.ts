@@ -18,10 +18,13 @@ import {
   completeSourceUploadInputSchema,
   completeSourceUploadResponseSchema,
   createSourceUploadSessionInputSchema,
+  documentValidationJobPayloadSchema,
   sourceDocumentMediaTypeSchema,
+  sourceDocumentStatusResponseSchema,
   uploadSessionResponseSchema,
   type CompleteSourceUploadResponse,
   type CreateSourceUploadSessionInput,
+  type SourceDocumentStatusResponse,
   type UploadSessionResponse,
 } from "@avlp/schemas";
 import {
@@ -31,17 +34,10 @@ import {
   type StorageObjectMetadata,
   StorageObjectNotFoundError,
 } from "@avlp/storage";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 const uploadSessionTtlMs = 5 * 60 * 1_000;
-
-const ingestionRequestPayloadSchema = z
-  .object({
-    schemaVersion: z.literal(1),
-    sourceDocumentId: z.string().uuid(),
-  })
-  .strict();
 
 type PendingSession = {
   id: Identifier;
@@ -115,6 +111,10 @@ export interface SourceUploadRepository {
     sessionId: Identifier;
     correlationId: Identifier;
   }): Promise<CompleteSourceUploadResponse>;
+  getStatus(
+    ownerUserId: Identifier,
+    projectId: Identifier,
+  ): Promise<SourceDocumentStatusResponse | null>;
 }
 
 export class SourceUploadService {
@@ -122,6 +122,7 @@ export class SourceUploadService {
     private readonly repository: SourceUploadRepository,
     private readonly storage: ObjectStorage,
     private readonly now: () => Date = () => new Date(),
+    private readonly maxUploadBytes = 25 * 1024 * 1024,
   ) {}
 
   public async create(
@@ -130,6 +131,11 @@ export class SourceUploadService {
     input: unknown,
   ): Promise<UploadSessionResponse> {
     const request = parseBoundary(createSourceUploadSessionInputSchema, input);
+    if (request.sizeBytes > this.maxUploadBytes)
+      throw publicValidationError(
+        "sizeBytes",
+        "The file exceeds the configured upload size limit.",
+      );
     const extension = extensionFor(request);
     const timestamp = this.now();
     const documentId = createId(timestamp);
@@ -227,6 +233,13 @@ export class SourceUploadService {
       correlationId,
     });
   }
+
+  public async status(
+    ownerUserId: Identifier,
+    projectId: Identifier,
+  ): Promise<SourceDocumentStatusResponse | null> {
+    return this.repository.getStatus(ownerUserId, projectId);
+  }
 }
 
 export class PostgresSourceUploadRepository implements SourceUploadRepository {
@@ -255,21 +268,25 @@ export class PostgresSourceUploadRepository implements SourceUploadRepository {
           "The requested resource was not found.",
           404,
         );
-      const [active] = await transaction
+      const [existing] = await transaction
         .select({ id: sourceDocuments.id })
         .from(sourceDocuments)
         .where(
           and(
             eq(sourceDocuments.projectId, input.projectId),
             eq(sourceDocuments.ownerUserId, input.ownerUserId),
-            eq(sourceDocuments.status, "active"),
+            inArray(sourceDocuments.status, [
+              "pending_validation",
+              "validating",
+              "active",
+            ]),
           ),
         )
         .limit(1);
-      if (active !== undefined)
+      if (existing !== undefined)
         throw new PublicError(
           "validation_failed",
-          "This project already has an active source document.",
+          "This project already has a source document being processed.",
           409,
         );
       await transaction.insert(uploadSessions).values({
@@ -373,8 +390,8 @@ export class PostgresSourceUploadRepository implements SourceUploadRepository {
       if (session.completedAt !== null)
         return completeSourceUploadResponseSchema.parse({
           documentId: session.documentId,
-          status: "active",
-          ingestionRequested: true,
+          status: "pending_validation",
+          ingestionRequested: false,
         });
       const [created] = await transaction
         .insert(sourceDocuments)
@@ -387,7 +404,8 @@ export class PostgresSourceUploadRepository implements SourceUploadRepository {
           sizeBytes: session.expectedSizeBytes,
           sha256: session.expectedSha256,
           storageKey: session.storageKey,
-          status: "active",
+          status: "pending_validation",
+          scanStatus: "pending",
           createdAt: timestamp,
           updatedAt: timestamp,
         })
@@ -412,18 +430,18 @@ export class PostgresSourceUploadRepository implements SourceUploadRepository {
             409,
           );
       }
-      const payload = ingestionRequestPayloadSchema.parse({
+      const payload = documentValidationJobPayloadSchema.parse({
         schemaVersion: 1,
         sourceDocumentId: session.documentId,
       });
-      const envelope = createJobEnvelope(ingestionRequestPayloadSchema, {
+      const envelope = createJobEnvelope(documentValidationJobPayloadSchema, {
         jobId: createId(timestamp),
-        jobType: "document.ingestion",
+        jobType: "document.validation",
         projectId: session.projectId as Identifier,
         ownerUserId: session.ownerUserId as Identifier,
         inputVersion: `source-document:${session.documentId}`,
         idempotencyKey: createIdempotencyKey({
-          jobType: "document.ingestion",
+          jobType: "document.validation",
           projectId: session.projectId,
           inputVersion: `source-document:${session.documentId}`,
           options: {},
@@ -448,7 +466,7 @@ export class PostgresSourceUploadRepository implements SourceUploadRepository {
       await transaction.insert(outboxEvents).values({
         id: createId(timestamp),
         jobId: envelope.jobId,
-        eventType: "document.ingestion.requested.v1",
+        eventType: "document.validation.requested.v1",
         queueName: "pipeline",
         envelope,
         deliveryOptions: { maxAttempts: 3, retryDelayMs: 5_000 },
@@ -460,7 +478,7 @@ export class PostgresSourceUploadRepository implements SourceUploadRepository {
       await transaction
         .update(projects)
         .set({
-          stage: "ingesting",
+          stage: "validating_source",
           updatedAt: timestamp,
           revision: sql`${projects.revision} + 1`,
         })
@@ -474,7 +492,7 @@ export class PostgresSourceUploadRepository implements SourceUploadRepository {
         ownerUserId: session.ownerUserId as Identifier,
         projectId: session.projectId as Identifier,
         actor: { type: "user", userId: input.ownerUserId },
-        eventType: "document.uploaded",
+        eventType: "document.validation_requested",
         target: { type: "source_document", id: session.documentId },
         correlationId: input.correlationId,
         metadata: {
@@ -485,9 +503,42 @@ export class PostgresSourceUploadRepository implements SourceUploadRepository {
       });
       return completeSourceUploadResponseSchema.parse({
         documentId: session.documentId,
-        status: "active",
-        ingestionRequested: true,
+        status: "pending_validation",
+        ingestionRequested: false,
       });
+    });
+  }
+
+  public async getStatus(
+    ownerUserId: Identifier,
+    projectId: Identifier,
+  ): Promise<SourceDocumentStatusResponse | null> {
+    const [document] = await this.executor
+      .select({
+        id: sourceDocuments.id,
+        status: sourceDocuments.status,
+        validationCode: sourceDocuments.validationCode,
+        pageCount: sourceDocuments.pageCount,
+        validationWarnings: sourceDocuments.validationWarnings,
+      })
+      .from(sourceDocuments)
+      .where(
+        and(
+          eq(sourceDocuments.ownerUserId, ownerUserId),
+          eq(sourceDocuments.projectId, projectId),
+        ),
+      )
+      .orderBy(desc(sourceDocuments.createdAt))
+      .limit(1);
+    if (document === undefined) return null;
+    return sourceDocumentStatusResponseSchema.parse({
+      documentId: document.id,
+      validation: {
+        status: document.status,
+        code: document.validationCode,
+        pageCount: document.pageCount,
+        warnings: document.validationWarnings,
+      },
     });
   }
 }

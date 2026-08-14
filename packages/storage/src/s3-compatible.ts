@@ -28,6 +28,7 @@ import {
   type StorageKey,
   type StorageLifecycleRule,
   type StorageObjectMetadata,
+  type StorageObjectBytes,
   StorageObjectNotFoundError,
 } from "./contracts.js";
 
@@ -288,6 +289,33 @@ export class S3CompatibleObjectStorage implements ObjectStorage {
       lastModified: result.LastModified,
       metadata: { ...result.Metadata },
     };
+  }
+
+  public async getBytes(
+    keyInput: StorageKey,
+    maxBytes: number,
+  ): Promise<StorageObjectBytes> {
+    if (!Number.isInteger(maxBytes) || maxBytes < 1)
+      throw new Error("Maximum object size must be a positive integer.");
+    const key = this.#authorizeKey(keyInput);
+    const metadata = await this.getMetadata(key);
+    if (metadata.sizeBytes > maxBytes)
+      throw new Error("Storage object exceeds the permitted read size.");
+    let result;
+    try {
+      result = await this.#client.send(
+        new GetObjectCommand({ Bucket: this.#bucket, Key: key }),
+      );
+    } catch (error) {
+      if (isNotFoundError(error)) throw new StorageObjectNotFoundError(key);
+      throw error;
+    }
+    if (result.Body === undefined)
+      throw new Error("Storage object body was not returned.");
+    const body = await result.Body.transformToByteArray();
+    if (body.byteLength > maxBytes)
+      throw new Error("Storage object exceeds the permitted read size.");
+    return { body, metadata };
   }
 
   public async exists(keyInput: StorageKey): Promise<boolean> {

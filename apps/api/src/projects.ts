@@ -71,7 +71,8 @@ export const projectStageTransitions: Readonly<
   Record<ProjectStage, readonly ProjectStage[]>
 > = {
   draft: ["uploading"],
-  uploading: ["ingesting"],
+  uploading: ["validating_source"],
+  validating_source: ["uploading", "ingesting"],
   ingesting: ["ingestion_review"],
   ingestion_review: ["lesson_configuration"],
   lesson_configuration: ["objectives_review"],

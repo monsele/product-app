@@ -73,6 +73,8 @@ export async function runApi(input: {
       sourceUploadService: new SourceUploadService(
         new PostgresSourceUploadRepository(database.client),
         storage,
+        undefined,
+        environment.MAX_UPLOAD_BYTES,
       ),
       projectAuthorizer: new ProjectAuthorizationService(projectRepository),
       ...(environment.WEB_ORIGIN === undefined

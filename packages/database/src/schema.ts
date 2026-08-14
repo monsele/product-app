@@ -12,6 +12,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { projectStageValues } from "@avlp/schemas";
+import { sql } from "drizzle-orm";
 
 export const primaryId = (name = "id") => uuid(name).primaryKey();
 
@@ -192,7 +193,13 @@ export const projectCloneRequests = pgTable(
   ],
 );
 
-export const sourceDocumentStatusValues = ["active"] as const;
+export const sourceDocumentStatusValues = [
+  "pending_validation",
+  "validating",
+  "active",
+  "rejected",
+  "validation_error",
+] as const;
 export const sourceDocumentStatus = pgEnum(
   "source_document_status",
   sourceDocumentStatusValues,
@@ -209,14 +216,20 @@ export const sourceDocuments = pgTable(
     sizeBytes: integer("size_bytes").notNull(),
     sha256: text("sha256").notNull(),
     storageKey: text("storage_key").notNull(),
-    status: sourceDocumentStatus("status").notNull().default("active"),
+    pageCount: integer("page_count"),
+    scanStatus: text("scan_status").notNull().default("pending"),
+    validationCode: text("validation_code"),
+    validationWarnings: jsonb("validation_warnings").notNull().default([]),
+    validatedAt: utcTimestamp("validated_at"),
+    status: sourceDocumentStatus("status")
+      .notNull()
+      .default("pending_validation"),
     ...auditColumns(),
   },
   (table) => [
-    uniqueIndex("source_documents_project_active_unique").on(
-      table.projectId,
-      table.status,
-    ),
+    uniqueIndex("source_documents_project_active_unique")
+      .on(table.projectId)
+      .where(sql`${table.status} = 'active'`),
     uniqueIndex("source_documents_storage_key_unique").on(table.storageKey),
     index("source_documents_owner_checksum_idx").on(
       table.ownerUserId,
@@ -357,6 +370,8 @@ export const auditEventTypeValues = [
   "project.deleted",
   "document.uploaded",
   "document.deleted",
+  "document.validation_requested",
+  "document.validation_rejected",
   "share.created",
   "share.revoked",
   "lesson.approved",

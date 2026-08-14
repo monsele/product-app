@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   completeSourceUploadResponseSchema,
+  sourceDocumentStatusResponseSchema,
   uploadSessionResponseSchema,
 } from "@avlp/schemas";
 
 type UploadState =
   | { kind: "idle" }
   | { kind: "uploading"; progress: number }
+  | { kind: "validating" }
   | { kind: "failed"; message: string }
   | { kind: "complete" };
 
@@ -49,9 +51,66 @@ function uploadToSignedUrl(
   });
 }
 
+function validationMessage(code: string | null): string {
+  const messages: Record<string, string> = {
+    EMPTY_FILE: "The file is empty. Choose a different document.",
+    FILE_TOO_LARGE: "The file is larger than the allowed upload size.",
+    UNSUPPORTED_FILE_TYPE: "Only PDF and DOCX files are supported.",
+    MIME_MISMATCH: "The file type does not match its contents.",
+    CORRUPT_DOCUMENT:
+      "The document could not be read. Choose a different file.",
+    PAGE_LIMIT_EXCEEDED: "Documents are limited to 20 pages.",
+    MALWARE_DETECTED:
+      "The file did not pass the safety check. Choose a different file.",
+    DOCUMENT_INSPECTION_UNAVAILABLE:
+      "The file could not be inspected. Please try uploading it again.",
+    MALWARE_SCAN_UNAVAILABLE:
+      "The safety check is temporarily unavailable. Please try again later.",
+  };
+  return code === null
+    ? "The document could not be validated."
+    : (messages[code] ?? "The document could not be validated.");
+}
+
 export function SourceUploadForm({ projectId }: { projectId: string }) {
   const [file, setFile] = useState<File>();
   const [state, setState] = useState<UploadState>({ kind: "idle" });
+
+  useEffect(() => {
+    if (state.kind !== "validating") return;
+    let cancelled = false;
+    const check = async (): Promise<void> => {
+      try {
+        const response = await fetch(
+          apiUrl(`/projects/${encodeURIComponent(projectId)}/source-document`),
+          { credentials: "include" },
+        );
+        const payload: unknown = await response.json().catch(() => null);
+        const parsed = response.ok
+          ? sourceDocumentStatusResponseSchema.safeParse(payload)
+          : undefined;
+        if (cancelled || parsed === undefined || !parsed.success) return;
+        const validation = parsed.data.validation;
+        if (validation.status === "active") setState({ kind: "complete" });
+        else if (
+          validation.status === "rejected" ||
+          validation.status === "validation_error"
+        )
+          setState({
+            kind: "failed",
+            message: validationMessage(validation.code),
+          });
+      } catch {
+        // Preserve the pending state; the next poll can recover from a transient failure.
+      }
+    };
+    void check();
+    const timer = window.setInterval(() => void check(), 2_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [projectId, state.kind]);
 
   const startUpload = async (): Promise<void> => {
     if (file === undefined) {
@@ -119,7 +178,7 @@ export function SourceUploadForm({ projectId }: { projectId: string }) {
         : undefined;
       if (completed === undefined || !completed.success)
         throw new Error("The upload could not be completed. Please retry it.");
-      setState({ kind: "complete" });
+      setState({ kind: "validating" });
     } catch (error) {
       setState({
         kind: "failed",
@@ -128,7 +187,7 @@ export function SourceUploadForm({ projectId }: { projectId: string }) {
     }
   };
 
-  const busy = state.kind === "uploading";
+  const busy = state.kind === "uploading" || state.kind === "validating";
   return (
     <section aria-labelledby="source-upload-heading">
       <h2 id="source-upload-heading">Source document</h2>
@@ -148,8 +207,13 @@ export function SourceUploadForm({ projectId }: { projectId: string }) {
         <p role="status">Uploading: {Math.round(state.progress * 100)}%</p>
       ) : null}
       {state.kind === "failed" ? <p role="alert">{state.message}</p> : null}
+      {state.kind === "validating" ? (
+        <p role="status">Checking your document for safety and page limits.</p>
+      ) : null}
       {state.kind === "complete" ? (
-        <p role="status">Upload complete. Your document is being prepared.</p>
+        <p role="status">
+          Your document passed validation and is being prepared.
+        </p>
       ) : null}
       <button
         type="button"
