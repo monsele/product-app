@@ -1,9 +1,14 @@
+import { createHash } from "node:crypto";
 import { createId, type Identifier } from "@avlp/config";
 import {
   projects,
   contentBlocks,
+  extractedFigures,
+  ingestionWarnings,
   parsedDocuments,
   parsedSections,
+  parsedTableCells,
+  parsedTables,
   sourceDocumentIngestionArtifacts,
   sourceDocuments,
   type DatabaseClient,
@@ -35,6 +40,7 @@ import {
 } from "./docling-ingestion-client.js";
 import {
   doclingNormalizerVersion,
+  extractDoclingFigureAssets,
   normalizeDoclingOutput,
 } from "./docling-normalizer.js";
 
@@ -88,6 +94,26 @@ function usageIdempotencyKey(context: {
   attempt: number;
 }): string {
   return `document-ingestion:${context.jobId}:attempt:${context.attempt}`;
+}
+
+function deterministicId(seed: string): Identifier {
+  const hex = createHash("sha256").update(seed).digest("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-7${hex.slice(13, 16)}-${((Number.parseInt(hex[16]!, 16) & 3) | 8).toString(16)}${hex.slice(17, 20)}-${hex.slice(20, 32)}` as Identifier;
+}
+
+function imageExtension(contentType: string): "gif" | "jpeg" | "png" | "webp" {
+  switch (contentType) {
+    case "image/gif":
+      return "gif";
+    case "image/jpeg":
+      return "jpeg";
+    case "image/png":
+      return "png";
+    case "image/webp":
+      return "webp";
+    default:
+      throw new Error("Unsupported normalized figure content type.");
+  }
 }
 
 async function recordFailedUsage(
@@ -159,6 +185,69 @@ async function loadStagedNormalizedDocument(
       "terminal",
       "SCHEMA_NORMALIZATION_DEFECT",
       "The parser result could not be normalized.",
+    );
+  }
+}
+
+async function restageFigureAssets(input: {
+  storage: Pick<ObjectStorage, "getBytes" | "putBytes">;
+  canonicalKey: StorageKey;
+  normalized: NormalizedDocument;
+  ownerUserId: Identifier;
+  projectId: Identifier;
+  artifactId: Identifier;
+  parserVersion: string;
+}): Promise<void> {
+  let canonicalJson: unknown;
+  try {
+    const canonical = await input.storage.getBytes(
+      input.canonicalKey,
+      25 * 1024 * 1024,
+    );
+    canonicalJson = JSON.parse(new TextDecoder().decode(canonical.body));
+  } catch {
+    throw new JobExecutionError(
+      "retryable",
+      "INGESTION_ARTIFACT_WRITE_FAILED",
+      "The staged figure media could not be recovered.",
+    );
+  }
+  const assets = extractDoclingFigureAssets({
+    artifactId: input.artifactId,
+    canonicalJson,
+  }).assets;
+  const assetsByFigureId = new Map(
+    assets.map((asset) => [asset.figureId, asset]),
+  );
+  try {
+    for (const figure of input.normalized.figures) {
+      if (figure.asset === undefined) continue;
+      const asset = assetsByFigureId.get(figure.id);
+      if (asset === undefined)
+        throw new Error(
+          "Normalized figure asset did not match canonical media.",
+        );
+      await input.storage.putBytes({
+        key: storageKeys.parsedStagingFigureOriginal({
+          userId: input.ownerUserId,
+          projectId: input.projectId,
+          versionId: input.artifactId,
+          figureId: figure.id,
+          extension: imageExtension(figure.asset.contentType),
+        }),
+        body: Uint8Array.from(asset.body),
+        contentType: asset.contentType,
+        metadata: {
+          "checksum-sha256": asset.checksumSha256,
+          "parser-version": input.parserVersion,
+        },
+      });
+    }
+  } catch {
+    throw new JobExecutionError(
+      "retryable",
+      "INGESTION_ARTIFACT_WRITE_FAILED",
+      "The staged figure media could not be stored.",
     );
   }
 }
@@ -361,6 +450,9 @@ export function createDocumentIngestionJobHandler(
         } else {
           artifact = candidate;
           let normalized: NormalizedDocument;
+          let figureAssets: ReturnType<
+            typeof extractDoclingFigureAssets
+          >["assets"];
           try {
             normalized = normalizeDoclingOutput({
               artifactId: candidate.id,
@@ -368,6 +460,10 @@ export function createDocumentIngestionJobHandler(
               pageCount: document.pageCount ?? 1,
               canonicalJson: parsed.canonicalJson,
             });
+            figureAssets = extractDoclingFigureAssets({
+              artifactId: candidate.id,
+              canonicalJson: parsed.canonicalJson,
+            }).assets;
           } catch {
             // The staged canonical result and its DB record remain immutable for diagnosis.
             await recordFailedUsage(
@@ -391,6 +487,23 @@ export function createDocumentIngestionJobHandler(
                 "schema-version": normalized.schemaVersion,
               },
             });
+            for (const asset of figureAssets) {
+              await options.storage.putBytes({
+                key: storageKeys.parsedStagingFigureOriginal({
+                  userId: context.ownerUserId,
+                  projectId: context.projectId,
+                  versionId: candidate.id,
+                  figureId: asset.figureId,
+                  extension: imageExtension(asset.contentType),
+                }),
+                body: Uint8Array.from(asset.body),
+                contentType: asset.contentType,
+                metadata: {
+                  "checksum-sha256": asset.checksumSha256,
+                  "parser-version": parsed.parserVersion,
+                },
+              });
+            }
           } catch {
             throw new JobExecutionError(
               "retryable",
@@ -410,6 +523,15 @@ export function createDocumentIngestionJobHandler(
         options.storage,
         keys.stagingNormalized,
       );
+      await restageFigureAssets({
+        storage: options.storage,
+        canonicalKey: keys.stagingCanonical,
+        normalized,
+        ownerUserId: context.ownerUserId,
+        projectId: context.projectId,
+        artifactId: artifact.id,
+        parserVersion: artifact.parserVersion,
+      });
       try {
         await options.storage.copy({
           sourceKey: keys.stagingCanonical,
@@ -423,6 +545,26 @@ export function createDocumentIngestionJobHandler(
           sourceKey: keys.stagingNormalized,
           destinationKey: keys.normalized,
         });
+        for (const figure of normalized.figures) {
+          if (figure.asset === undefined) continue;
+          const extension = imageExtension(figure.asset.contentType);
+          await options.storage.copy({
+            sourceKey: storageKeys.parsedStagingFigureOriginal({
+              userId: context.ownerUserId,
+              projectId: context.projectId,
+              versionId: artifact.id,
+              figureId: figure.id,
+              extension,
+            }),
+            destinationKey: storageKeys.parsedFigureOriginal({
+              userId: context.ownerUserId,
+              projectId: context.projectId,
+              versionId: artifact.id,
+              figureId: figure.id,
+              extension,
+            }),
+          });
+        }
       } catch {
         throw new JobExecutionError(
           "retryable",
@@ -509,6 +651,120 @@ export function createDocumentIngestionJobHandler(
               })),
             )
             .onConflictDoNothing();
+          if (normalized.figures.length > 0)
+            await transaction
+              .insert(extractedFigures)
+              .values(
+                normalized.figures.map((figure) => ({
+                  id: figure.id,
+                  parsedDocumentId: normalized.id,
+                  sectionId: figure.sectionId,
+                  order: figure.order,
+                  pageStart: figure.pageStart,
+                  pageEnd: figure.pageEnd ?? figure.pageStart,
+                  captionBlockId: figure.captionBlockId ?? null,
+                  altText: figure.altText ?? null,
+                  sourceLocator: figure.sourceLocator ?? null,
+                  storageKey:
+                    figure.asset === undefined
+                      ? null
+                      : storageKeys.parsedFigureOriginal({
+                          userId: context.ownerUserId,
+                          projectId: context.projectId,
+                          versionId: artifact.id,
+                          figureId: figure.id,
+                          extension: imageExtension(figure.asset.contentType),
+                        }),
+                  thumbnailStorageKey: null,
+                  checksumSha256: figure.asset?.checksumSha256 ?? null,
+                  contentType: figure.asset?.contentType ?? null,
+                  byteLength: figure.asset?.byteLength ?? null,
+                  width: figure.asset?.width ?? null,
+                  height: figure.asset?.height ?? null,
+                  createdAt: timestamp,
+                  updatedAt: timestamp,
+                })),
+              )
+              .onConflictDoNothing();
+          if (normalized.tables.length > 0)
+            await transaction
+              .insert(parsedTables)
+              .values(
+                normalized.tables.map((table) => ({
+                  id: table.id,
+                  parsedDocumentId: normalized.id,
+                  sectionId: table.sectionId,
+                  order: table.order,
+                  pageStart: table.pageStart,
+                  pageEnd: table.pageEnd ?? table.pageStart,
+                  captionBlockId: table.captionBlockId ?? null,
+                  columns: table.columns,
+                  rows: table.rows,
+                  rawRepresentation: table.rawRepresentation ?? null,
+                  createdAt: timestamp,
+                  updatedAt: timestamp,
+                })),
+              )
+              .onConflictDoNothing();
+          if (
+            normalized.tables.some(
+              (table) => (table.cells?.length ?? table.rows.length) > 0,
+            )
+          )
+            await transaction
+              .insert(parsedTableCells)
+              .values(
+                normalized.tables.flatMap((table) =>
+                  (
+                    table.cells ??
+                    table.rows.flatMap((row, rowIndex) =>
+                      row.map((text, column) => ({
+                        row: rowIndex,
+                        column,
+                        text,
+                        rowSpan: 1,
+                        columnSpan: 1,
+                      })),
+                    )
+                  ).map((cell) => ({
+                    id: deterministicId(
+                      `${table.id}:cell:${cell.row}:${cell.column}`,
+                    ),
+                    parsedTableId: table.id,
+                    rowIndex: cell.row,
+                    columnIndex: cell.column,
+                    text: cell.text,
+                    rowSpan: cell.rowSpan,
+                    columnSpan: cell.columnSpan,
+                    createdAt: timestamp,
+                    updatedAt: timestamp,
+                  })),
+                ),
+              )
+              .onConflictDoNothing();
+          if (normalized.warnings.length > 0)
+            await transaction
+              .insert(ingestionWarnings)
+              .values(
+                normalized.warnings.map((warning, index) => ({
+                  id: deterministicId(
+                    `${normalized.id}:warning:${index}:${warning.code}`,
+                  ),
+                  parsedDocumentId: normalized.id,
+                  code: warning.code,
+                  severity: warning.severity,
+                  message: warning.message,
+                  pageStart: warning.pageStart,
+                  pageEnd: warning.pageEnd ?? warning.pageStart,
+                  sectionId: warning.sectionId ?? null,
+                  blockId: warning.blockId ?? null,
+                  figureId: warning.figureId ?? null,
+                  tableId: warning.tableId ?? null,
+                  createdAt: timestamp,
+                  updatedAt: timestamp,
+                })),
+              )
+              .onConflictDoNothing();
           const [updated] = await transaction
             .update(sourceDocumentIngestionArtifacts)
             .set({
@@ -611,6 +867,21 @@ export function createDocumentIngestionJobHandler(
         options.storage.delete(keys.stagingCanonical),
         options.storage.delete(keys.stagingMarkdown),
         options.storage.delete(keys.stagingNormalized),
+        ...normalized.figures.flatMap((figure) =>
+          figure.asset === undefined
+            ? []
+            : [
+                options.storage.delete(
+                  storageKeys.parsedStagingFigureOriginal({
+                    userId: context.ownerUserId,
+                    projectId: context.projectId,
+                    versionId: artifact.id,
+                    figureId: figure.id,
+                    extension: imageExtension(figure.asset.contentType),
+                  }),
+                ),
+              ],
+        ),
       ]);
       await context.reportProgress(0.95);
       return {

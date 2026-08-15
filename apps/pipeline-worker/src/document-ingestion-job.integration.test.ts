@@ -2,9 +2,13 @@ import { createId } from "@avlp/config";
 import {
   auditEvents,
   contentBlocks,
+  extractedFigures,
+  ingestionWarnings,
   migrateDatabase,
   parsedDocuments,
   parsedSections,
+  parsedTableCells,
+  parsedTables,
   projects,
   sourceDocumentIngestionArtifacts,
   sourceDocuments,
@@ -45,6 +49,10 @@ describeWithPostgres("document ingestion job", () => {
   });
 
   beforeEach(async () => {
+    await database!.client.delete(parsedTableCells);
+    await database!.client.delete(parsedTables);
+    await database!.client.delete(extractedFigures);
+    await database!.client.delete(ingestionWarnings);
     await database!.client.delete(contentBlocks);
     await database!.client.delete(parsedSections);
     await database!.client.delete(parsedDocuments);
@@ -99,7 +107,29 @@ describeWithPostgres("document ingestion job", () => {
       parserVersion: "docling-v1",
       configurationHash: "b".repeat(64),
       processingTimeMs: 42,
-      canonicalJson: { body: { text: "Water cycle" } },
+      canonicalJson: {
+        texts: [
+          { label: "heading", text: "Water cycle", page: 1 },
+          {
+            label: "picture",
+            caption: { text: "Figure 1: Evaporation" },
+            image:
+              "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL1nAAAAABJRU5ErkJggg==",
+            page: 1,
+          },
+          {
+            label: "table",
+            text: "Table 1: Water states",
+            data: {
+              table_cells: [
+                ["State", "Energy"],
+                ["Ice", "Low"],
+              ],
+            },
+            page: 1,
+          },
+        ],
+      },
       markdown: "# Water cycle\n",
       warnings: [],
     }));
@@ -138,7 +168,7 @@ describeWithPostgres("document ingestion job", () => {
       ingestion: "already_completed",
     });
     expect(ingest).toHaveBeenCalledTimes(1);
-    expect(stored.size).toBe(3);
+    expect(stored.size).toBe(4);
     expect(
       await database!.client.select().from(sourceDocumentIngestionArtifacts),
     ).toMatchObject([
@@ -154,6 +184,29 @@ describeWithPostgres("document ingestion job", () => {
       .from(projects)
       .where(eq(projects.id, projectId));
     expect(project?.stage).toBe("ingestion_review");
+    expect(
+      await database!.client.select().from(extractedFigures),
+    ).toMatchObject([
+      {
+        storageKey: expect.stringContaining("/figures/"),
+        checksumSha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+        width: 1,
+        height: 1,
+      },
+    ]);
+    expect(await database!.client.select().from(parsedTables)).toMatchObject([
+      {
+        columns: ["Column 1", "Column 2"],
+        rows: [
+          ["State", "Energy"],
+          ["Ice", "Low"],
+        ],
+      },
+    ]);
+    expect(await database!.client.select().from(parsedTableCells)).toHaveLength(
+      4,
+    );
+    expect(await database!.client.select().from(ingestionWarnings)).toEqual([]);
     expect(
       (await database!.client.select().from(auditEvents)).some(
         (event) => event.eventType === "document.ingestion_completed",

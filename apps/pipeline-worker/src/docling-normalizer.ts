@@ -1,9 +1,11 @@
 import { createHash } from "node:crypto";
+import { Buffer } from "node:buffer";
 import type { Identifier } from "@avlp/config";
 import {
   normalizedDocumentSchema,
   normalizedDocumentVersion,
   type ContentBlock,
+  type ExtractedFigure,
   type IngestionWarning,
   type NormalizedDocument,
 } from "@avlp/schemas";
@@ -20,6 +22,15 @@ type Candidate = {
   readonly text: string | undefined;
   readonly raw: CanonicalRecord;
   readonly level: number | undefined;
+};
+
+export type ExtractedFigureAsset = {
+  readonly figureId: Identifier;
+  readonly body: Uint8Array;
+  readonly checksumSha256: string;
+  readonly contentType: "image/gif" | "image/jpeg" | "image/png" | "image/webp";
+  readonly width: number | undefined;
+  readonly height: number | undefined;
 };
 
 const canonicalSchema = z.record(z.unknown());
@@ -187,6 +198,152 @@ function flattenCanonical(canonical: CanonicalRecord): Candidate[] {
   return candidates;
 }
 
+function nestedString(
+  value: CanonicalRecord,
+  names: readonly string[],
+): string | undefined {
+  for (const name of names) {
+    const direct = string(value[name]);
+    if (direct !== undefined) return direct;
+  }
+  for (const name of ["data", "image", "image_data", "payload"]) {
+    const nested = record(value[name]);
+    if (nested === undefined) continue;
+    for (const nestedName of names) {
+      const direct = string(nested[nestedName]);
+      if (direct !== undefined) return direct;
+    }
+  }
+  return undefined;
+}
+
+function imageContentType(
+  body: Uint8Array,
+  declared: string | undefined,
+): ExtractedFigureAsset["contentType"] | undefined {
+  const inferred =
+    body.length >= 8 &&
+    body[0] === 0x89 &&
+    body[1] === 0x50 &&
+    body[2] === 0x4e &&
+    body[3] === 0x47
+      ? "image/png"
+      : body.length >= 3 &&
+          body[0] === 0xff &&
+          body[1] === 0xd8 &&
+          body[2] === 0xff
+        ? "image/jpeg"
+        : body.length >= 6 &&
+            new TextDecoder().decode(body.slice(0, 6)).startsWith("GIF")
+          ? "image/gif"
+          : body.length >= 12 &&
+              new TextDecoder().decode(body.slice(0, 4)) === "RIFF" &&
+              new TextDecoder().decode(body.slice(8, 12)) === "WEBP"
+            ? "image/webp"
+            : undefined;
+  if (declared === undefined) return inferred;
+  const normalized = declared.toLocaleLowerCase().split(";")[0]?.trim();
+  return normalized === inferred ? inferred : undefined;
+}
+
+function imageDimensions(
+  body: Uint8Array,
+  contentType: ExtractedFigureAsset["contentType"],
+): Pick<ExtractedFigureAsset, "width" | "height"> {
+  const view = new DataView(body.buffer, body.byteOffset, body.byteLength);
+  if (contentType === "image/png" && body.length >= 24)
+    return { width: view.getUint32(16), height: view.getUint32(20) };
+  if (contentType === "image/gif" && body.length >= 10)
+    return { width: view.getUint16(6, true), height: view.getUint16(8, true) };
+  if (
+    contentType === "image/webp" &&
+    body.length >= 30 &&
+    new TextDecoder().decode(body.slice(12, 16)) === "VP8X"
+  )
+    return {
+      width: 1 + body[24]! + (body[25]! << 8) + (body[26]! << 16),
+      height: 1 + body[27]! + (body[28]! << 8) + (body[29]! << 16),
+    };
+  return { width: undefined, height: undefined };
+}
+
+/** Extract only inline image bytes; external paths are never fetched by the worker. */
+export function extractDoclingFigureAssets(input: {
+  artifactId: Identifier;
+  canonicalJson: unknown;
+}): {
+  assets: readonly ExtractedFigureAsset[];
+  warnings: readonly { figureId: Identifier; page: number; message: string }[];
+} {
+  const canonical = canonicalSchema.parse(input.canonicalJson);
+  const assets: ExtractedFigureAsset[] = [];
+  const warnings: { figureId: Identifier; page: number; message: string }[] =
+    [];
+  for (const candidate of flattenCanonical(canonical)) {
+    if (!["picture", "figure", "image"].includes(candidate.kind)) continue;
+    const figureId = deterministicId(
+      `${input.artifactId}:figure:${candidate.page}:${candidate.order}`,
+    );
+    const encoded = nestedString(candidate.raw, [
+      "base64",
+      "image_base64",
+      "data_uri",
+      "dataUrl",
+      "content",
+      "image",
+    ]);
+    if (encoded === undefined) {
+      warnings.push({
+        figureId,
+        page: candidate.page,
+        message: "Figure media was unavailable from the parser output.",
+      });
+      continue;
+    }
+    const parts = encoded.match(/^data:([^;,]+);base64,([a-z0-9+/=\s]+)$/i);
+    const base64 = parts?.[2] ?? encoded;
+    let body: Uint8Array;
+    try {
+      body = Buffer.from(base64.replaceAll(/\s+/g, ""), "base64");
+    } catch {
+      warnings.push({
+        figureId,
+        page: candidate.page,
+        message: "Figure media was malformed and could not be decoded.",
+      });
+      continue;
+    }
+    const contentType = imageContentType(
+      body,
+      parts?.[1] ??
+        nestedString(candidate.raw, [
+          "mime_type",
+          "mimeType",
+          "content_type",
+          "contentType",
+        ]),
+    );
+    if (body.length === 0 || contentType === undefined) {
+      warnings.push({
+        figureId,
+        page: candidate.page,
+        message:
+          "Figure media was missing or used an unsupported image format.",
+      });
+      continue;
+    }
+    const dimensions = imageDimensions(body, contentType);
+    assets.push({
+      figureId,
+      body,
+      checksumSha256: createHash("sha256").update(body).digest("hex"),
+      contentType,
+      ...dimensions,
+    });
+  }
+  return { assets, warnings };
+}
+
 function repeatedMarginCandidates(
   candidates: readonly Candidate[],
 ): ReadonlySet<number> {
@@ -317,13 +474,49 @@ export function normalizeDoclingOutput(input: {
       const id = deterministicId(
         `${input.artifactId}:figure:${candidate.page}:${candidate.order}`,
       );
+      const captionBlockId =
+        candidate.text === undefined
+          ? undefined
+          : deterministicId(
+              `${input.artifactId}:caption:${candidate.page}:${candidate.order}`,
+            );
+      if (captionBlockId !== undefined) {
+        blocks.push({
+          id: captionBlockId,
+          sectionId,
+          order: section.blockIds.length + 1,
+          pageStart: candidate.page,
+          pageEnd: candidate.page,
+          kind: "caption",
+          text: candidate.text!,
+        });
+        section.blockIds.push(captionBlockId);
+      }
       figures.push({
         id,
         sectionId,
         order: figures.length + 1,
         pageStart: candidate.page,
         pageEnd: candidate.page,
+        ...(captionBlockId === undefined ? {} : { captionBlockId }),
         ...(candidate.text === undefined ? {} : { altText: candidate.text }),
+        ...(nestedString(candidate.raw, [
+          "self_ref",
+          "source_locator",
+          "sourceLocator",
+          "uri",
+          "path",
+        ]) === undefined
+          ? {}
+          : {
+              sourceLocator: nestedString(candidate.raw, [
+                "self_ref",
+                "source_locator",
+                "sourceLocator",
+                "uri",
+                "path",
+              ]),
+            }),
       });
       section.figureIds.push(id);
       continue;
@@ -333,24 +526,109 @@ export function normalizeDoclingOutput(input: {
         `${input.artifactId}:table:${candidate.page}:${candidate.order}`,
       );
       const data = record(candidate.raw.data);
-      const rows = Array.isArray(data?.table_cells)
+      const rawRows = Array.isArray(data?.table_cells)
+        ? data!.table_cells.filter(Array.isArray)
+        : [];
+      const rawCells = Array.isArray(data?.table_cells)
         ? data!.table_cells
-            .filter(Array.isArray)
-            .map((row) => row.map((cell) => String(cell)))
-        : [[candidate.text ?? "Table"]];
+            .map(record)
+            .filter((cell): cell is CanonicalRecord => cell !== undefined)
+        : [];
+      const flattenedCells = rawRows.flatMap((row, rowIndex) =>
+        row.map((cell, column) => ({
+          row: rowIndex,
+          column,
+          text: String(cell),
+          rowSpan: 1,
+          columnSpan: 1,
+        })),
+      );
+      const cells =
+        rawCells.length > 0
+          ? rawCells.map((cell, index) => {
+              const row =
+                number(cell.start_row_offset_idx) ?? number(cell.row) ?? index;
+              const column =
+                number(cell.start_col_offset_idx) ?? number(cell.column) ?? 0;
+              const rowEnd = number(cell.end_row_offset_idx);
+              const columnEnd = number(cell.end_col_offset_idx);
+              return {
+                row: Math.max(0, Math.trunc(row)),
+                column: Math.max(0, Math.trunc(column)),
+                text: textOf(cell) ?? "",
+                rowSpan: Math.max(1, Math.trunc((rowEnd ?? row + 1) - row)),
+                columnSpan: Math.max(
+                  1,
+                  Math.trunc((columnEnd ?? column + 1) - column),
+                ),
+              };
+            })
+          : flattenedCells;
+      const width = Math.max(
+        1,
+        ...cells.map((cell) => cell.column + cell.columnSpan),
+      );
+      const height = Math.max(
+        1,
+        ...cells.map((cell) => cell.row + cell.rowSpan),
+      );
+      const rows = Array.from({ length: height }, (_, row) =>
+        Array.from(
+          { length: width },
+          (_, column) =>
+            cells.find((cell) => cell.row === row && cell.column === column)
+              ?.text ?? "",
+        ),
+      );
       const columns = rows[0]?.map((_, index) => `Column ${index + 1}`) ?? [
         "Column 1",
       ];
+      const normalizedRows = rows;
+      const captionBlockId =
+        candidate.text === undefined
+          ? undefined
+          : deterministicId(
+              `${input.artifactId}:table-caption:${candidate.page}:${candidate.order}`,
+            );
+      if (captionBlockId !== undefined) {
+        blocks.push({
+          id: captionBlockId,
+          sectionId,
+          order: section.blockIds.length + 1,
+          pageStart: candidate.page,
+          pageEnd: candidate.page,
+          kind: "caption",
+          text: candidate.text!,
+        });
+        section.blockIds.push(captionBlockId);
+      }
       tables.push({
         id,
         sectionId,
         order: tables.length + 1,
         pageStart: candidate.page,
         pageEnd: candidate.page,
+        ...(captionBlockId === undefined ? {} : { captionBlockId }),
         columns,
-        rows,
+        rows: normalizedRows,
+        cells,
+        rawRepresentation: candidate.raw,
       });
       section.tableIds.push(id);
+      if (
+        (rawRows.length === 0 && rawCells.length === 0) ||
+        rawRows.some((row) => row.length !== columns.length)
+      )
+        warnings.push({
+          code: "malformed_table",
+          severity: "warning",
+          message:
+            "Table structure was incomplete; missing cells were preserved as empty values.",
+          pageStart: candidate.page,
+          pageEnd: candidate.page,
+          sectionId,
+          tableId: id,
+        });
       continue;
     }
     const id = deterministicId(
@@ -413,8 +691,85 @@ export function normalizeDoclingOutput(input: {
     }
     blocks.push(block);
     section.blockIds.push(id);
+    if (block.kind === "caption") {
+      const figure = [...figures]
+        .reverse()
+        .find(
+          (entry) =>
+            entry.sectionId === sectionId &&
+            entry.pageStart === candidate.page &&
+            entry.captionBlockId === undefined,
+        );
+      if (figure !== undefined) figure.captionBlockId = block.id;
+      else {
+        const table = [...tables]
+          .reverse()
+          .find(
+            (entry) =>
+              entry.sectionId === sectionId &&
+              entry.pageStart === candidate.page &&
+              entry.captionBlockId === undefined,
+          );
+        if (table !== undefined) table.captionBlockId = block.id;
+      }
+    }
   }
   if (sections.length === 0) ensureRoot(1);
+  const media = extractDoclingFigureAssets({
+    artifactId: input.artifactId,
+    canonicalJson: input.canonicalJson,
+  });
+  const assetsByFigureId = new Map(
+    media.assets.map((asset) => [asset.figureId, asset]),
+  );
+  for (const figure of figures) {
+    const asset = assetsByFigureId.get(figure.id);
+    if (asset !== undefined)
+      Object.assign(figure, {
+        asset: {
+          checksumSha256: asset.checksumSha256,
+          contentType: asset.contentType,
+          byteLength: asset.body.byteLength,
+          ...(asset.width === undefined ? {} : { width: asset.width }),
+          ...(asset.height === undefined ? {} : { height: asset.height }),
+        },
+      } satisfies Pick<ExtractedFigure, "asset">);
+  }
+  for (const warning of media.warnings) {
+    const figure = figures.find((entry) => entry.id === warning.figureId);
+    if (figure === undefined) continue;
+    warnings.push({
+      code: "malformed_media",
+      severity: "warning",
+      message: warning.message,
+      pageStart: warning.page,
+      pageEnd: warning.page,
+      sectionId: figure.sectionId,
+      figureId: figure.id,
+    });
+  }
+  for (const figure of figures)
+    if (figure.captionBlockId === undefined)
+      warnings.push({
+        code: "missing_caption",
+        severity: "warning",
+        message: "Figure did not include a usable caption.",
+        pageStart: figure.pageStart,
+        pageEnd: figure.pageEnd,
+        sectionId: figure.sectionId,
+        figureId: figure.id,
+      });
+  for (const table of tables)
+    if (table.captionBlockId === undefined)
+      warnings.push({
+        code: "missing_caption",
+        severity: "warning",
+        message: "Table did not include a usable caption.",
+        pageStart: table.pageStart,
+        pageEnd: table.pageEnd,
+        sectionId: table.sectionId,
+        tableId: table.id,
+      });
   const document = {
     schemaVersion: normalizedDocumentVersion,
     id: deterministicId(`${input.artifactId}:normalized-document`),

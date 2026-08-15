@@ -12,6 +12,11 @@ type SourceOriginalKey = TenantScope & {
 };
 
 type ParsedKey = TenantScope & { versionId: Identifier };
+type ParsedFigureKey = TenantScope & {
+  versionId: Identifier;
+  figureId: Identifier;
+  extension: "gif" | "jpeg" | "png" | "webp";
+};
 type AssetKey = TenantScope & {
   assetId: Identifier;
   extension: "gif" | "jpeg" | "jpg" | "png" | "webp";
@@ -83,6 +88,30 @@ export const storageKeys = {
     const versionId = identifierSchema.parse(input.versionId);
     return validatedKey(
       `${tenantPrefix(input)}/parsed-staging/${versionId}/normalized.json`,
+    );
+  },
+
+  parsedFigureOriginal(input: ParsedFigureKey): StorageKey {
+    const versionId = identifierSchema.parse(input.versionId);
+    const figureId = identifierSchema.parse(input.figureId);
+    return validatedKey(
+      `${tenantPrefix(input)}/parsed/${versionId}/figures/${figureId}/original.${input.extension}`,
+    );
+  },
+
+  parsedFigureThumbnail(input: ParsedFigureKey): StorageKey {
+    const versionId = identifierSchema.parse(input.versionId);
+    const figureId = identifierSchema.parse(input.figureId);
+    return validatedKey(
+      `${tenantPrefix(input)}/parsed/${versionId}/figures/${figureId}/thumbnail.${input.extension}`,
+    );
+  },
+
+  parsedStagingFigureOriginal(input: ParsedFigureKey): StorageKey {
+    const versionId = identifierSchema.parse(input.versionId);
+    const figureId = identifierSchema.parse(input.figureId);
+    return validatedKey(
+      `${tenantPrefix(input)}/parsed-staging/${versionId}/figures/${figureId}/original.${input.extension}`,
     );
   },
 

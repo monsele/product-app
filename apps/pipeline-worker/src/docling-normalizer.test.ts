@@ -115,4 +115,82 @@ describe("Docling normalized-document adapter", () => {
       { code: "unknown_block", blockId: block.id },
     ]);
   });
+
+  it("extracts inline figure metadata, captions, and nearby section associations", () => {
+    const normalized = normalizeDoclingOutput({
+      artifactId,
+      sourceDocumentId,
+      pageCount: 1,
+      canonicalJson: {
+        texts: [
+          { label: "heading", text: "Plant cells", page: 1 },
+          {
+            label: "picture",
+            caption: { text: "Figure 1: A plant cell" },
+            image:
+              "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL1nAAAAABJRU5ErkJggg==",
+            self_ref: "#/pictures/0",
+            page: 1,
+          },
+        ],
+      },
+    });
+    const figure = normalized.figures[0]!;
+    expect(figure).toMatchObject({
+      sectionId: normalized.sections[0]!.id,
+      altText: "Figure 1: A plant cell",
+      sourceLocator: "#/pictures/0",
+      asset: { contentType: "image/png", byteLength: 70, width: 1, height: 1 },
+    });
+    expect(figure.captionBlockId).toBeDefined();
+    expect(normalized.blocks).toContainEqual(
+      expect.objectContaining({ id: figure.captionBlockId, kind: "caption" }),
+    );
+    expect(normalized.sections[0]!.figureIds).toEqual([figure.id]);
+    expect(normalized.warnings).not.toContainEqual(
+      expect.objectContaining({ code: "malformed_media" }),
+    );
+  });
+
+  it("preserves table order, raw representation, and reports malformed media", () => {
+    const normalized = normalizeDoclingOutput({
+      artifactId,
+      sourceDocumentId,
+      pageCount: 1,
+      canonicalJson: {
+        texts: [
+          { label: "heading", text: "Results", page: 1 },
+          {
+            label: "table",
+            text: "Table 1: Results",
+            data: { table_cells: [["Name", "Value"], ["Leaf"]] },
+            page: 1,
+          },
+          { label: "picture", image: "not-a-valid-image", page: 1 },
+        ],
+      },
+    });
+    const table = normalized.tables[0]!;
+    expect(table.rows).toEqual([
+      ["Name", "Value"],
+      ["Leaf", ""],
+    ]);
+    expect(table.cells).toEqual([
+      { row: 0, column: 0, text: "Name", rowSpan: 1, columnSpan: 1 },
+      { row: 0, column: 1, text: "Value", rowSpan: 1, columnSpan: 1 },
+      { row: 1, column: 0, text: "Leaf", rowSpan: 1, columnSpan: 1 },
+    ]);
+    expect(table.rawRepresentation).toMatchObject({
+      data: { table_cells: [["Name", "Value"], ["Leaf"]] },
+    });
+    expect(normalized.warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "malformed_table", tableId: table.id }),
+        expect.objectContaining({
+          code: "malformed_media",
+          figureId: normalized.figures[0]!.id,
+        }),
+      ]),
+    );
+  });
 });

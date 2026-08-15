@@ -410,6 +410,121 @@ export const contentBlocks = pgTable(
   ],
 );
 
+/** Immutable figure metadata; bytes remain in private object storage. */
+export const extractedFigures = pgTable(
+  "extracted_figures",
+  {
+    id: primaryId(),
+    parsedDocumentId: uuid("parsed_document_id")
+      .notNull()
+      .references(() => parsedDocuments.id, { onDelete: "cascade" }),
+    sectionId: uuid("section_id").notNull(),
+    order: integer("order").notNull(),
+    pageStart: integer("page_start").notNull(),
+    pageEnd: integer("page_end").notNull(),
+    captionBlockId: uuid("caption_block_id"),
+    altText: text("alt_text"),
+    sourceLocator: text("source_locator"),
+    storageKey: text("storage_key"),
+    thumbnailStorageKey: text("thumbnail_storage_key"),
+    checksumSha256: text("checksum_sha256"),
+    contentType: text("content_type"),
+    byteLength: integer("byte_length"),
+    width: integer("width"),
+    height: integer("height"),
+    ...auditColumns(),
+  },
+  (table) => [
+    index("extracted_figures_document_section_order_idx").on(
+      table.parsedDocumentId,
+      table.sectionId,
+      table.order,
+    ),
+    index("extracted_figures_document_page_idx").on(
+      table.parsedDocumentId,
+      table.pageStart,
+    ),
+  ],
+);
+
+/** Immutable table metadata and raw parser representation for review recovery. */
+export const parsedTables = pgTable(
+  "parsed_tables",
+  {
+    id: primaryId(),
+    parsedDocumentId: uuid("parsed_document_id")
+      .notNull()
+      .references(() => parsedDocuments.id, { onDelete: "cascade" }),
+    sectionId: uuid("section_id").notNull(),
+    order: integer("order").notNull(),
+    pageStart: integer("page_start").notNull(),
+    pageEnd: integer("page_end").notNull(),
+    captionBlockId: uuid("caption_block_id"),
+    columns: jsonb("columns").notNull(),
+    rows: jsonb("rows").notNull(),
+    rawRepresentation: jsonb("raw_representation"),
+    ...auditColumns(),
+  },
+  (table) => [
+    index("parsed_tables_document_section_order_idx").on(
+      table.parsedDocumentId,
+      table.sectionId,
+      table.order,
+    ),
+  ],
+);
+
+/** Ordered cells preserve table shape and merged-cell spans independently of the snapshot. */
+export const parsedTableCells = pgTable(
+  "parsed_table_cells",
+  {
+    id: primaryId(),
+    parsedTableId: uuid("parsed_table_id")
+      .notNull()
+      .references(() => parsedTables.id, { onDelete: "cascade" }),
+    rowIndex: integer("row_index").notNull(),
+    columnIndex: integer("column_index").notNull(),
+    text: text("text").notNull(),
+    rowSpan: integer("row_span").notNull().default(1),
+    columnSpan: integer("column_span").notNull().default(1),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("parsed_table_cells_table_position_unique").on(
+      table.parsedTableId,
+      table.rowIndex,
+      table.columnIndex,
+    ),
+  ],
+);
+
+/** Teacher-visible, parser-safe warnings; canonical normalized JSON remains authoritative. */
+export const ingestionWarnings = pgTable(
+  "ingestion_warnings",
+  {
+    id: primaryId(),
+    parsedDocumentId: uuid("parsed_document_id")
+      .notNull()
+      .references(() => parsedDocuments.id, { onDelete: "cascade" }),
+    code: text("code").notNull(),
+    severity: text("severity").notNull(),
+    message: text("message").notNull(),
+    pageStart: integer("page_start").notNull(),
+    pageEnd: integer("page_end").notNull(),
+    sectionId: uuid("section_id"),
+    blockId: uuid("block_id"),
+    figureId: uuid("figure_id"),
+    tableId: uuid("table_id"),
+    ...auditColumns(),
+  },
+  (table) => [
+    index("ingestion_warnings_document_page_idx").on(
+      table.parsedDocumentId,
+      table.pageStart,
+    ),
+  ],
+);
+
 export const uploadSessions = pgTable(
   "upload_sessions",
   {

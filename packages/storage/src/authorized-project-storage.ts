@@ -29,6 +29,18 @@ const projectObjectLocatorSchema = z.discriminatedUnion("kind", [
     versionId: identifierSchema,
   }),
   z.object({
+    kind: z.literal("parsed_figure_original"),
+    versionId: identifierSchema,
+    figureId: identifierSchema,
+    extension: z.enum(["gif", "jpeg", "png", "webp"]),
+  }),
+  z.object({
+    kind: z.literal("parsed_figure_thumbnail"),
+    versionId: identifierSchema,
+    figureId: identifierSchema,
+    extension: z.enum(["gif", "jpeg", "png", "webp"]),
+  }),
+  z.object({
     kind: z.literal("asset_original"),
     assetId: identifierSchema,
     extension: z.enum(["gif", "jpeg", "jpg", "png", "webp"]),
@@ -163,6 +175,10 @@ function projectObjectKey(
       return storageKeys.parsedDocling({ ...scope, ...request.object });
     case "parsed_normalized":
       return storageKeys.parsedNormalized({ ...scope, ...request.object });
+    case "parsed_figure_original":
+      return storageKeys.parsedFigureOriginal({ ...scope, ...request.object });
+    case "parsed_figure_thumbnail":
+      return storageKeys.parsedFigureThumbnail({ ...scope, ...request.object });
     case "asset_original":
       return storageKeys.assetOriginal({ ...scope, ...request.object });
     case "scene_audio":

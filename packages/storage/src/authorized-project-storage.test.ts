@@ -128,4 +128,20 @@ describe("AuthorizedProjectStorage", () => {
     ).rejects.toThrow();
     expect(createSignedUpload).not.toHaveBeenCalled();
   });
+
+  it("issues tenant-scoped URLs for extracted figure previews only after authorization", async () => {
+    const { createSignedDownload, service } = harness();
+    await service.createSignedDownload(ownerUserId, {
+      projectId,
+      object: {
+        kind: "parsed_figure_original",
+        versionId: documentId,
+        figureId: documentId,
+        extension: "png",
+      },
+    });
+    expect(createSignedDownload).toHaveBeenCalledWith({
+      key: `users/${ownerUserId}/projects/${projectId}/parsed/${documentId}/figures/${documentId}/original.png`,
+    });
+  });
 });

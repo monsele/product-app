@@ -1034,10 +1034,40 @@ export const extractedFigureSchema = z
     captionBlockId: identifierSchema.optional(),
     altText: normalizedText(10_000).optional(),
     sourceLocator: normalizedText(2_000).optional(),
+    asset: z
+      .object({
+        checksumSha256: z.string().regex(/^[0-9a-f]{64}$/i),
+        contentType: z.enum([
+          "image/gif",
+          "image/jpeg",
+          "image/png",
+          "image/webp",
+        ]),
+        byteLength: z
+          .number()
+          .int()
+          .positive()
+          .max(25 * 1024 * 1024),
+        width: z.number().int().positive().max(20_000).optional(),
+        height: z.number().int().positive().max(20_000).optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict()
   .superRefine(pageRangeValidation);
 export type ExtractedFigure = z.infer<typeof extractedFigureSchema>;
+
+export const parsedTableCellSchema = z
+  .object({
+    row: z.number().int().nonnegative(),
+    column: z.number().int().nonnegative(),
+    text: z.string().max(10_000),
+    rowSpan: z.number().int().positive().max(10_000).default(1),
+    columnSpan: z.number().int().positive().max(10_000).default(1),
+  })
+  .strict();
+export type ParsedTableCell = z.infer<typeof parsedTableCellSchema>;
 
 export const parsedTableSchema = z
   .object({
@@ -1048,6 +1078,8 @@ export const parsedTableSchema = z
     captionBlockId: identifierSchema.optional(),
     columns: z.array(normalizedText(1_000)).min(1).max(500),
     rows: z.array(z.array(z.string().max(10_000))).max(10_000),
+    cells: z.array(parsedTableCellSchema).max(100_000).optional(),
+    rawRepresentation: z.unknown().optional(),
   })
   .strict()
   .superRefine((value, context) => {
@@ -1069,6 +1101,7 @@ export const ingestionWarningSchema = z
       "low_ocr_quality",
       "missing_caption",
       "malformed_table",
+      "malformed_media",
       "uncertain_reading_order",
       "duplicate_reading_order",
     ]),
