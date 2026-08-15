@@ -56,6 +56,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { ProjectService } from "./projects.js";
 import { SourceUploadService } from "./source-uploads.js";
 import type { IngestionStatusService } from "./ingestion-status.js";
+import type { ParsedDocumentReviewService } from "./parsed-document-review.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
 const TELEMETRY_SHUTDOWN = Symbol("TELEMETRY_SHUTDOWN");
@@ -65,6 +66,7 @@ const AUTH_RATE_LIMITER = Symbol("AUTH_RATE_LIMITER");
 const SOURCE_UPLOAD_SERVICE = Symbol("SOURCE_UPLOAD_SERVICE");
 const PROJECT_SERVICE = Symbol("PROJECT_SERVICE");
 const INGESTION_STATUS_SERVICE = Symbol("INGESTION_STATUS_SERVICE");
+const PARSED_DOCUMENT_REVIEW_SERVICE = Symbol("PARSED_DOCUMENT_REVIEW_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -243,6 +245,10 @@ type IngestionStatusApiService = Pick<
   IngestionStatusService,
   "status" | "retry"
 >;
+type ParsedDocumentReviewApiService = Pick<
+  ParsedDocumentReviewService,
+  "review" | "section"
+>;
 
 @Controller("projects")
 class ProjectsController {
@@ -254,6 +260,8 @@ class ProjectsController {
     private readonly sourceUploads: SourceUploadApiService,
     @Inject(INGESTION_STATUS_SERVICE)
     private readonly ingestionStatus: IngestionStatusApiService,
+    @Inject(PARSED_DOCUMENT_REVIEW_SERVICE)
+    private readonly parsedDocumentReview: ParsedDocumentReviewApiService,
   ) {}
 
   @Post()
@@ -375,6 +383,36 @@ class ProjectsController {
       correlationId:
         request.correlationId ?? "00000000-0000-7000-8000-000000000000",
     });
+  }
+
+  @Get(":projectId/parsed-document")
+  public async parsedDocument(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    return this.parsedDocumentReview.review(access.ownerUserId, access.projectId);
+  }
+
+  @Get(":projectId/parsed-document/sections/:sectionId")
+  public async parsedDocumentSection(
+    @Param("projectId") projectId: string,
+    @Param("sectionId") sectionIdInput: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    const sectionId = identifierSchema.safeParse(sectionIdInput);
+    if (!sectionId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.parsedDocumentReview.section(
+      access.ownerUserId,
+      access.projectId,
+      sectionId.data,
+    );
   }
 
   @Post(":projectId/source-upload/:sessionId/complete")
@@ -525,6 +563,7 @@ function createAppModule(
   projectService: ProjectApiService,
   sourceUploadService: SourceUploadApiService,
   ingestionStatusService: IngestionStatusApiService,
+  parsedDocumentReviewService: ParsedDocumentReviewApiService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -537,6 +576,7 @@ function createAppModule(
       { provide: PROJECT_SERVICE, useValue: projectService },
       { provide: SOURCE_UPLOAD_SERVICE, useValue: sourceUploadService },
       { provide: INGESTION_STATUS_SERVICE, useValue: ingestionStatusService },
+      { provide: PARSED_DOCUMENT_REVIEW_SERVICE, useValue: parsedDocumentReviewService },
     ],
   };
 }
@@ -552,6 +592,7 @@ export type CreateAppOptions = {
   projectService?: ProjectService;
   sourceUploadService?: SourceUploadApiService;
   ingestionStatusService?: IngestionStatusApiService;
+  parsedDocumentReviewService?: ParsedDocumentReviewApiService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -723,6 +764,27 @@ const unavailableIngestionStatusService: IngestionStatusApiService = {
     ),
 };
 
+const unavailableParsedDocumentReviewService: ParsedDocumentReviewApiService = {
+  review: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Document review is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  section: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Document review is unavailable.",
+        503,
+        true,
+      ),
+    ),
+};
+
 export async function createApp(
   options: CreateAppOptions = {},
 ): Promise<NestFastifyApplication> {
@@ -738,6 +800,8 @@ export async function createApp(
       options.projectService ?? unavailableProjectService,
       options.sourceUploadService ?? unavailableSourceUploadService,
       options.ingestionStatusService ?? unavailableIngestionStatusService,
+      options.parsedDocumentReviewService ??
+        unavailableParsedDocumentReviewService,
     ),
     new FastifyAdapter({
       logger: {

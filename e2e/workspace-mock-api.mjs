@@ -115,6 +115,162 @@ const server = createServer(async (request, response) => {
     response.writeHead(200);
     return response.end();
   }
+  const parsedDocMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/parsed-document$/,
+  );
+  if (request.method === "GET" && parsedDocMatch !== null) {
+    const project = projects.get(parsedDocMatch[1]);
+    if (project === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    return send(response, 200, {
+      document: {
+        id: "019ffbf1-610e-738a-b087-6775ff97568c",
+        sourceDocumentId: "019ffbf1-6111-738a-b087-6775ff97568c",
+        version: 1,
+        schemaVersion: "1.0",
+        parserVersion: "docling-v1",
+        title: "The Water Cycle",
+        language: "en",
+        pageCount: 5,
+      },
+      sections: [
+        {
+          id: "019ffbf1-6112-738a-b087-6775ff97568c",
+          order: 1,
+          level: 1,
+          heading: "Introduction",
+          pageStart: 1,
+          pageEnd: 2,
+          blockCount: 1,
+          figureCount: 1,
+          tableCount: 0,
+        },
+        {
+          id: "019ffbf1-6115-738a-b087-6775ff97568c",
+          order: 2,
+          level: 1,
+          heading: "Evaporation",
+          pageStart: 3,
+          pageEnd: 4,
+          blockCount: 1,
+          figureCount: 0,
+          tableCount: 0,
+        },
+        {
+          id: "019ffbf1-6116-738a-b087-6775ff97568c",
+          order: 3,
+          level: 1,
+          heading: "References",
+          pageStart: 5,
+          pageEnd: 5,
+          blockCount: 0,
+          figureCount: 0,
+          tableCount: 0,
+        },
+      ],
+      warnings: [
+        {
+          id: "019ffbf1-6113-738a-b087-6775ff97568c",
+          code: "missing_caption",
+          severity: "warning",
+          message: "A figure is missing a caption.",
+          pageStart: 1,
+          pageEnd: 1,
+          sectionId: "019ffbf1-6112-738a-b087-6775ff97568c",
+          figureId: "019ffbf1-6114-738a-b087-6775ff97568c",
+        },
+      ],
+      quality: {
+        score: 85,
+        status: "review_required",
+        findings: [],
+      },
+    });
+  }
+  const sectionMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/parsed-document\/sections\/([^/]+)$/,
+  );
+  if (request.method === "GET" && sectionMatch !== null) {
+    const project = projects.get(sectionMatch[1]);
+    if (project === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    const sectionId = decodeURIComponent(sectionMatch[2]);
+    if (sectionId === "019ffbf1-6112-738a-b087-6775ff97568c") {
+      return send(response, 200, {
+        section: {
+          id: sectionId,
+          order: 1,
+          level: 1,
+          heading: "Introduction",
+          pageStart: 1,
+          pageEnd: 2,
+          blocks: [
+            {
+              id: "019ffbf1-6120-738a-b087-6775ff97568c",
+              kind: "paragraph",
+              order: 1,
+              pageStart: 1,
+              pageEnd: 1,
+              text: "Water moves through the environment in a continuous cycle.",
+            },
+          ],
+          figures: [
+            {
+              id: "019ffbf1-6114-738a-b087-6775ff97568c",
+              order: 1,
+              pageStart: 1,
+              pageEnd: 1,
+              contentType: "image/png",
+              width: 800,
+              height: 600,
+              previewUrl: "http://127.0.0.1:3002/signed-figure/019ffbf1-6114.png",
+            },
+          ],
+          tables: [],
+        },
+      });
+    }
+    if (sectionId === "019ffbf1-6115-738a-b087-6775ff97568c") {
+      return send(response, 200, {
+        section: {
+          id: sectionId,
+          order: 2,
+          level: 1,
+          heading: "Evaporation",
+          pageStart: 3,
+          pageEnd: 4,
+          blocks: [
+            {
+              id: "019ffbf1-6121-738a-b087-6775ff97568c",
+              kind: "paragraph",
+              order: 1,
+              pageStart: 3,
+              pageEnd: 3,
+              text: "Heat from the sun causes water to evaporate.",
+            },
+          ],
+          figures: [],
+          tables: [],
+        },
+      });
+    }
+    if (sectionId === "019ffbf1-6116-738a-b087-6775ff97568c") {
+      return send(response, 200, {
+        section: {
+          id: sectionId,
+          order: 3,
+          level: 1,
+          heading: "References",
+          pageStart: 5,
+          pageEnd: 5,
+          blocks: [],
+          figures: [],
+          tables: [],
+        },
+      });
+    }
+    return send(response, 404, { error: { code: "not_found" } });
+  }
   if (request.method === "GET" && url.pathname.startsWith("/projects/")) {
     const project = projects.get(decodeURIComponent(url.pathname.slice(10)));
     return project === undefined

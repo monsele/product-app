@@ -3,10 +3,13 @@ import {
   InMemoryAuthRateLimiter,
   PostgresAuthGateway,
   WebhookPasswordResetEmailSender,
+  ProjectAuthorizationService,
 } from "@avlp/auth";
 import { createDatabaseConnection } from "@avlp/database";
-import { ProjectAuthorizationService } from "@avlp/auth";
-import { createS3CompatibleObjectStorage } from "@avlp/storage";
+import {
+  AuthorizedProjectStorage,
+  createS3CompatibleObjectStorage,
+} from "@avlp/storage";
 import { createApp } from "./app.js";
 import { PostgresProjectRepository, ProjectService } from "./projects.js";
 import {
@@ -14,6 +17,10 @@ import {
   SourceUploadService,
 } from "./source-uploads.js";
 import { PostgresIngestionStatusService } from "./ingestion-status.js";
+import {
+  PostgresParsedDocumentReviewService,
+} from "./parsed-document-review.js";
+import { ParsedDocumentRepository } from "./parsed-document-repository.js";
 
 export async function runApi(input: {
   telemetryShutdown: () => Promise<void>;
@@ -52,6 +59,14 @@ export async function runApi(input: {
         ? {}
         : { endpoint: environment.OBJECT_STORAGE_ENDPOINT }),
     });
+    const projectAuthorizer = new ProjectAuthorizationService(projectRepository);
+    const parsedDocumentRepository = new ParsedDocumentRepository(
+      database.client,
+    );
+    const authorizedProjectStorage = new AuthorizedProjectStorage(
+      storage,
+      projectAuthorizer,
+    );
     const app = await createApp({
       database,
       authGateway: new PostgresAuthGateway(
@@ -80,7 +95,11 @@ export async function runApi(input: {
       ingestionStatusService: new PostgresIngestionStatusService(
         database.client,
       ),
-      projectAuthorizer: new ProjectAuthorizationService(projectRepository),
+      parsedDocumentReviewService: new PostgresParsedDocumentReviewService(
+        parsedDocumentRepository,
+        authorizedProjectStorage,
+      ),
+      projectAuthorizer,
       ...(environment.WEB_ORIGIN === undefined
         ? {}
         : { trustedOrigin: environment.WEB_ORIGIN }),

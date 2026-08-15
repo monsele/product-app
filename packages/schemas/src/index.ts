@@ -1094,18 +1094,34 @@ export const parsedTableSchema = z
   });
 export type ParsedTable = z.infer<typeof parsedTableSchema>;
 
+export const ingestionWarningCodeValues = [
+  "unknown_block",
+  "low_ocr_quality",
+  "missing_caption",
+  "malformed_table",
+  "malformed_media",
+  "uncertain_reading_order",
+  "duplicate_reading_order",
+] as const;
+export const ingestionWarningCodeSchema = z.enum(ingestionWarningCodeValues);
+export type IngestionWarningCode = z.infer<typeof ingestionWarningCodeSchema>;
+
+export const ingestionWarningSeverityValues = [
+  "info",
+  "warning",
+  "error",
+] as const;
+export const ingestionWarningSeveritySchema = z.enum(
+  ingestionWarningSeverityValues,
+);
+export type IngestionWarningSeverity = z.infer<
+  typeof ingestionWarningSeveritySchema
+>;
+
 export const ingestionWarningSchema = z
   .object({
-    code: z.enum([
-      "unknown_block",
-      "low_ocr_quality",
-      "missing_caption",
-      "malformed_table",
-      "malformed_media",
-      "uncertain_reading_order",
-      "duplicate_reading_order",
-    ]),
-    severity: z.enum(["info", "warning", "error"]),
+    code: ingestionWarningCodeSchema,
+    severity: ingestionWarningSeveritySchema,
     message: normalizedText(2_000),
     ...pageRangeShape,
     sectionId: identifierSchema.optional(),
@@ -1757,4 +1773,198 @@ export const projectCleanupJobPayloadSchema = z
   .strict();
 export type ProjectCleanupJobPayload = z.infer<
   typeof projectCleanupJobPayloadSchema
+>;
+
+// ---------------------------------------------------------------------------
+// ST-037 — Ingestion review document DTOs
+// ---------------------------------------------------------------------------
+
+/** Lightweight section summary for hierarchical tree navigation. */
+export const reviewSectionSummarySchema = z
+  .object({
+    id: identifierSchema,
+    parentSectionId: identifierSchema.optional(),
+    order: z.number().int().positive(),
+    level: z.number().int().min(1).max(10),
+    heading: z.string().max(1_000),
+    pageStart: z.number().int().positive(),
+    pageEnd: z.number().int().positive(),
+    blockCount: z.number().int().nonnegative(),
+    figureCount: z.number().int().nonnegative(),
+    tableCount: z.number().int().nonnegative(),
+  })
+  .strict();
+export type ReviewSectionSummary = z.infer<typeof reviewSectionSummarySchema>;
+
+/** Teacher-visible warning with a locator pointing to the affected item. */
+export const reviewWarningSchema = z
+  .object({
+    id: identifierSchema,
+    code: ingestionWarningCodeSchema,
+    severity: ingestionWarningSeveritySchema,
+    message: z.string().max(2_000),
+    pageStart: z.number().int().positive(),
+    pageEnd: z.number().int().positive(),
+    sectionId: identifierSchema.optional(),
+    blockId: identifierSchema.optional(),
+    figureId: identifierSchema.optional(),
+    tableId: identifierSchema.optional(),
+  })
+  .strict();
+export type ReviewWarning = z.infer<typeof reviewWarningSchema>;
+
+/** Top-level review document response: metadata, section tree, warnings, quality. */
+export const parsedDocumentReviewResponseSchema = z
+  .object({
+    document: z
+      .object({
+        id: identifierSchema,
+        sourceDocumentId: identifierSchema,
+        version: z.number().int().positive(),
+        schemaVersion: z.string().min(1).max(50),
+        parserVersion: z.string().min(1).max(200),
+        title: z.string().max(1_000).nullable(),
+        language: z.string().min(1).max(50),
+        pageCount: z.number().int().positive(),
+      })
+      .strict(),
+    sections: z.array(reviewSectionSummarySchema).max(10_000),
+    warnings: z.array(reviewWarningSchema).max(10_000),
+    quality: ingestionQualityReportSchema.nullable(),
+  })
+  .strict();
+export type ParsedDocumentReviewResponse = z.infer<
+  typeof parsedDocumentReviewResponseSchema
+>;
+
+/** Content block for review display (simplified from normalized ContentBlock). */
+export const reviewContentBlockSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      id: identifierSchema,
+      kind: z.literal("paragraph"),
+      order: z.number().int().positive(),
+      pageStart: z.number().int().positive(),
+      pageEnd: z.number().int().positive(),
+      text: z.string().max(50_000),
+    })
+    .strict(),
+  z
+    .object({
+      id: identifierSchema,
+      kind: z.literal("list"),
+      order: z.number().int().positive(),
+      pageStart: z.number().int().positive(),
+      pageEnd: z.number().int().positive(),
+      items: z.array(z.string().max(10_000)).min(1).max(1_000),
+    })
+    .strict(),
+  z
+    .object({
+      id: identifierSchema,
+      kind: z.literal("equation"),
+      order: z.number().int().positive(),
+      pageStart: z.number().int().positive(),
+      pageEnd: z.number().int().positive(),
+      latex: z.string().max(20_000),
+      text: z.string().max(20_000).optional(),
+    })
+    .strict(),
+  z
+    .object({
+      id: identifierSchema,
+      kind: z.literal("caption"),
+      order: z.number().int().positive(),
+      pageStart: z.number().int().positive(),
+      pageEnd: z.number().int().positive(),
+      text: z.string().max(10_000),
+    })
+    .strict(),
+  z
+    .object({
+      id: identifierSchema,
+      kind: z.literal("unsupported"),
+      order: z.number().int().positive(),
+      pageStart: z.number().int().positive(),
+      pageEnd: z.number().int().positive(),
+      parserKind: z.string().max(200),
+    })
+    .strict(),
+]);
+export type ReviewContentBlock = z.infer<typeof reviewContentBlockSchema>;
+
+export const reviewFigureExtensionValues = [
+  "gif",
+  "jpeg",
+  "png",
+  "webp",
+] as const;
+
+/** Figure with short-lived authorized preview/thumbnail URLs. */
+export const reviewFigureSchema = z
+  .object({
+    id: identifierSchema,
+    order: z.number().int().positive(),
+    pageStart: z.number().int().positive(),
+    pageEnd: z.number().int().positive(),
+    captionBlockId: identifierSchema.optional(),
+    altText: z.string().max(10_000).optional(),
+    sourceLocator: z.string().max(2_000).optional(),
+    contentType: z
+      .enum(["image/gif", "image/jpeg", "image/png", "image/webp"])
+      .nullable(),
+    width: z.number().int().positive().max(20_000).nullable(),
+    height: z.number().int().positive().max(20_000).nullable(),
+    previewUrl: z.string().url().optional(),
+    thumbnailUrl: z.string().url().optional(),
+  })
+  .strict();
+export type ReviewFigure = z.infer<typeof reviewFigureSchema>;
+
+export const reviewTableCellSchema = z
+  .object({
+    rowIndex: z.number().int().nonnegative(),
+    columnIndex: z.number().int().nonnegative(),
+    text: z.string().max(10_000),
+    rowSpan: z.number().int().positive().max(10_000),
+    columnSpan: z.number().int().positive().max(10_000),
+  })
+  .strict();
+export type ReviewTableCell = z.infer<typeof reviewTableCellSchema>;
+
+export const reviewTableSchema = z
+  .object({
+    id: identifierSchema,
+    order: z.number().int().positive(),
+    pageStart: z.number().int().positive(),
+    pageEnd: z.number().int().positive(),
+    captionBlockId: identifierSchema.optional(),
+    columns: z.array(z.string().max(1_000)).min(1).max(500),
+    rows: z.array(z.array(z.string().max(10_000))).max(10_000),
+    cells: z.array(reviewTableCellSchema).max(100_000).optional(),
+  })
+  .strict();
+export type ReviewTable = z.infer<typeof reviewTableSchema>;
+
+/** Section detail response with expandable content, figures, and tables. */
+export const parsedDocumentSectionResponseSchema = z
+  .object({
+    section: z
+      .object({
+        id: identifierSchema,
+        parentSectionId: identifierSchema.optional(),
+        order: z.number().int().positive(),
+        level: z.number().int().min(1).max(10),
+        heading: z.string().max(1_000),
+        pageStart: z.number().int().positive(),
+        pageEnd: z.number().int().positive(),
+        blocks: z.array(reviewContentBlockSchema).max(10_000),
+        figures: z.array(reviewFigureSchema).max(1_000),
+        tables: z.array(reviewTableSchema).max(1_000),
+      })
+      .strict(),
+  })
+  .strict();
+export type ParsedDocumentSectionResponse = z.infer<
+  typeof parsedDocumentSectionResponseSchema
 >;
