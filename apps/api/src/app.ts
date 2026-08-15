@@ -55,6 +55,7 @@ import {
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { ProjectService } from "./projects.js";
 import { SourceUploadService } from "./source-uploads.js";
+import type { IngestionStatusService } from "./ingestion-status.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
 const TELEMETRY_SHUTDOWN = Symbol("TELEMETRY_SHUTDOWN");
@@ -63,6 +64,7 @@ const TRUSTED_ORIGIN = Symbol("TRUSTED_ORIGIN");
 const AUTH_RATE_LIMITER = Symbol("AUTH_RATE_LIMITER");
 const SOURCE_UPLOAD_SERVICE = Symbol("SOURCE_UPLOAD_SERVICE");
 const PROJECT_SERVICE = Symbol("PROJECT_SERVICE");
+const INGESTION_STATUS_SERVICE = Symbol("INGESTION_STATUS_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -237,6 +239,10 @@ type SourceUploadApiService = Pick<
   SourceUploadService,
   "create" | "complete" | "status"
 >;
+type IngestionStatusApiService = Pick<
+  IngestionStatusService,
+  "status" | "retry"
+>;
 
 @Controller("projects")
 class ProjectsController {
@@ -246,6 +252,8 @@ class ProjectsController {
     @Inject(PROJECT_SERVICE) private readonly projects: ProjectApiService,
     @Inject(SOURCE_UPLOAD_SERVICE)
     private readonly sourceUploads: SourceUploadApiService,
+    @Inject(INGESTION_STATUS_SERVICE)
+    private readonly ingestionStatus: IngestionStatusApiService,
   ) {}
 
   @Post()
@@ -338,6 +346,35 @@ class ProjectsController {
   ): Promise<unknown> {
     const access = assertAuthorizedProject(request, projectId);
     return this.sourceUploads.status(access.ownerUserId, access.projectId);
+  }
+
+  @Get(":projectId/ingestion")
+  public async ingestion(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    return this.ingestionStatus.status(access.ownerUserId, access.projectId);
+  }
+
+  @Post(":projectId/ingestion/retry")
+  @HttpCode(202)
+  public async retryIngestion(
+    @Param("projectId") projectId: string,
+    @Body() input: unknown,
+    @Headers("idempotency-key") idempotencyKey: string | undefined,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    return this.ingestionStatus.retry({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      body: input,
+      idempotencyKey,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
   }
 
   @Post(":projectId/source-upload/:sessionId/complete")
@@ -487,6 +524,7 @@ function createAppModule(
   authRateLimiter: InMemoryAuthRateLimiter,
   projectService: ProjectApiService,
   sourceUploadService: SourceUploadApiService,
+  ingestionStatusService: IngestionStatusApiService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -498,6 +536,7 @@ function createAppModule(
       { provide: AUTH_RATE_LIMITER, useValue: authRateLimiter },
       { provide: PROJECT_SERVICE, useValue: projectService },
       { provide: SOURCE_UPLOAD_SERVICE, useValue: sourceUploadService },
+      { provide: INGESTION_STATUS_SERVICE, useValue: ingestionStatusService },
     ],
   };
 }
@@ -512,6 +551,7 @@ export type CreateAppOptions = {
   projectAuthorizer?: ProjectRouteAuthorizer;
   projectService?: ProjectService;
   sourceUploadService?: SourceUploadApiService;
+  ingestionStatusService?: IngestionStatusApiService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -662,6 +702,27 @@ const unavailableSourceUploadService: SourceUploadApiService = {
     ),
 };
 
+const unavailableIngestionStatusService: IngestionStatusApiService = {
+  status: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Ingestion status is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  retry: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Ingestion retry is unavailable.",
+        503,
+        true,
+      ),
+    ),
+};
+
 export async function createApp(
   options: CreateAppOptions = {},
 ): Promise<NestFastifyApplication> {
@@ -676,6 +737,7 @@ export async function createApp(
         new InMemoryAuthRateLimiter("development-only-rate-limit-key"),
       options.projectService ?? unavailableProjectService,
       options.sourceUploadService ?? unavailableSourceUploadService,
+      options.ingestionStatusService ?? unavailableIngestionStatusService,
     ),
     new FastifyAdapter({
       logger: {

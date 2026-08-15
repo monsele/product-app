@@ -13,6 +13,7 @@ import {
   PostgresSourceUploadRepository,
   SourceUploadService,
 } from "./source-uploads.js";
+import { PostgresIngestionStatusService } from "./ingestion-status.js";
 
 export async function runApi(input: {
   telemetryShutdown: () => Promise<void>;
@@ -75,6 +76,9 @@ export async function runApi(input: {
         storage,
         undefined,
         environment.MAX_UPLOAD_BYTES,
+      ),
+      ingestionStatusService: new PostgresIngestionStatusService(
+        database.client,
       ),
       projectAuthorizer: new ProjectAuthorizationService(projectRepository),
       ...(environment.WEB_ORIGIN === undefined

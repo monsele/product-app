@@ -1117,6 +1117,52 @@ export const ingestionWarningSchema = z
   .superRefine(pageRangeValidation);
 export type IngestionWarning = z.infer<typeof ingestionWarningSchema>;
 
+export const ingestionQualityStatusSchema = z.enum([
+  "blocked",
+  "review_required",
+  "ready",
+]);
+export type IngestionQualityStatus = z.infer<
+  typeof ingestionQualityStatusSchema
+>;
+
+export const ingestionQualityFindingSchema = z
+  .object({
+    code: z.enum([
+      "unknown_block",
+      "low_ocr_quality",
+      "missing_caption",
+      "malformed_table",
+      "malformed_media",
+      "uncertain_reading_order",
+      "duplicate_reading_order",
+      "parser_failure",
+    ]),
+    severity: z.enum(["warning", "blocking"]),
+    message: normalizedText(2_000),
+    ...pageRangeShape,
+    sectionId: identifierSchema.optional(),
+    blockId: identifierSchema.optional(),
+    figureId: identifierSchema.optional(),
+    tableId: identifierSchema.optional(),
+  })
+  .strict()
+  .superRefine(pageRangeValidation);
+export type IngestionQualityFinding = z.infer<
+  typeof ingestionQualityFindingSchema
+>;
+
+export const ingestionQualityReportSchema = z
+  .object({
+    score: z.number().int().min(0).max(100),
+    status: ingestionQualityStatusSchema,
+    findings: z.array(ingestionQualityFindingSchema).max(10_000),
+  })
+  .strict();
+export type IngestionQualityReport = z.infer<
+  typeof ingestionQualityReportSchema
+>;
+
 function uniqueIdentifiers(
   values: readonly { id: string }[],
   path: string,
@@ -1601,10 +1647,56 @@ export type DocumentValidationCleanupJobPayload = z.infer<
 
 /** The future ingestion worker receives only this tenant-bound source ID. */
 export const documentIngestionJobPayloadSchema = z
-  .object({ schemaVersion: z.literal(1), sourceDocumentId: identifierSchema })
+  .object({
+    schemaVersion: z.literal(1),
+    sourceDocumentId: identifierSchema,
+    parserVersion: z.string().trim().min(1).max(200).optional(),
+    configurationVersion: z.string().trim().min(1).max(200).optional(),
+  })
   .strict();
 export type DocumentIngestionJobPayload = z.infer<
   typeof documentIngestionJobPayloadSchema
+>;
+
+export const ingestionRetryInputSchema = z
+  .object({ configurationVersion: z.string().trim().min(1).max(200) })
+  .strict();
+export type IngestionRetryInput = z.infer<typeof ingestionRetryInputSchema>;
+
+export const ingestionJobStatusSchema = z
+  .object({
+    id: identifierSchema,
+    state: z.enum([
+      "queued",
+      "running",
+      "retry_wait",
+      "succeeded",
+      "failed",
+      "cancelled",
+    ]),
+    progress: z.number().min(0).max(1),
+    errorCode: z.string().max(100).nullable(),
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type IngestionJobStatus = z.infer<typeof ingestionJobStatusSchema>;
+
+export const projectIngestionStatusResponseSchema = z
+  .object({
+    quality: ingestionQualityReportSchema.nullable(),
+    latestJob: ingestionJobStatusSchema.nullable(),
+    canProceed: z.boolean(),
+  })
+  .strict();
+export type ProjectIngestionStatusResponse = z.infer<
+  typeof projectIngestionStatusResponseSchema
+>;
+
+export const ingestionRetryResponseSchema = z
+  .object({ jobId: identifierSchema, status: z.literal("queued") })
+  .strict();
+export type IngestionRetryResponse = z.infer<
+  typeof ingestionRetryResponseSchema
 >;
 
 /** Versioned internal boundary between the TypeScript job worker and Docling. */

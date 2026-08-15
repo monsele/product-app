@@ -387,6 +387,7 @@ function repeatedMarginCandidates(
 export function normalizeDoclingOutput(input: {
   artifactId: Identifier;
   sourceDocumentId: Identifier;
+  parsedDocumentVersion?: number;
   pageCount: number;
   canonicalJson: unknown;
 }): NormalizedDocument {
@@ -774,7 +775,7 @@ export function normalizeDoclingOutput(input: {
     schemaVersion: normalizedDocumentVersion,
     id: deterministicId(`${input.artifactId}:normalized-document`),
     sourceDocumentId: input.sourceDocumentId,
-    parsedDocumentVersion: 1,
+    parsedDocumentVersion: input.parsedDocumentVersion ?? 1,
     language: "en" as const,
     pageCount: Math.max(1, input.pageCount),
     title: sections[0]?.heading,

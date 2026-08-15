@@ -5,6 +5,7 @@ import {
   contentBlocks,
   extractedFigures,
   ingestionWarnings,
+  ingestionQualityReports,
   parsedDocuments,
   parsedSections,
   parsedTableCells,
@@ -43,6 +44,7 @@ import {
   extractDoclingFigureAssets,
   normalizeDoclingOutput,
 } from "./docling-normalizer.js";
+import { assessIngestionQuality } from "./ingestion-quality.js";
 
 export const documentIngestionJobType = "document.ingestion";
 export const documentIngestionPayloadVersion = 1;
@@ -52,6 +54,7 @@ type IngestionArtifact = {
   state: "staging" | "ready";
   parserVersion: string;
   configurationHash: string;
+  requestedConfigurationVersion: string;
   processingTimeMs: number;
   warnings: readonly string[];
 };
@@ -101,6 +104,11 @@ function deterministicId(seed: string): Identifier {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-7${hex.slice(13, 16)}-${((Number.parseInt(hex[16]!, 16) & 3) | 8).toString(16)}${hex.slice(17, 20)}-${hex.slice(20, 32)}` as Identifier;
 }
 
+/** A stable, collision-resistant positive number required by SourceRef v1. */
+function parsedDocumentVersionForArtifact(artifactId: Identifier): number {
+  return Number.parseInt(artifactId.replaceAll("-", "").slice(-13), 16) + 1;
+}
+
 function imageExtension(contentType: string): "gif" | "jpeg" | "png" | "webp" {
   switch (contentType) {
     case "image/gif":
@@ -126,6 +134,7 @@ async function recordFailedUsage(
     attempt: number;
   },
   code: string,
+  parserVersion: string,
 ): Promise<void> {
   await new PostgresUsageMeter(database).record({
     ownerUserId: context.ownerUserId,
@@ -133,7 +142,7 @@ async function recordFailedUsage(
     operationType: "document.ingestion",
     idempotencyKey: usageIdempotencyKey(context),
     provider: "docling",
-    model: currentIngestionCompatibility.parserVersion,
+    model: parserVersion,
     unit: "document",
     quantity: 1,
     estimatedCostUsd: 0,
@@ -153,6 +162,7 @@ function toArtifact(
     state: "staging",
     parserVersion: result.parserVersion,
     configurationHash: result.configurationHash,
+    requestedConfigurationVersion: "default",
     processingTimeMs: result.processingTimeMs,
     warnings: result.warnings,
   };
@@ -261,6 +271,9 @@ export function createDocumentIngestionJobHandler(
     documentIngestionPayloadVersion,
     documentIngestionJobPayloadSchema,
     async (payload, context): Promise<JobMetadata> => {
+      const parserVersion =
+        payload.parserVersion ?? currentIngestionCompatibility.parserVersion;
+      const configurationVersion = payload.configurationVersion ?? "default";
       const [document] = await options.database
         .select()
         .from(sourceDocuments)
@@ -289,6 +302,8 @@ export function createDocumentIngestionJobHandler(
             parserVersion: sourceDocumentIngestionArtifacts.parserVersion,
             configurationHash:
               sourceDocumentIngestionArtifacts.configurationHash,
+            requestedConfigurationVersion:
+              sourceDocumentIngestionArtifacts.requestedConfigurationVersion,
             processingTimeMs: sourceDocumentIngestionArtifacts.processingTimeMs,
             warnings: sourceDocumentIngestionArtifacts.warnings,
           })
@@ -299,13 +314,14 @@ export function createDocumentIngestionJobHandler(
                 sourceDocumentIngestionArtifacts.sourceDocumentId,
                 document.id,
               ),
-              eq(
-                sourceDocumentIngestionArtifacts.parserVersion,
-                currentIngestionCompatibility.parserVersion,
-              ),
+              eq(sourceDocumentIngestionArtifacts.parserVersion, parserVersion),
               eq(
                 sourceDocumentIngestionArtifacts.normalizedSchemaVersion,
                 currentIngestionCompatibility.normalizedSchemaVersion,
+              ),
+              eq(
+                sourceDocumentIngestionArtifacts.requestedConfigurationVersion,
+                configurationVersion,
               ),
             ),
           )
@@ -316,6 +332,7 @@ export function createDocumentIngestionJobHandler(
           state: existing.state,
           parserVersion: existing.parserVersion,
           configurationHash: existing.configurationHash,
+          requestedConfigurationVersion: existing.requestedConfigurationVersion,
           processingTimeMs: existing.processingTimeMs,
           warnings: storedWarnings(existing.warnings),
         };
@@ -340,7 +357,7 @@ export function createDocumentIngestionJobHandler(
               sourceDocumentId: document.id,
               sourceDownloadUrl: download.url,
               mediaType: document.mediaType,
-              parserVersion: currentIngestionCompatibility.parserVersion,
+              parserVersion,
               correlationId: context.correlationId,
             }),
           );
@@ -349,9 +366,12 @@ export function createDocumentIngestionJobHandler(
             error instanceof DoclingIngestionError
               ? error.code
               : "TEMPORARY_INFRASTRUCTURE";
-          await recordFailedUsage(options.database, context, code).catch(
-            () => undefined,
-          );
+          await recordFailedUsage(
+            options.database,
+            context,
+            code,
+            parserVersion,
+          ).catch(() => undefined);
           if (error instanceof DoclingIngestionError)
             throw new JobExecutionError(
               error.classification,
@@ -364,9 +384,7 @@ export function createDocumentIngestionJobHandler(
             "The ingestion service is temporarily unavailable.",
           );
         }
-        if (
-          parsed.parserVersion !== currentIngestionCompatibility.parserVersion
-        )
+        if (parsed.parserVersion !== parserVersion)
           throw new JobExecutionError(
             "terminal",
             "PARSER_RESULT_VERSION_MISMATCH",
@@ -424,6 +442,7 @@ export function createDocumentIngestionJobHandler(
             canonicalStorageKey: keys.canonical,
             markdownStorageKey: keys.markdown,
             configurationHash: candidate.configurationHash,
+            requestedConfigurationVersion: configurationVersion,
             processingTimeMs: candidate.processingTimeMs,
             warnings: [...candidate.warnings],
             state: "staging",
@@ -457,6 +476,9 @@ export function createDocumentIngestionJobHandler(
             normalized = normalizeDoclingOutput({
               artifactId: candidate.id,
               sourceDocumentId: document.id,
+              parsedDocumentVersion: parsedDocumentVersionForArtifact(
+                candidate.id,
+              ),
               pageCount: document.pageCount ?? 1,
               canonicalJson: parsed.canonicalJson,
             });
@@ -470,6 +492,7 @@ export function createDocumentIngestionJobHandler(
               options.database,
               context,
               "SCHEMA_NORMALIZATION_DEFECT",
+              parserVersion,
             ).catch(() => undefined);
             throw new JobExecutionError(
               "terminal",
@@ -765,6 +788,19 @@ export function createDocumentIngestionJobHandler(
                 })),
               )
               .onConflictDoNothing();
+          const quality = assessIngestionQuality(normalized.warnings);
+          await transaction
+            .insert(ingestionQualityReports)
+            .values({
+              id: deterministicId(`${normalized.id}:quality-report`),
+              parsedDocumentId: normalized.id,
+              score: quality.score,
+              status: quality.status,
+              findings: quality.findings,
+              createdAt: timestamp,
+              updatedAt: timestamp,
+            })
+            .onConflictDoNothing();
           const [updated] = await transaction
             .update(sourceDocumentIngestionArtifacts)
             .set({

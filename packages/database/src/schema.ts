@@ -265,6 +265,10 @@ export const sourceDocumentIngestionArtifacts = pgTable(
     canonicalStorageKey: text("canonical_storage_key").notNull(),
     markdownStorageKey: text("markdown_storage_key"),
     configurationHash: text("configuration_hash").notNull().default(""),
+    /** Explicit retry configuration identity; never rewrite an existing parse. */
+    requestedConfigurationVersion: text("requested_configuration_version")
+      .notNull()
+      .default("default"),
     processingTimeMs: integer("processing_time_ms").notNull().default(0),
     warnings: jsonb("warnings").notNull().default([]),
     /** Staged artifacts are never exposed to downstream consumers. */
@@ -280,6 +284,7 @@ export const sourceDocumentIngestionArtifacts = pgTable(
       table.sourceDocumentId,
       table.parserVersion,
       table.normalizedSchemaVersion,
+      table.requestedConfigurationVersion,
     ),
     index("source_document_ingestion_artifacts_owner_versions_idx").on(
       table.ownerUserId,
@@ -521,6 +526,26 @@ export const ingestionWarnings = pgTable(
     index("ingestion_warnings_document_page_idx").on(
       table.parsedDocumentId,
       table.pageStart,
+    ),
+  ],
+);
+
+/** Immutable deterministic assessment for one immutable normalized parse. */
+export const ingestionQualityReports = pgTable(
+  "ingestion_quality_reports",
+  {
+    id: primaryId(),
+    parsedDocumentId: uuid("parsed_document_id")
+      .notNull()
+      .references(() => parsedDocuments.id, { onDelete: "cascade" }),
+    score: integer("score").notNull(),
+    status: text("status").notNull(),
+    findings: jsonb("findings").notNull(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("ingestion_quality_reports_document_unique").on(
+      table.parsedDocumentId,
     ),
   ],
 );

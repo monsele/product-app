@@ -3,6 +3,7 @@ import {
   auditEvents,
   contentBlocks,
   extractedFigures,
+  ingestionQualityReports,
   ingestionWarnings,
   migrateDatabase,
   parsedDocuments,
@@ -52,6 +53,7 @@ describeWithPostgres("document ingestion job", () => {
     await database!.client.delete(parsedTableCells);
     await database!.client.delete(parsedTables);
     await database!.client.delete(extractedFigures);
+    await database!.client.delete(ingestionQualityReports);
     await database!.client.delete(ingestionWarnings);
     await database!.client.delete(contentBlocks);
     await database!.client.delete(parsedSections);
@@ -208,6 +210,9 @@ describeWithPostgres("document ingestion job", () => {
     );
     expect(await database!.client.select().from(ingestionWarnings)).toEqual([]);
     expect(
+      await database!.client.select().from(ingestionQualityReports),
+    ).toMatchObject([{ score: 100, status: "ready", findings: [] }]);
+    expect(
       (await database!.client.select().from(auditEvents)).some(
         (event) => event.eventType === "document.ingestion_completed",
       ),
@@ -219,6 +224,23 @@ describeWithPostgres("document ingestion job", () => {
         latencyMs: 42,
       },
     ]);
+    await expect(
+      handler.handler(
+        documentIngestionJobPayloadSchema.parse({
+          schemaVersion: 1,
+          sourceDocumentId: documentId,
+          configurationVersion: "retry-v1",
+        }),
+        context,
+      ),
+    ).resolves.toMatchObject({ ingestion: "completed" });
+    expect(ingest).toHaveBeenCalledTimes(2);
+    expect(
+      await database!.client.select().from(sourceDocumentIngestionArtifacts),
+    ).toHaveLength(2);
+    const versions = await database!.client.select().from(parsedDocuments);
+    expect(versions).toHaveLength(2);
+    expect(new Set(versions.map((version) => version.version)).size).toBe(2);
   });
 
   it("preserves the classified parser failure for the job platform", async () => {

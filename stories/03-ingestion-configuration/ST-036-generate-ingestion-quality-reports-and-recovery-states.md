@@ -2,7 +2,7 @@
 story_id: ST-036
 title: "Generate Ingestion Quality Reports and Recovery States"
 phase: "03 \u2014 Ingestion and Lesson Configuration"
-status: Ready
+status: In Review
 priority: must-have
 epics: ["E4", "E21"]
 prd_user_stories: ["E4-US4", "E21-US1"]
@@ -117,15 +117,15 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-15
+- **Completed:** 2026-08-15
+- **Branch/PR:** `story/st-036` / not published
+- **Files changed:** Shared ingestion quality/retry contracts; parser quality rules and immutable quality persistence; tenant-authorized ingestion status/retry API; refresh-safe upload-page status panel; targeted unit/API/integration tests; database migration `0023_magical_joseph`.
+- **Migrations:** `0023_magical_joseph.sql` adds `ingestion_quality_reports` and a requested configuration version to immutable parser artifacts.
+- **Contracts changed:** `GET /projects/:id/ingestion`; `POST /projects/:id/ingestion/retry`; versioned ingestion job payload fields for parser/configuration identity; ingestion quality report, status, and retry schemas.
+- **Commands/tests run:** `pnpm lint` (pass); `pnpm typecheck` (pass); `pnpm build` (pass); focused quality, status-panel, API authorization, and pipeline tests (pass). `pnpm test` fails only in the existing `@avlp/evals` baseline fixture test. The PostgreSQL ingestion integration suite was run with the repository Compose service but the host test process could not authenticate despite the container being healthy; it remains a CI verification step.
+- **Screenshots or representative output:** The upload page polls the persisted ingestion status, shows quality score/findings and actionable recovery state, and queues a new immutable retry on explicit retry.
+- **Decisions and assumptions:** Existing normalized-parser warnings remain immutable and retain provenance. Parser failures are persisted by the job platform and surfaced as a blocking `parser_failure` finding when no normalized output exists. Each explicit retry creates a new configuration identity and idempotent job while preserving earlier parse artifacts.
+- **Deviations from story/technical guide:** None.
+- **Known risks or follow-up:** Verify the PostgreSQL integration suite in CI; repository-wide `@avlp/evals` baseline fixture failure predates this story.
