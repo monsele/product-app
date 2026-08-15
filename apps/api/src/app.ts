@@ -59,6 +59,7 @@ import { SourceUploadService } from "./source-uploads.js";
 import type { IngestionStatusService } from "./ingestion-status.js";
 import type { ParsedDocumentReviewService } from "./parsed-document-review.js";
 import type { SourceSectionSelectionService } from "./source-section-selection.js";
+import type { ContentBlockCorrectionService } from "./content-block-corrections.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
 const TELEMETRY_SHUTDOWN = Symbol("TELEMETRY_SHUTDOWN");
@@ -70,6 +71,9 @@ const PROJECT_SERVICE = Symbol("PROJECT_SERVICE");
 const INGESTION_STATUS_SERVICE = Symbol("INGESTION_STATUS_SERVICE");
 const PARSED_DOCUMENT_REVIEW_SERVICE = Symbol("PARSED_DOCUMENT_REVIEW_SERVICE");
 const SOURCE_SECTION_SELECTION_SERVICE = Symbol("SOURCE_SECTION_SELECTION_SERVICE");
+const CONTENT_BLOCK_CORRECTION_SERVICE = Symbol(
+  "CONTENT_BLOCK_CORRECTION_SERVICE",
+);
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -256,6 +260,10 @@ type SourceSectionSelectionApiService = Pick<
   SourceSectionSelectionService,
   "list" | "update"
 >;
+type ContentBlockCorrectionApiService = Pick<
+  ContentBlockCorrectionService,
+  "update" | "restore"
+>;
 
 @Controller("projects")
 class ProjectsController {
@@ -271,6 +279,8 @@ class ProjectsController {
     private readonly parsedDocumentReview: ParsedDocumentReviewApiService,
     @Inject(SOURCE_SECTION_SELECTION_SERVICE)
     private readonly sourceSectionSelection: SourceSectionSelectionApiService,
+    @Inject(CONTENT_BLOCK_CORRECTION_SERVICE)
+    private readonly contentBlockCorrections: ContentBlockCorrectionApiService,
   ) {}
 
   @Post()
@@ -462,6 +472,59 @@ class ProjectsController {
     });
   }
 
+  @Patch(":projectId/source-blocks/:blockId")
+  public async updateSourceBlock(
+    @Param("projectId") projectId: string,
+    @Param("blockId") blockIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const blockId = identifierSchema.safeParse(blockIdInput);
+    if (!blockId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.contentBlockCorrections.update({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      blockId: blockId.data,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/source-blocks/:blockId/restore")
+  @HttpCode(200)
+  public async restoreSourceBlock(
+    @Param("projectId") projectId: string,
+    @Param("blockId") blockIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const blockId = identifierSchema.safeParse(blockIdInput);
+    if (!blockId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.contentBlockCorrections.restore({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      blockId: blockId.data,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
   @Post(":projectId/source-upload/:sessionId/complete")
   @HttpCode(202)
   public async completeSourceUpload(
@@ -612,6 +675,7 @@ function createAppModule(
   ingestionStatusService: IngestionStatusApiService,
   parsedDocumentReviewService: ParsedDocumentReviewApiService,
   sourceSectionSelectionService: SourceSectionSelectionApiService,
+  contentBlockCorrectionService: ContentBlockCorrectionApiService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -624,8 +688,18 @@ function createAppModule(
       { provide: PROJECT_SERVICE, useValue: projectService },
       { provide: SOURCE_UPLOAD_SERVICE, useValue: sourceUploadService },
       { provide: INGESTION_STATUS_SERVICE, useValue: ingestionStatusService },
-      { provide: PARSED_DOCUMENT_REVIEW_SERVICE, useValue: parsedDocumentReviewService },
-      { provide: SOURCE_SECTION_SELECTION_SERVICE, useValue: sourceSectionSelectionService },
+      {
+        provide: PARSED_DOCUMENT_REVIEW_SERVICE,
+        useValue: parsedDocumentReviewService,
+      },
+      {
+        provide: SOURCE_SECTION_SELECTION_SERVICE,
+        useValue: sourceSectionSelectionService,
+      },
+      {
+        provide: CONTENT_BLOCK_CORRECTION_SERVICE,
+        useValue: contentBlockCorrectionService,
+      },
     ],
   };
 }
@@ -643,6 +717,7 @@ export type CreateAppOptions = {
   ingestionStatusService?: IngestionStatusApiService;
   parsedDocumentReviewService?: ParsedDocumentReviewApiService;
   sourceSectionSelectionService?: SourceSectionSelectionApiService;
+  contentBlockCorrectionService?: ContentBlockCorrectionApiService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -857,6 +932,28 @@ const unavailableSourceSectionSelectionService: SourceSectionSelectionApiService
       ),
   };
 
+const unavailableContentBlockCorrectionService: ContentBlockCorrectionApiService =
+  {
+    update: () =>
+      Promise.reject(
+        new PublicError(
+          "internal_error",
+          "Content block correction is unavailable.",
+          503,
+          true,
+        ),
+      ),
+    restore: () =>
+      Promise.reject(
+        new PublicError(
+          "internal_error",
+          "Content block correction is unavailable.",
+          503,
+          true,
+        ),
+      ),
+  };
+
 export async function createApp(
   options: CreateAppOptions = {},
 ): Promise<NestFastifyApplication> {
@@ -876,6 +973,8 @@ export async function createApp(
         unavailableParsedDocumentReviewService,
       options.sourceSectionSelectionService ??
         unavailableSourceSectionSelectionService,
+      options.contentBlockCorrectionService ??
+        unavailableContentBlockCorrectionService,
     ),
     new FastifyAdapter({
       logger: {

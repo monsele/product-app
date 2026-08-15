@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   parsedDocumentReviewResponseSchema,
   parsedDocumentSectionResponseSchema,
+  reviewContentBlockSchema,
   sourceSectionSelectionResponseSchema,
   sourceSectionSelectionSchema,
   type ParsedDocumentReviewResponse,
@@ -14,6 +15,11 @@ import {
   buildSectionUpdateInput,
   type SectionSelectionAction,
 } from "./source-section-controls";
+import {
+  blockCorrectionRevision,
+  buildBlockCorrectionInput,
+  type BlockCorrectionAction,
+} from "./source-block-controls";
 
 type State =
   | { kind: "loading" }
@@ -197,6 +203,100 @@ export function IngestionReviewViewer({ projectId }: { projectId: string }) {
     [projectId, selections],
   );
 
+  const correctBlock = useCallback(
+    async (
+      sectionId: string,
+      blockId: string,
+      block: Pick<
+        ParsedDocumentSectionResponse["section"]["blocks"][number],
+        "kind"
+      >,
+      action: BlockCorrectionAction,
+    ) => {
+      const current = sectionStatesRef.current[sectionId]?.detail;
+      if (current === undefined) return;
+      const blockDetail = current.section.blocks.find(
+        (entry) => entry.id === blockId,
+      );
+      if (blockDetail === undefined) return;
+      const body = buildBlockCorrectionInput(
+        block,
+        { revision: blockCorrectionRevision(blockDetail) },
+        action,
+      );
+      const url =
+        action.kind === "restore"
+          ? apiUrl(
+              `/projects/${encodeURIComponent(projectId)}/source-blocks/${encodeURIComponent(blockId)}/restore`,
+            )
+          : apiUrl(
+              `/projects/${encodeURIComponent(projectId)}/source-blocks/${encodeURIComponent(blockId)}`,
+            );
+      try {
+        const response = await fetch(url, {
+          method: action.kind === "restore" ? "POST" : "PATCH",
+          credentials: "include",
+          cache: "no-store",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const payload: unknown = await response.json().catch(() => null);
+        if (!response.ok) {
+          const message =
+            typeof payload === "object" &&
+            payload !== null &&
+            "error" in payload &&
+            typeof payload.error === "object" &&
+            payload.error !== null &&
+            "message" in payload.error &&
+            typeof payload.error.message === "string"
+              ? payload.error.message
+              : "Unable to update the block content.";
+          throw new Error(message);
+        }
+        const parsed = reviewContentBlockSchema.safeParse(payload);
+        if (!parsed.success) throw new Error("Unable to update the block.");
+        setSectionStates((prev) => {
+          const detail = prev[sectionId]?.detail;
+          if (detail === undefined) return prev;
+          return {
+            ...prev,
+            [sectionId]: {
+              loading: false,
+              detail: {
+                ...detail,
+                section: {
+                  ...detail.section,
+                  blocks: detail.section.blocks.map((entry) =>
+                    entry.id === blockId ? parsed.data : entry,
+                  ),
+                },
+              },
+            },
+          };
+        });
+      } catch (error) {
+        setSectionStates((prev) => {
+          const existing = prev[sectionId];
+          return {
+            ...prev,
+            [sectionId]: {
+              loading: false,
+              ...(existing?.detail === undefined
+                ? {}
+                : { detail: existing.detail }),
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "Unable to update the block content.",
+            },
+          };
+        });
+      }
+    },
+    [projectId],
+  );
+
   const navigateToWarning = useCallback(
     (warning: { id: string; sectionId?: string | undefined }) => {
       if (warning.sectionId !== undefined) {
@@ -273,9 +373,7 @@ export function IngestionReviewViewer({ projectId }: { projectId: string }) {
                 id={`warning-${warning.id}`}
                 aria-label={`Warning: ${warning.message}`}
               >
-                <span data-severity={warning.severity}>
-                  {warning.severity}
-                </span>
+                <span data-severity={warning.severity}>{warning.severity}</span>
                 {" — "}
                 {warning.message}
                 {" (page "}
@@ -355,9 +453,14 @@ export function IngestionReviewViewer({ projectId }: { projectId: string }) {
                       onSubmit={(event) => {
                         event.preventDefault();
                         const data = new FormData(event.currentTarget);
-                        const heading = String(data.get("heading") ?? "").trim();
+                        const heading = String(
+                          data.get("heading") ?? "",
+                        ).trim();
                         if (heading.length === 0) return;
-                        void updateSection(section.id, { kind: "rename", heading });
+                        void updateSection(section.id, {
+                          kind: "rename",
+                          heading,
+                        });
                       }}
                     >
                       <label>
@@ -391,7 +494,17 @@ export function IngestionReviewViewer({ projectId }: { projectId: string }) {
                         <p role="alert">{sectionState.error}</p>
                       ) : null}
                       {sectionState?.detail ? (
-                        <SectionContent detail={sectionState.detail} />
+                        <SectionContent
+                          detail={sectionState.detail}
+                          onCorrect={(block, action) =>
+                            void correctBlock(
+                              section.id,
+                              block.id,
+                              block,
+                              action,
+                            )
+                          }
+                        />
                       ) : null}
                     </div>
                   ) : null}
@@ -407,8 +520,13 @@ export function IngestionReviewViewer({ projectId }: { projectId: string }) {
 
 function SectionContent({
   detail,
+  onCorrect,
 }: {
   detail: ParsedDocumentSectionResponse;
+  onCorrect: (
+    block: ParsedDocumentSectionResponse["section"]["blocks"][number],
+    action: BlockCorrectionAction,
+  ) => void;
 }) {
   const { section } = detail;
   return (
@@ -419,56 +537,15 @@ function SectionContent({
         <p>This section has no extractable content.</p>
       ) : null}
 
-      {section.blocks.map((block) => {
-        switch (block.kind) {
-          case "paragraph":
-            return (
-              <p key={block.id} data-block-id={block.id}>
-                {block.text}
-              </p>
-            );
-          case "list":
-            return (
-              <ul key={block.id} data-block-id={block.id}>
-                {block.items.map((item, index) => (
-                  <li key={index}>{item}</li>
-                ))}
-              </ul>
-            );
-          case "equation":
-            return (
-              <p key={block.id} data-block-id={block.id} aria-label="Equation">
-                <code>{block.latex}</code>
-                {block.text !== undefined ? (
-                  <span aria-label="Equation text"> ({block.text})</span>
-                ) : null}
-              </p>
-            );
-          case "caption":
-            return (
-              <p key={block.id} data-block-id={block.id}>
-                {block.text}
-              </p>
-            );
-          case "unsupported":
-            return (
-              <p
-                key={block.id}
-                data-block-id={block.id}
-                role="status"
-                aria-label={`Unsupported block: ${block.parserKind}`}
-              >
-                Unsupported content type: {block.parserKind}
-              </p>
-            );
-          default:
-            return null;
-        }
-      })}
+      {section.blocks.map((block) => (
+        <EditableBlock key={block.id} block={block} onCorrect={onCorrect} />
+      ))}
 
       {section.figures.length > 0 ? (
         <div aria-labelledby={`figures-${section.id}`}>
-          <h4 id={`figures-${section.id}`}>Figures ({section.figures.length})</h4>
+          <h4 id={`figures-${section.id}`}>
+            Figures ({section.figures.length})
+          </h4>
           <ul>
             {section.figures.map((figure) => (
               <li key={figure.id} data-figure-id={figure.id}>
@@ -523,6 +600,146 @@ function SectionContent({
           ))}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+function EditableBlock({
+  block,
+  onCorrect,
+}: {
+  block: ParsedDocumentSectionResponse["section"]["blocks"][number];
+  onCorrect: (
+    block: ParsedDocumentSectionResponse["section"]["blocks"][number],
+    action: BlockCorrectionAction,
+  ) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+
+  const renderContent = () => {
+    switch (block.kind) {
+      case "paragraph":
+        return (
+          <p data-block-id={block.id}>
+            {block.correction?.correctedText ?? block.text}
+          </p>
+        );
+      case "list": {
+        const items = block.correction?.correctedItems ?? block.items;
+        return (
+          <ul data-block-id={block.id}>
+            {items.map((item, index) => (
+              <li key={index}>{item}</li>
+            ))}
+          </ul>
+        );
+      }
+      case "equation":
+        return (
+          <p data-block-id={block.id} aria-label="Equation">
+            <code>{block.correction?.correctedLatex ?? block.latex}</code>
+            {block.text !== undefined ? (
+              <span aria-label="Equation text"> ({block.text})</span>
+            ) : null}
+          </p>
+        );
+      case "caption":
+        return (
+          <p data-block-id={block.id}>
+            {block.correction?.correctedText ?? block.text}
+          </p>
+        );
+      case "unsupported":
+        return (
+          <p
+            data-block-id={block.id}
+            role="status"
+            aria-label={`Unsupported block: ${block.parserKind}`}
+          >
+            Unsupported content type: {block.parserKind}
+          </p>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const corrected =
+    block.kind === "unsupported" ? false : block.correction !== undefined;
+
+  return (
+    <div data-block-correction data-corrected={corrected}>
+      {renderContent()}
+      {block.kind === "unsupported" ? null : editing ? (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            const data = new FormData(event.currentTarget);
+            const content = String(data.get("content") ?? "").trim();
+            if (content.length === 0) return;
+            if (block.kind === "list") {
+              onCorrect(block, {
+                kind: "edit-items",
+                correctedItems: content
+                  .split("\n")
+                  .map((item) => item.trim())
+                  .filter((item) => item.length > 0),
+              });
+            } else if (block.kind === "equation") {
+              onCorrect(block, { kind: "edit-latex", correctedLatex: content });
+            } else {
+              onCorrect(block, { kind: "edit", correctedText: content });
+            }
+            setEditing(false);
+          }}
+        >
+          <label>
+            Corrected content
+            {block.kind === "list" ? (
+              <textarea
+                name="content"
+                rows={4}
+                defaultValue={(
+                  block.correction?.correctedItems ?? block.items
+                ).join("\n")}
+              />
+            ) : (
+              <textarea
+                name="content"
+                rows={4}
+                defaultValue={
+                  block.kind === "equation"
+                    ? (block.correction?.correctedLatex ?? block.latex)
+                    : (block.correction?.correctedText ?? block.text)
+                }
+              />
+            )}
+          </label>
+          <button type="submit">Save</button>
+          <button
+            type="button"
+            onClick={() => {
+              setEditing(false);
+            }}
+          >
+            Cancel
+          </button>
+        </form>
+      ) : (
+        <span data-block-actions>
+          <button type="button" onClick={() => setEditing(true)}>
+            {corrected ? "Edit correction" : "Correct text"}
+          </button>
+          {corrected ? (
+            <button
+              type="button"
+              onClick={() => onCorrect(block, { kind: "restore" })}
+            >
+              Restore original
+            </button>
+          ) : null}
+        </span>
+      )}
     </div>
   );
 }

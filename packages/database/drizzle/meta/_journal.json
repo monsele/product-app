@@ -176,6 +176,13 @@
       "when": 1786817121263,
       "tag": "0024_tidy_solo",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1786824572367,
+      "tag": "0025_mean_devos",
+      "breakpoints": true
     }
   ]
 }

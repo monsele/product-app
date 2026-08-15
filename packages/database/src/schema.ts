@@ -585,6 +585,80 @@ export const sourceSectionOverlays = pgTable(
   ],
 );
 
+/**
+ * Editable text correction for one immutable content block. The immutable
+ * `content_blocks.content` row remains authoritative; these rows carry the
+ * teacher's corrected plain/structured text as overlays with a revision.
+ */
+export const contentBlockCorrections = pgTable(
+  "content_block_corrections",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    parsedDocumentId: uuid("parsed_document_id")
+      .notNull()
+      .references(() => parsedDocuments.id, { onDelete: "cascade" }),
+    sectionId: uuid("section_id")
+      .notNull()
+      .references(() => parsedSections.id, { onDelete: "cascade" }),
+    blockId: uuid("block_id")
+      .notNull()
+      .references(() => contentBlocks.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    correctedText: text("corrected_text"),
+    correctedItems: jsonb("corrected_items"),
+    correctedLatex: text("corrected_latex"),
+    revision: revisionColumn(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("content_block_corrections_project_block_unique").on(
+      table.projectId,
+      table.blockId,
+    ),
+    index("content_block_corrections_project_document_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.parsedDocumentId,
+    ),
+  ],
+);
+
+/**
+ * Idempotent dependency-invalidation record: a source correction changed the
+ * effective content, so unapproved downstream drafts must be marked stale.
+ * One row per (project, block, correction revision) prevents duplicates.
+ */
+export const sourceContentInvalidations = pgTable(
+  "source_content_invalidations",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    parsedDocumentId: uuid("parsed_document_id")
+      .notNull()
+      .references(() => parsedDocuments.id, { onDelete: "cascade" }),
+    sectionId: uuid("section_id")
+      .notNull()
+      .references(() => parsedSections.id, { onDelete: "cascade" }),
+    blockId: uuid("block_id")
+      .notNull()
+      .references(() => contentBlocks.id, { onDelete: "cascade" }),
+    blockRevision: integer("block_revision").notNull(),
+    scope: text("scope").notNull().default("unapproved_drafts"),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex(
+      "source_content_invalidations_project_block_revision_unique",
+    ).on(table.projectId, table.blockId, table.blockRevision),
+    index("source_content_invalidations_project_created_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.createdAt,
+    ),
+  ],
+);
+
 export const uploadSessions = pgTable(
   "upload_sessions",
   {
@@ -723,6 +797,8 @@ export const auditEventTypeValues = [
   "document.ingestion_reused",
   "document.ingestion_completed",
   "source.selection_updated",
+  "source.block_corrected",
+  "source.block_restored",
   "share.created",
   "share.revoked",
   "lesson.approved",

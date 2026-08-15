@@ -1,5 +1,6 @@
 import type { Identifier } from "@avlp/config";
 import {
+  contentBlockCorrections,
   contentBlocks,
   extractedFigures,
   ingestionQualityReports,
@@ -302,5 +303,23 @@ export class ParsedDocumentRepository {
       })),
       warnings,
     };
+  }
+
+  /** Loads tenant-scoped block-correction overlays for a parsed document. */
+  public async findBlockCorrections(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    parsedDocumentId: Identifier;
+  }): Promise<readonly (typeof contentBlockCorrections.$inferSelect)[]> {
+    return this.database
+      .select()
+      .from(contentBlockCorrections)
+      .where(
+        and(
+          eq(contentBlockCorrections.ownerUserId, input.ownerUserId),
+          eq(contentBlockCorrections.projectId, input.projectId),
+          eq(contentBlockCorrections.parsedDocumentId, input.parsedDocumentId),
+        ),
+      );
   }
 }

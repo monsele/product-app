@@ -1837,6 +1837,23 @@ export type ParsedDocumentReviewResponse = z.infer<
   typeof parsedDocumentReviewResponseSchema
 >;
 
+/** Correction overlay state attached to a review content block. */
+export const contentBlockCorrectionStateSchema = z
+  .object({
+    revision: z.number().int().positive(),
+    correctedText: z.string().max(50_000).nullable(),
+    correctedItems: z
+      .array(z.string().max(10_000))
+      .min(1)
+      .max(1_000)
+      .nullable(),
+    correctedLatex: z.string().max(20_000).nullable(),
+  })
+  .strict();
+export type ContentBlockCorrectionState = z.infer<
+  typeof contentBlockCorrectionStateSchema
+>;
+
 /** Content block for review display (simplified from normalized ContentBlock). */
 export const reviewContentBlockSchema = z.discriminatedUnion("kind", [
   z
@@ -1847,6 +1864,7 @@ export const reviewContentBlockSchema = z.discriminatedUnion("kind", [
       pageStart: z.number().int().positive(),
       pageEnd: z.number().int().positive(),
       text: z.string().max(50_000),
+      correction: contentBlockCorrectionStateSchema.optional(),
     })
     .strict(),
   z
@@ -1857,6 +1875,7 @@ export const reviewContentBlockSchema = z.discriminatedUnion("kind", [
       pageStart: z.number().int().positive(),
       pageEnd: z.number().int().positive(),
       items: z.array(z.string().max(10_000)).min(1).max(1_000),
+      correction: contentBlockCorrectionStateSchema.optional(),
     })
     .strict(),
   z
@@ -1868,6 +1887,7 @@ export const reviewContentBlockSchema = z.discriminatedUnion("kind", [
       pageEnd: z.number().int().positive(),
       latex: z.string().max(20_000),
       text: z.string().max(20_000).optional(),
+      correction: contentBlockCorrectionStateSchema.optional(),
     })
     .strict(),
   z
@@ -1878,6 +1898,7 @@ export const reviewContentBlockSchema = z.discriminatedUnion("kind", [
       pageStart: z.number().int().positive(),
       pageEnd: z.number().int().positive(),
       text: z.string().max(10_000),
+      correction: contentBlockCorrectionStateSchema.optional(),
     })
     .strict(),
   z
@@ -2060,4 +2081,86 @@ export type SourceSectionSelectionResponse = z.infer<
 export const sourceSectionUpdateResponseSchema = sourceSectionSelectionSchema;
 export type SourceSectionUpdateResponse = z.infer<
   typeof sourceSectionUpdateResponseSchema
+>;
+
+// ---------------------------------------------------------------------------
+// ST-039 — Content-block correction overlays
+// ---------------------------------------------------------------------------
+
+/**
+ * Patch body for one content-block correction. `kind` must match the immutable
+ * block kind and `revision` is the expected current correction revision (0 means
+ * "no correction exists yet"). Corrected content is bounded plain/structured
+ * text appropriate to the block kind.
+ */
+export const contentBlockCorrectionInputSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal("paragraph"),
+      revision: z.number().int().nonnegative(),
+      correctedText: z.string().trim().min(1).max(50_000),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("list"),
+      revision: z.number().int().nonnegative(),
+      correctedItems: z
+        .array(z.string().trim().min(1).max(10_000))
+        .min(1)
+        .max(1_000),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("equation"),
+      revision: z.number().int().nonnegative(),
+      correctedLatex: z.string().trim().min(1).max(20_000),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("caption"),
+      revision: z.number().int().nonnegative(),
+      correctedText: z.string().trim().min(1).max(10_000),
+    })
+    .strict(),
+]);
+export type ContentBlockCorrectionInput = z.infer<
+  typeof contentBlockCorrectionInputSchema
+>;
+
+/** Body for the restore-original command; carries the expected correction revision. */
+export const contentBlockRestoreInputSchema = z
+  .object({
+    revision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type ContentBlockRestoreInput = z.infer<
+  typeof contentBlockRestoreInputSchema
+>;
+
+/** Persisted correction overlay for one content block. */
+export const contentBlockCorrectionSchema = z
+  .object({
+    blockId: identifierSchema,
+    kind: z.enum(["paragraph", "list", "equation", "caption"]),
+    correctedText: z.string().max(50_000).nullable(),
+    correctedItems: z
+      .array(z.string().max(10_000))
+      .min(1)
+      .max(1_000)
+      .nullable(),
+    correctedLatex: z.string().max(20_000).nullable(),
+    revision: z.number().int().positive(),
+  })
+  .strict();
+export type ContentBlockCorrection = z.infer<
+  typeof contentBlockCorrectionSchema
+>;
+
+/** Single correction update response: the projected effective block. */
+export const contentBlockUpdateResponseSchema = reviewContentBlockSchema;
+export type ContentBlockUpdateResponse = z.infer<
+  typeof contentBlockUpdateResponseSchema
 >;

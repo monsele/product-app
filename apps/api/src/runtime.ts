@@ -22,6 +22,7 @@ import {
 } from "./parsed-document-review.js";
 import { ParsedDocumentRepository } from "./parsed-document-repository.js";
 import { PostgresSourceSectionSelectionService } from "./source-section-selection.js";
+import { PostgresContentBlockCorrectionService } from "./content-block-corrections.js";
 
 export async function runApi(input: {
   telemetryShutdown: () => Promise<void>;
@@ -101,6 +102,9 @@ export async function runApi(input: {
         authorizedProjectStorage,
       ),
       sourceSectionSelectionService: new PostgresSourceSectionSelectionService(
+        database.client,
+      ),
+      contentBlockCorrectionService: new PostgresContentBlockCorrectionService(
         database.client,
       ),
       projectAuthorizer,

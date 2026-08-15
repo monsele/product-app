@@ -16,6 +16,7 @@ import {
   reviewWarningSchema,
   type ParsedDocumentReviewResponse,
   type ParsedDocumentSectionResponse,
+  type ContentBlockCorrectionState,
 } from "@avlp/schemas";
 import type { AuthorizedProjectStorage } from "@avlp/storage";
 import type { z } from "zod";
@@ -145,6 +146,11 @@ export class PostgresParsedDocumentReviewService
         "The requested section was not found in this document.",
         404,
       );
+    const corrections = await this.loadCorrections(
+      ownerUserId,
+      projectId,
+      latest.document.id,
+    );
     const figureSignedUrls = await this.signFigureUrls(
       ownerUserId,
       projectId,
@@ -168,6 +174,7 @@ export class PostgresParsedDocumentReviewService
             block.pageStart,
             block.pageEnd,
             block.content,
+            corrections.get(block.id),
           ),
         ),
         figures: detail.figures.map((figure) => {
@@ -207,6 +214,28 @@ export class PostgresParsedDocumentReviewService
         ),
       },
     });
+  }
+
+  private async loadCorrections(
+    ownerUserId: Identifier,
+    projectId: Identifier,
+    parsedDocumentId: Identifier,
+  ): Promise<Map<string, ContentBlockCorrectionState>> {
+    const rows = await this.repository.findBlockCorrections({
+      ownerUserId,
+      projectId,
+      parsedDocumentId,
+    });
+    const result = new Map<string, ContentBlockCorrectionState>();
+    for (const row of rows) {
+      result.set(row.blockId, {
+        revision: row.revision,
+        correctedText: row.correctedText,
+        correctedItems: row.correctedItems as string[] | null,
+        correctedLatex: row.correctedLatex,
+      });
+    }
+    return result;
   }
 
   private async signFigureUrls(
@@ -266,8 +295,11 @@ function mapContentBlock(
   pageStart: number,
   pageEnd: number,
   content: unknown,
+  correction?: ContentBlockCorrectionState,
 ): z.infer<typeof reviewContentBlockSchema> {
   const raw = (content ?? {}) as Record<string, unknown>;
+  const correctionField =
+    correction === undefined ? {} : { correction: { ...correction } };
   switch (kind) {
     case "paragraph":
       return reviewContentBlockSchema.parse({
@@ -277,6 +309,7 @@ function mapContentBlock(
         pageStart,
         pageEnd,
         text: raw.text ?? "",
+        ...correctionField,
       });
     case "list":
       return reviewContentBlockSchema.parse({
@@ -286,6 +319,7 @@ function mapContentBlock(
         pageStart,
         pageEnd,
         items: raw.items ?? [],
+        ...correctionField,
       });
     case "equation":
       return reviewContentBlockSchema.parse({
@@ -296,6 +330,7 @@ function mapContentBlock(
         pageEnd,
         latex: raw.latex ?? "",
         ...(typeof raw.text === "string" ? { text: raw.text } : {}),
+        ...correctionField,
       });
     case "caption":
       return reviewContentBlockSchema.parse({
@@ -305,6 +340,7 @@ function mapContentBlock(
         pageStart,
         pageEnd,
         text: raw.text ?? "",
+        ...correctionField,
       });
     case "unsupported":
       return reviewContentBlockSchema.parse({
