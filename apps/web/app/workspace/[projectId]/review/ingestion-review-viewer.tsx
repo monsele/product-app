@@ -4,9 +4,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   parsedDocumentReviewResponseSchema,
   parsedDocumentSectionResponseSchema,
+  sourceSectionSelectionResponseSchema,
+  sourceSectionSelectionSchema,
   type ParsedDocumentReviewResponse,
   type ParsedDocumentSectionResponse,
+  type SourceSectionSelection,
 } from "@avlp/schemas";
+import {
+  buildSectionUpdateInput,
+  type SectionSelectionAction,
+} from "./source-section-controls";
 
 type State =
   | { kind: "loading" }
@@ -23,26 +30,59 @@ function apiUrl(path: string): string {
   return `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}${path}`;
 }
 
+function selectionFor(
+  selections: Record<string, SourceSectionSelection>,
+  sectionId: string,
+): SourceSectionSelection | undefined {
+  return selections[sectionId];
+}
+
 export function IngestionReviewViewer({ projectId }: { projectId: string }) {
   const [state, setState] = useState<State>({ kind: "loading" });
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
-  const [sectionStates, setSectionStates] = useState<Record<string, SectionState>>({});
+  const [selections, setSelections] = useState<
+    Record<string, SourceSectionSelection>
+  >({});
+  const [selectionError, setSelectionError] = useState<string | undefined>();
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(
+    new Set(),
+  );
+  const [sectionStates, setSectionStates] = useState<
+    Record<string, SectionState>
+  >({});
   const sectionStatesRef = useRef(sectionStates);
   sectionStatesRef.current = sectionStates;
 
   const refresh = useCallback(async () => {
     try {
-      const response = await fetch(
-        apiUrl(`/projects/${encodeURIComponent(projectId)}/parsed-document`),
-        { credentials: "include", cache: "no-store" },
-      );
-      const payload: unknown = await response.json().catch(() => null);
-      const parsed = response.ok
-        ? parsedDocumentReviewResponseSchema.safeParse(payload)
+      const [reviewResponse, selectionResponse] = await Promise.all([
+        fetch(
+          apiUrl(`/projects/${encodeURIComponent(projectId)}/parsed-document`),
+          { credentials: "include", cache: "no-store" },
+        ),
+        fetch(
+          apiUrl(`/projects/${encodeURIComponent(projectId)}/source-sections`),
+          { credentials: "include", cache: "no-store" },
+        ),
+      ]);
+      const [reviewPayload, selectionPayload] = await Promise.all([
+        reviewResponse.json().catch(() => null),
+        selectionResponse.json().catch(() => null),
+      ]);
+      const review = reviewResponse.ok
+        ? parsedDocumentReviewResponseSchema.safeParse(reviewPayload)
         : undefined;
-      if (parsed === undefined || !parsed.success)
-        throw new Error("Unable to load document review.");
-      setState({ kind: "ready", value: parsed.data });
+      const selection = selectionResponse.ok
+        ? sourceSectionSelectionResponseSchema.safeParse(selectionPayload)
+        : undefined;
+      if (review === undefined || !review.success) throw new Error("review");
+      if (selection === undefined || !selection.success)
+        throw new Error("selection");
+      setState({ kind: "ready", value: review.data });
+      setSelections(
+        Object.fromEntries(
+          selection.data.sections.map((entry) => [entry.id, entry]),
+        ),
+      );
     } catch {
       setState({
         kind: "failed",
@@ -104,11 +144,61 @@ export function IngestionReviewViewer({ projectId }: { projectId: string }) {
     [projectId],
   );
 
+  const updateSection = useCallback(
+    async (sectionId: string, action: SectionSelectionAction) => {
+      setSelectionError(undefined);
+      const current = selectionFor(selections, sectionId);
+      const body = buildSectionUpdateInput(
+        {
+          revision: current?.revision ?? 0,
+          included: current?.included ?? true,
+          displayHeading: current?.displayHeading ?? null,
+        },
+        action,
+      );
+      try {
+        const response = await fetch(
+          apiUrl(
+            `/projects/${encodeURIComponent(projectId)}/source-sections/${encodeURIComponent(sectionId)}`,
+          ),
+          {
+            method: "PATCH",
+            credentials: "include",
+            cache: "no-store",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
+          },
+        );
+        const payload: unknown = await response.json().catch(() => null);
+        if (!response.ok) {
+          const message =
+            typeof payload === "object" &&
+            payload !== null &&
+            "error" in payload &&
+            typeof payload.error === "object" &&
+            payload.error !== null &&
+            "message" in payload.error &&
+            typeof payload.error.message === "string"
+              ? payload.error.message
+              : "Unable to update the section selection.";
+          throw new Error(message);
+        }
+        const parsed = sourceSectionSelectionSchema.safeParse(payload);
+        if (!parsed.success) throw new Error("Unable to update the section.");
+        setSelections((prev) => ({ ...prev, [sectionId]: parsed.data }));
+      } catch (error) {
+        setSelectionError(
+          error instanceof Error
+            ? error.message
+            : "Unable to update the section selection.",
+        );
+      }
+    },
+    [projectId, selections],
+  );
+
   const navigateToWarning = useCallback(
-    (warning: {
-      id: string;
-      sectionId?: string | undefined;
-    }) => {
+    (warning: { id: string; sectionId?: string | undefined }) => {
       if (warning.sectionId !== undefined) {
         const sid = warning.sectionId;
         setExpandedSections((prev) => {
@@ -169,6 +259,10 @@ export function IngestionReviewViewer({ projectId }: { projectId: string }) {
         </p>
       ) : null}
 
+      {selectionError !== undefined ? (
+        <p role="alert">{selectionError}</p>
+      ) : null}
+
       {warnings.length > 0 ? (
         <div aria-labelledby="warnings-heading">
           <h3 id="warnings-heading">Warnings ({warnings.length})</h3>
@@ -213,6 +307,10 @@ export function IngestionReviewViewer({ projectId }: { projectId: string }) {
             {sections.map((section) => {
               const isExpanded = expandedSections.has(section.id);
               const sectionState = sectionStates[section.id];
+              const selection = selectionFor(selections, section.id);
+              const included = selection?.included ?? true;
+              const effectiveHeading =
+                selection?.displayHeading ?? section.heading;
               return (
                 <li key={section.id} role="treeitem" aria-expanded={isExpanded}>
                   <button
@@ -223,7 +321,7 @@ export function IngestionReviewViewer({ projectId }: { projectId: string }) {
                     tabIndex={0}
                     onClick={() => void toggleSection(section.id)}
                   >
-                    {section.heading || "(untitled section)"}
+                    {effectiveHeading || "(untitled section)"}
                   </button>
                   {" — page "}
                   {section.pageStart}
@@ -239,6 +337,51 @@ export function IngestionReviewViewer({ projectId }: { projectId: string }) {
                   {section.tableCount > 0
                     ? ` · ${section.tableCount} tables`
                     : ""}
+                  <div data-section-selection>
+                    <span data-included={included}>
+                      {included ? "Included" : "Excluded"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void updateSection(section.id, {
+                          kind: included ? "exclude" : "include",
+                        })
+                      }
+                    >
+                      {included ? "Exclude" : "Include"}
+                    </button>
+                    <form
+                      onSubmit={(event) => {
+                        event.preventDefault();
+                        const data = new FormData(event.currentTarget);
+                        const heading = String(data.get("heading") ?? "").trim();
+                        if (heading.length === 0) return;
+                        void updateSection(section.id, { kind: "rename", heading });
+                      }}
+                    >
+                      <label>
+                        Heading
+                        <input
+                          type="text"
+                          name="heading"
+                          defaultValue={effectiveHeading || ""}
+                          maxLength={1000}
+                        />
+                      </label>
+                      <button type="submit">Rename</button>
+                    </form>
+                    {selection !== undefined ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void updateSection(section.id, { kind: "restore" })
+                        }
+                      >
+                        Restore original
+                      </button>
+                    ) : null}
+                  </div>
                   {isExpanded ? (
                     <div id={`section-content-${section.id}`}>
                       {sectionState?.loading ? (

@@ -12,6 +12,7 @@ import {
   Injectable,
   Module,
   Param,
+  Patch,
   Post,
   Req,
   Res,
@@ -57,6 +58,7 @@ import { ProjectService } from "./projects.js";
 import { SourceUploadService } from "./source-uploads.js";
 import type { IngestionStatusService } from "./ingestion-status.js";
 import type { ParsedDocumentReviewService } from "./parsed-document-review.js";
+import type { SourceSectionSelectionService } from "./source-section-selection.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
 const TELEMETRY_SHUTDOWN = Symbol("TELEMETRY_SHUTDOWN");
@@ -67,6 +69,7 @@ const SOURCE_UPLOAD_SERVICE = Symbol("SOURCE_UPLOAD_SERVICE");
 const PROJECT_SERVICE = Symbol("PROJECT_SERVICE");
 const INGESTION_STATUS_SERVICE = Symbol("INGESTION_STATUS_SERVICE");
 const PARSED_DOCUMENT_REVIEW_SERVICE = Symbol("PARSED_DOCUMENT_REVIEW_SERVICE");
+const SOURCE_SECTION_SELECTION_SERVICE = Symbol("SOURCE_SECTION_SELECTION_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -249,6 +252,10 @@ type ParsedDocumentReviewApiService = Pick<
   ParsedDocumentReviewService,
   "review" | "section"
 >;
+type SourceSectionSelectionApiService = Pick<
+  SourceSectionSelectionService,
+  "list" | "update"
+>;
 
 @Controller("projects")
 class ProjectsController {
@@ -262,6 +269,8 @@ class ProjectsController {
     private readonly ingestionStatus: IngestionStatusApiService,
     @Inject(PARSED_DOCUMENT_REVIEW_SERVICE)
     private readonly parsedDocumentReview: ParsedDocumentReviewApiService,
+    @Inject(SOURCE_SECTION_SELECTION_SERVICE)
+    private readonly sourceSectionSelection: SourceSectionSelectionApiService,
   ) {}
 
   @Post()
@@ -415,6 +424,44 @@ class ProjectsController {
     );
   }
 
+  @Get(":projectId/source-sections")
+  public async sourceSections(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    return this.sourceSectionSelection.list(
+      access.ownerUserId,
+      access.projectId,
+    );
+  }
+
+  @Patch(":projectId/source-sections/:sectionId")
+  public async updateSourceSection(
+    @Param("projectId") projectId: string,
+    @Param("sectionId") sectionIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const sectionId = identifierSchema.safeParse(sectionIdInput);
+    if (!sectionId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.sourceSectionSelection.update({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      sectionId: sectionId.data,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
   @Post(":projectId/source-upload/:sessionId/complete")
   @HttpCode(202)
   public async completeSourceUpload(
@@ -564,6 +611,7 @@ function createAppModule(
   sourceUploadService: SourceUploadApiService,
   ingestionStatusService: IngestionStatusApiService,
   parsedDocumentReviewService: ParsedDocumentReviewApiService,
+  sourceSectionSelectionService: SourceSectionSelectionApiService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -577,6 +625,7 @@ function createAppModule(
       { provide: SOURCE_UPLOAD_SERVICE, useValue: sourceUploadService },
       { provide: INGESTION_STATUS_SERVICE, useValue: ingestionStatusService },
       { provide: PARSED_DOCUMENT_REVIEW_SERVICE, useValue: parsedDocumentReviewService },
+      { provide: SOURCE_SECTION_SELECTION_SERVICE, useValue: sourceSectionSelectionService },
     ],
   };
 }
@@ -593,6 +642,7 @@ export type CreateAppOptions = {
   sourceUploadService?: SourceUploadApiService;
   ingestionStatusService?: IngestionStatusApiService;
   parsedDocumentReviewService?: ParsedDocumentReviewApiService;
+  sourceSectionSelectionService?: SourceSectionSelectionApiService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -785,6 +835,28 @@ const unavailableParsedDocumentReviewService: ParsedDocumentReviewApiService = {
     ),
 };
 
+const unavailableSourceSectionSelectionService: SourceSectionSelectionApiService =
+  {
+    list: () =>
+      Promise.reject(
+        new PublicError(
+          "internal_error",
+          "Source section selection is unavailable.",
+          503,
+          true,
+        ),
+      ),
+    update: () =>
+      Promise.reject(
+        new PublicError(
+          "internal_error",
+          "Source section selection is unavailable.",
+          503,
+          true,
+        ),
+      ),
+  };
+
 export async function createApp(
   options: CreateAppOptions = {},
 ): Promise<NestFastifyApplication> {
@@ -802,6 +874,8 @@ export async function createApp(
       options.ingestionStatusService ?? unavailableIngestionStatusService,
       options.parsedDocumentReviewService ??
         unavailableParsedDocumentReviewService,
+      options.sourceSectionSelectionService ??
+        unavailableSourceSectionSelectionService,
     ),
     new FastifyAdapter({
       logger: {
@@ -830,7 +904,7 @@ export async function createApp(
       {
         origin: options.trustedOrigin,
         credentials: true,
-        methods: ["GET", "POST", "DELETE"],
+        methods: ["GET", "POST", "PATCH", "DELETE"],
       },
     );
   app

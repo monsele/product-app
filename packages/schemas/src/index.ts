@@ -1968,3 +1968,96 @@ export const parsedDocumentSectionResponseSchema = z
 export type ParsedDocumentSectionResponse = z.infer<
   typeof parsedDocumentSectionResponseSchema
 >;
+
+// ---------------------------------------------------------------------------
+// ST-038 — Source section selection overlays
+// ---------------------------------------------------------------------------
+
+/**
+ * Patch body for a single source-section overlay. `revision` is the expected
+ * current overlay revision (0 means "no overlay exists yet"). At least one
+ * field beyond `revision` must be supplied; `null` restores the original value.
+ */
+export const sourceSectionOverlayInputSchema = z
+  .object({
+    revision: z.number().int().nonnegative(),
+    included: z.boolean().optional(),
+    displayHeading: z
+      .string()
+      .trim()
+      .min(1)
+      .max(1_000)
+      .nullable()
+      .optional(),
+    reviewOrder: z.number().int().positive().nullable().optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (
+      value.included === undefined &&
+      value.displayHeading === undefined &&
+      value.reviewOrder === undefined
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["root"],
+        message:
+          "Provide at least one change: included, displayHeading, or reviewOrder.",
+      });
+  });
+export type SourceSectionOverlayInput = z.infer<
+  typeof sourceSectionOverlayInputSchema
+>;
+
+/** Persisted overlay state for one source section. */
+export const sourceSectionOverlaySchema = z
+  .object({
+    sectionId: identifierSchema,
+    included: z.boolean(),
+    displayHeading: z.string().max(1_000).nullable(),
+    reviewOrder: z.number().int().positive().nullable(),
+    revision: z.number().int().positive(),
+  })
+  .strict();
+export type SourceSectionOverlay = z.infer<typeof sourceSectionOverlaySchema>;
+
+/**
+ * Effective (projected) source section. `heading` is the immutable parser
+ * heading, `displayHeading` the teacher override (null means unchanged), and
+ * `revision` is the overlay revision (0 when no overlay exists yet).
+ */
+export const sourceSectionSelectionSchema = z
+  .object({
+    id: identifierSchema,
+    parentSectionId: identifierSchema.optional(),
+    order: z.number().int().positive(),
+    level: z.number().int().min(1).max(10),
+    heading: z.string().max(1_000),
+    displayHeading: z.string().max(1_000).nullable(),
+    included: z.boolean(),
+    reviewOrder: z.number().int().positive().nullable(),
+    pageStart: z.number().int().positive(),
+    pageEnd: z.number().int().positive(),
+    revision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type SourceSectionSelection = z.infer<
+  typeof sourceSectionSelectionSchema
+>;
+
+/** Effective section-selection projection for the current parsed document. */
+export const sourceSectionSelectionResponseSchema = z
+  .object({
+    documentId: identifierSchema,
+    sections: z.array(sourceSectionSelectionSchema).max(10_000),
+  })
+  .strict();
+export type SourceSectionSelectionResponse = z.infer<
+  typeof sourceSectionSelectionResponseSchema
+>;
+
+/** Single overlay update response: the projected section after the change. */
+export const sourceSectionUpdateResponseSchema = sourceSectionSelectionSchema;
+export type SourceSectionUpdateResponse = z.infer<
+  typeof sourceSectionUpdateResponseSchema
+>;

@@ -550,6 +550,41 @@ export const ingestionQualityReports = pgTable(
   ],
 );
 
+/**
+ * Project/version-specific section-selection overlay. The immutable
+ * `parsed_sections` row remains authoritative; these rows carry the teacher's
+ * include/exclude, rename, and review-order decisions as editable overlays.
+ */
+export const sourceSectionOverlays = pgTable(
+  "source_section_overlays",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    parsedDocumentId: uuid("parsed_document_id")
+      .notNull()
+      .references(() => parsedDocuments.id, { onDelete: "cascade" }),
+    sectionId: uuid("section_id")
+      .notNull()
+      .references(() => parsedSections.id, { onDelete: "cascade" }),
+    included: boolean("included").notNull().default(true),
+    displayHeading: text("display_heading"),
+    reviewOrder: integer("review_order"),
+    revision: revisionColumn(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("source_section_overlays_project_section_unique").on(
+      table.projectId,
+      table.sectionId,
+    ),
+    index("source_section_overlays_project_document_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.parsedDocumentId,
+    ),
+  ],
+);
+
 export const uploadSessions = pgTable(
   "upload_sessions",
   {
@@ -687,6 +722,7 @@ export const auditEventTypeValues = [
   "document.validation_rejected",
   "document.ingestion_reused",
   "document.ingestion_completed",
+  "source.selection_updated",
   "share.created",
   "share.revoked",
   "lesson.approved",

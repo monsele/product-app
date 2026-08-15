@@ -21,6 +21,7 @@ import {
   PostgresParsedDocumentReviewService,
 } from "./parsed-document-review.js";
 import { ParsedDocumentRepository } from "./parsed-document-repository.js";
+import { PostgresSourceSectionSelectionService } from "./source-section-selection.js";
 
 export async function runApi(input: {
   telemetryShutdown: () => Promise<void>;
@@ -98,6 +99,9 @@ export async function runApi(input: {
       parsedDocumentReviewService: new PostgresParsedDocumentReviewService(
         parsedDocumentRepository,
         authorizedProjectStorage,
+      ),
+      sourceSectionSelectionService: new PostgresSourceSectionSelectionService(
+        database.client,
       ),
       projectAuthorizer,
       ...(environment.WEB_ORIGIN === undefined
