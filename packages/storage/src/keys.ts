@@ -51,10 +51,38 @@ export const storageKeys = {
     );
   },
 
+  parsedMarkdown(input: ParsedKey): StorageKey {
+    const versionId = identifierSchema.parse(input.versionId);
+    return validatedKey(
+      `${tenantPrefix(input)}/parsed/${versionId}/document.md`,
+    );
+  },
+
+  parsedStagingDocling(input: ParsedKey): StorageKey {
+    const versionId = identifierSchema.parse(input.versionId);
+    return validatedKey(
+      `${tenantPrefix(input)}/parsed-staging/${versionId}/docling.json`,
+    );
+  },
+
+  parsedStagingMarkdown(input: ParsedKey): StorageKey {
+    const versionId = identifierSchema.parse(input.versionId);
+    return validatedKey(
+      `${tenantPrefix(input)}/parsed-staging/${versionId}/document.md`,
+    );
+  },
+
   parsedNormalized(input: ParsedKey): StorageKey {
     const versionId = identifierSchema.parse(input.versionId);
     return validatedKey(
       `${tenantPrefix(input)}/parsed/${versionId}/normalized.json`,
+    );
+  },
+
+  parsedStagingNormalized(input: ParsedKey): StorageKey {
+    const versionId = identifierSchema.parse(input.versionId);
+    return validatedKey(
+      `${tenantPrefix(input)}/parsed-staging/${versionId}/normalized.json`,
     );
   },
 

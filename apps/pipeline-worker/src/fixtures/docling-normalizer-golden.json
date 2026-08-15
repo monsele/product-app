@@ -1,0 +1,18 @@
+{
+  "canonicalJson": {
+    "body": {
+      "children": ["#/texts/0", "#/texts/1", "#/texts/2", "#/texts/3"]
+    },
+    "texts": [
+      { "label": "title", "text": "Water cycle", "prov": [{ "page_no": 1 }] },
+      { "label": "text", "text": "Water evaporates from warm surfaces.", "prov": [{ "page_no": 1 }] },
+      { "label": "section_header", "level": 2, "text": "Condensation", "prov": [{ "page_no": 2 }] },
+      { "label": "list_item", "text": "Water vapour cools into droplets.", "prov": [{ "page_no": 2 }] }
+    ]
+  },
+  "expected": {
+    "headings": ["Water cycle", "Condensation"],
+    "blockKinds": ["paragraph", "list"],
+    "pages": [1, 2]
+  }
+}

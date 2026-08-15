@@ -22,9 +22,21 @@ describe("storageKeys", () => {
     expect(storageKeys.parsedDocling({ ...scope, versionId: entityId })).toBe(
       `${prefix}/parsed/${entityId}/docling.json`,
     );
+    expect(storageKeys.parsedMarkdown({ ...scope, versionId: entityId })).toBe(
+      `${prefix}/parsed/${entityId}/document.md`,
+    );
+    expect(
+      storageKeys.parsedStagingDocling({ ...scope, versionId: entityId }),
+    ).toBe(`${prefix}/parsed-staging/${entityId}/docling.json`);
+    expect(
+      storageKeys.parsedStagingMarkdown({ ...scope, versionId: entityId }),
+    ).toBe(`${prefix}/parsed-staging/${entityId}/document.md`);
     expect(
       storageKeys.parsedNormalized({ ...scope, versionId: entityId }),
     ).toBe(`${prefix}/parsed/${entityId}/normalized.json`);
+    expect(
+      storageKeys.parsedStagingNormalized({ ...scope, versionId: entityId }),
+    ).toBe(`${prefix}/parsed-staging/${entityId}/normalized.json`);
     expect(
       storageKeys.assetOriginal({
         ...scope,

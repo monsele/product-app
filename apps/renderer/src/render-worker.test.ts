@@ -21,6 +21,7 @@ import {
   type StorageKey,
   type StorageObjectBytes,
   type StorageObjectMetadata,
+  type WriteObjectRequest,
 } from "@avlp/storage";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -67,6 +68,29 @@ class MemoryStorage implements ObjectStorage {
     void key;
     void maxBytes;
     throw new Error("Object-body reads are outside renderer tests.");
+  }
+
+  public async putBytes(
+    input: WriteObjectRequest,
+  ): Promise<StorageObjectMetadata> {
+    this.put({
+      key: input.key,
+      bytes: input.body,
+      contentType: input.contentType,
+      metadata: input.metadata ?? {},
+    });
+    return this.getMetadata(input.key);
+  }
+
+  public async copy(
+    input: Parameters<ObjectStorage["copy"]>[0],
+  ): Promise<StorageObjectMetadata> {
+    const source = await this.getMetadata(input.sourceKey);
+    this.objects.set(input.destinationKey, {
+      ...source,
+      object: { ...source.object, key: input.destinationKey },
+    });
+    return this.getMetadata(input.destinationKey);
   }
 
   public async exists(key: StorageKey): Promise<boolean> {

@@ -249,6 +249,10 @@ export const malwareScannerEnvironmentSchema = z.object({
     .optional(),
   MALWARE_SCANNER_TOKEN: z.string().min(1).optional(),
 });
+export const ingestionServiceEnvironmentSchema = z.object({
+  INGESTION_SERVICE_URL: z.string().url().optional(),
+  INGESTION_SERVICE_TOKEN: z.string().min(32).optional(),
+});
 export const apiEnvironmentSchema = baseEnvironmentSchema
   .merge(databaseEnvironmentSchema)
   .merge(redisEnvironmentSchema)
@@ -298,6 +302,7 @@ export const workerEnvironmentSchema = baseEnvironmentSchema
   .merge(redisEnvironmentSchema.partial())
   .merge(storageEnvironmentObjectSchema)
   .merge(malwareScannerEnvironmentSchema)
+  .merge(ingestionServiceEnvironmentSchema)
   .superRefine((value, context) => {
     validateStorageCredentialPair(value, context);
     if (
@@ -308,6 +313,24 @@ export const workerEnvironmentSchema = baseEnvironmentSchema
         code: z.ZodIssueCode.custom,
         path: ["MALWARE_SCANNER_URL"],
         message: "MALWARE_SCANNER_URL is required in production.",
+      });
+    if (
+      value.NODE_ENV === "production" &&
+      value.INGESTION_SERVICE_URL === undefined
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["INGESTION_SERVICE_URL"],
+        message: "INGESTION_SERVICE_URL is required in production.",
+      });
+    if (
+      value.NODE_ENV === "production" &&
+      value.INGESTION_SERVICE_TOKEN === undefined
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["INGESTION_SERVICE_TOKEN"],
+        message: "INGESTION_SERVICE_TOKEN is required in production.",
       });
   });
 export const webEnvironmentSchema = baseEnvironmentSchema.extend({

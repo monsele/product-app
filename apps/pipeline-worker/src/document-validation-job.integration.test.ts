@@ -6,12 +6,15 @@ import {
   outboxEvents,
   projects,
   sourceDocuments,
+  sourceDocumentIngestionArtifacts,
+  sourceDocumentIngestionReuses,
   users,
 } from "@avlp/database";
 import { createTestDatabase, type TestDatabase } from "@avlp/database/testing";
 import {
   documentValidationCleanupJobPayloadSchema,
   documentValidationJobPayloadSchema,
+  currentIngestionCompatibility,
 } from "@avlp/schemas";
 import { eq } from "drizzle-orm";
 import { PDFDocument } from "pdf-lib";
@@ -54,6 +57,8 @@ describeWithPostgres("document validation job", () => {
     await database!.client.delete(outboxEvents);
     await database!.client.delete(jobs);
     await database!.client.delete(auditEvents);
+    await database!.client.delete(sourceDocumentIngestionReuses);
+    await database!.client.delete(sourceDocumentIngestionArtifacts);
     await database!.client.delete(sourceDocuments);
     await database!.client.delete(projects);
     await database!.client.delete(users);
@@ -127,6 +132,242 @@ describeWithPostgres("document validation job", () => {
       .from(jobs)
       .where(eq(jobs.jobType, "document.ingestion"));
     expect(ingestion).toBeDefined();
+    expect(ingestion?.inputVersion).toContain(`sha256:${"a".repeat(64)}`);
+    expect(ingestion?.idempotencyKey).toBeTruthy();
+  });
+
+  it("queues one ingestion job and outbox event for overlapping validation delivery", async () => {
+    const handler = createDocumentValidationJobHandler({
+      database: database!.client,
+      storage: {
+        delete: async () => undefined,
+        getBytes: async () => ({ body: bytes, metadata: {} as never }),
+      },
+      scanner: {
+        scan: async () => {
+          await Promise.resolve();
+          return { status: "safe" as const };
+        },
+      },
+      maxUploadBytes: 1_024,
+    });
+    const payload = documentValidationJobPayloadSchema.parse({
+      schemaVersion: 1,
+      sourceDocumentId: documentId,
+    });
+
+    await expect(
+      Promise.all([handler.handler(payload, context), handler.handler(payload, context)]),
+    ).resolves.toHaveLength(2);
+    expect(
+      (await database!.client.select().from(jobs)).filter(
+        (job) => job.jobType === "document.ingestion",
+      ),
+    ).toHaveLength(1);
+    expect(
+      (await database!.client.select().from(outboxEvents)).filter(
+        (event) => event.eventType === "document.ingestion.requested.v1",
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("reuses a same-owner compatible immutable artifact without queuing ingestion", async () => {
+    const sourceProjectId = createId(new Date("2026-08-14T09:01:00.000Z"));
+    const sourceDocumentId = createId(new Date("2026-08-14T09:01:01.000Z"));
+    const artifactId = createId(new Date("2026-08-14T09:01:02.000Z"));
+    await database!.client.insert(projects).values({
+      id: sourceProjectId,
+      ownerUserId,
+      title: "Reusable source",
+      stage: "ingestion_review",
+    });
+    await database!.client.insert(sourceDocuments).values({
+      id: sourceDocumentId,
+      projectId: sourceProjectId,
+      ownerUserId,
+      originalName: "water-cycle-original.pdf",
+      mediaType: "application/pdf",
+      sizeBytes: bytes.byteLength,
+      sha256: "a".repeat(64),
+      storageKey: `users/${ownerUserId}/projects/${sourceProjectId}/source/${sourceDocumentId}/original.pdf`,
+      status: "active",
+      scanStatus: "safe",
+    });
+    await database!.client.insert(sourceDocumentIngestionArtifacts).values({
+      id: artifactId,
+      projectId: sourceProjectId,
+      ownerUserId,
+      sourceDocumentId,
+      parserVersion: currentIngestionCompatibility.parserVersion,
+      normalizedSchemaVersion:
+        currentIngestionCompatibility.normalizedSchemaVersion,
+      canonicalStorageKey: "private/canonical.json",
+      normalizedStorageKey: "private/normalized.json",
+    });
+    const handler = createDocumentValidationJobHandler({
+      database: database!.client,
+      storage: {
+        delete: async () => undefined,
+        getBytes: async () => ({ body: bytes, metadata: {} as never }),
+      },
+      scanner: { scan: async () => ({ status: "safe" as const }) },
+      maxUploadBytes: 1_024,
+    });
+
+    await handler.handler(
+      documentValidationJobPayloadSchema.parse({
+        schemaVersion: 1,
+        sourceDocumentId: documentId,
+      }),
+      context,
+    );
+
+    expect(await database!.client.select().from(jobs)).toEqual([]);
+    expect(
+      await database!.client.select().from(sourceDocumentIngestionReuses),
+    ).toMatchObject([
+      {
+        projectId,
+        ownerUserId,
+        sourceDocumentId: documentId,
+        ingestionArtifactId: artifactId,
+      },
+    ]);
+    const [project] = await database!.client
+      .select()
+      .from(projects)
+      .where(eq(projects.id, projectId));
+    expect(project?.stage).toBe("ingestion_review");
+    const events = await database!.client.select().from(auditEvents);
+    expect(
+      events.some((event) => event.eventType === "document.ingestion_reused"),
+    ).toBe(true);
+  });
+
+  it("queues ingestion when a matching artifact uses incompatible versions", async () => {
+    const sourceProjectId = createId(new Date("2026-08-14T09:02:00.000Z"));
+    const sourceDocumentId = createId(new Date("2026-08-14T09:02:01.000Z"));
+    await database!.client.insert(projects).values({
+      id: sourceProjectId,
+      ownerUserId,
+      title: "Incompatible reusable source",
+      stage: "ingestion_review",
+    });
+    await database!.client.insert(sourceDocuments).values({
+      id: sourceDocumentId,
+      projectId: sourceProjectId,
+      ownerUserId,
+      originalName: "water-cycle-old.pdf",
+      mediaType: "application/pdf",
+      sizeBytes: bytes.byteLength,
+      sha256: "a".repeat(64),
+      storageKey: `users/${ownerUserId}/projects/${sourceProjectId}/source/${sourceDocumentId}/original.pdf`,
+      status: "active",
+      scanStatus: "safe",
+    });
+    await database!.client.insert(sourceDocumentIngestionArtifacts).values({
+      id: createId(new Date("2026-08-14T09:02:02.000Z")),
+      projectId: sourceProjectId,
+      ownerUserId,
+      sourceDocumentId,
+      parserVersion: "docling-v0",
+      normalizedSchemaVersion:
+        currentIngestionCompatibility.normalizedSchemaVersion,
+      canonicalStorageKey: "private/canonical.json",
+      normalizedStorageKey: "private/normalized.json",
+    });
+    const handler = createDocumentValidationJobHandler({
+      database: database!.client,
+      storage: {
+        delete: async () => undefined,
+        getBytes: async () => ({ body: bytes, metadata: {} as never }),
+      },
+      scanner: { scan: async () => ({ status: "safe" as const }) },
+      maxUploadBytes: 1_024,
+    });
+
+    await handler.handler(
+      documentValidationJobPayloadSchema.parse({
+        schemaVersion: 1,
+        sourceDocumentId: documentId,
+      }),
+      context,
+    );
+
+    expect(
+      await database!.client.select().from(sourceDocumentIngestionReuses),
+    ).toEqual([]);
+    expect(
+      (await database!.client.select().from(jobs)).some(
+        (job) => job.jobType === "document.ingestion",
+      ),
+    ).toBe(true);
+  });
+
+  it("never reuses a matching artifact owned by another teacher", async () => {
+    const otherOwnerUserId = createId(new Date("2026-08-14T09:03:00.000Z"));
+    const otherProjectId = createId(new Date("2026-08-14T09:03:01.000Z"));
+    const otherDocumentId = createId(new Date("2026-08-14T09:03:02.000Z"));
+    await database!.client.insert(users).values({
+      id: otherOwnerUserId,
+      emailNormalized: "other@example.test",
+      displayName: "Other teacher",
+    });
+    await database!.client.insert(projects).values({
+      id: otherProjectId,
+      ownerUserId: otherOwnerUserId,
+      title: "Private matching source",
+      stage: "ingestion_review",
+    });
+    await database!.client.insert(sourceDocuments).values({
+      id: otherDocumentId,
+      projectId: otherProjectId,
+      ownerUserId: otherOwnerUserId,
+      originalName: "private-water-cycle.pdf",
+      mediaType: "application/pdf",
+      sizeBytes: bytes.byteLength,
+      sha256: "a".repeat(64),
+      storageKey: `users/${otherOwnerUserId}/projects/${otherProjectId}/source/${otherDocumentId}/original.pdf`,
+      status: "active",
+      scanStatus: "safe",
+    });
+    await database!.client.insert(sourceDocumentIngestionArtifacts).values({
+      id: createId(new Date("2026-08-14T09:03:03.000Z")),
+      projectId: otherProjectId,
+      ownerUserId: otherOwnerUserId,
+      sourceDocumentId: otherDocumentId,
+      parserVersion: currentIngestionCompatibility.parserVersion,
+      normalizedSchemaVersion:
+        currentIngestionCompatibility.normalizedSchemaVersion,
+      canonicalStorageKey: "private/canonical.json",
+      normalizedStorageKey: "private/normalized.json",
+    });
+    const handler = createDocumentValidationJobHandler({
+      database: database!.client,
+      storage: {
+        delete: async () => undefined,
+        getBytes: async () => ({ body: bytes, metadata: {} as never }),
+      },
+      scanner: { scan: async () => ({ status: "safe" as const }) },
+      maxUploadBytes: 1_024,
+    });
+
+    await handler.handler(
+      documentValidationJobPayloadSchema.parse({
+        schemaVersion: 1,
+        sourceDocumentId: documentId,
+      }),
+      context,
+    );
+
+    expect(
+      await database!.client.select().from(sourceDocumentIngestionReuses),
+    ).toEqual([]);
+    expect(
+      (await database!.client.select().from(jobs)).some(
+        (job) => job.jobType === "document.ingestion",
+      ),
+    ).toBe(true);
   });
 
   it("quarantines an unsafe document, queues cleanup, and never queues ingestion", async () => {
@@ -166,7 +407,9 @@ describeWithPostgres("document validation job", () => {
       false,
     );
     expect(
-      queuedJobs.some((job) => job.jobType === documentValidationCleanupJobType),
+      queuedJobs.some(
+        (job) => job.jobType === documentValidationCleanupJobType,
+      ),
     ).toBe(true);
 
     const failedCleanup = createDocumentValidationCleanupJobHandler({
@@ -246,7 +489,9 @@ describeWithPostgres("document validation job", () => {
       false,
     );
     expect(
-      queuedJobs.some((job) => job.jobType === documentValidationCleanupJobType),
+      queuedJobs.some(
+        (job) => job.jobType === documentValidationCleanupJobType,
+      ),
     ).toBe(true);
   });
 

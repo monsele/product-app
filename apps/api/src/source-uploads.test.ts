@@ -39,6 +39,7 @@ function session(
     ownerUserId: Identifier;
     expiresAt: Date;
     completedAt: Date | null;
+    duplicateDetected: boolean;
   }> = {},
 ) {
   return {
@@ -53,6 +54,7 @@ function session(
     storageKey: key,
     expiresAt: new Date("2026-08-13T12:05:00.000Z"),
     completedAt: null,
+    duplicateDetected: false,
     ...overrides,
   };
 }
@@ -108,6 +110,7 @@ function harness(
       documentId,
       status: "pending_validation",
       ingestionRequested: false,
+      duplicateDetected: false,
     }),
   );
   const getStatus = vi.fn<SourceUploadRepository["getStatus"]>(
@@ -232,6 +235,7 @@ describe("SourceUploadService", () => {
       documentId,
       status: "pending_validation",
       ingestionRequested: false,
+      duplicateDetected: false,
     });
     expect(test.getMetadata).toHaveBeenCalledWith(key);
     expect(test.completeSession).toHaveBeenCalledWith({
@@ -329,6 +333,104 @@ describeWithPostgres("PostgresSourceUploadRepository", () => {
     // Each concurrent request verifies the object before acquiring the
     // completion transaction; only one document/job/outbox record is created.
     expect(getMetadata).toHaveBeenCalledTimes(2);
+  });
+
+  it("detects the same checksum already attached to the project", async () => {
+    await database!.client.insert(sourceDocuments).values({
+      id: createId(new Date("2026-08-13T12:00:10.000Z")),
+      projectId,
+      ownerUserId: ownerId,
+      originalName: "existing-water-cycle.pdf",
+      mediaType: "application/pdf",
+      sizeBytes: 17,
+      sha256: checksum,
+      storageKey: `users/${ownerId}/projects/${projectId}/source/existing/original.pdf`,
+      status: "active",
+      scanStatus: "safe",
+    });
+
+    await expect(repository.createSession(session())).rejects.toMatchObject({
+      code: "validation_failed",
+      statusCode: 409,
+      fieldErrors: { sha256: "duplicate_source" },
+    });
+  });
+
+  it("returns a duplicate status only for another source owned by the same teacher", async () => {
+    const reusableProjectId = createId(new Date("2026-08-13T12:00:20.000Z"));
+    const reusableDocumentId = createId(new Date("2026-08-13T12:00:21.000Z"));
+    await database!.client.insert(projects).values({
+      id: reusableProjectId,
+      ownerUserId: ownerId,
+      title: "Reusable document",
+      stage: "ingestion_review",
+    });
+    await database!.client.insert(sourceDocuments).values({
+      id: reusableDocumentId,
+      projectId: reusableProjectId,
+      ownerUserId: ownerId,
+      originalName: "water-cycle.pdf",
+      mediaType: "application/pdf",
+      sizeBytes: 17,
+      sha256: checksum,
+      storageKey: `users/${ownerId}/projects/${reusableProjectId}/source/${reusableDocumentId}/original.pdf`,
+      status: "active",
+      scanStatus: "safe",
+    });
+    await repository.createSession(session());
+    const service = new SourceUploadService(
+      repository,
+      { getMetadata: async () => metadata() } as Pick<
+        ObjectStorage,
+        "getMetadata"
+      > as ObjectStorage,
+      () => new Date("2026-08-13T12:00:00.000Z"),
+    );
+
+    await expect(
+      service.complete(ownerId, projectId, sessionId, {}, correlationId),
+    ).resolves.toMatchObject({ duplicateDetected: true });
+  });
+
+  it("never reports another teacher's matching checksum as a duplicate", async () => {
+    const otherProjectId = createId(new Date("2026-08-13T12:00:30.000Z"));
+    const otherDocumentId = createId(new Date("2026-08-13T12:00:31.000Z"));
+    await database!.client.insert(users).values({
+      id: otherOwnerId,
+      emailNormalized: "other@example.test",
+      displayName: "Other teacher",
+    });
+    await database!.client.insert(projects).values({
+      id: otherProjectId,
+      ownerUserId: otherOwnerId,
+      title: "Private matching document",
+      stage: "ingestion_review",
+    });
+    await database!.client.insert(sourceDocuments).values({
+      id: otherDocumentId,
+      projectId: otherProjectId,
+      ownerUserId: otherOwnerId,
+      originalName: "private.pdf",
+      mediaType: "application/pdf",
+      sizeBytes: 17,
+      sha256: checksum,
+      storageKey: `users/${otherOwnerId}/projects/${otherProjectId}/source/${otherDocumentId}/original.pdf`,
+      status: "active",
+      scanStatus: "safe",
+    });
+    await repository.createSession(session());
+    const service = new SourceUploadService(
+      repository,
+      { getMetadata: async () => metadata() } as Pick<
+        ObjectStorage,
+        "getMetadata"
+      > as ObjectStorage,
+      () => new Date("2026-08-13T12:00:00.000Z"),
+    );
+
+    await expect(
+      service.complete(ownerId, projectId, sessionId, {}, correlationId),
+    ).resolves.toMatchObject({ duplicateDetected: false });
   });
 
   it("refuses completion after the project has been deleted", async () => {

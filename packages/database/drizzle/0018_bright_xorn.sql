@@ -1,0 +1,2 @@
+ALTER TABLE "source_document_ingestion_artifacts" ALTER COLUMN "normalized_storage_key" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "source_document_ingestion_artifacts" ADD COLUMN "markdown_storage_key" text;

@@ -1,4 +1,5 @@
 import {
+  boolean,
   index,
   integer,
   jsonb,
@@ -238,6 +239,177 @@ export const sourceDocuments = pgTable(
   ],
 );
 
+/**
+ * Immutable parser outputs that may be safely referenced by another project
+ * belonging to the same owner. Review edits are deliberately not stored here.
+ */
+export const sourceDocumentIngestionArtifactStateValues = [
+  "staging",
+  "ready",
+] as const;
+export const sourceDocumentIngestionArtifactState = pgEnum(
+  "source_document_ingestion_artifact_state",
+  sourceDocumentIngestionArtifactStateValues,
+);
+
+export const sourceDocumentIngestionArtifacts = pgTable(
+  "source_document_ingestion_artifacts",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    sourceDocumentId: uuid("source_document_id")
+      .notNull()
+      .references(() => sourceDocuments.id),
+    parserVersion: text("parser_version").notNull(),
+    normalizedSchemaVersion: text("normalized_schema_version").notNull(),
+    canonicalStorageKey: text("canonical_storage_key").notNull(),
+    markdownStorageKey: text("markdown_storage_key"),
+    configurationHash: text("configuration_hash").notNull().default(""),
+    processingTimeMs: integer("processing_time_ms").notNull().default(0),
+    warnings: jsonb("warnings").notNull().default([]),
+    /** Staged artifacts are never exposed to downstream consumers. */
+    state: sourceDocumentIngestionArtifactState("state")
+      .notNull()
+      .default("ready"),
+    /** Set by ST-034 after application-owned normalization succeeds. */
+    normalizedStorageKey: text("normalized_storage_key"),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("source_document_ingestion_artifacts_version_unique").on(
+      table.sourceDocumentId,
+      table.parserVersion,
+      table.normalizedSchemaVersion,
+    ),
+    index("source_document_ingestion_artifacts_owner_versions_idx").on(
+      table.ownerUserId,
+      table.parserVersion,
+      table.normalizedSchemaVersion,
+    ),
+  ],
+);
+
+/** A project-local reference to a compatible immutable ingestion artifact. */
+export const sourceDocumentIngestionReuses = pgTable(
+  "source_document_ingestion_reuses",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    sourceDocumentId: uuid("source_document_id")
+      .notNull()
+      .references(() => sourceDocuments.id),
+    ingestionArtifactId: uuid("ingestion_artifact_id")
+      .notNull()
+      .references(() => sourceDocumentIngestionArtifacts.id),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("source_document_ingestion_reuses_document_unique").on(
+      table.sourceDocumentId,
+    ),
+    index("source_document_ingestion_reuses_project_created_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.createdAt,
+    ),
+  ],
+);
+
+/** Immutable, application-owned normalized view of one parser artifact. */
+export const parsedDocuments = pgTable(
+  "parsed_documents",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    ingestionArtifactId: uuid("ingestion_artifact_id")
+      .notNull()
+      .references(() => sourceDocumentIngestionArtifacts.id),
+    sourceDocumentId: uuid("source_document_id")
+      .notNull()
+      .references(() => sourceDocuments.id),
+    version: integer("version").notNull(),
+    schemaVersion: text("schema_version").notNull(),
+    parserVersion: text("parser_version").notNull(),
+    adapterVersion: text("adapter_version").notNull(),
+    normalizedStorageKey: text("normalized_storage_key").notNull(),
+    title: text("title"),
+    language: text("language").notNull(),
+    pageCount: integer("page_count").notNull(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("parsed_documents_artifact_unique").on(
+      table.ingestionArtifactId,
+    ),
+    uniqueIndex("parsed_documents_source_parser_version_unique").on(
+      table.sourceDocumentId,
+      table.parserVersion,
+      table.schemaVersion,
+      table.version,
+    ),
+    index("parsed_documents_owner_project_created_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.createdAt,
+    ),
+  ],
+);
+
+/** Query-oriented section metadata derived from an immutable normalized document. */
+export const parsedSections = pgTable(
+  "parsed_sections",
+  {
+    id: primaryId(),
+    parsedDocumentId: uuid("parsed_document_id")
+      .notNull()
+      .references(() => parsedDocuments.id, { onDelete: "cascade" }),
+    parentSectionId: uuid("parent_section_id"),
+    order: integer("order").notNull(),
+    level: integer("level").notNull(),
+    heading: text("heading").notNull(),
+    pageStart: integer("page_start").notNull(),
+    pageEnd: integer("page_end").notNull(),
+    ...auditColumns(),
+  },
+  (table) => [
+    index("parsed_sections_document_parent_order_idx").on(
+      table.parsedDocumentId,
+      table.parentSectionId,
+      table.order,
+    ),
+  ],
+);
+
+/** Query-oriented content/provenance records; the JSON snapshot remains authoritative. */
+export const contentBlocks = pgTable(
+  "content_blocks",
+  {
+    id: primaryId(),
+    parsedDocumentId: uuid("parsed_document_id")
+      .notNull()
+      .references(() => parsedDocuments.id, { onDelete: "cascade" }),
+    sectionId: uuid("section_id").notNull(),
+    kind: text("kind").notNull(),
+    order: integer("order").notNull(),
+    pageStart: integer("page_start").notNull(),
+    pageEnd: integer("page_end").notNull(),
+    boundingBox: jsonb("bounding_box"),
+    content: jsonb("content").notNull(),
+    ...auditColumns(),
+  },
+  (table) => [
+    index("content_blocks_document_section_order_idx").on(
+      table.parsedDocumentId,
+      table.sectionId,
+      table.order,
+    ),
+    index("content_blocks_document_page_idx").on(
+      table.parsedDocumentId,
+      table.pageStart,
+    ),
+  ],
+);
+
 export const uploadSessions = pgTable(
   "upload_sessions",
   {
@@ -251,6 +423,7 @@ export const uploadSessions = pgTable(
     storageKey: text("storage_key").notNull(),
     expiresAt: utcTimestamp("expires_at").notNull(),
     completedAt: utcTimestamp("completed_at"),
+    duplicateDetected: boolean("duplicate_detected").notNull().default(false),
     ...auditColumns(),
   },
   (table) => [
@@ -372,6 +545,8 @@ export const auditEventTypeValues = [
   "document.deleted",
   "document.validation_requested",
   "document.validation_rejected",
+  "document.ingestion_reused",
+  "document.ingestion_completed",
   "share.created",
   "share.revoked",
   "lesson.approved",

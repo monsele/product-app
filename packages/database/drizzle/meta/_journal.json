@@ -120,6 +120,41 @@
       "when": 1786714404311,
       "tag": "0016_spotty_the_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1786716266404,
+      "tag": "0017_fixed_pride",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1786747196788,
+      "tag": "0018_bright_xorn",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1786747378543,
+      "tag": "0019_wooden_sunspot",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1786749156566,
+      "tag": "0020_mature_salo",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1786751177456,
+      "tag": "0021_living_maddog",
+      "breakpoints": true
     }
   ]
 }

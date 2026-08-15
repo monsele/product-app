@@ -2,7 +2,7 @@
 story_id: ST-032
 title: "Detect Duplicate Source Uploads and Reuse Safe Ingestion Results"
 phase: "02 \u2014 Accounts, Projects, and Upload"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E3", "E21"]
 prd_user_stories: ["E3-US3", "E21-US2"]
@@ -110,15 +110,16 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-14
+- **Completed:** 2026-08-14
+- **Branch/PR:** `story/st-032` (not published)
+- **Files changed:** Upload API/repository and tests; validation worker and integration tests; upload UI checksum/reuse status; shared schemas; database schema and Drizzle migration; story index and this record.
+- **Migrations:** `0017_fixed_pride.sql` adds immutable ingestion-artifact and project-local reuse-reference tables, completion-time duplicate status, and `document.ingestion_reused` audit event.
+- **Contracts changed:** Upload completion adds `duplicateDetected`; source-document status adds a reuse status; shared ingestion compatibility requires parser and normalized-schema versions.
+- **Commands/tests run:** API source-upload suite: 10/10 passed against isolated Docker PostgreSQL; pipeline-worker document-validation integration suite: 8/8 passed; full affected database suite: 11/11 passed; API suite: 41/41 passed; pipeline-worker suite: 18/18 passed. Workspace `lint`, workspace `typecheck`, workspace `build`, scoped Prettier, and diff check pass. Workspace `test` remains blocked by an unrelated existing `@avlp/evals` baseline-fixture failure; workspace `format:check` reports pre-existing warnings outside this story.
+- **Screenshots or representative output:** No visual change requiring a screenshot. The upload UI reports when a compatible parsing result was reused.
+- **Decisions and assumptions:** The documented default is automatic reuse after source validation, only for the same owner, exact SHA-256, active/safe source, and matching `docling-v1` plus `NormalizedDocument` v1.0. Reuse stores a project-local reference to immutable parser artifacts and never copies review overlays.
+- **Deviations from story/technical guide:** No intentional deviation. The actual artifact writer belongs to the subsequent Docling-ingestion story; this story defines and consumes the immutable reuse contract without adding parser execution.
+- **Known risks or follow-up:** ST-033 must persist artifacts using the shared compatibility fields once parsing succeeds. The local Docker PostgreSQL container is named `avlp-st032-postgres` and remains available on port 5433 for further test runs.
+- **Review record:** Final scoped code review found all ST-032 acceptance criteria met, no technical-guide or ADR deviation, and no remaining blocking/high/medium/low finding. Conclusion: approve.

@@ -31,6 +31,8 @@ import { createProjectCleanupJobHandler } from "./project-cleanup.js";
 import { HttpMalwareScanner } from "./document-validation.js";
 import { createDocumentValidationCleanupJobHandler } from "./document-validation-cleanup-job.js";
 import { createDocumentValidationJobHandler } from "./document-validation-job.js";
+import { HttpDoclingIngestionClient } from "./docling-ingestion-client.js";
+import { createDocumentIngestionJobHandler } from "./document-ingestion-job.js";
 
 function processAbortSignal(): { signal: AbortSignal; dispose: () => void } {
   const controller = new AbortController();
@@ -127,6 +129,14 @@ export async function runPipelineWorker(
           ),
           maxUploadBytes:
             storageEnvironmentSchema.parse(environmentInput).MAX_UPLOAD_BYTES,
+        }),
+        createDocumentIngestionJobHandler({
+          database: database.client,
+          storage,
+          client: new HttpDoclingIngestionClient(
+            workerEnvironment.INGESTION_SERVICE_URL ?? "http://127.0.0.1:8000",
+            workerEnvironment.INGESTION_SERVICE_TOKEN,
+          ),
         }),
         createDocumentValidationCleanupJobHandler({
           database: database.client,

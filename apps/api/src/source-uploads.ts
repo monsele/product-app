@@ -9,6 +9,7 @@ import {
   outboxEvents,
   projects,
   sourceDocuments,
+  sourceDocumentIngestionReuses,
   uploadSessions,
   type DatabaseClient,
 } from "@avlp/database";
@@ -34,7 +35,7 @@ import {
   type StorageObjectMetadata,
   StorageObjectNotFoundError,
 } from "@avlp/storage";
-import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
 const uploadSessionTtlMs = 5 * 60 * 1_000;
@@ -51,6 +52,7 @@ type PendingSession = {
   storageKey: string;
   expiresAt: Date;
   completedAt: Date | null;
+  duplicateDetected: boolean;
 };
 
 function publicValidationError(field: string, message: string): PublicError {
@@ -166,6 +168,7 @@ export class SourceUploadService {
       storageKey,
       expiresAt: signed.expiresAt,
       completedAt: null,
+      duplicateDetected: false,
     });
     return uploadSessionResponseSchema.parse({
       sessionId,
@@ -269,7 +272,7 @@ export class PostgresSourceUploadRepository implements SourceUploadRepository {
           404,
         );
       const [existing] = await transaction
-        .select({ id: sourceDocuments.id })
+        .select({ id: sourceDocuments.id, sha256: sourceDocuments.sha256 })
         .from(sourceDocuments)
         .where(
           and(
@@ -283,6 +286,14 @@ export class PostgresSourceUploadRepository implements SourceUploadRepository {
           ),
         )
         .limit(1);
+      if (existing !== undefined && existing.sha256 === input.sha256)
+        throw new PublicError(
+          "validation_failed",
+          "This exact source document is already attached to this project.",
+          409,
+          false,
+          { sha256: "duplicate_source" },
+        );
       if (existing !== undefined)
         throw new PublicError(
           "validation_failed",
@@ -392,7 +403,19 @@ export class PostgresSourceUploadRepository implements SourceUploadRepository {
           documentId: session.documentId,
           status: "pending_validation",
           ingestionRequested: false,
+          duplicateDetected: session.duplicateDetected,
         });
+      const [duplicate] = await transaction
+        .select({ id: sourceDocuments.id })
+        .from(sourceDocuments)
+        .where(
+          and(
+            eq(sourceDocuments.ownerUserId, session.ownerUserId),
+            eq(sourceDocuments.sha256, session.expectedSha256),
+            ne(sourceDocuments.id, session.documentId),
+          ),
+        )
+        .limit(1);
       const [created] = await transaction
         .insert(sourceDocuments)
         .values({
@@ -473,7 +496,11 @@ export class PostgresSourceUploadRepository implements SourceUploadRepository {
       });
       await transaction
         .update(uploadSessions)
-        .set({ completedAt: timestamp, updatedAt: timestamp })
+        .set({
+          completedAt: timestamp,
+          duplicateDetected: duplicate !== undefined,
+          updatedAt: timestamp,
+        })
         .where(eq(uploadSessions.id, session.id));
       await transaction
         .update(projects)
@@ -505,6 +532,7 @@ export class PostgresSourceUploadRepository implements SourceUploadRepository {
         documentId: session.documentId,
         status: "pending_validation",
         ingestionRequested: false,
+        duplicateDetected: duplicate !== undefined,
       });
     });
   }
@@ -520,8 +548,26 @@ export class PostgresSourceUploadRepository implements SourceUploadRepository {
         validationCode: sourceDocuments.validationCode,
         pageCount: sourceDocuments.pageCount,
         validationWarnings: sourceDocuments.validationWarnings,
+        reuseId: sourceDocumentIngestionReuses.id,
       })
       .from(sourceDocuments)
+      .leftJoin(
+        sourceDocumentIngestionReuses,
+        and(
+          eq(
+            sourceDocumentIngestionReuses.sourceDocumentId,
+            sourceDocuments.id,
+          ),
+          eq(
+            sourceDocumentIngestionReuses.projectId,
+            sourceDocuments.projectId,
+          ),
+          eq(
+            sourceDocumentIngestionReuses.ownerUserId,
+            sourceDocuments.ownerUserId,
+          ),
+        ),
+      )
       .where(
         and(
           eq(sourceDocuments.ownerUserId, ownerUserId),
@@ -539,6 +585,7 @@ export class PostgresSourceUploadRepository implements SourceUploadRepository {
         pageCount: document.pageCount,
         warnings: document.validationWarnings,
       },
+      reuse: { status: document.reuseId === null ? "not_reused" : "reused" },
     });
   }
 }
@@ -558,5 +605,6 @@ function toPendingSession(
     storageKey: session.storageKey,
     expiresAt: session.expiresAt,
     completedAt: session.completedAt,
+    duplicateDetected: session.duplicateDetected,
   };
 }

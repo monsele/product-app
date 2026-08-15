@@ -90,6 +90,22 @@ export type StorageObjectBytes = {
   metadata: StorageObjectMetadata;
 };
 
+export const writeObjectRequestSchema = z.object({
+  key: storageKeySchema,
+  body: z.instanceof(Uint8Array),
+  contentType: z.string().min(1).max(255),
+  metadata: z
+    .record(z.string().regex(/^[a-z0-9][a-z0-9-]{0,62}$/), z.string().max(2048))
+    .optional(),
+});
+export type WriteObjectRequest = z.infer<typeof writeObjectRequestSchema>;
+
+export const copyObjectRequestSchema = z.object({
+  sourceKey: storageKeySchema,
+  destinationKey: storageKeySchema,
+});
+export type CopyObjectRequest = z.infer<typeof copyObjectRequestSchema>;
+
 /** A requested object was confirmed absent by the storage provider. */
 export class StorageObjectNotFoundError extends Error {
   public constructor(key: StorageKey) {
@@ -127,6 +143,8 @@ export interface ObjectStorage {
   ): Promise<SignedStorageRequest>;
   getMetadata(key: StorageKey): Promise<StorageObjectMetadata>;
   getBytes(key: StorageKey, maxBytes: number): Promise<StorageObjectBytes>;
+  putBytes(request: WriteObjectRequest): Promise<StorageObjectMetadata>;
+  copy(request: CopyObjectRequest): Promise<StorageObjectMetadata>;
   exists(key: StorageKey): Promise<boolean>;
   delete(key: StorageKey): Promise<void>;
   deletePrefix(prefix: StorageKey): Promise<number>;

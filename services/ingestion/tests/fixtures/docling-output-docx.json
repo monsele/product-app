@@ -1,0 +1,7 @@
+{
+  "version": "fixture",
+  "document": {
+    "name": "water-cycle.docx",
+    "body": [{"type": "paragraph", "text": "Water cycle"}]
+  }
+}

@@ -1450,6 +1450,28 @@ export const sourceDocumentStatusSchema = z.enum([
 ]);
 export type SourceDocumentStatus = z.infer<typeof sourceDocumentStatusSchema>;
 
+/** The versions that must match before an immutable parse may be reused. */
+export const ingestionCompatibilitySchema = z
+  .object({
+    parserVersion: z.string().trim().min(1).max(200),
+    normalizedSchemaVersion: z.string().trim().min(1).max(50),
+  })
+  .strict();
+export type IngestionCompatibility = z.infer<
+  typeof ingestionCompatibilitySchema
+>;
+export const currentIngestionCompatibility = ingestionCompatibilitySchema.parse(
+  {
+    parserVersion: "docling-v1",
+    normalizedSchemaVersion: normalizedDocumentVersion,
+  },
+);
+
+export const sourceDocumentReuseSchema = z
+  .object({ status: z.enum(["not_reused", "reused"]) })
+  .strict();
+export type SourceDocumentReuse = z.infer<typeof sourceDocumentReuseSchema>;
+
 export const documentValidationCodeSchema = z.enum([
   "EMPTY_FILE",
   "FILE_TOO_LARGE",
@@ -1481,6 +1503,7 @@ export const sourceDocumentStatusResponseSchema = z
   .object({
     documentId: identifierSchema,
     validation: sourceDocumentValidationSchema,
+    reuse: sourceDocumentReuseSchema,
   })
   .strict();
 export type SourceDocumentStatusResponse = z.infer<
@@ -1521,6 +1544,7 @@ export const completeSourceUploadResponseSchema = z
     documentId: identifierSchema,
     status: sourceDocumentStatusSchema,
     ingestionRequested: z.boolean(),
+    duplicateDetected: z.boolean(),
   })
   .strict();
 export type CompleteSourceUploadResponse = z.infer<
@@ -1548,6 +1572,49 @@ export const documentIngestionJobPayloadSchema = z
   .strict();
 export type DocumentIngestionJobPayload = z.infer<
   typeof documentIngestionJobPayloadSchema
+>;
+
+/** Versioned internal boundary between the TypeScript job worker and Docling. */
+export const doclingIngestionRequestSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    jobId: identifierSchema,
+    sourceDocumentId: identifierSchema,
+    sourceDownloadUrl: z.string().url().max(4_000),
+    mediaType: sourceDocumentMediaTypeSchema,
+    parserVersion: z.string().trim().min(1).max(200),
+    correlationId: identifierSchema,
+  })
+  .strict();
+export type DoclingIngestionRequest = z.infer<
+  typeof doclingIngestionRequestSchema
+>;
+
+export const doclingIngestionFailureCodeSchema = z.enum([
+  "CORRUPT_SOURCE",
+  "PARSER_UNSUPPORTED",
+  "RESOURCE_EXHAUSTED",
+  "TEMPORARY_INFRASTRUCTURE",
+  "SCHEMA_NORMALIZATION_DEFECT",
+  "PARSER_FAILED",
+]);
+export type DoclingIngestionFailureCode = z.infer<
+  typeof doclingIngestionFailureCodeSchema
+>;
+
+export const doclingIngestionResultSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    parserVersion: z.string().trim().min(1).max(200),
+    configurationHash: z.string().regex(/^[0-9a-f]{64}$/i),
+    processingTimeMs: z.number().int().nonnegative(),
+    canonicalJson: z.record(z.unknown()),
+    markdown: z.string().max(20 * 1024 * 1024),
+    warnings: z.array(z.string().trim().min(1).max(500)).max(100),
+  })
+  .strict();
+export type DoclingIngestionResult = z.infer<
+  typeof doclingIngestionResultSchema
 >;
 
 /**

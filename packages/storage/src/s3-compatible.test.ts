@@ -1,5 +1,6 @@
 import { Buffer } from "node:buffer";
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
@@ -12,10 +13,7 @@ import {
   S3Client,
 } from "@aws-sdk/client-s3";
 import { describe, expect, it, vi } from "vitest";
-import {
-  StorageObjectNotFoundError,
-  type StorageKey,
-} from "./contracts.js";
+import { StorageObjectNotFoundError, type StorageKey } from "./contracts.js";
 import {
   createS3CompatibleObjectStorage,
   S3CompatibleObjectStorage,
@@ -237,6 +235,54 @@ describe("S3CompatibleObjectStorage", () => {
     expect(
       (send.mock.calls[0]?.[0] as HeadObjectCommand).input.ChecksumMode,
     ).toBe("ENABLED");
+  });
+
+  it("writes private worker artifacts only under the authorized prefix", async () => {
+    const commands: unknown[] = [];
+    const { storage } = createHarness(async (command) => {
+      commands.push(command);
+      if (command instanceof HeadObjectCommand)
+        return { ContentLength: 2, ContentType: "application/json" };
+      return {};
+    });
+    await storage.putBytes({
+      key,
+      body: new Uint8Array([1, 2]),
+      contentType: "application/json",
+      metadata: { "parser-version": "docling-v1" },
+    });
+    const put = commands.find(
+      (command) => command instanceof PutObjectCommand,
+    ) as PutObjectCommand;
+    expect(put).toBeInstanceOf(PutObjectCommand);
+    expect(put.input).toMatchObject({
+      Bucket: "private-bucket",
+      Key: key,
+      ContentLength: 2,
+      ContentType: "application/json",
+      ACL: "private",
+    });
+  });
+
+  it("copies staged artifacts only within the authorized private prefix", async () => {
+    const commands: unknown[] = [];
+    const { storage } = createHarness(async (command) => {
+      commands.push(command);
+      if (command instanceof HeadObjectCommand)
+        return { ContentLength: 2, ContentType: "application/json" };
+      return {};
+    });
+    const destination = key.replace("original.pdf", "docling.json") as StorageKey;
+    await storage.copy({ sourceKey: key, destinationKey: destination });
+    const copy = commands.find(
+      (command) => command instanceof CopyObjectCommand,
+    ) as CopyObjectCommand;
+    expect(copy.input).toMatchObject({
+      Bucket: "private-bucket",
+      Key: destination,
+      CopySource: `private-bucket/${key}`,
+      ACL: "private",
+    });
   });
 
   it("maps only confirmed provider not-found responses while reading metadata", async () => {

@@ -381,6 +381,7 @@ describe("project API", () => {
         documentId: createId(new Date("2026-08-13T10:01:01.000Z")),
         status: "pending_validation" as const,
         ingestionRequested: false as const,
+        duplicateDetected: false,
       })),
       status: vi.fn(async () => null),
     };

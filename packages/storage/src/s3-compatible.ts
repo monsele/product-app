@@ -1,5 +1,6 @@
 import { Buffer } from "node:buffer";
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   DeleteObjectsCommand,
   GetObjectCommand,
@@ -16,6 +17,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { z } from "zod";
 import {
   lifecycleRuleSchema,
+  copyObjectRequestSchema,
   sha256ChecksumSchema,
   signedDownloadRequestSchema,
   signedUploadRequestSchema,
@@ -30,6 +32,8 @@ import {
   type StorageObjectMetadata,
   type StorageObjectBytes,
   StorageObjectNotFoundError,
+  writeObjectRequestSchema,
+  type WriteObjectRequest,
 } from "./contracts.js";
 
 type SignableCommand = PutObjectCommand | GetObjectCommand;
@@ -316,6 +320,46 @@ export class S3CompatibleObjectStorage implements ObjectStorage {
     if (body.byteLength > maxBytes)
       throw new Error("Storage object exceeds the permitted read size.");
     return { body, metadata };
+  }
+
+  public async putBytes(
+    input: WriteObjectRequest,
+  ): Promise<StorageObjectMetadata> {
+    const request = writeObjectRequestSchema.parse(input);
+    const key = this.#authorizeKey(request.key);
+    await this.#ensurePrivateBucket();
+    await this.#client.send(
+      new PutObjectCommand({
+        Bucket: this.#bucket,
+        Key: key,
+        Body: request.body,
+        ContentLength: request.body.byteLength,
+        ContentType: request.contentType,
+        Metadata: request.metadata,
+        ACL: "private",
+      }),
+    );
+    return this.getMetadata(key);
+  }
+
+  public async copy(input: { sourceKey: StorageKey; destinationKey: StorageKey }): Promise<StorageObjectMetadata> {
+    const request = copyObjectRequestSchema.parse(input);
+    const sourceKey = this.#authorizeKey(request.sourceKey);
+    const destinationKey = this.#authorizeKey(request.destinationKey);
+    await this.#ensurePrivateBucket();
+    const encodedSource = sourceKey
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
+    await this.#client.send(
+      new CopyObjectCommand({
+        Bucket: this.#bucket,
+        Key: destinationKey,
+        CopySource: `${encodeURIComponent(this.#bucket)}/${encodedSource}`,
+        ACL: "private",
+      }),
+    );
+    return this.getMetadata(destinationKey);
   }
 
   public async exists(keyInput: StorageKey): Promise<boolean> {

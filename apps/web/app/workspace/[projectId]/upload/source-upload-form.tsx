@@ -6,26 +6,17 @@ import {
   sourceDocumentStatusResponseSchema,
   uploadSessionResponseSchema,
 } from "@avlp/schemas";
+import { calculateSha256 } from "./source-upload-checksum";
 
 type UploadState =
   | { kind: "idle" }
   | { kind: "uploading"; progress: number }
   | { kind: "validating" }
   | { kind: "failed"; message: string }
-  | { kind: "complete" };
+  | { kind: "complete"; reused: boolean };
 
 function apiUrl(path: string): string {
   return `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}${path}`;
-}
-
-async function checksum(file: File): Promise<string> {
-  const digest = await globalThis.crypto.subtle.digest(
-    "SHA-256",
-    await file.arrayBuffer(),
-  );
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
 }
 
 function uploadToSignedUrl(
@@ -91,7 +82,11 @@ export function SourceUploadForm({ projectId }: { projectId: string }) {
           : undefined;
         if (cancelled || parsed === undefined || !parsed.success) return;
         const validation = parsed.data.validation;
-        if (validation.status === "active") setState({ kind: "complete" });
+        if (validation.status === "active")
+          setState({
+            kind: "complete",
+            reused: parsed.data.reuse.status === "reused",
+          });
         else if (
           validation.status === "rejected" ||
           validation.status === "validation_error"
@@ -141,7 +136,7 @@ export function SourceUploadForm({ projectId }: { projectId: string }) {
             fileName: file.name,
             mediaType,
             sizeBytes: file.size,
-            sha256: await checksum(file),
+            sha256: await calculateSha256(await file.arrayBuffer()),
           }),
         },
       );
@@ -212,7 +207,9 @@ export function SourceUploadForm({ projectId }: { projectId: string }) {
       ) : null}
       {state.kind === "complete" ? (
         <p role="status">
-          Your document passed validation and is being prepared.
+          {state.reused
+            ? "Your document passed validation and a compatible parsing result was reused."
+            : "Your document passed validation and is being prepared."}
         </p>
       ) : null}
       <button
