@@ -3,6 +3,7 @@ import {
   contentBlockCorrections,
   contentBlocks,
   extractedFigures,
+  figureInclusionOverlays,
   ingestionQualityReports,
   ingestionWarnings,
   parsedDocuments,
@@ -319,6 +320,24 @@ export class ParsedDocumentRepository {
           eq(contentBlockCorrections.ownerUserId, input.ownerUserId),
           eq(contentBlockCorrections.projectId, input.projectId),
           eq(contentBlockCorrections.parsedDocumentId, input.parsedDocumentId),
+        ),
+      );
+  }
+
+  /** Loads tenant-scoped figure inclusion overlays for a parsed document. */
+  public async findFigureInclusionOverlays(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    parsedDocumentId: Identifier;
+  }): Promise<readonly (typeof figureInclusionOverlays.$inferSelect)[]> {
+    return this.database
+      .select()
+      .from(figureInclusionOverlays)
+      .where(
+        and(
+          eq(figureInclusionOverlays.ownerUserId, input.ownerUserId),
+          eq(figureInclusionOverlays.projectId, input.projectId),
+          eq(figureInclusionOverlays.parsedDocumentId, input.parsedDocumentId),
         ),
       );
   }

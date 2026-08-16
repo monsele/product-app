@@ -89,6 +89,8 @@ const sampleSectionResponse: ParsedDocumentSectionResponse = {
         width: 800,
         height: 600,
         previewUrl: "https://signed.example.test/figure-original.png",
+        included: true,
+        revision: 0,
       },
     ],
     tables: [],

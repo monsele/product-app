@@ -21,6 +21,7 @@ import {
 import type { AuthorizedProjectStorage } from "@avlp/storage";
 import type { z } from "zod";
 import { ParsedDocumentRepository } from "./parsed-document-repository.js";
+import { projectEffectiveFigures } from "./source-figure-inclusion.js";
 
 export interface ParsedDocumentReviewService {
   review(
@@ -151,11 +152,24 @@ export class PostgresParsedDocumentReviewService
       projectId,
       latest.document.id,
     );
-    const figureSignedUrls = await this.signFigureUrls(
-      ownerUserId,
-      projectId,
-      latest.document.ingestionArtifactId,
-      detail.figures,
+    const [figureSignedUrls, figureOverlays] = await Promise.all([
+      this.signFigureUrls(
+        ownerUserId,
+        projectId,
+        latest.document.ingestionArtifactId,
+        detail.figures,
+      ),
+      this.repository.findFigureInclusionOverlays({
+        ownerUserId,
+        projectId,
+        parsedDocumentId: latest.document.id,
+      }),
+    ]);
+    const figureOverlayMap = new Map(
+      figureOverlays.map((overlay) => [
+        overlay.figureId,
+        { included: overlay.included, revision: overlay.revision },
+      ]),
     );
     return parsedDocumentSectionResponseSchema.parse({
       section: {
@@ -177,21 +191,28 @@ export class PostgresParsedDocumentReviewService
             corrections.get(block.id),
           ),
         ),
-        figures: detail.figures.map((figure) => {
-          const signed = figureSignedUrls.get(figure.id);
-          return reviewFigureSchema.parse({
+        figures: projectEffectiveFigures(
+          detail.figures.map((figure) => ({
             id: figure.id,
             order: figure.order,
             pageStart: figure.pageStart,
             pageEnd: figure.pageEnd,
-            captionBlockId: figure.captionBlockId ?? undefined,
-            altText: figure.altText ?? undefined,
-            sourceLocator: figure.sourceLocator ?? undefined,
+            captionBlockId: figure.captionBlockId,
+            altText: figure.altText,
+            sourceLocator: figure.sourceLocator,
             contentType: figure.contentType,
             width: figure.width,
             height: figure.height,
+          })),
+          figureOverlayMap,
+        ).map((figure) => {
+          const signed = figureSignedUrls.get(figure.id);
+          return reviewFigureSchema.parse({
+            ...figure,
             previewUrl: signed?.previewUrl,
-            thumbnailUrl: signed?.thumbnailUrl,
+            ...(signed?.thumbnailUrl === undefined
+              ? {}
+              : { thumbnailUrl: signed.thumbnailUrl }),
           });
         }),
         tables: detail.tables.map((table) =>

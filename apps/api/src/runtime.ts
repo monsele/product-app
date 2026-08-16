@@ -23,6 +23,8 @@ import {
 import { ParsedDocumentRepository } from "./parsed-document-repository.js";
 import { PostgresSourceSectionSelectionService } from "./source-section-selection.js";
 import { PostgresContentBlockCorrectionService } from "./content-block-corrections.js";
+import { PostgresFigureInclusionService } from "./source-figure-inclusion.js";
+import { PostgresLessonConfigurationService } from "./lesson-configuration.js";
 
 export async function runApi(input: {
   telemetryShutdown: () => Promise<void>;
@@ -105,6 +107,12 @@ export async function runApi(input: {
         database.client,
       ),
       contentBlockCorrectionService: new PostgresContentBlockCorrectionService(
+        database.client,
+      ),
+      figureInclusionService: new PostgresFigureInclusionService(
+        database.client,
+      ),
+      lessonConfigurationService: new PostgresLessonConfigurationService(
         database.client,
       ),
       projectAuthorizer,

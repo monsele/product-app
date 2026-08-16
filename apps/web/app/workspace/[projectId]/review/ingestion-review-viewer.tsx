@@ -5,10 +5,12 @@ import {
   parsedDocumentReviewResponseSchema,
   parsedDocumentSectionResponseSchema,
   reviewContentBlockSchema,
+  reviewFigureSchema,
   sourceSectionSelectionResponseSchema,
   sourceSectionSelectionSchema,
   type ParsedDocumentReviewResponse,
   type ParsedDocumentSectionResponse,
+  type ReviewFigure,
   type SourceSectionSelection,
 } from "@avlp/schemas";
 import {
@@ -20,6 +22,10 @@ import {
   buildBlockCorrectionInput,
   type BlockCorrectionAction,
 } from "./source-block-controls";
+import {
+  buildFigureUpdateInput,
+  type FigureSelectionAction,
+} from "./source-figure-controls";
 
 type State =
   | { kind: "loading" }
@@ -297,6 +303,89 @@ export function IngestionReviewViewer({ projectId }: { projectId: string }) {
     [projectId],
   );
 
+  const updateFigure = useCallback(
+    async (
+      sectionId: string,
+      figureId: string,
+      figure: Pick<ReviewFigure, "included" | "revision">,
+      action: FigureSelectionAction,
+    ) => {
+      const body = buildFigureUpdateInput(
+        { revision: figure.revision, included: figure.included },
+        action,
+      );
+      try {
+        const response = await fetch(
+          apiUrl(
+            `/projects/${encodeURIComponent(projectId)}/source-figures/${encodeURIComponent(figureId)}`,
+          ),
+          {
+            method: "PATCH",
+            credentials: "include",
+            cache: "no-store",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(body),
+          },
+        );
+        const payload: unknown = await response.json().catch(() => null);
+        if (!response.ok) {
+          const message =
+            typeof payload === "object" &&
+            payload !== null &&
+            "error" in payload &&
+            typeof payload.error === "object" &&
+            payload.error !== null &&
+            "message" in payload.error &&
+            typeof payload.error.message === "string"
+              ? payload.error.message
+              : "Unable to update the figure inclusion.";
+          throw new Error(message);
+        }
+        const parsed = reviewFigureSchema.safeParse(payload);
+        if (!parsed.success) throw new Error("Unable to update the figure.");
+        setSectionStates((prev) => {
+          const detail = prev[sectionId]?.detail;
+          if (detail === undefined) return prev;
+          return {
+            ...prev,
+            [sectionId]: {
+              loading: false,
+              detail: {
+                ...detail,
+                section: {
+                  ...detail.section,
+                  figures: detail.section.figures.map((entry) =>
+                    entry.id === figureId
+                      ? { ...entry, ...parsed.data }
+                      : entry,
+                  ),
+                },
+              },
+            },
+          };
+        });
+      } catch (error) {
+        setSectionStates((prev) => {
+          const existing = prev[sectionId];
+          return {
+            ...prev,
+            [sectionId]: {
+              loading: false,
+              ...(existing?.detail === undefined
+                ? {}
+                : { detail: existing.detail }),
+              error:
+                error instanceof Error
+                  ? error.message
+                  : "Unable to update the figure inclusion.",
+            },
+          };
+        });
+      }
+    },
+    [projectId],
+  );
+
   const navigateToWarning = useCallback(
     (warning: { id: string; sectionId?: string | undefined }) => {
       if (warning.sectionId !== undefined) {
@@ -504,6 +593,14 @@ export function IngestionReviewViewer({ projectId }: { projectId: string }) {
                               action,
                             )
                           }
+                          onToggleFigure={(figure, action) =>
+                            void updateFigure(
+                              section.id,
+                              figure.id,
+                              figure,
+                              action,
+                            )
+                          }
                         />
                       ) : null}
                     </div>
@@ -521,12 +618,14 @@ export function IngestionReviewViewer({ projectId }: { projectId: string }) {
 function SectionContent({
   detail,
   onCorrect,
+  onToggleFigure,
 }: {
   detail: ParsedDocumentSectionResponse;
   onCorrect: (
     block: ParsedDocumentSectionResponse["section"]["blocks"][number],
     action: BlockCorrectionAction,
   ) => void;
+  onToggleFigure: (figure: ReviewFigure, action: FigureSelectionAction) => void;
 }) {
   const { section } = detail;
   return (
@@ -567,6 +666,23 @@ function SectionContent({
                 {figure.sourceLocator !== undefined ? (
                   <p>Source: {figure.sourceLocator}</p>
                 ) : null}
+                <p data-figure-inclusion>
+                  <span data-included={figure.included}>
+                    {figure.included ? "Included" : "Excluded"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onToggleFigure(figure, {
+                        kind: figure.included ? "exclude" : "restore",
+                      })
+                    }
+                  >
+                    {figure.included
+                      ? "Exclude from lesson"
+                      : "Include in lesson"}
+                  </button>
+                </p>
               </li>
             ))}
           </ul>

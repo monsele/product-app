@@ -2,7 +2,7 @@
 story_id: ST-036
 title: "Generate Ingestion Quality Reports and Recovery States"
 phase: "03 \u2014 Ingestion and Lesson Configuration"
-status: In Review
+status: Done
 priority: must-have
 epics: ["E4", "E21"]
 prd_user_stories: ["E4-US4", "E21-US1"]

@@ -183,6 +183,20 @@
       "when": 1786824572367,
       "tag": "0025_mean_devos",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1786831599904,
+      "tag": "0026_tan_mister_fear",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1786901885513,
+      "tag": "0027_lumpy_spitfire",
+      "breakpoints": true
     }
   ]
 }

@@ -586,6 +586,39 @@ export const sourceSectionOverlays = pgTable(
 );
 
 /**
+ * Project/version-specific figure inclusion overlay. The immutable
+ * `extracted_figures` row remains authoritative; these rows carry the teacher's
+ * include/exclude decision for asset planning as an editable overlay.
+ */
+export const figureInclusionOverlays = pgTable(
+  "figure_inclusion_overlays",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    parsedDocumentId: uuid("parsed_document_id")
+      .notNull()
+      .references(() => parsedDocuments.id, { onDelete: "cascade" }),
+    figureId: uuid("figure_id")
+      .notNull()
+      .references(() => extractedFigures.id, { onDelete: "cascade" }),
+    included: boolean("included").notNull().default(true),
+    revision: revisionColumn(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("figure_inclusion_overlays_project_figure_unique").on(
+      table.projectId,
+      table.figureId,
+    ),
+    index("figure_inclusion_overlays_project_document_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.parsedDocumentId,
+    ),
+  ],
+);
+
+/**
  * Editable text correction for one immutable content block. The immutable
  * `content_blocks.content` row remains authoritative; these rows carry the
  * teacher's corrected plain/structured text as overlays with a revision.
@@ -652,6 +685,39 @@ export const sourceContentInvalidations = pgTable(
       "source_content_invalidations_project_block_revision_unique",
     ).on(table.projectId, table.blockId, table.blockRevision),
     index("source_content_invalidations_project_created_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.createdAt,
+    ),
+  ],
+);
+
+/**
+ * Idempotent dependency-invalidation record: a figure inclusion change made the
+ * effective figure set stale, so unapproved downstream drafts referencing the
+ * figure must be marked stale. One row per (project, figure, revision) prevents
+ * duplicates.
+ */
+export const sourceFigureInvalidations = pgTable(
+  "source_figure_invalidations",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    parsedDocumentId: uuid("parsed_document_id")
+      .notNull()
+      .references(() => parsedDocuments.id, { onDelete: "cascade" }),
+    figureId: uuid("figure_id")
+      .notNull()
+      .references(() => extractedFigures.id, { onDelete: "cascade" }),
+    figureRevision: integer("figure_revision").notNull(),
+    scope: text("scope").notNull().default("unapproved_drafts"),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex(
+      "source_figure_invalidations_project_figure_revision_unique",
+    ).on(table.projectId, table.figureId, table.figureRevision),
+    index("source_figure_invalidations_project_created_idx").on(
       table.ownerUserId,
       table.projectId,
       table.createdAt,
@@ -799,8 +865,11 @@ export const auditEventTypeValues = [
   "source.selection_updated",
   "source.block_corrected",
   "source.block_restored",
+  "source.figure_updated",
+  "source.figure_restored",
   "share.created",
   "share.revoked",
+  "lesson.configuration_saved",
   "lesson.approved",
   "ai.generated",
   "version.restored",
@@ -900,5 +969,43 @@ export const usageRecords = pgTable(
       table.occurredAt,
     ),
     index("usage_records_correlation_idx").on(table.correlationId),
+  ],
+);
+
+/**
+ * One current-draft lesson configuration per project. `version` increments on
+ * each save and backs the optimistic-concurrency conflict check. Approved
+ * immutable configuration versions referenced by generated artifacts are
+ * preserved by downstream stories (ST-042+) rather than stored here.
+ */
+export const lessonConfigurations = pgTable(
+  "lesson_configurations",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    version: revisionColumn(),
+    ageBand: text("age_band").notNull(),
+    difficulty: text("difficulty").notNull(),
+    subject: text("subject").notNull(),
+    lessonTitle: text("lesson_title").notNull(),
+    targetDurationSeconds: integer("target_duration_seconds").notNull(),
+    tone: text("tone").notNull(),
+    visualTheme: text("visual_theme").notNull().default("mvp-default"),
+    includeRecallQuestions: boolean("include_recall_questions")
+      .notNull()
+      .default(false),
+    /** Effective selected-source parsed version that grounds the lesson. */
+    sourceParsedDocumentVersion: integer(
+      "source_parsed_document_version",
+    ).notNull(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("lesson_configurations_project_unique").on(table.projectId),
+    index("lesson_configurations_owner_updated_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.updatedAt,
+    ),
   ],
 );

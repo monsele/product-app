@@ -1921,7 +1921,11 @@ export const reviewFigureExtensionValues = [
   "webp",
 ] as const;
 
-/** Figure with short-lived authorized preview/thumbnail URLs. */
+/**
+ * Figure with short-lived authorized preview/thumbnail URLs. `included` and
+ * `revision` carry the effective teacher inclusion state for the current
+ * parsed version (included defaults to true, revision 0 when no overlay exists).
+ */
 export const reviewFigureSchema = z
   .object({
     id: identifierSchema,
@@ -1938,6 +1942,8 @@ export const reviewFigureSchema = z
     height: z.number().int().positive().max(20_000).nullable(),
     previewUrl: z.string().url().optional(),
     thumbnailUrl: z.string().url().optional(),
+    included: z.boolean(),
+    revision: z.number().int().nonnegative(),
   })
   .strict();
 export type ReviewFigure = z.infer<typeof reviewFigureSchema>;
@@ -2163,4 +2169,174 @@ export type ContentBlockCorrection = z.infer<
 export const contentBlockUpdateResponseSchema = reviewContentBlockSchema;
 export type ContentBlockUpdateResponse = z.infer<
   typeof contentBlockUpdateResponseSchema
+>;
+
+// ---------------------------------------------------------------------------
+// ST-040 — Figure inclusion overlays
+// ---------------------------------------------------------------------------
+
+/**
+ * Patch body for a single figure inclusion overlay. `revision` is the expected
+ * current overlay revision (0 means "no overlay exists yet") and `included`
+ * declares whether the figure participates in asset planning.
+ */
+export const figureInclusionInputSchema = z
+  .object({
+    revision: z.number().int().nonnegative(),
+    included: z.boolean(),
+  })
+  .strict();
+export type FigureInclusionInput = z.infer<typeof figureInclusionInputSchema>;
+
+/**
+ * Effective figure projection for asset planning. The immutable extracted
+ * figure is preserved; `included` is false when the teacher excluded the figure
+ * and `revision` is the overlay revision (0 when no overlay exists yet).
+ */
+export const effectiveFigureSchema = reviewFigureSchema;
+export type EffectiveFigure = z.infer<typeof effectiveFigureSchema>;
+
+// ---------------------------------------------------------------------------
+// ST-041 — Lesson configuration
+// ---------------------------------------------------------------------------
+
+/**
+ * Learner age band. Values stay aligned with the `LessonSpec` audience so a
+ * configuration can be mapped onto a lesson without enum translation. The MVP
+ * targets ages 10–16 but the schema is future-safe.
+ */
+export const lessonAgeBandValues = [
+  "8-10",
+  "11-13",
+  "14-16",
+  "adult-beginner",
+] as const;
+export const lessonAgeBandSchema = z.enum(lessonAgeBandValues);
+export type LessonAgeBand = z.infer<typeof lessonAgeBandSchema>;
+
+export const lessonDifficultyValues = ["introductory", "intermediate"] as const;
+export const lessonDifficultySchema = z.enum(lessonDifficultyValues);
+export type LessonDifficulty = z.infer<typeof lessonDifficultySchema>;
+
+export const lessonToneValues = [
+  "friendly",
+  "academic",
+  "conversational",
+] as const;
+export const lessonToneSchema = z.enum(lessonToneValues);
+export type LessonTone = z.infer<typeof lessonToneSchema>;
+
+/** Only one visual theme is selectable in the MVP. */
+export const lessonVisualThemeValues = ["mvp-default"] as const;
+export const lessonVisualThemeSchema = z.enum(lessonVisualThemeValues);
+export type LessonVisualTheme = z.infer<typeof lessonVisualThemeSchema>;
+
+/** 3, 5, and 7 minute lessons map to fixed durations in seconds. */
+export const targetDurationSecondsSchema = z.union([
+  z.literal(180),
+  z.literal(300),
+  z.literal(420),
+]);
+export type TargetDurationSeconds = z.infer<
+  typeof targetDurationSecondsSchema
+>;
+export const durationMinutesToSeconds = (minutes: 3 | 5 | 7): number =>
+  minutes * 60;
+
+/**
+ * Documented narration-budget constants. `targetWords = durationMinutes ×
+ * wordsPerMinute × (1 − pauseReservation)`; the range buffers the target so
+ * scripts may land slightly above or below the deterministic midpoint.
+ */
+export const narrationWordsPerMinute = 140 as const;
+export const narrationPauseReservation = 0.2 as const;
+export const narrationRangeLower = 0.9 as const;
+export const narrationRangeUpper = 1.15 as const;
+
+export const narrationWordCountTargetSchema = z
+  .object({
+    min: z.number().int().positive(),
+    target: z.number().int().positive(),
+    max: z.number().int().positive(),
+  })
+  .strict();
+export type NarrationWordCountTarget = z.infer<
+  typeof narrationWordCountTargetSchema
+>;
+
+export function narrationWordCountRange(
+  targetDurationSeconds: number,
+): NarrationWordCountTarget {
+  const target = Math.round(
+    (targetDurationSeconds / 60) *
+      narrationWordsPerMinute *
+      (1 - narrationPauseReservation),
+  );
+  return {
+    min: Math.max(1, Math.round(target * narrationRangeLower)),
+    target,
+    max: Math.max(target, Math.round(target * narrationRangeUpper)),
+  };
+}
+
+/** Persisted current-draft configuration returned by the API. */
+export const lessonConfigurationSchema = z
+  .object({
+    version: z.number().int().positive(),
+    ageBand: lessonAgeBandSchema,
+    difficulty: lessonDifficultySchema,
+    subject: z.string().trim().min(1).max(200),
+    lessonTitle: z.string().trim().min(1).max(200),
+    targetDurationSeconds: targetDurationSecondsSchema,
+    tone: lessonToneSchema,
+    visualTheme: lessonVisualThemeSchema,
+    includeRecallQuestions: z.boolean(),
+    sourceParsedDocumentVersion: z.number().int().positive(),
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type LessonConfiguration = z.infer<typeof lessonConfigurationSchema>;
+
+/**
+ * `PUT /projects/:id/configuration` body. `expectedVersion` is the version the
+ * form last loaded (0 when no configuration exists yet) and drives the stale
+ * update conflict check.
+ */
+export const lessonConfigurationInputSchema = z
+  .object({
+    expectedVersion: z.number().int().nonnegative(),
+    ageBand: lessonAgeBandSchema,
+    difficulty: lessonDifficultySchema,
+    subject: z.string().trim().min(1).max(200),
+    lessonTitle: z.string().trim().min(1).max(200),
+    targetDurationSeconds: targetDurationSecondsSchema,
+    tone: lessonToneSchema,
+    includeRecallQuestions: z.boolean(),
+  })
+  .strict();
+export type LessonConfigurationInput = z.infer<
+  typeof lessonConfigurationInputSchema
+>;
+
+/** Effective source context attached to the configuration surface. */
+export const lessonConfigurationSourceSchema = z
+  .object({
+    parsedDocumentVersion: z.number().int().positive().nullable(),
+    sourceReviewComplete: z.boolean(),
+  })
+  .strict();
+export type LessonConfigurationSource = z.infer<
+  typeof lessonConfigurationSourceSchema
+>;
+
+export const lessonConfigurationResponseSchema = z
+  .object({
+    configuration: lessonConfigurationSchema.nullable(),
+    source: lessonConfigurationSourceSchema,
+    narrationTarget: narrationWordCountTargetSchema.nullable(),
+    canProceed: z.boolean(),
+  })
+  .strict();
+export type LessonConfigurationResponse = z.infer<
+  typeof lessonConfigurationResponseSchema
 >;

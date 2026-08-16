@@ -18,6 +18,34 @@ const projects = new Map([
   ],
 ]);
 const uploads = new Map();
+const configurations = new Map();
+
+function narrationTarget(seconds) {
+  const target = Math.round(
+    (seconds / 60) * 140 * (1 - 0.2),
+  );
+  return {
+    min: Math.max(1, Math.round(target * 0.9)),
+    target,
+    max: Math.max(target, Math.round(target * 1.15)),
+  };
+}
+
+function configurationResponse(projectId) {
+  const configuration = configurations.get(projectId) ?? null;
+  return {
+    configuration,
+    source: {
+      parsedDocumentVersion: 1,
+      sourceReviewComplete: true,
+    },
+    narrationTarget:
+      configuration === null
+        ? null
+        : narrationTarget(configuration.targetDurationSeconds),
+    canProceed: configuration !== null,
+  };
+}
 
 function send(response, status, body) {
   response.writeHead(status, { "content-type": "application/json" });
@@ -270,6 +298,53 @@ const server = createServer(async (request, response) => {
       });
     }
     return send(response, 404, { error: { code: "not_found" } });
+  }
+  const configurationMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/configuration$/,
+  );
+  if (request.method === "GET" && configurationMatch !== null) {
+    const project = projects.get(decodeURIComponent(configurationMatch[1]));
+    if (project === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    return send(
+      response,
+      200,
+      configurationResponse(decodeURIComponent(configurationMatch[1])),
+    );
+  }
+  if (request.method === "PUT" && configurationMatch !== null) {
+    const projectId = decodeURIComponent(configurationMatch[1]);
+    const project = projects.get(projectId);
+    if (project === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    let body = "";
+    for await (const chunk of request) body += chunk;
+    const input = JSON.parse(body);
+    const current = configurations.get(projectId);
+    const expectedVersion = current?.version ?? 0;
+    if (input.expectedVersion !== expectedVersion)
+      return send(response, 409, {
+        error: {
+          code: "bad_request",
+          message: "The lesson configuration changed. Please refresh and try again.",
+          retryable: false,
+        },
+      });
+    const configuration = {
+      version: expectedVersion + 1,
+      ageBand: input.ageBand,
+      difficulty: input.difficulty,
+      subject: input.subject,
+      lessonTitle: input.lessonTitle,
+      targetDurationSeconds: input.targetDurationSeconds,
+      tone: input.tone,
+      visualTheme: "mvp-default",
+      includeRecallQuestions: input.includeRecallQuestions,
+      sourceParsedDocumentVersion: 1,
+      updatedAt: now,
+    };
+    configurations.set(projectId, configuration);
+    return send(response, 200, configurationResponse(projectId));
   }
   if (request.method === "GET" && url.pathname.startsWith("/projects/")) {
     const project = projects.get(decodeURIComponent(url.pathname.slice(10)));

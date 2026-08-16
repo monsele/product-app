@@ -14,6 +14,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Req,
   Res,
   type DynamicModule,
@@ -60,6 +61,8 @@ import type { IngestionStatusService } from "./ingestion-status.js";
 import type { ParsedDocumentReviewService } from "./parsed-document-review.js";
 import type { SourceSectionSelectionService } from "./source-section-selection.js";
 import type { ContentBlockCorrectionService } from "./content-block-corrections.js";
+import type { FigureInclusionService } from "./source-figure-inclusion.js";
+import type { LessonConfigurationService } from "./lesson-configuration.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
 const TELEMETRY_SHUTDOWN = Symbol("TELEMETRY_SHUTDOWN");
@@ -74,6 +77,8 @@ const SOURCE_SECTION_SELECTION_SERVICE = Symbol("SOURCE_SECTION_SELECTION_SERVIC
 const CONTENT_BLOCK_CORRECTION_SERVICE = Symbol(
   "CONTENT_BLOCK_CORRECTION_SERVICE",
 );
+const FIGURE_INCLUSION_SERVICE = Symbol("FIGURE_INCLUSION_SERVICE");
+const LESSON_CONFIGURATION_SERVICE = Symbol("LESSON_CONFIGURATION_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -264,6 +269,11 @@ type ContentBlockCorrectionApiService = Pick<
   ContentBlockCorrectionService,
   "update" | "restore"
 >;
+type FigureInclusionApiService = Pick<FigureInclusionService, "update">;
+type LessonConfigurationApiService = Pick<
+  LessonConfigurationService,
+  "get" | "save"
+>;
 
 @Controller("projects")
 class ProjectsController {
@@ -281,6 +291,10 @@ class ProjectsController {
     private readonly sourceSectionSelection: SourceSectionSelectionApiService,
     @Inject(CONTENT_BLOCK_CORRECTION_SERVICE)
     private readonly contentBlockCorrections: ContentBlockCorrectionApiService,
+    @Inject(FIGURE_INCLUSION_SERVICE)
+    private readonly figureInclusion: FigureInclusionApiService,
+    @Inject(LESSON_CONFIGURATION_SERVICE)
+    private readonly lessonConfiguration: LessonConfigurationApiService,
   ) {}
 
   @Post()
@@ -525,6 +539,58 @@ class ProjectsController {
     });
   }
 
+  @Patch(":projectId/source-figures/:figureId")
+  public async updateSourceFigure(
+    @Param("projectId") projectId: string,
+    @Param("figureId") figureIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const figureId = identifierSchema.safeParse(figureIdInput);
+    if (!figureId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.figureInclusion.update({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      figureId: figureId.data,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Get(":projectId/configuration")
+  public async getConfiguration(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    return this.lessonConfiguration.get(access.ownerUserId, access.projectId);
+  }
+
+  @Put(":projectId/configuration")
+  public async saveConfiguration(
+    @Param("projectId") projectId: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    return this.lessonConfiguration.save({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
   @Post(":projectId/source-upload/:sessionId/complete")
   @HttpCode(202)
   public async completeSourceUpload(
@@ -676,6 +742,8 @@ function createAppModule(
   parsedDocumentReviewService: ParsedDocumentReviewApiService,
   sourceSectionSelectionService: SourceSectionSelectionApiService,
   contentBlockCorrectionService: ContentBlockCorrectionApiService,
+  figureInclusionService: FigureInclusionApiService,
+  lessonConfigurationService: LessonConfigurationApiService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -700,6 +768,11 @@ function createAppModule(
         provide: CONTENT_BLOCK_CORRECTION_SERVICE,
         useValue: contentBlockCorrectionService,
       },
+      { provide: FIGURE_INCLUSION_SERVICE, useValue: figureInclusionService },
+      {
+        provide: LESSON_CONFIGURATION_SERVICE,
+        useValue: lessonConfigurationService,
+      },
     ],
   };
 }
@@ -718,6 +791,8 @@ export type CreateAppOptions = {
   parsedDocumentReviewService?: ParsedDocumentReviewApiService;
   sourceSectionSelectionService?: SourceSectionSelectionApiService;
   contentBlockCorrectionService?: ContentBlockCorrectionApiService;
+  figureInclusionService?: FigureInclusionApiService;
+  lessonConfigurationService?: LessonConfigurationApiService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -954,6 +1029,39 @@ const unavailableContentBlockCorrectionService: ContentBlockCorrectionApiService
       ),
   };
 
+const unavailableFigureInclusionService: FigureInclusionApiService = {
+  update: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Figure inclusion is unavailable.",
+        503,
+        true,
+      ),
+    ),
+};
+
+const unavailableLessonConfigurationService: LessonConfigurationApiService = {
+  get: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Lesson configuration is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  save: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Lesson configuration is unavailable.",
+        503,
+        true,
+      ),
+    ),
+};
+
 export async function createApp(
   options: CreateAppOptions = {},
 ): Promise<NestFastifyApplication> {
@@ -975,6 +1083,9 @@ export async function createApp(
         unavailableSourceSectionSelectionService,
       options.contentBlockCorrectionService ??
         unavailableContentBlockCorrectionService,
+      options.figureInclusionService ?? unavailableFigureInclusionService,
+      options.lessonConfigurationService ??
+        unavailableLessonConfigurationService,
     ),
     new FastifyAdapter({
       logger: {
@@ -1003,7 +1114,7 @@ export async function createApp(
       {
         origin: options.trustedOrigin,
         credentials: true,
-        methods: ["GET", "POST", "PATCH", "DELETE"],
+        methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
       },
     );
   app
