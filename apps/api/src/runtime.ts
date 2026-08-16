@@ -25,6 +25,7 @@ import { PostgresSourceSectionSelectionService } from "./source-section-selectio
 import { PostgresContentBlockCorrectionService } from "./content-block-corrections.js";
 import { PostgresFigureInclusionService } from "./source-figure-inclusion.js";
 import { PostgresLessonConfigurationService } from "./lesson-configuration.js";
+import { PostgresSourceSnapshotService } from "./source-snapshot.js";
 
 export async function runApi(input: {
   telemetryShutdown: () => Promise<void>;
@@ -115,6 +116,7 @@ export async function runApi(input: {
       lessonConfigurationService: new PostgresLessonConfigurationService(
         database.client,
       ),
+      sourceSnapshotService: new PostgresSourceSnapshotService(database.client),
       projectAuthorizer,
       ...(environment.WEB_ORIGIN === undefined
         ? {}

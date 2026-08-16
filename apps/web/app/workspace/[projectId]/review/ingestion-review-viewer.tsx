@@ -6,11 +6,13 @@ import {
   parsedDocumentSectionResponseSchema,
   reviewContentBlockSchema,
   reviewFigureSchema,
+  sourceApprovalStatusSchema,
   sourceSectionSelectionResponseSchema,
   sourceSectionSelectionSchema,
   type ParsedDocumentReviewResponse,
   type ParsedDocumentSectionResponse,
   type ReviewFigure,
+  type SourceApprovalStatus,
   type SourceSectionSelection,
 } from "@avlp/schemas";
 import {
@@ -38,6 +40,12 @@ type SectionState = {
   error?: string;
 };
 
+type ApprovalState =
+  | { kind: "loading" }
+  | { kind: "ready"; value: SourceApprovalStatus }
+  | { kind: "approving" }
+  | { kind: "failed"; message: string };
+
 function apiUrl(path: string): string {
   return `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}${path}`;
 }
@@ -63,6 +71,72 @@ export function IngestionReviewViewer({ projectId }: { projectId: string }) {
   >({});
   const sectionStatesRef = useRef(sectionStates);
   sectionStatesRef.current = sectionStates;
+  const [approvalState, setApprovalState] = useState<ApprovalState>({
+    kind: "loading",
+  });
+
+  const refreshApproval = useCallback(async () => {
+    setApprovalState({ kind: "loading" });
+    try {
+      const response = await fetch(
+        apiUrl(`/projects/${encodeURIComponent(projectId)}/source-review`),
+        { credentials: "include", cache: "no-store" },
+      );
+      const payload: unknown = await response.json().catch(() => null);
+      if (!response.ok) throw new Error("source-review");
+      const parsed = sourceApprovalStatusSchema.safeParse(payload);
+      if (!parsed.success) throw new Error("source-review");
+      setApprovalState({ kind: "ready", value: parsed.data });
+    } catch {
+      setApprovalState({
+        kind: "failed",
+        message: "Approval status is unavailable.",
+      });
+    }
+  }, [projectId]);
+
+  useEffect(() => {
+    void refreshApproval();
+  }, [refreshApproval]);
+
+  const approveSource = useCallback(async () => {
+    setApprovalState({ kind: "approving" });
+    try {
+      const response = await fetch(
+        apiUrl(
+          `/projects/${encodeURIComponent(projectId)}/source-review/approve`,
+        ),
+        {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+        },
+      );
+      const payload: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        const message =
+          typeof payload === "object" &&
+          payload !== null &&
+          "error" in payload &&
+          typeof payload.error === "object" &&
+          payload.error !== null &&
+          "message" in payload.error &&
+          typeof payload.error.message === "string"
+            ? payload.error.message
+            : "Unable to confirm the source content.";
+        throw new Error(message);
+      }
+      await refreshApproval();
+    } catch (error) {
+      setApprovalState({
+        kind: "failed",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Unable to confirm the source content.",
+      });
+    }
+  }, [projectId, refreshApproval]);
 
   const refresh = useCallback(async () => {
     try {
@@ -448,6 +522,12 @@ export function IngestionReviewViewer({ projectId }: { projectId: string }) {
         </p>
       ) : null}
 
+      <ApprovalPanel
+        state={approvalState}
+        onApprove={() => void approveSource()}
+        onRefresh={() => void refreshApproval()}
+      />
+
       {selectionError !== undefined ? (
         <p role="alert">{selectionError}</p>
       ) : null}
@@ -612,6 +692,92 @@ export function IngestionReviewViewer({ projectId }: { projectId: string }) {
         )}
       </div>
     </section>
+  );
+}
+
+function ApprovalPanel({
+  state,
+  onApprove,
+  onRefresh,
+}: {
+  state: ApprovalState;
+  onApprove: () => void;
+  onRefresh: () => void;
+}) {
+  if (state.kind === "loading")
+    return (
+      <p role="status">Checking whether the reviewed source is confirmed…</p>
+    );
+
+  if (state.kind === "approving")
+    return <p role="status">Confirming the reviewed source content…</p>;
+
+  if (state.kind === "failed")
+    return (
+      <div aria-labelledby="approval-heading">
+        <h3 id="approval-heading">Confirm source content</h3>
+        <p role="alert">{state.message}</p>
+        <button type="button" onClick={onRefresh}>
+          Try again
+        </button>
+      </div>
+    );
+
+  const { value } = state;
+  if (!value.approved)
+    return (
+      <div aria-labelledby="approval-heading">
+        <h3 id="approval-heading">Confirm source content</h3>
+        <p>
+          Confirm the reviewed source content to create an immutable snapshot
+          for lesson generation.
+        </p>
+        <button type="button" data-approve-source onClick={onApprove}>
+          Confirm source content
+        </button>
+      </div>
+    );
+
+  return (
+    <div aria-labelledby="approval-heading">
+      <h3 id="approval-heading">Confirm source content</h3>
+      <p>
+        Source content confirmed — snapshot {value.snapshotVersion}
+        {value.contentHash !== null ? (
+          <>
+            {" "}
+            (hash{" "}
+            <code data-approval-hash={value.contentHash}>
+              {value.contentHash.slice(0, 12)}…
+            </code>
+            )
+          </>
+        ) : null}
+        {value.approvedAt !== null ? (
+          <>
+            {" "}
+            on{" "}
+            <time dateTime={value.approvedAt}>
+              {new Intl.DateTimeFormat("en", {
+                dateStyle: "medium",
+                timeStyle: "short",
+                timeZone: "UTC",
+              }).format(new Date(value.approvedAt))}
+            </time>
+          </>
+        ) : null}
+        .
+      </p>
+      {value.stale ? (
+        <p role="alert">
+          The reviewed source changed after confirmation. Re-confirm to update
+          the snapshot used for lesson generation.
+        </p>
+      ) : null}
+      <button type="button" data-approve-source onClick={onApprove}>
+        Re-confirm source content
+      </button>
+    </div>
   );
 }
 

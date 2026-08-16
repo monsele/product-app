@@ -725,6 +725,46 @@ export const sourceFigureInvalidations = pgTable(
   ],
 );
 
+/**
+ * Immutable approved source snapshot. `payload` freezes the effective reviewed
+ * content (included sections, corrected blocks, included figures/tables) as
+ * JSONB; the queryable columns mirror the metadata needed by generation jobs.
+ * Later overlay edits create a new snapshot version rather than mutating this
+ * row. The AI pipeline consumes approved snapshots, never live draft overlays.
+ */
+export const sourceSnapshots = pgTable(
+  "source_snapshots",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    parsedDocumentId: uuid("parsed_document_id")
+      .notNull()
+      .references(() => parsedDocuments.id, { onDelete: "cascade" }),
+    parsedDocumentVersion: integer("parsed_document_version").notNull(),
+    snapshotVersion: integer("snapshot_version").notNull(),
+    schemaVersion: text("schema_version").notNull(),
+    contentHash: text("content_hash").notNull(),
+    approvedBy: uuid("approved_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    approvedAt: utcTimestamp("approved_at").notNull(),
+    payload: jsonb("payload").notNull(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("source_snapshots_project_version_unique").on(
+      table.projectId,
+      table.snapshotVersion,
+    ),
+    index("source_snapshots_owner_project_parsed_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.parsedDocumentId,
+    ),
+    index("source_snapshots_parsed_document_idx").on(table.parsedDocumentId),
+  ],
+);
+
 export const uploadSessions = pgTable(
   "upload_sessions",
   {
@@ -867,6 +907,7 @@ export const auditEventTypeValues = [
   "source.block_restored",
   "source.figure_updated",
   "source.figure_restored",
+  "source.review_approved",
   "share.created",
   "share.revoked",
   "lesson.configuration_saved",

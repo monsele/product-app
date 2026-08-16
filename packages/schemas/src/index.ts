@@ -2340,3 +2340,458 @@ export const lessonConfigurationResponseSchema = z
 export type LessonConfigurationResponse = z.infer<
   typeof lessonConfigurationResponseSchema
 >;
+
+// ---------------------------------------------------------------------------
+// ST-042 — Approved source snapshots and bounded source packages
+// ---------------------------------------------------------------------------
+
+export const sourceSnapshotVersion = "1.0" as const;
+
+const sha256HexPattern = /^[0-9a-f]{64}$/i;
+
+/**
+ * Effective section captured at approval time. `heading` is the teacher's
+ * effective heading (displayHeading override when present), `reviewOrder` is
+ * the teacher's ordering override (null when unchanged), and the ID arrays
+ * reference only content included in the approved snapshot.
+ */
+export const sourceSnapshotSectionSchema = z
+  .object({
+    sectionId: identifierSchema,
+    parentSectionId: identifierSchema.optional(),
+    order: z.number().int().positive(),
+    level: z.number().int().min(1).max(10),
+    heading: normalizedText(1_000),
+    ...pageRangeShape,
+    reviewOrder: z.number().int().positive().nullable(),
+    blockIds: z.array(identifierSchema).max(10_000),
+    figureIds: z.array(identifierSchema).max(1_000),
+    tableIds: z.array(identifierSchema).max(1_000),
+  })
+  .strict()
+  .superRefine(pageRangeValidation);
+export type SourceSnapshotSection = z.infer<typeof sourceSnapshotSectionSchema>;
+
+/**
+ * Effective content block captured at approval time. The effective text is the
+ * corrected text when the teacher corrected the block; `corrected` and
+ * `revision` record the overlay state used for auditability.
+ */
+export const sourceSnapshotBlockSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      blockId: identifierSchema,
+      sectionId: identifierSchema,
+      kind: z.literal("paragraph"),
+      order: z.number().int().positive(),
+      ...pageRangeShape,
+      text: normalizedText(50_000),
+      corrected: z.boolean(),
+      revision: z.number().int().nonnegative(),
+    })
+    .strict(),
+  z
+    .object({
+      blockId: identifierSchema,
+      sectionId: identifierSchema,
+      kind: z.literal("list"),
+      order: z.number().int().positive(),
+      ...pageRangeShape,
+      items: z.array(normalizedText(10_000)).min(1).max(1_000),
+      corrected: z.boolean(),
+      revision: z.number().int().nonnegative(),
+    })
+    .strict(),
+  z
+    .object({
+      blockId: identifierSchema,
+      sectionId: identifierSchema,
+      kind: z.literal("equation"),
+      order: z.number().int().positive(),
+      ...pageRangeShape,
+      latex: normalizedText(20_000),
+      text: normalizedText(20_000).optional(),
+      corrected: z.boolean(),
+      revision: z.number().int().nonnegative(),
+    })
+    .strict(),
+  z
+    .object({
+      blockId: identifierSchema,
+      sectionId: identifierSchema,
+      kind: z.literal("caption"),
+      order: z.number().int().positive(),
+      ...pageRangeShape,
+      text: normalizedText(10_000),
+      corrected: z.boolean(),
+      revision: z.number().int().nonnegative(),
+    })
+    .strict(),
+]);
+export type SourceSnapshotBlock = z.infer<typeof sourceSnapshotBlockSchema>;
+
+/** Effective figure captured at approval time (included in the approved source). */
+export const sourceSnapshotFigureSchema = z
+  .object({
+    figureId: identifierSchema,
+    sectionId: identifierSchema,
+    order: z.number().int().positive(),
+    ...pageRangeShape,
+    captionBlockId: identifierSchema.optional(),
+    altText: normalizedText(10_000).optional(),
+    sourceLocator: normalizedText(2_000).optional(),
+    revision: z.number().int().nonnegative(),
+  })
+  .strict()
+  .superRefine(pageRangeValidation);
+export type SourceSnapshotFigure = z.infer<typeof sourceSnapshotFigureSchema>;
+
+/** Effective table captured at approval time. */
+export const sourceSnapshotTableSchema = z
+  .object({
+    tableId: identifierSchema,
+    sectionId: identifierSchema,
+    order: z.number().int().positive(),
+    ...pageRangeShape,
+    captionBlockId: identifierSchema.optional(),
+    columns: z.array(normalizedText(1_000)).min(1).max(500),
+    rows: z.array(z.array(z.string().max(10_000))).max(10_000),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    pageRangeValidation(value, context);
+    for (const [index, row] of value.rows.entries())
+      if (row.length !== value.columns.length)
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["rows", index],
+          message: "Every table row must have one cell per column.",
+        });
+  });
+export type SourceSnapshotTable = z.infer<typeof sourceSnapshotTableSchema>;
+
+/**
+ * Immutable approved source snapshot. The effective content is a frozen copy
+ * of the reviewed source: later overlay edits create a new snapshot version
+ * rather than mutating this record.
+ */
+export const sourceSnapshotSchema = z
+  .object({
+    schemaVersion: z.literal(sourceSnapshotVersion),
+    id: identifierSchema,
+    projectId: identifierSchema,
+    sourceDocumentId: identifierSchema,
+    parsedDocumentId: identifierSchema,
+    parsedDocumentVersion: z.number().int().positive(),
+    contentHash: z
+      .string()
+      .regex(sha256HexPattern, "Expected a hexadecimal SHA-256 checksum.")
+      .transform((value) => value.toLowerCase()),
+    approvedBy: identifierSchema,
+    approvedAt: z.string().datetime({ offset: true }),
+    sections: z.array(sourceSnapshotSectionSchema).max(10_000),
+    blocks: z.array(sourceSnapshotBlockSchema).max(100_000),
+    figures: z.array(sourceSnapshotFigureSchema).max(10_000),
+    tables: z.array(sourceSnapshotTableSchema).max(10_000),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const collectUnique = <T>(
+      entries: readonly T[],
+      select: (entry: T) => string,
+      path: string,
+    ): Set<string> => {
+      const identifiers = new Set<string>();
+      for (const [index, entry] of entries.entries()) {
+        const id = select(entry);
+        if (identifiers.has(id))
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [path, index],
+            message: `${path} IDs must be unique.`,
+          });
+        identifiers.add(id);
+      }
+      return identifiers;
+    };
+    const sectionIds = collectUnique(
+      value.sections,
+      (section) => section.sectionId,
+      "sections",
+    );
+    const blockIds = collectUnique(
+      value.blocks,
+      (block) => block.blockId,
+      "blocks",
+    );
+    const figureIds = collectUnique(
+      value.figures,
+      (figure) => figure.figureId,
+      "figures",
+    );
+    const tableIds = collectUnique(
+      value.tables,
+      (table) => table.tableId,
+      "tables",
+    );
+    const sectionsById = new Map(
+      value.sections.map((section) => [section.sectionId, section]),
+    );
+    const blocksById = new Map(
+      value.blocks.map((block) => [block.blockId, block]),
+    );
+    for (const [index, section] of value.sections.entries()) {
+      if (
+        section.parentSectionId !== undefined &&
+        !sectionIds.has(section.parentSectionId)
+      )
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["sections", index, "parentSectionId"],
+          message: "Parent section must exist in this snapshot.",
+        });
+      const parent =
+        section.parentSectionId === undefined
+          ? undefined
+          : sectionsById.get(section.parentSectionId);
+      if (parent !== undefined && parent.level >= section.level)
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["sections", index, "level"],
+          message:
+            "A child section level must be greater than its parent level.",
+        });
+      for (const [referenceIndex, blockId] of section.blockIds.entries())
+        if (!blockIds.has(blockId))
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["sections", index, "blockIds", referenceIndex],
+            message: "Section block reference must exist in this snapshot.",
+          });
+      for (const [referenceIndex, blockId] of section.blockIds.entries()) {
+        const block = blocksById.get(blockId);
+        if (block !== undefined && block.sectionId !== section.sectionId)
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["sections", index, "blockIds", referenceIndex],
+            message:
+              "Section block references must point to blocks in that section.",
+          });
+      }
+      for (const [referenceIndex, figureId] of section.figureIds.entries())
+        if (!figureIds.has(figureId))
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["sections", index, "figureIds", referenceIndex],
+            message: "Section figure reference must exist in this snapshot.",
+          });
+      for (const [referenceIndex, tableId] of section.tableIds.entries())
+        if (!tableIds.has(tableId))
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["sections", index, "tableIds", referenceIndex],
+            message: "Section table reference must exist in this snapshot.",
+          });
+    }
+    for (const [collection, entries] of [
+      ["blocks", value.blocks],
+      ["figures", value.figures],
+      ["tables", value.tables],
+    ] as const) {
+      for (const [index, entry] of entries.entries()) {
+        if (!sectionIds.has(entry.sectionId))
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: [collection, index, "sectionId"],
+            message: "Item section must exist in this snapshot.",
+          });
+      }
+    }
+    for (const [index, block] of value.blocks.entries())
+      if (block.pageEnd !== undefined && block.pageEnd < block.pageStart)
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["blocks", index, "pageEnd"],
+          message: "pageEnd must not precede pageStart.",
+        });
+    const referencedFigureIds = new Set<string>();
+    const referencedTableIds = new Set<string>();
+    for (const section of value.sections) {
+      for (const figureId of section.figureIds)
+        referencedFigureIds.add(figureId);
+      for (const tableId of section.tableIds) referencedTableIds.add(tableId);
+    }
+    for (const [index, figure] of value.figures.entries())
+      if (!referencedFigureIds.has(figure.figureId))
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["figures", index],
+          message: "Every figure must be referenced by its section.",
+        });
+    for (const [index, table] of value.tables.entries())
+      if (!referencedTableIds.has(table.tableId))
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["tables", index],
+          message: "Every table must be referenced by its section.",
+        });
+  });
+export type SourceSnapshot = z.infer<typeof sourceSnapshotSchema>;
+
+/** Queryable snapshot metadata returned by the API. */
+export const sourceSnapshotMetadataSchema = z
+  .object({
+    id: identifierSchema,
+    snapshotVersion: z.number().int().positive(),
+    schemaVersion: z.literal(sourceSnapshotVersion),
+    parsedDocumentId: identifierSchema,
+    parsedDocumentVersion: z.number().int().positive(),
+    contentHash: z.string().regex(sha256HexPattern),
+    approvedBy: identifierSchema,
+    approvedAt: z.string().datetime({ offset: true }),
+    sectionCount: z.number().int().nonnegative(),
+    blockCount: z.number().int().nonnegative(),
+    figureCount: z.number().int().nonnegative(),
+    tableCount: z.number().int().nonnegative(),
+  })
+  .strict();
+export type SourceSnapshotMetadata = z.infer<
+  typeof sourceSnapshotMetadataSchema
+>;
+
+export const sourceApprovalResponseSchema = z
+  .object({ snapshot: sourceSnapshotMetadataSchema })
+  .strict();
+export type SourceApprovalResponse = z.infer<
+  typeof sourceApprovalResponseSchema
+>;
+
+/**
+ * Current source-review approval state. `stale` is true when the latest
+ * snapshot no longer matches the current effective reviewed content (overlays
+ * changed after approval), so a re-approval is required before generation.
+ */
+export const sourceApprovalStatusSchema = z
+  .object({
+    approved: z.boolean(),
+    parsedDocumentVersion: z.number().int().positive().nullable(),
+    snapshotId: identifierSchema.nullable(),
+    snapshotVersion: z.number().int().positive().nullable(),
+    contentHash: z
+      .string()
+      .regex(sha256HexPattern, "Expected a hexadecimal SHA-256 checksum.")
+      .nullable(),
+    approvedAt: z.string().datetime({ offset: true }).nullable(),
+    stale: z.boolean(),
+  })
+  .strict();
+export type SourceApprovalStatus = z.infer<typeof sourceApprovalStatusSchema>;
+
+/** Source block resolved against an approved snapshot for citation display. */
+export const sourceBlockLookupEntrySchema = z
+  .object({
+    blockId: identifierSchema,
+    sectionId: identifierSchema,
+    sectionHeading: normalizedText(1_000),
+    page: z.number().int().positive(),
+    kind: z.enum(["paragraph", "list", "equation", "caption"]),
+    text: normalizedText(50_000),
+  })
+  .strict();
+export type SourceBlockLookupEntry = z.infer<
+  typeof sourceBlockLookupEntrySchema
+>;
+
+/**
+ * Optional package narrowing by section or block links (e.g. from approved
+ * objectives/outline). IDs retain their stable provenance when narrowed.
+ */
+export const sourcePackageNarrowingSchema = z
+  .object({
+    sectionIds: z.array(identifierSchema).min(1).max(10_000).optional(),
+    blockIds: z.array(identifierSchema).min(1).max(10_000).optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.sectionIds === undefined && value.blockIds === undefined)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["root"],
+        message: "Provide at least one of sectionIds or blockIds.",
+      });
+  });
+export type SourcePackageNarrowing = z.infer<
+  typeof sourcePackageNarrowingSchema
+>;
+
+/** Effective plain-text representation of a snapshot block for packaging/lookup. */
+export function sourceSnapshotBlockText(block: SourceSnapshotBlock): string {
+  const kind = block.kind;
+  if (kind === "list") return block.items.join("\n");
+  if (kind === "equation") return block.latex;
+  return block.text;
+}
+
+/**
+ * Deterministic source-package builder used by the AI pipeline. Given an
+ * approved snapshot (and optional section/block narrowing), the same snapshot
+ * and selection parameters always produce the same package.
+ */
+export function buildSourcePackage(
+  snapshot: SourceSnapshot,
+  narrowing: SourcePackageNarrowing = {},
+): SourcePackage {
+  const sectionFilter =
+    narrowing.sectionIds === undefined
+      ? undefined
+      : new Set(narrowing.sectionIds);
+  const blockFilter =
+    narrowing.blockIds === undefined ? undefined : new Set(narrowing.blockIds);
+  const blocksById = new Map(
+    snapshot.blocks.map((block) => [block.blockId, block]),
+  );
+  const sections = snapshot.sections
+    .filter(
+      (section) =>
+        sectionFilter === undefined || sectionFilter.has(section.sectionId),
+    )
+    .map((section) => {
+      const blockIds = section.blockIds.filter(
+        (blockId) => blockFilter === undefined || blockFilter.has(blockId),
+      );
+      const blocks = blockIds.flatMap((blockId) => {
+        const block = blocksById.get(blockId);
+        if (block === undefined) return [];
+        return [
+          {
+            blockId: block.blockId,
+            page: block.pageStart,
+            kind: block.kind,
+            text: sourceSnapshotBlockText(block),
+          },
+        ];
+      });
+      return {
+        sectionId: section.sectionId,
+        heading: section.heading,
+        pageStart: section.pageStart,
+        pageEnd: section.pageEnd,
+        blocks,
+      };
+    })
+    .filter((section) => section.blocks.length > 0);
+  if (sections.length === 0)
+    throw new RangeError("The narrowed source package is empty.");
+  return sourcePackageSchema.parse({
+    schemaVersion: normalizedDocumentVersion,
+    sourceSnapshotId: snapshot.id,
+    normalizedDocumentId: snapshot.parsedDocumentId,
+    parsedDocumentVersion: snapshot.parsedDocumentVersion,
+    language: "en",
+    sections,
+  });
+}
+
+export function parseSourceSnapshot(input: unknown): SourceSnapshot {
+  return sourceSnapshotSchema.parse(input);
+}

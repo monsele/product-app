@@ -63,6 +63,7 @@ import type { SourceSectionSelectionService } from "./source-section-selection.j
 import type { ContentBlockCorrectionService } from "./content-block-corrections.js";
 import type { FigureInclusionService } from "./source-figure-inclusion.js";
 import type { LessonConfigurationService } from "./lesson-configuration.js";
+import type { SourceSnapshotService } from "./source-snapshot.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
 const TELEMETRY_SHUTDOWN = Symbol("TELEMETRY_SHUTDOWN");
@@ -79,6 +80,7 @@ const CONTENT_BLOCK_CORRECTION_SERVICE = Symbol(
 );
 const FIGURE_INCLUSION_SERVICE = Symbol("FIGURE_INCLUSION_SERVICE");
 const LESSON_CONFIGURATION_SERVICE = Symbol("LESSON_CONFIGURATION_SERVICE");
+const SOURCE_SNAPSHOT_SERVICE = Symbol("SOURCE_SNAPSHOT_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -274,6 +276,10 @@ type LessonConfigurationApiService = Pick<
   LessonConfigurationService,
   "get" | "save"
 >;
+type SourceSnapshotApiService = Pick<
+  SourceSnapshotService,
+  "approve" | "metadata" | "status"
+>;
 
 @Controller("projects")
 class ProjectsController {
@@ -295,6 +301,8 @@ class ProjectsController {
     private readonly figureInclusion: FigureInclusionApiService,
     @Inject(LESSON_CONFIGURATION_SERVICE)
     private readonly lessonConfiguration: LessonConfigurationApiService,
+    @Inject(SOURCE_SNAPSHOT_SERVICE)
+    private readonly sourceSnapshots: SourceSnapshotApiService,
   ) {}
 
   @Post()
@@ -591,6 +599,55 @@ class ProjectsController {
     });
   }
 
+  @Get(":projectId/source-review")
+  public async sourceApprovalStatus(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    return this.sourceSnapshots.status({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+    });
+  }
+
+  @Post(":projectId/source-review/approve")
+  @HttpCode(200)
+  public async approveSourceReview(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    return this.sourceSnapshots.approve({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Get(":projectId/source-snapshots/:snapshotId")
+  public async sourceSnapshotMetadata(
+    @Param("projectId") projectId: string,
+    @Param("snapshotId") snapshotIdInput: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    const snapshotId = identifierSchema.safeParse(snapshotIdInput);
+    if (!snapshotId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.sourceSnapshots.metadata({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      snapshotId: snapshotId.data,
+    });
+  }
+
   @Post(":projectId/source-upload/:sessionId/complete")
   @HttpCode(202)
   public async completeSourceUpload(
@@ -744,6 +801,7 @@ function createAppModule(
   contentBlockCorrectionService: ContentBlockCorrectionApiService,
   figureInclusionService: FigureInclusionApiService,
   lessonConfigurationService: LessonConfigurationApiService,
+  sourceSnapshotService: SourceSnapshotApiService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -773,6 +831,7 @@ function createAppModule(
         provide: LESSON_CONFIGURATION_SERVICE,
         useValue: lessonConfigurationService,
       },
+      { provide: SOURCE_SNAPSHOT_SERVICE, useValue: sourceSnapshotService },
     ],
   };
 }
@@ -793,6 +852,7 @@ export type CreateAppOptions = {
   contentBlockCorrectionService?: ContentBlockCorrectionApiService;
   figureInclusionService?: FigureInclusionApiService;
   lessonConfigurationService?: LessonConfigurationApiService;
+  sourceSnapshotService?: SourceSnapshotApiService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -1062,6 +1122,36 @@ const unavailableLessonConfigurationService: LessonConfigurationApiService = {
     ),
 };
 
+const unavailableSourceSnapshotService: SourceSnapshotApiService = {
+  approve: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Source review approval is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  metadata: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Source snapshots are unavailable.",
+        503,
+        true,
+      ),
+    ),
+  status: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Source review status is unavailable.",
+        503,
+        true,
+      ),
+    ),
+};
+
 export async function createApp(
   options: CreateAppOptions = {},
 ): Promise<NestFastifyApplication> {
@@ -1086,6 +1176,7 @@ export async function createApp(
       options.figureInclusionService ?? unavailableFigureInclusionService,
       options.lessonConfigurationService ??
         unavailableLessonConfigurationService,
+      options.sourceSnapshotService ?? unavailableSourceSnapshotService,
     ),
     new FastifyAdapter({
       logger: {
