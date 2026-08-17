@@ -224,11 +224,38 @@ export type ModelCallHandlerOptions<T> = {
   auditWriter?: Pick<ReturnType<typeof createAuditWriter>, "write">;
   pricing?: ModelPricingTable;
   maxRepairs?: number;
-  deterministicChecks?: (value: T, sourcePackage: SourcePackage) => void;
+  deterministicChecks?: (
+    value: T,
+    sourcePackage: SourcePackage,
+    operationContext: unknown,
+  ) => void;
   renderVariables?: (input: {
     sourcePackage: SourcePackage;
     params: ModelCallParams;
   }) => PromptRenderVariables;
+  /**
+   * Optional asynchronous operation-context loader that runs after the
+   * approved snapshot is loaded and the bounded source package is built (for
+   * example, to load the approved objective set an outline must cover). The
+   * returned `variables` are merged into the prompt render variables, and the
+   * returned `context` is passed to deterministic checks and candidate
+   * persistence so operations can validate against project-owned data that is
+   * not part of the source package.
+   */
+  loadOperationContext?: (input: {
+    snapshot: SourceSnapshot;
+    sourcePackage: SourcePackage;
+    params: ModelCallParams;
+    context: {
+      ownerUserId: Identifier;
+      projectId: Identifier;
+      correlationId: Identifier;
+      idempotencyKey: string;
+    };
+  }) => Promise<{
+    variables?: PromptRenderVariables;
+    context?: unknown;
+  }>;
   /**
    * Optional domain persistence hook run by operation-specific handlers after
    * the model call is recorded and metered. It must be idempotent (same
@@ -241,6 +268,7 @@ export type ModelCallHandlerOptions<T> = {
     params: ModelCallParams;
     modelCall: ModelCallRecord;
     snapshot: SourceSnapshot;
+    operationContext?: unknown;
     context: {
       ownerUserId: Identifier;
       projectId: Identifier;
@@ -311,6 +339,17 @@ export function createModelCallGenerationHandler<T>(
       snapshotResult.snapshot,
       payload.narrowing ?? {},
     );
+    const operationContext = await options.loadOperationContext?.({
+      snapshot: snapshotResult.snapshot,
+      sourcePackage,
+      params: payload.params ?? {},
+      context: {
+        ownerUserId: context.ownerUserId,
+        projectId: context.projectId,
+        correlationId: context.correlationId,
+        idempotencyKey: context.idempotencyKey,
+      },
+    });
     const prompt = options.promptRegistry.get(
       payload.promptId,
       payload.promptVersion,
@@ -323,6 +362,7 @@ export function createModelCallGenerationHandler<T>(
         sourcePackage,
         params,
       }) ?? {}),
+      ...(operationContext?.variables ?? {}),
     });
     const paramsHash = stableJsonHash(params);
     const inputVersion = computeGenerationInputVersion({
@@ -364,7 +404,11 @@ export function createModelCallGenerationHandler<T>(
           : { maxRepairs: options.maxRepairs }),
       });
       try {
-        options.deterministicChecks?.(structured.value, sourcePackage);
+        options.deterministicChecks?.(
+          structured.value,
+          sourcePackage,
+          operationContext?.context,
+        );
       } catch {
         await recordFailedCall({
           context,
@@ -416,6 +460,7 @@ export function createModelCallGenerationHandler<T>(
             params,
             modelCall: record,
             snapshot: snapshotResult.snapshot,
+            operationContext: operationContext?.context,
             context: {
               ownerUserId: context.ownerUserId,
               projectId: context.projectId,

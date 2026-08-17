@@ -22,6 +22,16 @@ const objectivesStages = new Set([
   "completed",
 ]);
 
+const outlineStages = new Set([
+  "outline_review",
+  "narration_storyboard_review",
+  "audio_generation",
+  "ready_for_validation",
+  "ready_to_render",
+  "rendering",
+  "completed",
+]);
+
 export default async function WorkspacePage({
   searchParams,
 }: {
@@ -84,6 +94,13 @@ export default async function WorkspacePage({
                 <p>
                   <a href={`/workspace/${project.id}/objectives`}>
                     Review learning objectives
+                  </a>
+                </p>
+              ) : null}
+              {outlineStages.has(project.stage) ? (
+                <p>
+                  <a href={`/workspace/${project.id}/outline`}>
+                    Review lesson outline
                   </a>
                 </p>
               ) : null}

@@ -2,7 +2,7 @@
 story_id: ST-046
 title: "Generate a Grounded Duration-Aware Lesson Outline"
 phase: "04 \u2014 AI Planning and Grounding"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E8"]
 prd_user_stories: ["E8-US1"]
@@ -120,15 +120,142 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
+- **Agent:** Kilo (deepseek/deepseek-v4-flash:discounted)
+- **Started:** 2026-08-17
+- **Completed:** 2026-08-17
+- **Branch/PR:** `story/st-046` (local, not published)
 - **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
+  - `packages/schemas/src/index.ts` — ST-046 contracts: `outlineItemKindSchema`
+    (`hook|concept|example|analogy|summary|recall_question`),
+    `outlineDurationToleranceRatio` (0.1) and per-item bounds,
+    `outlineGenerationParamsSchema` (configuration + `objectiveSetId`/`objectiveSetRevision`),
+    `outlineOutputV1Schema` (structured output with objective links, source block IDs,
+    estimated seconds, labelled-framing hook rule), `lessonOutlineItemSchema`/`lessonOutlineSetSchema`,
+    `outlineGenerationCompatibilitySchema` + `currentOutlineGenerationCompatibility`
+    (outline@v2/mock-model-1), `outlineGenerationJobStatusSchema`,
+    `outlineGenerationResponseSchema`, `outlineGenerationStateSchema`, `outlineResponseSchema`;
+    `packages/schemas/src/outline.test.ts` (22 tests).
+  - `packages/database/src/schema.ts` — `lesson_outline_set_status` enum,
+    `lesson_outline_sets`, `lesson_outline_items`, `outline_objective_links` tables
+    (tenant-scoped, tenant-unique set idempotency key, JSONB `source_refs`,
+    `framing_note`, `total_estimated_seconds`); migration `0032_greedy_stranger.sql`.
+  - `packages/provider-adapters/src/prompts/outline/v2.ts` — real grounded prompt copy
+    (v2 bump; uses `{{objectives}}`, `{{sourcePackage}}`, `{{configuration}}`);
+    `prompts/index.ts` registers it; evaluation case names for sequence quality,
+    objective coverage, and duration fit.
+  - `apps/pipeline-worker/src/model-call.ts` — additive optional async
+    `loadOperationContext` hook on the base lifecycle (loads project-owned context
+    after the snapshot/source package are ready; returns prompt variables + an
+    operation context passed to deterministic checks and candidate persistence).
+    Objectives job untouched and still green.
+  - `apps/pipeline-worker/src/outline-job.ts` — `computeObjectiveSetContentHash`,
+    `loadApprovedObjectiveSet` (tenant-scoped; missing/not-approved/revision/snapshot
+    checks), `assertOutlineDeterministicChecks` (coverage, citation, order/structure,
+    optional recall question, duration tolerance, target match),
+    `persistOutlineSet` (idempotent set + items + objective links),
+    `createOutlineGenerationJobHandler` (`outline.generate`, `ai.outline`);
+    `outline-job.test.ts` (23 tests).
+  - `apps/pipeline-worker/src/runtime.ts` — registers `outline.generate` with mock
+    provider, prompt registry, Postgres quota guard (20 calls/hr), mock pricing.
+  - `apps/api/src/outline.ts` — `PostgresOutlineService` (`generate`, `current`);
+    `outline-service.test.ts` (gating, envelope/outbox/audit, narrowing, idempotency,
+    state derivation), `outline.test.ts` (route authz/tenant/origin), and
+    `outline.integration.test.ts` (Postgres: job+outbox idempotency, tenant rejection,
+    draft assembly, no state leak).
+  - `apps/api/src/app.ts` — `GET /projects/:id/outline`,
+    `POST /projects/:id/outline/generate` (202, idempotency-key header), service wiring;
+    `apps/api/src/runtime.ts` wiring.
+  - `apps/web/app/workspace/[projectId]/outline/` — `page.tsx` (server guard),
+    `outline-panel.tsx` (client panel: idle/generating/draft/failed states, polling,
+    generate/regenerate, draft item list with kinds, durations, framing notes,
+    objective/source counts), `outline-input.ts` + `outline-input.test.ts`;
+    `apps/web/app/workspace/page.tsx` adds a "Review lesson outline" link for stages
+    at or past `outline_review`.
+  - `STORY_INDEX.md` and this story — status transitions.
+- **Migrations:** `0032_greedy_stranger` (creates `lesson_outline_set_status` enum and the
+  three outline tables + indexes/FKs).
+- **Contracts changed:** New `@avlp/schemas` public contracts listed above; new job type
+  `outline.generate` (reuses `modelCallJobPayloadSchema` with `operationType: ai.outline`,
+  prompt `outline@v2`); new endpoints `POST /projects/:id/outline/generate` and
+  `GET /projects/:id/outline`; `@avlp/provider-adapters` prompt registry now includes
+  `outline@v2`.
 - **Commands/tests run:**
-- **Screenshots or representative output:**
+  - Per-workspace `lint`, `typecheck`, `test`, `build` for `@avlp/schemas` (114 tests),
+    `@avlp/database` (8 pass, 3 skip), `@avlp/provider-adapters` (34),
+    `@avlp/pipeline-worker` (67 pass, 20 skip — Postgres integration requires
+    `TEST_DATABASE_URL`), `@avlp/api` (155 pass, 56 skip), `@avlp/web` (32).
+  - Repository-wide `pnpm typecheck` (16/16), `pnpm build` (16/16), and `pnpm test`
+    (26/26 tasks green on final run; one earlier `@avlp/scene-library#test` failure was
+    parallel-load flakiness in its heavy Remotion render tests — it passes in isolation
+    (53/53) and on the final turbo run).
+  - `pnpm --filter @avlp/database db:generate` produced `0032_greedy_stranger`.
+  - `pnpm --filter @avlp/evals eval` — `"passed": true`.
+  - `git diff --check` — clean.
+- **Screenshots or representative output:** `pnpm --filter @avlp/web build` shows the new
+  `/workspace/[projectId]/outline` route; worker `outline-job.test.ts` verifies a full
+  lifecycle run produces `candidateId` metadata for `ai.outline`; API service test verifies
+  the queued job envelope carries `operationType: ai.outline`, objective-set narrowing, and
+  an outbox + audit event.
 - **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
+  - Persistence follows the technical-guide E8 model (`lesson_outline_sets` +
+    `lesson_outline_items` + `outline_objective_links`), with the tenant idempotency key
+    on the set and `source_refs` JSONB on items. Approval/editing statuses are reserved
+    for ST-047; this story persists only `draft`.
+  - Deterministic checks (the outline evaluation cases): full approved-objective coverage,
+    citation resolvability against the bounded source package, sequence opens with a hook
+    and closes with a summary with ≥1 concept and ≥1 example, optional recall question per
+    configuration, target-duration match, and a ±10% total-duration tolerance. Any
+    violation terminates the job as `MODEL_OUTPUT_DETERMINISTIC_FAILURE`; nothing is
+    silently accepted.
+  - The hook may be an uncited generated framing device, but it must then carry a
+    `framingNote` (per the technical guide's "must be labelled" rule); the story's
+    acceptance criterion "every item maps to objectives" holds because every item
+    (including hooks) links ≥1 approved objective.
+  - The approved objective set is loaded from the DB by the worker (not shipped in the
+    payload), so the prompt, coverage check, and persistence always use the exact approved
+    revision; the API narrows the source package by the approved objectives' source-block
+    IDs (guide: "source packages should narrow using objective links where useful"), only
+    when the objectives cite any blocks.
+  - The worker re-verifies the latest approved snapshot and the exact approved objective
+    revision at job time (authoritative); the API gate uses `PostgresSourceSnapshotService.status`.
+  - `POST /outline/generate` requires an `idempotency-key` header; the job is metered via the
+    existing model-call lifecycle and guarded by an `ai.outline` quota (20 calls/hr).
+  - `current` derives route state `idle | generating | draft | failed` and
+    `canGenerate` (configuration present, source approved/not stale, an approved objective
+    set exists, no in-flight job). `canApprove` is informational; approval lands in ST-047.
+  - The UI covers review route states only (generate + draft display); editing/approval is
+    ST-047 per the story's out-of-scope section.
+- **Deviations from story/technical guide:** None material. The guide's
+  `POST /projects/{id}/outline-generations` is implemented as the story's
+  `POST /projects/:id/outline/generate`. The `outline@v1` structural prompt is retained in
+  the registry alongside the new `v2`. The generic lifecycle gained a backward-compatible
+  `loadOperationContext` hook rather than a new job pipeline.
 - **Known risks or follow-up:**
+  - Production model provider adapter + pricing still unconfigured (mock default); real
+    deployments must wire a provider and pricing before paid calls (ST-071).
+  - Postgres-backed integration coverage for the new tables/job is deferred to CI
+    (`TEST_DATABASE_URL`); unit/service tests use fakes.
+  - The quota guard is enforced in the worker; the API enqueues even if a project is near
+    its limit (rejected later at the worker with terminal `AI_QUOTA_EXCEEDED`).
+  - The objective-set content hash is derived from approved objective statements; if ST-045
+    later changes how approved sets are versioned, the hash function must stay in sync.
+  - ST-047 (edit/reorder/link/approve) will consume `lesson_outline_sets`/items/links and
+    add the approval flow; the `status` enum already includes `approved`/`superseded`.
+
+## Review Record
+
+- **Reviewer:** Kilo product code review; human approval on 2026-08-17.
+- **Disposition:** Approved with follow-ups. ST-046 marked **Done** on 2026-08-17.
+- **Review findings (tracked follow-ups):**
+  - **L1 — Duration tolerance does not reserve opening/closing transition time.** The
+    deterministic check uses a symmetric ±10% band around the target with no transition
+    reservation (guide E8). Documented decision; re-evaluate when narration/storyboard
+    budgeting lands so transitions do not overflow the target.
+  - **L2 — Output `sourceBlockIds` bound (≤100) exceeds the persisted `sourceRefs` bound
+    (≤20) per item** (same latent pattern as the ST-044 objectives contracts). An item
+    citing 21+ distinct sections would fail persistence as a retryable
+    `CANDIDATE_PERSIST_FAILED`; align the bounds or add a distinct-section deterministic
+    check.
+  - **L3 — Duplicate objective IDs within one item are not rejected deterministically**;
+    they surface as a retryable `CANDIDATE_PERSIST_FAILED` via the unique link index.
+    Deduplicate per item or reject in `assertOutlineDeterministicChecks`.

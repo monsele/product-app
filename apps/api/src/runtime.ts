@@ -27,6 +27,7 @@ import { PostgresFigureInclusionService } from "./source-figure-inclusion.js";
 import { PostgresLessonConfigurationService } from "./lesson-configuration.js";
 import { PostgresSourceSnapshotService } from "./source-snapshot.js";
 import { PostgresObjectivesService } from "./objectives.js";
+import { PostgresOutlineService } from "./outline.js";
 
 export async function runApi(input: {
   telemetryShutdown: () => Promise<void>;
@@ -119,6 +120,10 @@ export async function runApi(input: {
       ),
       sourceSnapshotService: new PostgresSourceSnapshotService(database.client),
       objectivesService: new PostgresObjectivesService(
+        database.client,
+        new PostgresSourceSnapshotService(database.client).status,
+      ),
+      outlineService: new PostgresOutlineService(
         database.client,
         new PostgresSourceSnapshotService(database.client).status,
       ),

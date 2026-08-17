@@ -65,6 +65,7 @@ import type { FigureInclusionService } from "./source-figure-inclusion.js";
 import type { LessonConfigurationService } from "./lesson-configuration.js";
 import type { SourceSnapshotService } from "./source-snapshot.js";
 import type { ObjectivesService } from "./objectives.js";
+import type { OutlineService } from "./outline.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
 const TELEMETRY_SHUTDOWN = Symbol("TELEMETRY_SHUTDOWN");
@@ -83,6 +84,7 @@ const FIGURE_INCLUSION_SERVICE = Symbol("FIGURE_INCLUSION_SERVICE");
 const LESSON_CONFIGURATION_SERVICE = Symbol("LESSON_CONFIGURATION_SERVICE");
 const SOURCE_SNAPSHOT_SERVICE = Symbol("SOURCE_SNAPSHOT_SERVICE");
 const OBJECTIVES_SERVICE = Symbol("OBJECTIVES_SERVICE");
+const OUTLINE_SERVICE = Symbol("OUTLINE_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -286,6 +288,7 @@ type ObjectivesApiService = Pick<
   ObjectivesService,
   "generate" | "current" | "add" | "update" | "remove" | "reorder" | "approve"
 >;
+type OutlineApiService = Pick<OutlineService, "generate" | "current">;
 
 @Controller("projects")
 class ProjectsController {
@@ -311,6 +314,8 @@ class ProjectsController {
     private readonly sourceSnapshots: SourceSnapshotApiService,
     @Inject(OBJECTIVES_SERVICE)
     private readonly objectives: ObjectivesApiService,
+    @Inject(OUTLINE_SERVICE)
+    private readonly outline: OutlineApiService,
   ) {}
 
   @Post()
@@ -794,6 +799,36 @@ class ProjectsController {
     });
   }
 
+  @Get(":projectId/outline")
+  public async getOutline(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    return this.outline.current({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+    });
+  }
+
+  @Post(":projectId/outline/generate")
+  @HttpCode(202)
+  public async generateOutline(
+    @Param("projectId") projectId: string,
+    @Headers("idempotency-key") idempotencyKey: string | undefined,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    return this.outline.generate({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      idempotencyKey,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
   @Post(":projectId/source-upload/:sessionId/complete")
   @HttpCode(202)
   public async completeSourceUpload(
@@ -949,6 +984,7 @@ function createAppModule(
   lessonConfigurationService: LessonConfigurationApiService,
   sourceSnapshotService: SourceSnapshotApiService,
   objectivesService: ObjectivesApiService,
+  outlineService: OutlineApiService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -980,6 +1016,7 @@ function createAppModule(
       },
       { provide: SOURCE_SNAPSHOT_SERVICE, useValue: sourceSnapshotService },
       { provide: OBJECTIVES_SERVICE, useValue: objectivesService },
+      { provide: OUTLINE_SERVICE, useValue: outlineService },
     ],
   };
 }
@@ -1002,6 +1039,7 @@ export type CreateAppOptions = {
   lessonConfigurationService?: LessonConfigurationApiService;
   sourceSnapshotService?: SourceSnapshotApiService;
   objectivesService?: ObjectivesApiService;
+  outlineService?: OutlineApiService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -1367,6 +1405,27 @@ const unavailableObjectivesService: ObjectivesApiService = {
     ),
 };
 
+const unavailableOutlineService: OutlineApiService = {
+  generate: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Outline generation is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  current: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Outline generation is unavailable.",
+        503,
+        true,
+      ),
+    ),
+};
+
 export async function createApp(
   options: CreateAppOptions = {},
 ): Promise<NestFastifyApplication> {
@@ -1393,6 +1452,7 @@ export async function createApp(
         unavailableLessonConfigurationService,
       options.sourceSnapshotService ?? unavailableSourceSnapshotService,
       options.objectivesService ?? unavailableObjectivesService,
+      options.outlineService ?? unavailableOutlineService,
     ),
     new FastifyAdapter({
       logger: {

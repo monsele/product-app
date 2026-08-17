@@ -225,6 +225,13 @@
       "when": 1786980327878,
       "tag": "0031_white_ser_duncan",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1786999676094,
+      "tag": "0032_greedy_stranger",
+      "breakpoints": true
     }
   ]
 }

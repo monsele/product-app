@@ -1194,3 +1194,126 @@ export const learningObjectives = pgTable(
     index("learning_objectives_set_idx").on(table.setId),
   ],
 );
+
+export const lessonOutlineSetStatusValues = [
+  "draft",
+  "approved",
+  "superseded",
+] as const;
+export const lessonOutlineSetStatus = pgEnum(
+  "lesson_outline_set_status",
+  lessonOutlineSetStatusValues,
+);
+
+/**
+ * One outline set (draft or approved) per project. The latest `draft` set is
+ * the teacher's working revision; ST-046 persists a generated draft and
+ * ST-047 editing/approval creates revisions rather than mutating generated
+ * items. The approved objective-set content hash binds the outline to the
+ * exact approved objectives it must cover. The tenant-unique idempotency key
+ * makes generation retries idempotent end to end.
+ */
+export const lessonOutlineSets = pgTable(
+  "lesson_outline_sets",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    sourceSnapshotId: uuid("source_snapshot_id")
+      .notNull()
+      .references(() => sourceSnapshots.id, { onDelete: "restrict" }),
+    sourceSnapshotContentHash: text("source_snapshot_content_hash").notNull(),
+    objectiveSetId: uuid("objective_set_id")
+      .notNull()
+      .references(() => learningObjectiveSets.id, { onDelete: "restrict" }),
+    objectiveSetContentHash: text("objective_set_content_hash").notNull(),
+    configurationVersion: integer("configuration_version").notNull(),
+    promptId: text("prompt_id").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    model: text("model").notNull(),
+    modelCallId: uuid("model_call_id")
+      .notNull()
+      .references(() => modelCalls.id, { onDelete: "restrict" }),
+    status: lessonOutlineSetStatus("status").notNull().default("draft"),
+    revision: integer("revision").notNull().default(0),
+    idempotencyKey: text("idempotency_key").notNull(),
+    totalEstimatedSeconds: integer("total_estimated_seconds").notNull(),
+    generatedAt: utcTimestamp("generated_at").notNull(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("lesson_outline_sets_tenant_idempotency_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.idempotencyKey,
+    ),
+    index("lesson_outline_sets_owner_project_generated_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.generatedAt,
+    ),
+  ],
+);
+
+/**
+ * One outline item within a set. `source_refs` stores the resolved SourceRef
+ * array; `framing_note` labels a generated hook that does not cite a source
+ * block. Objective-to-outline links live in `outline_objective_links`.
+ */
+export const lessonOutlineItems = pgTable(
+  "lesson_outline_items",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    setId: uuid("set_id")
+      .notNull()
+      .references(() => lessonOutlineSets.id, { onDelete: "cascade" }),
+    order: integer("order").notNull(),
+    kind: text("kind").notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    estimatedSeconds: integer("estimated_seconds").notNull(),
+    sourceRefs: jsonb("source_refs").notNull(),
+    framingNote: text("framing_note"),
+    generated: boolean("generated").notNull().default(true),
+    revision: integer("revision").notNull().default(0),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("lesson_outline_items_set_order_unique").on(
+      table.setId,
+      table.order,
+    ),
+    index("lesson_outline_items_set_idx").on(table.setId),
+  ],
+);
+
+/**
+ * Objective-to-outline mapping. One row per (outline item, approved
+ * objective); the approved objective rows are immutable, so the links stay
+ * stable for the outline set's lifetime.
+ */
+export const outlineObjectiveLinks = pgTable(
+  "outline_objective_links",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    outlineItemId: uuid("outline_item_id")
+      .notNull()
+      .references(() => lessonOutlineItems.id, { onDelete: "cascade" }),
+    objectiveId: uuid("objective_id")
+      .notNull()
+      .references(() => learningObjectives.id, { onDelete: "cascade" }),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("outline_objective_links_item_objective_unique").on(
+      table.outlineItemId,
+      table.objectiveId,
+    ),
+    index("outline_objective_links_owner_project_item_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.outlineItemId,
+    ),
+  ],
+);

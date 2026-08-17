@@ -3288,3 +3288,251 @@ export const objectiveApproveInputSchema = z
   })
   .strict();
 export type ObjectiveApproveInput = z.infer<typeof objectiveApproveInputSchema>;
+
+// ---------------------------------------------------------------------------
+// ST-046 — Grounded duration-aware lesson outline generation
+// ---------------------------------------------------------------------------
+
+/** Structural purpose of one lesson-outline item. */
+export const outlineItemKindValues = [
+  "hook",
+  "concept",
+  "example",
+  "analogy",
+  "summary",
+  "recall_question",
+] as const;
+export const outlineItemKindSchema = z.enum(outlineItemKindValues);
+export type OutlineItemKind = z.infer<typeof outlineItemKindSchema>;
+
+/**
+ * Fraction of the configured target duration within which the total estimated
+ * outline time must land (a 180-second lesson tolerates 162–198 seconds).
+ */
+export const outlineDurationToleranceRatio = 0.1 as const;
+
+/** Per-item estimated-time bounds for a bounded, scene-agnostic outline. */
+export const outlineItemMinimumSeconds = 10 as const;
+export const outlineItemMaximumSeconds = 240 as const;
+
+/**
+ * Bounded configuration-derived parameters for one outline generation. The
+ * approved objective set identity (not its content) travels here; the pipeline
+ * worker loads the approved set from the database so the model prompt and the
+ * deterministic coverage check always use the exact approved revision.
+ */
+export const outlineGenerationParamsSchema = z
+  .object({
+    configurationVersion: z.number().int().positive(),
+    lessonTitle: boundedText(200),
+    subject: boundedText(200),
+    ageBand: lessonAgeBandSchema,
+    difficulty: lessonDifficultySchema,
+    tone: lessonToneSchema,
+    targetDurationSeconds: targetDurationSecondsSchema,
+    includeRecallQuestions: z.boolean(),
+    objectiveSetId: identifierSchema,
+    objectiveSetRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type OutlineGenerationParams = z.infer<
+  typeof outlineGenerationParamsSchema
+>;
+
+/**
+ * One model-proposed outline item. The model returns kind, title,
+ * description, objective links, source block IDs, and an estimated duration;
+ * application code assigns stable IDs, order, and resolved SourceRefs.
+ * Non-hook items must cite at least one source block; an uncited hook must be
+ * labelled as generated framing via `framingNote`.
+ */
+export const outlineOutputItemSchema = z
+  .object({
+    kind: outlineItemKindSchema,
+    title: boundedText(160),
+    description: boundedText(1_000),
+    objectiveIds: z.array(identifierSchema).min(1).max(20),
+    sourceBlockIds: z.array(identifierSchema).max(100),
+    estimatedSeconds: z
+      .number()
+      .int()
+      .min(outlineItemMinimumSeconds)
+      .max(outlineItemMaximumSeconds),
+    framingNote: boundedText(500).optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.sourceBlockIds.length === 0) {
+      if (value.kind !== "hook")
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["sourceBlockIds"],
+          message:
+            "Non-hook outline items must cite at least one source block.",
+        });
+      else if (value.framingNote === undefined)
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["framingNote"],
+          message: "Uncited hook items must be labelled as generated framing.",
+        });
+    }
+  });
+export type OutlineOutputItem = z.infer<typeof outlineOutputItemSchema>;
+
+/**
+ * The versioned structured output the model must produce for one outline
+ * generation. Items describe pedagogical purpose, not exact scene layout.
+ */
+export const outlineOutputV1Schema = z
+  .object({
+    schemaVersion: z.literal("outline-v1"),
+    targetDurationSeconds: targetDurationSecondsSchema,
+    items: z.array(outlineOutputItemSchema).min(3).max(20),
+  })
+  .strict();
+export type OutlineOutputV1 = z.infer<typeof outlineOutputV1Schema>;
+
+export const lessonOutlineSetStatusValues = [
+  "draft",
+  "approved",
+  "superseded",
+] as const;
+export const lessonOutlineSetStatusSchema = z.enum(
+  lessonOutlineSetStatusValues,
+);
+export type LessonOutlineSetStatus = z.infer<
+  typeof lessonOutlineSetStatusSchema
+>;
+
+/** Persisted outline item with resolved citations and objective links. */
+export const lessonOutlineItemSchema = z
+  .object({
+    id: identifierSchema,
+    order: z.number().int().positive(),
+    kind: outlineItemKindSchema,
+    title: boundedText(160),
+    description: boundedText(1_000),
+    estimatedSeconds: z
+      .number()
+      .int()
+      .min(outlineItemMinimumSeconds)
+      .max(outlineItemMaximumSeconds),
+    sourceRefs: z.array(sourceRefSchema).max(20),
+    objectiveIds: z.array(identifierSchema).min(1).max(20),
+    framingNote: boundedText(500).nullable(),
+    generated: z.boolean(),
+    revision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type LessonOutlineItem = z.infer<typeof lessonOutlineItemSchema>;
+
+/**
+ * Immutable draft outline set produced by one outline generation. Teacher
+ * editing/approval (ST-047) creates revisions rather than mutating generated
+ * items. The approved objective-set content hash binds the outline to the
+ * exact approved objectives it must cover.
+ */
+export const lessonOutlineSetSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    id: identifierSchema,
+    projectId: identifierSchema,
+    sourceSnapshotId: identifierSchema,
+    sourceSnapshotContentHash: z
+      .string()
+      .regex(sha256HexPattern, "Expected a hexadecimal SHA-256 checksum.")
+      .transform((value) => value.toLowerCase()),
+    objectiveSetId: identifierSchema,
+    objectiveSetContentHash: z
+      .string()
+      .regex(sha256HexPattern, "Expected a hexadecimal SHA-256 checksum.")
+      .transform((value) => value.toLowerCase()),
+    configurationVersion: z.number().int().positive(),
+    promptId: z.string().trim().min(1).max(100),
+    promptVersion: z.string().trim().min(1).max(50),
+    model: z.string().trim().min(1).max(200),
+    modelCallId: identifierSchema,
+    status: lessonOutlineSetStatusSchema,
+    revision: z.number().int().nonnegative(),
+    items: z.array(lessonOutlineItemSchema).max(20),
+    totalEstimatedSeconds: z.number().int().positive(),
+    generatedAt: z.string().datetime({ offset: true }),
+    createdAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type LessonOutlineSet = z.infer<typeof lessonOutlineSetSchema>;
+
+/** The prompt/model the API uses for outline generation right now. */
+export const outlineGenerationCompatibilitySchema = z
+  .object({
+    promptId: z.string().trim().min(1).max(100),
+    promptVersion: z.string().trim().min(1).max(50),
+    model: z.string().trim().min(1).max(200),
+  })
+  .strict();
+export type OutlineGenerationCompatibility = z.infer<
+  typeof outlineGenerationCompatibilitySchema
+>;
+export const currentOutlineGenerationCompatibility =
+  outlineGenerationCompatibilitySchema.parse({
+    promptId: "outline",
+    promptVersion: "v2",
+    model: "mock-model-1",
+  });
+
+/** Latest outline generation job surfaced for the review route. */
+export const outlineGenerationJobStatusSchema = z
+  .object({
+    id: identifierSchema,
+    state: z.enum([
+      "queued",
+      "running",
+      "retry_wait",
+      "succeeded",
+      "failed",
+      "cancelled",
+    ]),
+    errorCode: z.string().max(100).nullable(),
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type OutlineGenerationJobStatus = z.infer<
+  typeof outlineGenerationJobStatusSchema
+>;
+
+export const outlineGenerationResponseSchema = z
+  .object({
+    jobId: identifierSchema,
+    status: z.literal("queued"),
+  })
+  .strict();
+export type OutlineGenerationResponse = z.infer<
+  typeof outlineGenerationResponseSchema
+>;
+
+/** Outline review route state derived from the latest set and generation job. */
+export const outlineGenerationStateValues = [
+  "idle",
+  "generating",
+  "draft",
+  "failed",
+  "approved",
+] as const;
+export const outlineGenerationStateSchema = z.enum(outlineGenerationStateValues);
+export type OutlineGenerationState = z.infer<
+  typeof outlineGenerationStateSchema
+>;
+
+/** `GET /projects/:id/outline` response. */
+export const outlineResponseSchema = z
+  .object({
+    state: outlineGenerationStateSchema,
+    set: lessonOutlineSetSchema.nullable(),
+    approved: lessonOutlineSetSchema.nullable(),
+    latestJob: outlineGenerationJobStatusSchema.nullable(),
+    canGenerate: z.boolean(),
+    canApprove: z.boolean(),
+  })
+  .strict();
+export type OutlineResponse = z.infer<typeof outlineResponseSchema>;
