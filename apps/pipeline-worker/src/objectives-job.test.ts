@@ -227,6 +227,7 @@ describe("persistObjectiveSet", () => {
     const insertedSets: unknown[] = [];
     const insertedObjectives: unknown[] = [];
     const keys = new Set<string>();
+    const updated: unknown[] = [];
     const insert = (table: unknown) => ({
       values: (value: unknown) => {
         const chain = {
@@ -247,10 +248,19 @@ describe("persistObjectiveSet", () => {
         return chain;
       },
     });
+    const update = (table: unknown) => ({
+      set: (value: unknown) => ({
+        where: async () => {
+          updated.push({ table, value });
+          return [];
+        },
+      }),
+    });
     const executor = {
       transaction: async (cb: (inner: unknown) => Promise<unknown>) =>
         cb({
           insert,
+          update,
           select: () => ({
             from: () => ({
               where: () => ({
@@ -265,7 +275,7 @@ describe("persistObjectiveSet", () => {
           }),
         }),
     } as unknown as DatabaseExecutor;
-    return { executor, insertedSets, insertedObjectives };
+    return { executor, insertedSets, insertedObjectives, updated };
   }
 
   function callPersist(input: {
@@ -313,6 +323,12 @@ describe("persistObjectiveSet", () => {
     expect(second.id).toBe(first.id);
     expect(insertedSets).toHaveLength(1);
   });
+
+  it("does not supersede prior sets when a new candidate is persisted", async () => {
+    const { executor, updated } = storeCapture();
+    await callPersist({ executor, idempotencyKey: "key-candidate" });
+    expect(updated).toHaveLength(0);
+  });
 });
 
 describe("objectives generation job", () => {
@@ -338,6 +354,11 @@ describe("objectives generation job", () => {
         return chain;
       },
     });
+    const update = () => ({
+      set: () => ({
+        where: async () => [],
+      }),
+    });
     const select = () => ({
       from: () => ({
         where: () => ({
@@ -349,10 +370,12 @@ describe("objectives generation job", () => {
     return {
       client: {},
       insert,
+      update,
       select,
       transaction: async (cb: (inner: unknown) => Promise<unknown>) =>
         cb({
           insert,
+          update,
           select: () => ({
             from: () => ({
               where: () => ({

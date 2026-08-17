@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   learningObjectiveSetSchema,
+  objectiveApproveInputSchema,
+  objectiveCreateInputSchema,
   objectiveGenerationParamsSchema,
   objectiveOutputV1Schema,
+  objectiveRemoveInputSchema,
+  objectiveReorderInputSchema,
+  objectiveUpdateInputSchema,
   objectivesResponseSchema,
   sourceSnapshotSchema,
   type LearningObjectiveSet,
@@ -216,6 +221,7 @@ describe("learning objective set", () => {
       model: "mock-model-1",
       modelCallId: "019ffbf1-eeee-7000-8000-000000000002",
       status: "draft",
+      revision: 0,
       objectives: output.objectives.map((objective, index) => ({
         id: `019ffbf1-eeee-7000-8000-00000000001${index + 1}`,
         order: index + 1,
@@ -225,6 +231,7 @@ describe("learning objective set", () => {
         sourceRefs: [sourceRef],
         generated: true,
         revision: 0,
+        groundingStatus: "supported",
       })),
       keyConcepts: output.keyConcepts.map((item, index) => ({
         id: `019ffbf1-eeee-7000-8000-00000000002${index + 1}`,
@@ -245,7 +252,18 @@ describe("learning objective set", () => {
     expect(() => learningObjectiveSetSchema.parse(sampleSet())).not.toThrow();
   });
 
-  it("rejects objectives without source references", () => {
+  it("accepts a teacher-added unsupported objective with empty refs", () => {
+    const set = sampleSet();
+    set.objectives[0] = {
+      ...set.objectives[0]!,
+      sourceRefs: [],
+      generated: false,
+      groundingStatus: "unsupported",
+    };
+    expect(() => learningObjectiveSetSchema.parse(set)).not.toThrow();
+  });
+
+  it("rejects an inconsistent grounding status", () => {
     const set = sampleSet();
     set.objectives[0]!.sourceRefs = [];
     expect(() => learningObjectiveSetSchema.parse(set)).toThrow();
@@ -264,8 +282,10 @@ describe("objectives response", () => {
       objectivesResponseSchema.parse({
         state: "idle",
         set: null,
+        approved: null,
         latestJob: null,
         canGenerate: true,
+        canApprove: false,
       }),
     ).not.toThrow();
   });
@@ -291,6 +311,7 @@ describe("objectives response", () => {
       model: "mock-model-1",
       modelCallId: "019ffbf1-eeee-7000-8000-000000000002",
       status: "draft",
+      revision: 0,
       objectives: output.objectives.map((objective, index) => ({
         id: `019ffbf1-eeee-7000-8000-00000000001${index + 1}`,
         order: index + 1,
@@ -300,6 +321,7 @@ describe("objectives response", () => {
         sourceRefs: [sourceRef],
         generated: true,
         revision: 0,
+        groundingStatus: "supported",
       })),
       keyConcepts: [],
       prerequisiteKnowledge: [],
@@ -313,6 +335,7 @@ describe("objectives response", () => {
       objectivesResponseSchema.parse({
         state: "draft",
         set,
+        approved: null,
         latestJob: {
           id: "019ffbf1-eeee-7000-8000-000000000003",
           state: "succeeded",
@@ -320,6 +343,7 @@ describe("objectives response", () => {
           updatedAt: "2026-08-17T10:00:00.000Z",
         },
         canGenerate: true,
+        canApprove: true,
       }),
     ).not.toThrow();
   });
@@ -329,8 +353,10 @@ describe("objectives response", () => {
       objectivesResponseSchema.parse({
         state: "approving",
         set: null,
+        approved: null,
         latestJob: null,
         canGenerate: true,
+        canApprove: false,
       }),
     ).toThrow();
   });
@@ -339,5 +365,69 @@ describe("objectives response", () => {
 describe("source snapshot reuse", () => {
   it("keeps the snapshot fixture valid for citation checks", () => {
     expect(() => sampleSnapshot()).not.toThrow();
+  });
+});
+
+describe("objective editor inputs", () => {
+  it("accepts a teacher-authored objective with an expected revision", () => {
+    expect(() =>
+      objectiveCreateInputSchema.parse({
+        statement: "Identify the stages of the water cycle.",
+        verb: "identify",
+        sourceBlockIds: [blockId],
+        expectedRevision: 0,
+      }),
+    ).not.toThrow();
+  });
+
+  it("accepts a teacher-authored objective without source links", () => {
+    expect(() =>
+      objectiveCreateInputSchema.parse({
+        statement: "Describe the water cycle.",
+        verb: "describe",
+        expectedRevision: 2,
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects a create input without a statement", () => {
+    expect(() =>
+      objectiveCreateInputSchema.parse({
+        verb: "describe",
+        expectedRevision: 0,
+      }),
+    ).toThrow();
+  });
+
+  it("accepts a partial update with a statement only", () => {
+    expect(() =>
+      objectiveUpdateInputSchema.parse({
+        statement: "Explain evaporation.",
+        expectedRevision: 1,
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects an update that changes nothing", () => {
+    expect(() =>
+      objectiveUpdateInputSchema.parse({ expectedRevision: 1 }),
+    ).toThrow();
+  });
+
+  it("accepts remove and approve inputs with an expected revision", () => {
+    expect(() => objectiveRemoveInputSchema.parse({ expectedRevision: 1 })).not.toThrow();
+    expect(() => objectiveApproveInputSchema.parse({ expectedRevision: 1 })).not.toThrow();
+  });
+
+  it("accepts a reorder input that preserves objective ids", () => {
+    expect(() =>
+      objectiveReorderInputSchema.parse({
+        objectiveIds: [
+          "019ffbf1-eeee-7000-8000-000000000011",
+          "019ffbf1-eeee-7000-8000-000000000012",
+        ],
+        expectedRevision: 0,
+      }),
+    ).not.toThrow();
   });
 });

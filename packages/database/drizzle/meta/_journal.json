@@ -218,6 +218,13 @@
       "when": 1786967347481,
       "tag": "0030_silly_bastion",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1786980327878,
+      "tag": "0031_white_ser_duncan",
+      "breakpoints": true
     }
   ]
 }

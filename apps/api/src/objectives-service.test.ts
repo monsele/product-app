@@ -62,6 +62,7 @@ function setRow() {
     model: "mock-model-1",
     modelCallId: "019ffbf1-eeee-7000-8000-000000000002",
     status: "draft",
+    revision: 0,
     idempotencyKey: "objectives:key-1",
     keyConcepts: [],
     prerequisiteKnowledge: [],

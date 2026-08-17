@@ -3,6 +3,7 @@ import {
   isGenerating,
   objectiveFailureMessage,
   objectiveGenerationStateLabel,
+  objectiveGroundingLabel,
 } from "./objectives-input";
 
 describe("objectives input helpers", () => {
@@ -10,6 +11,7 @@ describe("objectives input helpers", () => {
     expect(objectiveGenerationStateLabel("idle")).toContain("No learning objectives");
     expect(objectiveGenerationStateLabel("generating")).toContain("Generating");
     expect(objectiveGenerationStateLabel("draft")).toContain("ready for review");
+    expect(objectiveGenerationStateLabel("approved")).toContain("approved");
     expect(objectiveGenerationStateLabel("failed")).toContain("failed");
   });
 
@@ -27,5 +29,10 @@ describe("objectives input helpers", () => {
   it("detects the generating state", () => {
     expect(isGenerating("generating")).toBe(true);
     expect(isGenerating("draft")).toBe(false);
+  });
+
+  it("labels grounding status", () => {
+    expect(objectiveGroundingLabel("supported")).toContain("Supported");
+    expect(objectiveGroundingLabel("unsupported")).toContain("Not supported");
   });
 });

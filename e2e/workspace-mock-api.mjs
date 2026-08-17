@@ -19,6 +19,75 @@ const projects = new Map([
 ]);
 const uploads = new Map();
 const configurations = new Map();
+const objectiveState = new Map();
+
+function objectiveBlockId() {
+  return "019ffbf1-2222-738a-b087-6775ff97568c";
+}
+
+function objectiveSourceRef() {
+  return [
+    {
+      documentId: "019ffbf1-3333-738a-b087-6775ff97568c",
+      parsedDocumentVersion: 1,
+      pageStart: 1,
+      pageEnd: 1,
+      sectionId: "019ffbf1-1111-738a-b087-6775ff97568c",
+      blockIds: [objectiveBlockId()],
+    },
+  ];
+}
+
+function objectiveSet(projectId, overrides = {}) {
+  const set = objectiveState.get(projectId) ?? {
+    schemaVersion: 1,
+    id: "019ffbf1-610e-738a-b087-6775ff97568c",
+    projectId,
+    sourceSnapshotId: "019ffbf1-610e-738a-b087-6775ff97568c",
+    sourceSnapshotContentHash: "a".repeat(64),
+    configurationVersion: 1,
+    promptId: "objectives",
+    promptVersion: "v2",
+    model: "mock-model-1",
+    modelCallId: "019ffbf1-610e-738a-b087-6775ff97568c",
+    status: "draft",
+    revision: 0,
+    objectives: [
+      {
+        id: "019ffbf1-6111-738a-b087-6775ff97568c",
+        order: 1,
+        statement: "Describe how evaporation forms water vapour.",
+        verb: "describe",
+        confidence: 0.95,
+        sourceRefs: objectiveSourceRef(),
+        generated: true,
+        revision: 0,
+        groundingStatus: "supported",
+      },
+    ],
+    keyConcepts: [],
+    prerequisiteKnowledge: [],
+    vocabulary: [],
+    misconceptions: [],
+    assessmentQuestions: [],
+    generatedAt: now,
+    createdAt: now,
+  };
+  return { ...set, ...overrides, objectives: set.objectives };
+}
+
+function objectiveResponse(projectId) {
+  const set = objectiveSet(projectId);
+  const approved = objectiveState.get(`${projectId}:approved`) ?? null;
+  return {
+    state: set.status === "approved" ? "approved" : "draft",
+    set,
+    approved,
+    latestJob: null,
+    canGenerate: true,
+    canApprove: set.status === "draft" && set.objectives.length >= 1,
+  };
+}
 
 function narrationTarget(seconds) {
   const target = Math.round(
@@ -345,6 +414,149 @@ const server = createServer(async (request, response) => {
     };
     configurations.set(projectId, configuration);
     return send(response, 200, configurationResponse(projectId));
+  }
+  const objectivesMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/objectives(?:\/([^/]+))?$/,
+  );
+  if (objectivesMatch !== null) {
+    const projectId = decodeURIComponent(objectivesMatch[1]);
+    const project = projects.get(projectId);
+    if (project === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    if (request.method === "GET")
+      return send(response, 200, objectiveResponse(projectId));
+    if (request.method === "POST" && objectivesMatch[2] === undefined) {
+      let body = "";
+      for await (const chunk of request) body += chunk;
+      const input = JSON.parse(body);
+      const current = objectiveSet(projectId);
+      if (input.expectedRevision !== current.revision)
+        return send(response, 409, {
+          error: {
+            code: "bad_request",
+            message: "The objectives changed. Please refresh and try again.",
+          },
+        });
+      const set = {
+        ...current,
+        revision: current.revision + 1,
+        objectives: [
+          ...current.objectives,
+          {
+            id:
+              current.objectives.length === 0
+                ? "019ffbf1-6120-738a-b087-6775ff97568c"
+                : `019ffbf1-6121-738a-b087-6775ff97568${current.objectives.length}`,
+            order: current.objectives.length + 1,
+            statement: input.statement,
+            verb: input.verb,
+            confidence: 1,
+            sourceRefs: input.sourceBlockIds
+              ? objectiveSourceRef()
+              : [],
+            generated: false,
+            revision: 0,
+            groundingStatus: input.sourceBlockIds ? "supported" : "unsupported",
+          },
+        ],
+      };
+      objectiveState.set(projectId, set);
+      return send(response, 200, objectiveResponse(projectId));
+    }
+    if (request.method === "POST" && objectivesMatch[2] === "reorder") {
+      let body = "";
+      for await (const chunk of request) body += chunk;
+      const input = JSON.parse(body);
+      const current = objectiveSet(projectId);
+      if (input.expectedRevision !== current.revision)
+        return send(response, 409, {
+          error: {
+            code: "bad_request",
+            message: "The objectives changed. Please refresh and try again.",
+          },
+        });
+      const byId = new Map(current.objectives.map((o) => [o.id, o]));
+      const objectives = input.objectiveIds.map((id, index) => ({
+        ...byId.get(id),
+        order: index + 1,
+      }));
+      const set = { ...current, revision: current.revision + 1, objectives };
+      objectiveState.set(projectId, set);
+      return send(response, 200, objectiveResponse(projectId));
+    }
+    if (request.method === "POST" && objectivesMatch[2] === "approve") {
+      let body = "";
+      for await (const chunk of request) body += chunk;
+      const input = JSON.parse(body);
+      const current = objectiveSet(projectId);
+      if (input.expectedRevision !== current.revision)
+        return send(response, 409, {
+          error: {
+            code: "bad_request",
+            message: "The objectives changed. Please refresh and try again.",
+          },
+        });
+      if (current.objectives.length < 1)
+        return send(response, 409, {
+          error: {
+            code: "bad_request",
+            message: "At least one objective is required before approving.",
+          },
+        });
+      const set = { ...current, status: "approved" };
+      objectiveState.set(projectId, set);
+      objectiveState.set(`${projectId}:approved`, set);
+      return send(response, 200, objectiveResponse(projectId));
+    }
+    const objectiveId = objectivesMatch[2];
+    if (objectiveId === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    if (request.method === "PATCH") {
+      let body = "";
+      for await (const chunk of request) body += chunk;
+      const input = JSON.parse(body);
+      const current = objectiveSet(projectId);
+      if (input.expectedRevision !== current.revision)
+        return send(response, 409, {
+          error: {
+            code: "bad_request",
+            message: "The objectives changed. Please refresh and try again.",
+          },
+        });
+      const objectives = current.objectives.map((objective) =>
+        objective.id === objectiveId
+          ? {
+              ...objective,
+              statement: input.statement ?? objective.statement,
+              verb: input.verb ?? objective.verb,
+              revision: objective.revision + 1,
+            }
+          : objective,
+      );
+      const set = { ...current, revision: current.revision + 1, objectives };
+      objectiveState.set(projectId, set);
+      return send(response, 200, objectiveResponse(projectId));
+    }
+    if (request.method === "DELETE") {
+      let body = "";
+      for await (const chunk of request) body += chunk;
+      const input = JSON.parse(body);
+      const current = objectiveSet(projectId);
+      if (input.expectedRevision !== current.revision)
+        return send(response, 409, {
+          error: {
+            code: "bad_request",
+            message: "The objectives changed. Please refresh and try again.",
+          },
+        });
+      const objectives = current.objectives
+        .filter((objective) => objective.id !== objectiveId)
+        .map((objective, index) => ({ ...objective, order: index + 1 }));
+      const set = { ...current, revision: current.revision + 1, objectives };
+      objectiveState.set(projectId, set);
+      return send(response, 200, objectiveResponse(projectId));
+    }
+    return send(response, 404, { error: { code: "not_found" } });
   }
   if (request.method === "GET" && url.pathname.startsWith("/projects/")) {
     const project = projects.get(decodeURIComponent(url.pathname.slice(10)));

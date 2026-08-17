@@ -913,6 +913,8 @@ export const auditEventTypeValues = [
   "lesson.configuration_saved",
   "lesson.approved",
   "ai.generated",
+  "objectives.edited",
+  "objectives.approved",
   "version.restored",
   "render.initiated",
   "job.admin_retried",
@@ -1101,17 +1103,23 @@ export const lessonConfigurations = pgTable(
   ],
 );
 
-export const learningObjectiveSetStatusValues = ["draft", "approved"] as const;
+export const learningObjectiveSetStatusValues = [
+  "draft",
+  "approved",
+  "superseded",
+] as const;
 export const learningObjectiveSetStatus = pgEnum(
   "learning_objective_set_status",
   learningObjectiveSetStatusValues,
 );
 
 /**
- * One generated draft (or later approved) objective set per project. Rows are
- * immutable once written; teacher edits in ST-045 create a revised set rather
- * than mutating generated objectives. The tenant-unique idempotency key makes
- * generation retries idempotent end to end.
+ * One objective set (draft or approved) per project. The latest `draft` set is
+ * the teacher's working revision: its objective rows are edited in place and
+ * `revision` is the optimistic concurrency token. Approved sets are immutable
+ * snapshots used by outline generation; editing approved content creates a new
+ * draft revision (ST-045) rather than mutating the approved snapshot. The
+ * tenant-unique idempotency key makes generation retries idempotent end to end.
  */
 export const learningObjectiveSets = pgTable(
   "learning_objective_sets",
@@ -1130,6 +1138,7 @@ export const learningObjectiveSets = pgTable(
       .notNull()
       .references(() => modelCalls.id, { onDelete: "restrict" }),
     status: learningObjectiveSetStatus("status").notNull().default("draft"),
+    revision: integer("revision").notNull().default(0),
     idempotencyKey: text("idempotency_key").notNull(),
     keyConcepts: jsonb("key_concepts").notNull().default([]),
     prerequisiteKnowledge: jsonb("prerequisite_knowledge")
@@ -1157,7 +1166,7 @@ export const learningObjectiveSets = pgTable(
 
 /**
  * One objective within a set. `source_refs` stores the resolved SourceRef
- * array; `generated` marks AI output (teacher-added rows come later) and
+ * array; `generated` marks AI output (teacher-added rows are `false`) and
  * `revision` tracks overlay edits for auditability.
  */
 export const learningObjectives = pgTable(

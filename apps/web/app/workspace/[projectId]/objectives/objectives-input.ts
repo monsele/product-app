@@ -9,6 +9,8 @@ export function objectiveGenerationStateLabel(
       return "Generating learning objectives…";
     case "draft":
       return "Draft learning objectives are ready for review.";
+    case "approved":
+      return "Learning objectives are approved and will guide the lesson.";
     case "failed":
       return "Objective generation failed.";
     case "idle":
@@ -37,4 +39,11 @@ export function objectiveFailureMessage(errorCode: string | null): string {
 /** True while a generation job is still in flight. */
 export function isGenerating(state: ObjectiveGenerationState): boolean {
   return state === "generating";
+}
+
+/** Human-readable label for a persisted objective's grounding status. */
+export function objectiveGroundingLabel(status: "supported" | "unsupported"): string {
+  return status === "supported"
+    ? "Supported by the reviewed source"
+    : "Not supported by the reviewed source";
 }

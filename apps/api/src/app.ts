@@ -282,7 +282,10 @@ type SourceSnapshotApiService = Pick<
   SourceSnapshotService,
   "approve" | "metadata" | "status"
 >;
-type ObjectivesApiService = Pick<ObjectivesService, "generate" | "current">;
+type ObjectivesApiService = Pick<
+  ObjectivesService,
+  "generate" | "current" | "add" | "update" | "remove" | "reorder" | "approve"
+>;
 
 @Controller("projects")
 class ProjectsController {
@@ -678,6 +681,114 @@ class ProjectsController {
       ownerUserId: access.ownerUserId,
       projectId: access.projectId,
       idempotencyKey,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/objectives")
+  @HttpCode(200)
+  public async addObjective(
+    @Param("projectId") projectId: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    return this.objectives.add({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Patch(":projectId/objectives/:objectiveId")
+  @HttpCode(200)
+  public async updateObjective(
+    @Param("projectId") projectId: string,
+    @Param("objectiveId") objectiveIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const objectiveId = identifierSchema.safeParse(objectiveIdInput);
+    if (!objectiveId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.objectives.update({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      objectiveId: objectiveId.data,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Delete(":projectId/objectives/:objectiveId")
+  @HttpCode(200)
+  public async removeObjective(
+    @Param("projectId") projectId: string,
+    @Param("objectiveId") objectiveIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const objectiveId = identifierSchema.safeParse(objectiveIdInput);
+    if (!objectiveId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.objectives.remove({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      objectiveId: objectiveId.data,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/objectives/reorder")
+  @HttpCode(200)
+  public async reorderObjectives(
+    @Param("projectId") projectId: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    return this.objectives.reorder({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/objectives/approve")
+  @HttpCode(200)
+  public async approveObjectives(
+    @Param("projectId") projectId: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    return this.objectives.approve({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      body: input,
       correlationId:
         request.correlationId ?? "00000000-0000-7000-8000-000000000000",
     });
@@ -1205,6 +1316,51 @@ const unavailableObjectivesService: ObjectivesApiService = {
       new PublicError(
         "internal_error",
         "Objective generation is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  add: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Objective editing is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  update: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Objective editing is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  remove: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Objective editing is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  reorder: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Objective editing is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  approve: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Objective approval is unavailable.",
         503,
         true,
       ),

@@ -11,6 +11,17 @@ function stageLabel(stage: string): string {
   return stage.replaceAll("_", " ");
 }
 
+const objectivesStages = new Set([
+  "objectives_review",
+  "outline_review",
+  "narration_storyboard_review",
+  "audio_generation",
+  "ready_for_validation",
+  "ready_to_render",
+  "rendering",
+  "completed",
+]);
+
 export default async function WorkspacePage({
   searchParams,
 }: {
@@ -69,6 +80,13 @@ export default async function WorkspacePage({
                 </time>
                 .
               </p>
+              {objectivesStages.has(project.stage) ? (
+                <p>
+                  <a href={`/workspace/${project.id}/objectives`}>
+                    Review learning objectives
+                  </a>
+                </p>
+              ) : null}
               {project.latestFailedOperation === null ? null : (
                 <p role="status">
                   Latest failed operation: {project.latestFailedOperation}

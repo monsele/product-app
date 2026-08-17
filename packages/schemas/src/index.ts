@@ -3023,12 +3023,23 @@ export const objectiveOutputV1Schema = z
   .strict();
 export type ObjectiveOutputV1 = z.infer<typeof objectiveOutputV1Schema>;
 
-export const learningObjectiveSetStatusValues = ["draft", "approved"] as const;
+export const learningObjectiveSetStatusValues = [
+  "draft",
+  "approved",
+  "superseded",
+] as const;
 export const learningObjectiveSetStatusSchema = z.enum(
   learningObjectiveSetStatusValues,
 );
 export type LearningObjectiveSetStatus = z.infer<
   typeof learningObjectiveSetStatusSchema
+>;
+
+/** Whether a persisted objective still cites approved source blocks. */
+export const objectiveGroundingStatusValues = ["supported", "unsupported"] as const;
+export const objectiveGroundingStatusSchema = z.enum(objectiveGroundingStatusValues);
+export type ObjectiveGroundingStatus = z.infer<
+  typeof objectiveGroundingStatusSchema
 >;
 
 /** Persisted learning objective (AI-generated in ST-044; teacher edits revise later). */
@@ -3039,11 +3050,21 @@ export const learningObjectiveSchema = z
     statement: boundedText(500),
     verb: boundedText(50),
     confidence: z.number().min(0).max(1),
-    sourceRefs: z.array(sourceRefSchema).min(1).max(20),
+    sourceRefs: z.array(sourceRefSchema).max(20),
     generated: z.boolean(),
     revision: z.number().int().nonnegative(),
+    groundingStatus: objectiveGroundingStatusSchema,
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    const expected = value.sourceRefs.length > 0 ? "supported" : "unsupported";
+    if (value.groundingStatus !== expected)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["groundingStatus"],
+        message: `groundingStatus must be ${expected} for this source-ref set.`,
+      });
+  });
 export type LearningObjective = z.infer<typeof learningObjectiveSchema>;
 
 /** Persisted planning item shared by key concepts and prerequisites. */
@@ -3116,7 +3137,8 @@ export const learningObjectiveSetSchema = z
     model: z.string().trim().min(1).max(200),
     modelCallId: identifierSchema,
     status: learningObjectiveSetStatusSchema,
-    objectives: z.array(learningObjectiveSchema).min(1).max(20),
+    revision: z.number().int().nonnegative(),
+    objectives: z.array(learningObjectiveSchema).max(20),
     keyConcepts: z.array(objectivePlanningItemSchema).max(50),
     prerequisiteKnowledge: z.array(objectivePlanningItemSchema).max(50),
     vocabulary: z.array(objectiveVocabularyItemSchema).max(50),
@@ -3181,6 +3203,7 @@ export const objectiveGenerationStateValues = [
   "idle",
   "generating",
   "draft",
+  "approved",
   "failed",
 ] as const;
 export const objectiveGenerationStateSchema = z.enum(
@@ -3195,8 +3218,73 @@ export const objectivesResponseSchema = z
   .object({
     state: objectiveGenerationStateSchema,
     set: learningObjectiveSetSchema.nullable(),
+    approved: learningObjectiveSetSchema.nullable(),
     latestJob: objectiveGenerationJobStatusSchema.nullable(),
     canGenerate: z.boolean(),
+    canApprove: z.boolean(),
   })
   .strict();
 export type ObjectivesResponse = z.infer<typeof objectivesResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// ST-045 — Edit, reorder, regenerate, and approve learning objectives
+// ---------------------------------------------------------------------------
+
+/** Boundary for adding a teacher-authored objective to the current draft. */
+export const objectiveCreateInputSchema = z
+  .object({
+    statement: boundedText(500),
+    verb: boundedText(50),
+    sourceBlockIds: z.array(identifierSchema).max(100).optional(),
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type ObjectiveCreateInput = z.infer<typeof objectiveCreateInputSchema>;
+
+/** Boundary for editing one objective in the current draft. */
+export const objectiveUpdateInputSchema = z
+  .object({
+    statement: boundedText(500).optional(),
+    verb: boundedText(50).optional(),
+    sourceBlockIds: z.array(identifierSchema).max(100).optional(),
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (
+      value.statement === undefined &&
+      value.verb === undefined &&
+      value.sourceBlockIds === undefined
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["root"],
+        message: "Provide at least one field to update.",
+      });
+  });
+export type ObjectiveUpdateInput = z.infer<typeof objectiveUpdateInputSchema>;
+
+/** Boundary for removing one objective from the current draft. */
+export const objectiveRemoveInputSchema = z
+  .object({
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type ObjectiveRemoveInput = z.infer<typeof objectiveRemoveInputSchema>;
+
+/** Boundary for reordering the current draft's objectives. */
+export const objectiveReorderInputSchema = z
+  .object({
+    objectiveIds: z.array(identifierSchema).min(1).max(20),
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type ObjectiveReorderInput = z.infer<typeof objectiveReorderInputSchema>;
+
+/** Boundary for approving the current draft objectives. */
+export const objectiveApproveInputSchema = z
+  .object({
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type ObjectiveApproveInput = z.infer<typeof objectiveApproveInputSchema>;

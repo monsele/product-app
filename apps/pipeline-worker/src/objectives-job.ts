@@ -245,6 +245,7 @@ export async function persistObjectiveSet(input: {
     model: input.modelCall.model,
     modelCallId: input.modelCall.id,
     status: "draft",
+    revision: 0,
     objectives: input.output.objectives.map((objective, index) => ({
       id: createId(timestamp),
       order: index + 1,
@@ -254,6 +255,7 @@ export async function persistObjectiveSet(input: {
       sourceRefs: sourceRefsById(objective.sourceBlockIds),
       generated: true,
       revision: 0,
+      groundingStatus: "supported",
     })),
     keyConcepts: input.output.keyConcepts.map((item, index) => ({
       id: createId(timestamp),
@@ -308,6 +310,7 @@ export async function persistObjectiveSet(input: {
         model: set.model,
         modelCallId: set.modelCallId,
         status: set.status,
+        revision: 0,
         idempotencyKey: input.context.idempotencyKey,
         keyConcepts: set.keyConcepts,
         prerequisiteKnowledge: set.prerequisiteKnowledge,
