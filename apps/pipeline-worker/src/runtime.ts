@@ -33,6 +33,16 @@ import { createDocumentValidationCleanupJobHandler } from "./document-validation
 import { createDocumentValidationJobHandler } from "./document-validation-job.js";
 import { HttpDoclingIngestionClient } from "./docling-ingestion-client.js";
 import { createDocumentIngestionJobHandler } from "./document-ingestion-job.js";
+import {
+  mockPricing,
+  MockLanguageModelProvider,
+  repositoryPrompts,
+  StaticPromptRegistry,
+} from "@avlp/provider-adapters";
+import {
+  PostgresGenerationQuotaGuard,
+} from "./model-call.js";
+import { createObjectivesGenerationJobHandler } from "./objectives-job.js";
 
 function processAbortSignal(): { signal: AbortSignal; dispose: () => void } {
   const controller = new AbortController();
@@ -143,6 +153,15 @@ export async function runPipelineWorker(
           storage,
         }),
         createProjectCleanupJobHandler({ database: database.client, storage }),
+        createObjectivesGenerationJobHandler({
+          database: database.client,
+          provider: new MockLanguageModelProvider(),
+          promptRegistry: new StaticPromptRegistry(repositoryPrompts),
+          quotaGuard: new PostgresGenerationQuotaGuard(database.client, {
+            "ai.objectives": { maxCallsPerHour: 20 },
+          }),
+          pricing: mockPricing,
+        }),
       ];
     }
     publisher =

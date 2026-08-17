@@ -211,6 +211,13 @@
       "when": 1786952297249,
       "tag": "0029_lush_quicksilver",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1786967347481,
+      "tag": "0030_silly_bastion",
+      "breakpoints": true
     }
   ]
 }

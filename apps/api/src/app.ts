@@ -64,6 +64,7 @@ import type { ContentBlockCorrectionService } from "./content-block-corrections.
 import type { FigureInclusionService } from "./source-figure-inclusion.js";
 import type { LessonConfigurationService } from "./lesson-configuration.js";
 import type { SourceSnapshotService } from "./source-snapshot.js";
+import type { ObjectivesService } from "./objectives.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
 const TELEMETRY_SHUTDOWN = Symbol("TELEMETRY_SHUTDOWN");
@@ -81,6 +82,7 @@ const CONTENT_BLOCK_CORRECTION_SERVICE = Symbol(
 const FIGURE_INCLUSION_SERVICE = Symbol("FIGURE_INCLUSION_SERVICE");
 const LESSON_CONFIGURATION_SERVICE = Symbol("LESSON_CONFIGURATION_SERVICE");
 const SOURCE_SNAPSHOT_SERVICE = Symbol("SOURCE_SNAPSHOT_SERVICE");
+const OBJECTIVES_SERVICE = Symbol("OBJECTIVES_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -280,6 +282,7 @@ type SourceSnapshotApiService = Pick<
   SourceSnapshotService,
   "approve" | "metadata" | "status"
 >;
+type ObjectivesApiService = Pick<ObjectivesService, "generate" | "current">;
 
 @Controller("projects")
 class ProjectsController {
@@ -303,6 +306,8 @@ class ProjectsController {
     private readonly lessonConfiguration: LessonConfigurationApiService,
     @Inject(SOURCE_SNAPSHOT_SERVICE)
     private readonly sourceSnapshots: SourceSnapshotApiService,
+    @Inject(OBJECTIVES_SERVICE)
+    private readonly objectives: ObjectivesApiService,
   ) {}
 
   @Post()
@@ -648,6 +653,36 @@ class ProjectsController {
     });
   }
 
+  @Get(":projectId/objectives")
+  public async getObjectives(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    return this.objectives.current({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+    });
+  }
+
+  @Post(":projectId/objectives/generate")
+  @HttpCode(202)
+  public async generateObjectives(
+    @Param("projectId") projectId: string,
+    @Headers("idempotency-key") idempotencyKey: string | undefined,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    return this.objectives.generate({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      idempotencyKey,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
   @Post(":projectId/source-upload/:sessionId/complete")
   @HttpCode(202)
   public async completeSourceUpload(
@@ -802,6 +837,7 @@ function createAppModule(
   figureInclusionService: FigureInclusionApiService,
   lessonConfigurationService: LessonConfigurationApiService,
   sourceSnapshotService: SourceSnapshotApiService,
+  objectivesService: ObjectivesApiService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -832,6 +868,7 @@ function createAppModule(
         useValue: lessonConfigurationService,
       },
       { provide: SOURCE_SNAPSHOT_SERVICE, useValue: sourceSnapshotService },
+      { provide: OBJECTIVES_SERVICE, useValue: objectivesService },
     ],
   };
 }
@@ -853,6 +890,7 @@ export type CreateAppOptions = {
   figureInclusionService?: FigureInclusionApiService;
   lessonConfigurationService?: LessonConfigurationApiService;
   sourceSnapshotService?: SourceSnapshotApiService;
+  objectivesService?: ObjectivesApiService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -1152,6 +1190,27 @@ const unavailableSourceSnapshotService: SourceSnapshotApiService = {
     ),
 };
 
+const unavailableObjectivesService: ObjectivesApiService = {
+  generate: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Objective generation is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  current: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Objective generation is unavailable.",
+        503,
+        true,
+      ),
+    ),
+};
+
 export async function createApp(
   options: CreateAppOptions = {},
 ): Promise<NestFastifyApplication> {
@@ -1177,6 +1236,7 @@ export async function createApp(
       options.lessonConfigurationService ??
         unavailableLessonConfigurationService,
       options.sourceSnapshotService ?? unavailableSourceSnapshotService,
+      options.objectivesService ?? unavailableObjectivesService,
     ),
     new FastifyAdapter({
       logger: {

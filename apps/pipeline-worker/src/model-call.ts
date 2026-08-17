@@ -229,6 +229,26 @@ export type ModelCallHandlerOptions<T> = {
     sourcePackage: SourcePackage;
     params: ModelCallParams;
   }) => PromptRenderVariables;
+  /**
+   * Optional domain persistence hook run by operation-specific handlers after
+   * the model call is recorded and metered. It must be idempotent (same
+   * job idempotency key returns the existing candidate). Failures are
+   * classified retryable so the job platform retries them.
+   */
+  persistCandidate?: (input: {
+    value: T;
+    sourcePackage: SourcePackage;
+    params: ModelCallParams;
+    modelCall: ModelCallRecord;
+    snapshot: SourceSnapshot;
+    context: {
+      ownerUserId: Identifier;
+      projectId: Identifier;
+      correlationId: Identifier;
+      idempotencyKey: string;
+    };
+    now: Date;
+  }) => Promise<{ id: Identifier }>;
   now?: () => Date;
 };
 
@@ -287,12 +307,6 @@ export function createModelCallGenerationHandler<T>(
         "SOURCE_SNAPSHOT_STALE",
         "The referenced source snapshot is no longer the approved version.",
       );
-    await options.quotaGuard.assertCanGenerate({
-      ownerUserId: context.ownerUserId,
-      projectId: context.projectId,
-      operationType: payload.operationType,
-      now: timestamp,
-    });
     const sourcePackage = buildSourcePackage(
       snapshotResult.snapshot,
       payload.narrowing ?? {},
@@ -328,6 +342,12 @@ export function createModelCallGenerationHandler<T>(
       params,
     });
     try {
+      await options.quotaGuard.assertCanGenerate({
+        ownerUserId: context.ownerUserId,
+        projectId: context.projectId,
+        operationType: payload.operationType,
+        now: timestamp,
+      });
       const structured = await generateStructuredOutput<T>({
         provider: options.provider,
         request: {
@@ -387,6 +407,32 @@ export function createModelCallGenerationHandler<T>(
         status: "succeeded",
         usageMeter,
       });
+      let candidateId: Identifier | undefined;
+      if (options.persistCandidate !== undefined) {
+        try {
+          const candidate = await options.persistCandidate({
+            value: structured.value,
+            sourcePackage,
+            params,
+            modelCall: record,
+            snapshot: snapshotResult.snapshot,
+            context: {
+              ownerUserId: context.ownerUserId,
+              projectId: context.projectId,
+              correlationId: context.correlationId,
+              idempotencyKey: context.idempotencyKey,
+            },
+            now: timestamp,
+          });
+          candidateId = candidate.id;
+        } catch {
+          throw new JobExecutionError(
+            "retryable",
+            "CANDIDATE_PERSIST_FAILED",
+            "The generated candidate could not be persisted.",
+          );
+        }
+      }
       await auditWriter.write({
         ownerUserId: context.ownerUserId,
         projectId: context.projectId,
@@ -413,6 +459,7 @@ export function createModelCallGenerationHandler<T>(
         inputUnits: record.inputUnits,
         outputUnits: record.outputUnits,
         estimatedCostUsd: record.estimatedCostUsd,
+        ...(candidateId === undefined ? {} : { candidateId }),
       };
     } catch (error) {
       if (error instanceof JobExecutionError) throw error;

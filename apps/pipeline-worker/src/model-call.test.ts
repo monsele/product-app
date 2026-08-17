@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createId } from "@avlp/config";
 import {
   createJobEnvelope,
+  JobExecutionError,
   type JobMetadata,
   type RegisteredJobHandler,
 } from "@avlp/jobs";
@@ -23,6 +24,7 @@ import { z } from "zod";
 import {
   createModelCallGenerationHandler,
   loadApprovedSourceSnapshot,
+  type ModelCallHandlerOptions,
   type ModelCallRepository,
 } from "./model-call.js";
 
@@ -91,6 +93,13 @@ const objectivesOutputSchema = z
   })
   .strict();
 
+type ObjectivesOutput = {
+  objectives: { statement: string; sourceBlockIds: string[] }[];
+};
+type PersistCandidateInput = NonNullable<
+  ModelCallHandlerOptions<ObjectivesOutput>["persistCandidate"]
+>;
+
 function handlerOptions(
   overrides: {
     provider?: LanguageModelProvider;
@@ -98,6 +107,9 @@ function handlerOptions(
     database?: { client: unknown };
     modelCalls?: ModelCallRepository;
     maxRepairs?: number;
+    persistCandidate?: ModelCallHandlerOptions<{
+      objectives: { statement: string; sourceBlockIds: string[] }[];
+    }>["persistCandidate"];
     sourceSnapshotLoader?: () => Promise<{
       status: "ok";
       snapshot: SourceSnapshot;
@@ -177,6 +189,9 @@ function handlerOptions(
     ...(overrides.maxRepairs === undefined
       ? {}
       : { maxRepairs: overrides.maxRepairs }),
+    ...(overrides.persistCandidate === undefined
+      ? {}
+      : { persistCandidate: overrides.persistCandidate }),
   });
   return { recorded, modelCalls, provider, handler, quota };
 }
@@ -314,6 +329,52 @@ describe("model-call lifecycle", () => {
     const second = await execute(handler, payload());
     expect(second.outcome).toBe("failed");
     expect((second.error as Error).message).toContain("quota");
+  });
+
+  it("classifies a quota rejection as a terminal AI_QUOTA_EXCEEDED failure", async () => {
+    const quota = new InMemoryQuotaGuard([
+      { operationType: "ai.objectives", maxCalls: 0, windowMs: 60_000 },
+    ]);
+    const { handler, recorded } = handlerOptions({ quota });
+    const result = await execute(handler, payload());
+    expect(result.outcome).toBe("failed");
+    const error = result.error as Error;
+    expect(error).toBeInstanceOf(JobExecutionError);
+    expect((error as JobExecutionError).classification).toBe("terminal");
+    expect((error as JobExecutionError).code).toBe("AI_QUOTA_EXCEEDED");
+    expect(recorded).toHaveLength(0);
+  });
+
+  it("persists the candidate through the optional lifecycle hook", async () => {
+    const persistCandidate = vi.fn<PersistCandidateInput>(async () => ({
+      id: "019ffbf1-eeee-7000-8000-000000000099",
+    }));
+    const { handler } = handlerOptions({ persistCandidate });
+    const result = await execute(handler, payload());
+    expect(result.outcome).toBe("succeeded");
+    expect(result.metadata).toMatchObject({
+      candidateId: "019ffbf1-eeee-7000-8000-000000000099",
+    });
+    expect(persistCandidate).toHaveBeenCalledTimes(1);
+    const input = persistCandidate.mock.calls[0]![0]!;
+    expect(input.modelCall.status).toBe("succeeded");
+    expect(input.snapshot.id).toBe(snapshotId);
+    expect(input.context.ownerUserId).toBe(ownerUserId);
+    expect(input.context.projectId).toBe(projectId);
+    expect(input.value.objectives).toHaveLength(1);
+  });
+
+  it("classifies a candidate persistence failure as retryable", async () => {
+    const persistCandidate = vi.fn<PersistCandidateInput>(async () => {
+      throw new Error("disk full");
+    });
+    const { handler } = handlerOptions({ persistCandidate });
+    const result = await execute(handler, payload());
+    expect(result.outcome).toBe("failed");
+    const error = result.error as JobExecutionError;
+    expect(error).toBeInstanceOf(JobExecutionError);
+    expect(error.classification).toBe("retryable");
+    expect(error.code).toBe("CANDIDATE_PERSIST_FAILED");
   });
 
   it("meters a classified provider failure", async () => {

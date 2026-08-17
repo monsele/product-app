@@ -2928,3 +2928,275 @@ export const structuredGenerationErrorSchema = z
 export type StructuredGenerationError = z.infer<
   typeof structuredGenerationErrorSchema
 >;
+
+// ---------------------------------------------------------------------------
+// ST-044 — Grounded learning objectives and instructional analysis
+// ---------------------------------------------------------------------------
+
+/** Bounded configuration-derived parameters for one objectives generation. */
+export const objectiveGenerationParamsSchema = z
+  .object({
+    configurationVersion: z.number().int().positive(),
+    lessonTitle: boundedText(200),
+    subject: boundedText(200),
+    ageBand: lessonAgeBandSchema,
+    difficulty: lessonDifficultySchema,
+    tone: lessonToneSchema,
+    targetDurationSeconds: targetDurationSecondsSchema,
+    includeRecallQuestions: z.boolean(),
+  })
+  .strict();
+export type ObjectiveGenerationParams = z.infer<
+  typeof objectiveGenerationParamsSchema
+>;
+
+/**
+ * The versioned structured output the model must produce for objectives.
+ * Every objective and planning item must cite at least one source block ID;
+ * citation existence and uniqueness are enforced by deterministic checks.
+ */
+export const objectiveOutputItemSchema = z
+  .object({
+    statement: boundedText(500),
+    verb: boundedText(50),
+    sourceBlockIds: z.array(identifierSchema).min(1).max(100),
+    confidence: z.number().min(0).max(1),
+  })
+  .strict();
+export type ObjectiveOutputItem = z.infer<typeof objectiveOutputItemSchema>;
+
+export const objectivePlanningOutputItemSchema = z
+  .object({
+    text: boundedText(300),
+    sourceBlockIds: z.array(identifierSchema).min(1).max(100),
+  })
+  .strict();
+export type ObjectivePlanningOutputItem = z.infer<
+  typeof objectivePlanningOutputItemSchema
+>;
+
+export const objectiveVocabularyOutputItemSchema = z
+  .object({
+    term: boundedText(100),
+    definition: boundedText(300),
+    sourceBlockIds: z.array(identifierSchema).min(1).max(100),
+  })
+  .strict();
+export type ObjectiveVocabularyOutputItem = z.infer<
+  typeof objectiveVocabularyOutputItemSchema
+>;
+
+export const objectiveMisconceptionOutputItemSchema = z
+  .object({
+    misconception: boundedText(300),
+    correction: boundedText(300),
+    sourceBlockIds: z.array(identifierSchema).min(1).max(100),
+  })
+  .strict();
+export type ObjectiveMisconceptionOutputItem = z.infer<
+  typeof objectiveMisconceptionOutputItemSchema
+>;
+
+export const objectiveAssessmentOutputItemSchema = z
+  .object({
+    question: boundedText(500),
+    sourceBlockIds: z.array(identifierSchema).min(1).max(100),
+  })
+  .strict();
+export type ObjectiveAssessmentOutputItem = z.infer<
+  typeof objectiveAssessmentOutputItemSchema
+>;
+
+export const objectiveOutputV1Schema = z
+  .object({
+    schemaVersion: z.literal("objectives-v1"),
+    objectives: z
+      .array(objectiveOutputItemSchema)
+      .min(3)
+      .max(6),
+    keyConcepts: z.array(objectivePlanningOutputItemSchema).max(12),
+    prerequisiteKnowledge: z.array(objectivePlanningOutputItemSchema).max(8),
+    vocabulary: z.array(objectiveVocabularyOutputItemSchema).max(12),
+    misconceptions: z.array(objectiveMisconceptionOutputItemSchema).max(8),
+    assessmentQuestions: z.array(objectiveAssessmentOutputItemSchema).max(8),
+  })
+  .strict();
+export type ObjectiveOutputV1 = z.infer<typeof objectiveOutputV1Schema>;
+
+export const learningObjectiveSetStatusValues = ["draft", "approved"] as const;
+export const learningObjectiveSetStatusSchema = z.enum(
+  learningObjectiveSetStatusValues,
+);
+export type LearningObjectiveSetStatus = z.infer<
+  typeof learningObjectiveSetStatusSchema
+>;
+
+/** Persisted learning objective (AI-generated in ST-044; teacher edits revise later). */
+export const learningObjectiveSchema = z
+  .object({
+    id: identifierSchema,
+    order: z.number().int().positive(),
+    statement: boundedText(500),
+    verb: boundedText(50),
+    confidence: z.number().min(0).max(1),
+    sourceRefs: z.array(sourceRefSchema).min(1).max(20),
+    generated: z.boolean(),
+    revision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type LearningObjective = z.infer<typeof learningObjectiveSchema>;
+
+/** Persisted planning item shared by key concepts and prerequisites. */
+export const objectivePlanningItemSchema = z
+  .object({
+    id: identifierSchema,
+    order: z.number().int().positive(),
+    text: boundedText(300),
+    sourceRefs: z.array(sourceRefSchema).min(1).max(20),
+  })
+  .strict();
+export type ObjectivePlanningItem = z.infer<typeof objectivePlanningItemSchema>;
+
+export const objectiveVocabularyItemSchema = z
+  .object({
+    id: identifierSchema,
+    order: z.number().int().positive(),
+    term: boundedText(100),
+    definition: boundedText(300),
+    sourceRefs: z.array(sourceRefSchema).min(1).max(20),
+  })
+  .strict();
+export type ObjectiveVocabularyItem = z.infer<
+  typeof objectiveVocabularyItemSchema
+>;
+
+export const objectiveMisconceptionItemSchema = z
+  .object({
+    id: identifierSchema,
+    order: z.number().int().positive(),
+    misconception: boundedText(300),
+    correction: boundedText(300),
+    sourceRefs: z.array(sourceRefSchema).min(1).max(20),
+  })
+  .strict();
+export type ObjectiveMisconceptionItem = z.infer<
+  typeof objectiveMisconceptionItemSchema
+>;
+
+export const objectiveAssessmentItemSchema = z
+  .object({
+    id: identifierSchema,
+    order: z.number().int().positive(),
+    question: boundedText(500),
+    sourceRefs: z.array(sourceRefSchema).min(1).max(20),
+  })
+  .strict();
+export type ObjectiveAssessmentItem = z.infer<
+  typeof objectiveAssessmentItemSchema
+>;
+
+/**
+ * Immutable draft objective set produced by one objectives generation. The
+ * teacher edits/approval in ST-045 create revisions rather than mutating the
+ * generated objective rows.
+ */
+export const learningObjectiveSetSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    id: identifierSchema,
+    projectId: identifierSchema,
+    sourceSnapshotId: identifierSchema,
+    sourceSnapshotContentHash: z
+      .string()
+      .regex(sha256HexPattern, "Expected a hexadecimal SHA-256 checksum.")
+      .transform((value) => value.toLowerCase()),
+    configurationVersion: z.number().int().positive(),
+    promptId: z.string().trim().min(1).max(100),
+    promptVersion: z.string().trim().min(1).max(50),
+    model: z.string().trim().min(1).max(200),
+    modelCallId: identifierSchema,
+    status: learningObjectiveSetStatusSchema,
+    objectives: z.array(learningObjectiveSchema).min(1).max(20),
+    keyConcepts: z.array(objectivePlanningItemSchema).max(50),
+    prerequisiteKnowledge: z.array(objectivePlanningItemSchema).max(50),
+    vocabulary: z.array(objectiveVocabularyItemSchema).max(50),
+    misconceptions: z.array(objectiveMisconceptionItemSchema).max(50),
+    assessmentQuestions: z.array(objectiveAssessmentItemSchema).max(50),
+    generatedAt: z.string().datetime({ offset: true }),
+    createdAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type LearningObjectiveSet = z.infer<typeof learningObjectiveSetSchema>;
+
+/** The prompt/model the API uses for objectives generation right now. */
+export const objectiveGenerationCompatibilitySchema = z
+  .object({
+    promptId: z.string().trim().min(1).max(100),
+    promptVersion: z.string().trim().min(1).max(50),
+    model: z.string().trim().min(1).max(200),
+  })
+  .strict();
+export type ObjectiveGenerationCompatibility = z.infer<
+  typeof objectiveGenerationCompatibilitySchema
+>;
+export const currentObjectiveGenerationCompatibility =
+  objectiveGenerationCompatibilitySchema.parse({
+    promptId: "objectives",
+    promptVersion: "v2",
+    model: "mock-model-1",
+  });
+
+/** Latest objectives generation job surfaced for the review UI. */
+export const objectiveGenerationJobStatusSchema = z
+  .object({
+    id: identifierSchema,
+    state: z.enum([
+      "queued",
+      "running",
+      "retry_wait",
+      "succeeded",
+      "failed",
+      "cancelled",
+    ]),
+    errorCode: z.string().max(100).nullable(),
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type ObjectiveGenerationJobStatus = z.infer<
+  typeof objectiveGenerationJobStatusSchema
+>;
+
+export const objectiveGenerationResponseSchema = z
+  .object({
+    jobId: identifierSchema,
+    status: z.literal("queued"),
+  })
+  .strict();
+export type ObjectiveGenerationResponse = z.infer<
+  typeof objectiveGenerationResponseSchema
+>;
+
+/** Review route state derived from the latest set and generation job. */
+export const objectiveGenerationStateValues = [
+  "idle",
+  "generating",
+  "draft",
+  "failed",
+] as const;
+export const objectiveGenerationStateSchema = z.enum(
+  objectiveGenerationStateValues,
+);
+export type ObjectiveGenerationState = z.infer<
+  typeof objectiveGenerationStateSchema
+>;
+
+/** `GET /projects/:id/objectives` response. */
+export const objectivesResponseSchema = z
+  .object({
+    state: objectiveGenerationStateSchema,
+    set: learningObjectiveSetSchema.nullable(),
+    latestJob: objectiveGenerationJobStatusSchema.nullable(),
+    canGenerate: z.boolean(),
+  })
+  .strict();
+export type ObjectivesResponse = z.infer<typeof objectivesResponseSchema>;

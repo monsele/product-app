@@ -1100,3 +1100,88 @@ export const lessonConfigurations = pgTable(
     ),
   ],
 );
+
+export const learningObjectiveSetStatusValues = ["draft", "approved"] as const;
+export const learningObjectiveSetStatus = pgEnum(
+  "learning_objective_set_status",
+  learningObjectiveSetStatusValues,
+);
+
+/**
+ * One generated draft (or later approved) objective set per project. Rows are
+ * immutable once written; teacher edits in ST-045 create a revised set rather
+ * than mutating generated objectives. The tenant-unique idempotency key makes
+ * generation retries idempotent end to end.
+ */
+export const learningObjectiveSets = pgTable(
+  "learning_objective_sets",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    sourceSnapshotId: uuid("source_snapshot_id")
+      .notNull()
+      .references(() => sourceSnapshots.id, { onDelete: "restrict" }),
+    sourceSnapshotContentHash: text("source_snapshot_content_hash").notNull(),
+    configurationVersion: integer("configuration_version").notNull(),
+    promptId: text("prompt_id").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    model: text("model").notNull(),
+    modelCallId: uuid("model_call_id")
+      .notNull()
+      .references(() => modelCalls.id, { onDelete: "restrict" }),
+    status: learningObjectiveSetStatus("status").notNull().default("draft"),
+    idempotencyKey: text("idempotency_key").notNull(),
+    keyConcepts: jsonb("key_concepts").notNull().default([]),
+    prerequisiteKnowledge: jsonb("prerequisite_knowledge")
+      .notNull()
+      .default([]),
+    vocabulary: jsonb("vocabulary").notNull().default([]),
+    misconceptions: jsonb("misconceptions").notNull().default([]),
+    assessmentQuestions: jsonb("assessment_questions").notNull().default([]),
+    generatedAt: utcTimestamp("generated_at").notNull(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("learning_objective_sets_tenant_idempotency_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.idempotencyKey,
+    ),
+    index("learning_objective_sets_owner_project_generated_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.generatedAt,
+    ),
+  ],
+);
+
+/**
+ * One objective within a set. `source_refs` stores the resolved SourceRef
+ * array; `generated` marks AI output (teacher-added rows come later) and
+ * `revision` tracks overlay edits for auditability.
+ */
+export const learningObjectives = pgTable(
+  "learning_objectives",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    setId: uuid("set_id")
+      .notNull()
+      .references(() => learningObjectiveSets.id, { onDelete: "cascade" }),
+    order: integer("order").notNull(),
+    statement: text("statement").notNull(),
+    verb: text("verb").notNull(),
+    confidence: real("confidence").notNull(),
+    sourceRefs: jsonb("source_refs").notNull(),
+    generated: boolean("generated").notNull().default(true),
+    revision: integer("revision").notNull().default(0),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("learning_objectives_set_order_unique").on(
+      table.setId,
+      table.order,
+    ),
+    index("learning_objectives_set_idx").on(table.setId),
+  ],
+);

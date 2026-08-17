@@ -26,6 +26,7 @@ import { PostgresContentBlockCorrectionService } from "./content-block-correctio
 import { PostgresFigureInclusionService } from "./source-figure-inclusion.js";
 import { PostgresLessonConfigurationService } from "./lesson-configuration.js";
 import { PostgresSourceSnapshotService } from "./source-snapshot.js";
+import { PostgresObjectivesService } from "./objectives.js";
 
 export async function runApi(input: {
   telemetryShutdown: () => Promise<void>;
@@ -117,6 +118,10 @@ export async function runApi(input: {
         database.client,
       ),
       sourceSnapshotService: new PostgresSourceSnapshotService(database.client),
+      objectivesService: new PostgresObjectivesService(
+        database.client,
+        new PostgresSourceSnapshotService(database.client).status,
+      ),
       projectAuthorizer,
       ...(environment.WEB_ORIGIN === undefined
         ? {}

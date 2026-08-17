@@ -14,13 +14,14 @@ describe("prompt registry", () => {
   it("registers every versioned repository prompt", () => {
     const registry = new StaticPromptRegistry(repositoryPrompts);
     const definitions = registry.list();
-    expect(definitions.map((definition) => definition.kind).sort()).toEqual([
+    expect([...new Set(definitions.map((definition) => definition.kind))].sort()).toEqual([
       "grounding",
       "narration",
       "objectives",
       "outline",
       "storyboard",
     ]);
+    expect(definitions).toHaveLength(repositoryPrompts.length);
     for (const definition of definitions)
       expect(() => promptDefinitionSchema.parse(definition)).not.toThrow();
   });
@@ -30,6 +31,29 @@ describe("prompt registry", () => {
     const latest = registry.latest("objectives");
     expect(latest.promptId).toBe("objectives");
     expect(registry.get("objectives", latest.version)).toBe(latest);
+  });
+
+  it("registers the grounded objectives v2 prompt as the latest", () => {
+    const registry = new StaticPromptRegistry(repositoryPrompts);
+    expect(registry.latest("objectives").version).toBe("v2");
+    const v2 = registry.get("objectives", "v2");
+    expect(v2.purpose).toContain("measurable");
+    expect(v2.evaluationCases).toContain("objectives-v1-faithfulness");
+    expect(v2.evaluationCases).toContain("objectives-v1-age-appropriateness");
+  });
+
+  it("renders the objectives v2 prompt with bounded and citation instructions", () => {
+    const registry = new StaticPromptRegistry(repositoryPrompts);
+    const definition = registry.get("objectives", "v2");
+    const { system, user } = renderPrompt(definition, {
+      sourcePackage: JSON.stringify({ sections: [{ heading: "Water cycle" }] }),
+      configuration: JSON.stringify({ ageBand: "11-13", tone: "friendly" }),
+    });
+    expect(system).toContain("block IDs");
+    expect(user).toContain("between 3 and 6");
+    expect(user).toContain("measurable verb");
+    expect(user).not.toContain("{{sourcePackage}}");
+    expect(user).not.toContain("{{configuration}}");
   });
 
   it("rejects duplicate definitions for the same prompt version", () => {
