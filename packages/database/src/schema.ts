@@ -956,6 +956,7 @@ export const usageOperationTypeValues = [
   "ai.narration",
   "ai.storyboard",
   "ai.scene_regeneration",
+  "ai.grounding",
   "image.generation",
   "tts.generation",
   "video.render",
@@ -967,6 +968,55 @@ export const usageOperationType = pgEnum(
 
 export const usageStatusValues = ["succeeded", "failed"] as const;
 export const usageStatus = pgEnum("usage_status", usageStatusValues);
+
+/**
+ * One immutable metadata record per model call. Persisted for every provider
+ * interaction (including failures) so costs, retries, prompt versions, and
+ * validation outcomes are traceable. Provider response payloads never enter
+ * the domain record.
+ */
+export const modelCalls = pgTable(
+  "model_calls",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    operationType: text("operation_type").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    promptId: text("prompt_id").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    provider: text("provider").notNull(),
+    model: text("model").notNull(),
+    inputVersion: text("input_version").notNull(),
+    inputHash: text("input_hash").notNull(),
+    inputUnits: integer("input_units").notNull(),
+    outputUnits: integer("output_units").notNull(),
+    estimatedCostUsd: numeric("estimated_cost_usd", {
+      precision: 14,
+      scale: 6,
+    }).notNull(),
+    latencyMs: integer("latency_ms").notNull(),
+    retryCount: integer("retry_count").notNull().default(0),
+    validationStatus: text("validation_status").notNull(),
+    status: text("status").notNull(),
+    errorCode: text("error_code"),
+    correlationId: uuid("correlation_id").notNull(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("model_calls_tenant_idempotency_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.idempotencyKey,
+    ),
+    index("model_calls_owner_project_created_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.createdAt,
+    ),
+    index("model_calls_correlation_idx").on(table.correlationId),
+  ],
+);
 
 export const usageRecords = pgTable(
   "usage_records",

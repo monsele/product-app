@@ -2009,13 +2009,7 @@ export const sourceSectionOverlayInputSchema = z
   .object({
     revision: z.number().int().nonnegative(),
     included: z.boolean().optional(),
-    displayHeading: z
-      .string()
-      .trim()
-      .min(1)
-      .max(1_000)
-      .nullable()
-      .optional(),
+    displayHeading: z.string().trim().min(1).max(1_000).nullable().optional(),
     reviewOrder: z.number().int().positive().nullable().optional(),
   })
   .strict()
@@ -2237,9 +2231,7 @@ export const targetDurationSecondsSchema = z.union([
   z.literal(300),
   z.literal(420),
 ]);
-export type TargetDurationSeconds = z.infer<
-  typeof targetDurationSecondsSchema
->;
+export type TargetDurationSeconds = z.infer<typeof targetDurationSecondsSchema>;
 export const durationMinutesToSeconds = (minutes: 3 | 5 | 7): number =>
   minutes * 60;
 
@@ -2795,3 +2787,144 @@ export function buildSourcePackage(
 export function parseSourceSnapshot(input: unknown): SourceSnapshot {
   return sourceSnapshotSchema.parse(input);
 }
+
+// ---------------------------------------------------------------------------
+// ST-043 — AI provider model-call contracts
+// ---------------------------------------------------------------------------
+
+export const modelCallOperationValues = [
+  "ai.objectives",
+  "ai.outline",
+  "ai.narration",
+  "ai.storyboard",
+  "ai.scene_regeneration",
+  "ai.grounding",
+] as const;
+export const modelCallOperationSchema = z.enum(modelCallOperationValues);
+export type ModelCallOperation = z.infer<typeof modelCallOperationSchema>;
+
+/** Structured-output validation outcome recorded on every model call. */
+export const modelCallValidationStatusValues = [
+  "validated",
+  "repaired",
+  "invalid",
+] as const;
+export const modelCallValidationStatusSchema = z.enum(
+  modelCallValidationStatusValues,
+);
+export type ModelCallValidationStatus = z.infer<
+  typeof modelCallValidationStatusSchema
+>;
+
+/**
+ * Immutable metadata record for one model call. The pipeline persists this for
+ * every provider interaction, including failures, so costs and retries are
+ * traceable. Provider response payloads never appear here.
+ */
+export const modelCallRecordSchema = z
+  .object({
+    id: identifierSchema,
+    projectId: identifierSchema,
+    ownerUserId: identifierSchema,
+    operationType: modelCallOperationSchema,
+    idempotencyKey: z.string().min(1).max(300),
+    promptId: z.string().trim().min(1).max(100),
+    promptVersion: z.string().trim().min(1).max(50),
+    provider: z.string().trim().min(1).max(100),
+    model: z.string().trim().min(1).max(200),
+    inputVersion: z.string().trim().min(1).max(300),
+    inputHash: z
+      .string()
+      .regex(sha256HexPattern, "Expected a hexadecimal SHA-256 checksum.")
+      .transform((value) => value.toLowerCase()),
+    inputUnits: z.number().int().nonnegative(),
+    outputUnits: z.number().int().nonnegative(),
+    estimatedCostUsd: z.number().finite().nonnegative(),
+    latencyMs: z.number().int().nonnegative(),
+    retryCount: z.number().int().min(0).max(20),
+    validationStatus: modelCallValidationStatusSchema,
+    status: z.enum(["succeeded", "failed"]),
+    errorCode: z.string().max(100).nullable(),
+    correlationId: identifierSchema,
+    createdAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type ModelCallRecord = z.infer<typeof modelCallRecordSchema>;
+
+/**
+ * Bounded parameters carried by a model-call job. The concrete operation
+ * schema (objectives, outline, ...) is defined by its own story; this is the
+ * generic carrier of the operation-specific input passed to the prompt renderer.
+ */
+export const modelCallParamsSchema = z
+  .record(
+    z.string().min(1).max(100),
+    z.union([
+      z.string().max(10_000),
+      z.number().finite(),
+      z.boolean(),
+      z.null(),
+    ]),
+  )
+  .refine((value) => Object.keys(value).length <= 100, {
+    message: "Model-call parameters must contain at most 100 entries.",
+  });
+export type ModelCallParams = z.infer<typeof modelCallParamsSchema>;
+
+/**
+ * Versioned job payload for one AI model-call operation. References the exact
+ * approved source snapshot and the exact prompt version; the idempotency key
+ * and input version are derived from these inputs.
+ */
+export const modelCallJobPayloadSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    operationType: modelCallOperationSchema,
+    sourceSnapshotId: identifierSchema,
+    promptId: z.string().trim().min(1).max(100),
+    promptVersion: z.string().trim().min(1).max(50),
+    model: z.string().trim().min(1).max(200),
+    narrowing: sourcePackageNarrowingSchema.optional(),
+    params: modelCallParamsSchema.optional(),
+  })
+  .strict();
+export type ModelCallJobPayload = z.infer<typeof modelCallJobPayloadSchema>;
+
+/**
+ * Structured generation result returned by the model-call lifecycle after a
+ * validated provider response. `value` is the validated typed output whose
+ * exact shape is defined by the operation's output schema.
+ */
+export const structuredGenerationResultSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    value: z.unknown(),
+    validationStatus: modelCallValidationStatusSchema,
+    repairAttempts: z.number().int().min(0).max(20),
+    inputUnits: z.number().int().nonnegative(),
+    outputUnits: z.number().int().nonnegative(),
+    estimatedCostUsd: z.number().finite().nonnegative(),
+    latencyMs: z.number().int().nonnegative(),
+  })
+  .strict();
+export type StructuredGenerationResult = z.infer<
+  typeof structuredGenerationResultSchema
+>;
+
+/** Classified structured generation error surfaced by the lifecycle. */
+export const structuredGenerationErrorSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    code: z.enum([
+      "STRUCTURED_OUTPUT_INVALID",
+      "PROVIDER_CALL_FAILED",
+      "QUOTA_EXCEEDED",
+    ]),
+    retryable: z.boolean(),
+    message: z.string().min(1).max(500),
+    repairAttempts: z.number().int().min(0).max(20).optional(),
+  })
+  .strict();
+export type StructuredGenerationError = z.infer<
+  typeof structuredGenerationErrorSchema
+>;

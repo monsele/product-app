@@ -2,7 +2,7 @@
 story_id: ST-009
 title: "Create the Test-Fixture and AI Evaluation Baseline"
 phase: "00 \u2014 Foundation"
-status: In Review
+status: Done
 priority: must-have
 epics: ["E21"]
 prd_user_stories: ["E21-US1", "E21-US2"]
@@ -113,7 +113,7 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 - **Agent:** Codex
 - **Started:** 2026-08-08
-- **Completed:** 2026-08-08; approval-ready after scoped review.
+- **Completed:** 2026-08-08; approved and marked **Done** after scoped review on 2026-08-16.
 - **Branch/PR:** Current local branch; no PR created.
 - **Files changed:** `packages/evals`, CI workflow, lockfile, story index, and this record.
 - **Migrations:** None.
@@ -122,4 +122,15 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 - **Screenshots or representative output:** CLI emitted deterministic JSON with five expected-pass cases plus one deliberately invalid LessonSpec reported as an expected failed result; each result includes schema, duration, text-density, objective-placeholder, and citation checks as applicable.
 - **Decisions and assumptions:** Fixtures use original synthetic science text to avoid licensing/sensitivity risk. Provider and visual-frame checks remain explicitly isolated/manual until the respective implementations exist.
 - **Deviations from story/technical guide:** Initial baseline has five cases, as scoped; guide target is approximately twenty over time.
-- **Known risks or follow-up:** Approved with follow-ups: (1) add a CLI-output schema/snapshot test; (2) add a malformed-case-metadata failure-path test; (3) replace shared audio-timing and expected-render-frame placeholders with scenario-specific expectations when audio and renderer stages are implemented. These do not block the provider-free baseline because those stages are not yet available.
+- **Known risks or follow-up:** Scenario-specific audio-timing words and expected-render-frame assertions remain placeholders until the audio and renderer stages are implemented (ST-063, ST-068). The per-case placeholder files exist so no case shares another case's artifacts.
+
+### Review follow-up (2026-08-16)
+
+Resolved findings from the scoped code review:
+
+- **Fixtures updated to the current `LessonSpec` contract version.** The `figure` (labelled-diagram) and `low-quality` (summary) lesson-spec fixtures had drifted from the LessonSpec schema as later stories evolved the contract (diagram `kind`, summary `takeaways: {text}`); `parseLessonSpec` rejected them and the baseline was red. All five valid lesson-spec fixtures are now written as `schemaVersion: 1.8` with current visual shapes, and a test pins them to `lessonSpecVersion` so future drift fails loudly.
+- **CLI-output schema/snapshot test added.** `buildEvaluationReport` (`packages/evals/src/report.ts`) assembles the deterministic report; `cli-output.test.ts` asserts the report conforms to `evaluationResultSchema` and matches a committed snapshot.
+- **Malformed-case-metadata failure-path test added** in `runner.test.ts`.
+- **Runner tests de-hardcoded.** Expected outcomes are derived from the fixture `case.json` files instead of a hardcoded case count/id filter, and a repeat-run determinism assertion was added.
+- **Per-case audio-timing and expected-render-frame files** created so the five cases no longer share the photosynthesis placeholders.
+- **Commands/tests run:** `pnpm --filter @avlp/evals test` (7/7 pass), `pnpm --filter @avlp/evals eval` (exit 0, `passed: true`), `pnpm --filter @avlp/evals typecheck`, `lint`, `build` all pass.

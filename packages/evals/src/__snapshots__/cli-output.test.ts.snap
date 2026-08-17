@@ -1,0 +1,235 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`matches the committed CLI output snapshot 1`] = `
+"{
+  "results": [
+    {
+      "caseId": "clean-text",
+      "passed": true,
+      "checks": [
+        {
+          "name": "fixture-files",
+          "passed": true,
+          "message": "All declared fixture artifacts are present."
+        },
+        {
+          "name": "normalized-document-schema",
+          "passed": true,
+          "message": "NormalizedDocument is valid."
+        },
+        {
+          "name": "lesson-spec-schema",
+          "passed": true,
+          "message": "LessonSpec is valid."
+        },
+        {
+          "name": "duration",
+          "passed": true,
+          "message": "Scene duration is 180s; target is 180s."
+        },
+        {
+          "name": "objective-coverage-placeholder",
+          "passed": true,
+          "message": "Expected objective IDs are present in the LessonSpec."
+        },
+        {
+          "name": "text-density",
+          "passed": true,
+          "message": "On-screen text stays within the 80-character baseline limit."
+        },
+        {
+          "name": "citation-resolvability",
+          "passed": true,
+          "message": "Scene source references resolve against the normalized document."
+        }
+      ]
+    },
+    {
+      "caseId": "comparison",
+      "passed": true,
+      "checks": [
+        {
+          "name": "fixture-files",
+          "passed": true,
+          "message": "All declared fixture artifacts are present."
+        },
+        {
+          "name": "normalized-document-schema",
+          "passed": true,
+          "message": "NormalizedDocument is valid."
+        },
+        {
+          "name": "lesson-spec-schema",
+          "passed": true,
+          "message": "LessonSpec is valid."
+        },
+        {
+          "name": "duration",
+          "passed": true,
+          "message": "Scene duration is 180s; target is 180s."
+        },
+        {
+          "name": "objective-coverage-placeholder",
+          "passed": true,
+          "message": "Expected objective IDs are present in the LessonSpec."
+        },
+        {
+          "name": "text-density",
+          "passed": true,
+          "message": "On-screen text stays within the 80-character baseline limit."
+        },
+        {
+          "name": "citation-resolvability",
+          "passed": true,
+          "message": "Scene source references resolve against the normalized document."
+        }
+      ]
+    },
+    {
+      "caseId": "figure",
+      "passed": true,
+      "checks": [
+        {
+          "name": "fixture-files",
+          "passed": true,
+          "message": "All declared fixture artifacts are present."
+        },
+        {
+          "name": "normalized-document-schema",
+          "passed": true,
+          "message": "NormalizedDocument is valid."
+        },
+        {
+          "name": "lesson-spec-schema",
+          "passed": true,
+          "message": "LessonSpec is valid."
+        },
+        {
+          "name": "duration",
+          "passed": true,
+          "message": "Scene duration is 180s; target is 180s."
+        },
+        {
+          "name": "objective-coverage-placeholder",
+          "passed": true,
+          "message": "Expected objective IDs are present in the LessonSpec."
+        },
+        {
+          "name": "text-density",
+          "passed": true,
+          "message": "On-screen text stays within the 80-character baseline limit."
+        },
+        {
+          "name": "citation-resolvability",
+          "passed": true,
+          "message": "Scene source references resolve against the normalized document."
+        }
+      ]
+    },
+    {
+      "caseId": "invalid-lesson-spec",
+      "passed": false,
+      "checks": [
+        {
+          "name": "fixture-files",
+          "passed": true,
+          "message": "All declared fixture artifacts are present."
+        },
+        {
+          "name": "normalized-document-schema",
+          "passed": true,
+          "message": "NormalizedDocument is valid."
+        },
+        {
+          "name": "lesson-spec-schema",
+          "passed": false,
+          "message": "Required"
+        }
+      ]
+    },
+    {
+      "caseId": "low-quality",
+      "passed": true,
+      "checks": [
+        {
+          "name": "fixture-files",
+          "passed": true,
+          "message": "All declared fixture artifacts are present."
+        },
+        {
+          "name": "normalized-document-schema",
+          "passed": true,
+          "message": "NormalizedDocument is valid."
+        },
+        {
+          "name": "lesson-spec-schema",
+          "passed": true,
+          "message": "LessonSpec is valid."
+        },
+        {
+          "name": "duration",
+          "passed": true,
+          "message": "Scene duration is 180s; target is 180s."
+        },
+        {
+          "name": "objective-coverage-placeholder",
+          "passed": true,
+          "message": "Expected objective IDs are present in the LessonSpec."
+        },
+        {
+          "name": "text-density",
+          "passed": true,
+          "message": "On-screen text stays within the 80-character baseline limit."
+        },
+        {
+          "name": "citation-resolvability",
+          "passed": true,
+          "message": "Scene source references resolve against the normalized document."
+        }
+      ]
+    },
+    {
+      "caseId": "process",
+      "passed": true,
+      "checks": [
+        {
+          "name": "fixture-files",
+          "passed": true,
+          "message": "All declared fixture artifacts are present."
+        },
+        {
+          "name": "normalized-document-schema",
+          "passed": true,
+          "message": "NormalizedDocument is valid."
+        },
+        {
+          "name": "lesson-spec-schema",
+          "passed": true,
+          "message": "LessonSpec is valid."
+        },
+        {
+          "name": "duration",
+          "passed": true,
+          "message": "Scene duration is 180s; target is 180s."
+        },
+        {
+          "name": "objective-coverage-placeholder",
+          "passed": true,
+          "message": "Expected objective IDs are present in the LessonSpec."
+        },
+        {
+          "name": "text-density",
+          "passed": true,
+          "message": "On-screen text stays within the 80-character baseline limit."
+        },
+        {
+          "name": "citation-resolvability",
+          "passed": true,
+          "message": "Scene source references resolve against the normalized document."
+        }
+      ]
+    }
+  ],
+  "passed": true
+}"
+`;

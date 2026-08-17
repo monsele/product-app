@@ -2,7 +2,7 @@
 story_id: ST-043
 title: "Implement AI Provider Adapters, Prompt Registry, Structured Output, and Model-Call Logging"
 phase: "04 \u2014 AI Planning and Grounding"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E7", "E8", "E9", "E10", "E19", "E21"]
 prd_user_stories: ["E7-US1", "E8-US1", "E9-US1", "E10-US1", "E21-US2"]
@@ -122,15 +122,28 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
+- **Agent:** Kilo
+- **Started:** 2026-08-17
+- **Completed:** 2026-08-17 (handed to review as In Review)
+- **Branch/PR:** `story/st-043` (local; no PR opened).
 - **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+  - New package `packages/provider-adapters/` (`package.json`, `tsconfig.json`, `src/index.ts`, `src/contracts.ts`, `src/mock-provider.ts`, `src/structured-output.ts`, `src/prompts.ts`, `src/quota.ts`, `src/cost.ts`, `src/prompts/{objectives,outline,narration,storyboard,grounding}/v1.ts`, `src/prompts/index.ts`) with unit tests for contracts, mock provider, structured output, prompts/registry, quota, and cost.
+  - `packages/schemas/src/index.ts` — model-call contracts (operation enum, validation status, `modelCallRecordSchema`, `modelCallParamsSchema`, `modelCallJobPayloadSchema`, structured generation result/error); `packages/schemas/src/model-call.test.ts`.
+  - `packages/database/src/schema.ts` — `model_calls` table and `ai.grounding` usage-operation enum value; migration `0029_lush_quicksilver` + compatibility note.
+  - `apps/pipeline-worker/src/model-call.ts` — `PostgresModelCallRepository`, `PostgresGenerationQuotaGuard`, `loadApprovedSourceSnapshot`, `createModelCallGenerationHandler` (the base generation handler lifecycle); `apps/pipeline-worker/src/model-call.test.ts`; `apps/pipeline-worker/src/model-call.integration.test.ts`.
+  - `apps/pipeline-worker/package.json`, `pnpm-lock.yaml` — workspace dependency on `@avlp/provider-adapters`.
+  - `STORY_INDEX.md` and this story — status transitions.
+- **Migrations:** `packages/database/drizzle/0029_lush_quicksilver.sql` (adds `ai.grounding` to `usage_operation_type`; creates `model_calls` with tenant-unique idempotency key and project/correlation indexes) plus `0029_lush_quicksilver.compatibility.md`.
+- **Contracts changed:** Added `ModelCallOperation` (`ai.objectives|ai.outline|ai.narration|ai.storyboard|ai.scene_regeneration|ai.grounding`), `ModelCallValidationStatus`, `ModelCallRecord`, `ModelCallParams`, `ModelCallJobPayload`, `StructuredGenerationResult`, `StructuredGenerationError` in `@avlp/schemas`; `LanguageModelProvider`, `PromptDefinition`/`PromptRegistry`, `QuotaGuard`, cost/pricing types, and `StructuredOutputError` in `@avlp/provider-adapters`.
+- **Commands/tests run:** `pnpm install --frozen-lockfile`; per-workspace `lint`, `typecheck`, `test`, `build` for `@avlp/provider-adapters`, `@avlp/schemas`, `@avlp/database`, `@avlp/observability`, `@avlp/jobs`, `@avlp/evals`, `@avlp/pipeline-worker`; repository-wide `pnpm lint` (16/16), `pnpm typecheck` (16/16), `pnpm build` (16/16), `pnpm test` (affected workspaces green; scene-library Remotion render tests are environment-heavy and timed out under full parallel turbo runs but pass in isolation after clearing the webpack cache — unrelated to this story's changes). Tests added: provider-adapters 32, schemas 70 (incl. 10 model-call), pipeline-worker 28 passing + 20 skipped integration (incl. 10 model-call unit + 2 Postgres integration), database 8, observability 7, jobs 14, evals 7 + deterministic baseline `passed: true`.
+- **Screenshots or representative output:** `pnpm --filter @avlp/evals eval` emits `"passed": true`; `pnpm --filter @avlp/provider-adapters test` → 32/32; `pnpm --filter @avlp/pipeline-worker test` → 28 pass / 20 skip (Postgres integration skipped without `TEST_DATABASE_URL`).
+- **Decisions and assumptions:** Provider-adapters is a new workspace package so provider response types never enter domain contracts and CI needs no credentials (mock provider is the default adapter). Prompt registry is a static, in-memory versioned layout with duplicate-version rejection and exposed evaluation cases (the evaluation hook); real prompt copy is out of scope (ST-044+). Model-call idempotency key is a stable hash of job idempotency key + attempt + operation to stay within column limits. `inputVersion` is a SHA-256 over operation, prompt id/version, model, snapshot id/content hash, and params hash, so any prompt-version change changes the idempotency key. Failed and repaired calls are still persisted and metered so cost is never hidden. The base generation handler is not registered to a specific product job type (no product generation endpoint yet).
+- **Deviations from story/technical guide:** None material. The base generation handler is implemented as a factory (`createModelCallGenerationHandler`) rather than a registered product job, matching the interface requirement that no specific product generation endpoint exists yet. Postgres-backed integration tests are present but skipped locally because `TEST_DATABASE_URL`/Docker Postgres is unavailable in this environment; CI supplies Postgres 16 and the tests run there.
+- **Known risks or follow-up:** The mock provider pricing is illustrative; production pricing must be configured per model before paid calls. `model_calls` and usage recording run in the same job attempt and are idempotent by key; a mid-call provider failure records a failed call with zero usage/cost for the attempt that never returned. Scene-library render tests were observed timing out under full parallel turbo runs due to webpack cache corruption from install churn; clearing `packages/scene-library/node_modules/.cache` restores them and the failure is unrelated to this story.
+- **Approved with follow-ups (code review, 2026-08-17):**
+  1. Quota-rejection classification: `quotaGuard.assertCanGenerate` runs outside the handler's try block (`apps/pipeline-worker/src/model-call.ts:290` vs `try` at line 330), so the intended `QuotaExceededError → JobExecutionError("terminal", "AI_QUOTA_EXCEEDED")` mapping (lines 419-424) is dead code; a quota rejection currently escapes as a raw error that `classifyJobError` reports as retryable `UNEXPECTED_JOB_FAILURE`. Move the guard call into the try (or wrap it) and add a worker-level test asserting the classified terminal code.
+  2. Wire the `structuredGenerationResultSchema`/`structuredGenerationErrorSchema` contracts (currently defined and tested but unconsumed) into the lifecycle or remove them until a consumer exists; document them as reserved for the operation-specific generation stories (ST-044+).
+  3. Decide whether `deterministicChecks` should be required (or a named default no-op) so the deterministic-check lifecycle step cannot be silently skipped, and add a test for the deterministic-check-failure path.
+  4. Run the Postgres-backed integration suite (`model-call.integration.test.ts`, quota guard, usage metering, audit write) in CI against PostgreSQL 16 — skipped locally without `TEST_DATABASE_URL`.
+  5. Note that outline/narration/storyboard/grounding prompt templates reference operation-specific variables the base handler does not supply; they render only via per-operation `renderVariables` in ST-044+. Failed provider calls record zero usage/cost for the attempt; consider carrying partial usage on `ProviderCallError` for accurate metering.
+

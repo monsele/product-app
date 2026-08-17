@@ -16,6 +16,7 @@
     "@avlp/database": "workspace:*",
     "@avlp/jobs": "workspace:*",
     "@avlp/observability": "workspace:*",
+    "@avlp/provider-adapters": "workspace:*",
     "@avlp/schemas": "workspace:*",
     "@avlp/storage": "workspace:*",
     "drizzle-orm": "^0.45.2",
