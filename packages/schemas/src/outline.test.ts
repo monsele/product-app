@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
 import {
   lessonOutlineSetSchema,
+  outlineApproveInputSchema,
   outlineDurationToleranceRatio,
   outlineGenerationParamsSchema,
+  outlineItemCreateInputSchema,
+  outlineItemRemoveInputSchema,
+  outlineItemUpdateInputSchema,
   outlineOutputItemSchema,
   outlineOutputV1Schema,
+  outlineReorderInputSchema,
   outlineResponseSchema,
+  outlineValidationSchema,
   type LessonOutlineSet,
   type OutlineOutputV1,
 } from "./index.js";
@@ -279,6 +285,16 @@ describe("lesson outline set", () => {
 });
 
 describe("outline response", () => {
+  function validation() {
+    return outlineValidationSchema.parse({
+      structurallyValid: true,
+      durationStatus: "within",
+      durationWarning: null,
+      uncoveredObjectiveIds: [],
+      structureWarning: null,
+    });
+  }
+
   it("accepts an idle response", () => {
     expect(() =>
       outlineResponseSchema.parse({
@@ -288,6 +304,7 @@ describe("outline response", () => {
         latestJob: null,
         canGenerate: true,
         canApprove: false,
+        validation: validation(),
       }),
     ).not.toThrow();
   });
@@ -326,6 +343,7 @@ describe("outline response", () => {
         },
         canGenerate: true,
         canApprove: true,
+        validation: validation(),
       }),
     ).not.toThrow();
   });
@@ -339,6 +357,7 @@ describe("outline response", () => {
         latestJob: null,
         canGenerate: true,
         canApprove: false,
+        validation: validation(),
       }),
     ).toThrow();
   });
@@ -356,5 +375,114 @@ describe("outline output item edge cases", () => {
     };
     const result = outlineOutputItemSchema.safeParse(item);
     expect(result.success).toBe(false);
+  });
+});
+
+describe("outline editor input schemas", () => {
+  function createInput(overrides: Record<string, unknown> = {}) {
+    return {
+      kind: "concept",
+      title: "Evaporation",
+      description: "Explain how heating turns water into vapour.",
+      estimatedSeconds: 60,
+      objectiveIds: [objectiveIdA],
+      expectedRevision: 0,
+      ...overrides,
+    };
+  }
+
+  it("accepts a teacher-authored item create input", () => {
+    expect(() => outlineItemCreateInputSchema.parse(createInput())).not.toThrow();
+  });
+
+  it("accepts a create input with source block ids and framing note", () => {
+    expect(() =>
+      outlineItemCreateInputSchema.parse(
+        createInput({
+          sourceBlockIds: [blockId],
+          framingNote: "Generated framing question.",
+        }),
+      ),
+    ).not.toThrow();
+  });
+
+  it("rejects a create input without objective links", () => {
+    expect(() =>
+      outlineItemCreateInputSchema.parse(createInput({ objectiveIds: [] })),
+    ).toThrow();
+  });
+
+  it("rejects a create input with an estimated duration outside bounds", () => {
+    expect(() =>
+      outlineItemCreateInputSchema.parse(createInput({ estimatedSeconds: 5 })),
+    ).toThrow();
+  });
+
+  it("rejects a create input without an expected revision", () => {
+    const withoutRevision = Object.fromEntries(
+      Object.entries(createInput()).filter(([key]) => key !== "expectedRevision"),
+    );
+    expect(() =>
+      outlineItemCreateInputSchema.parse(withoutRevision),
+    ).toThrow();
+  });
+
+  it("accepts a partial update input", () => {
+    expect(() =>
+      outlineItemUpdateInputSchema.parse({
+        title: "Evaporation and condensation",
+        expectedRevision: 1,
+      }),
+    ).not.toThrow();
+  });
+
+  it("accepts changing the item kind on update", () => {
+    expect(() =>
+      outlineItemUpdateInputSchema.parse({
+        kind: "summary",
+        expectedRevision: 1,
+      }),
+    ).not.toThrow();
+  });
+
+  it("accepts clearing the framing note on update", () => {
+    expect(() =>
+      outlineItemUpdateInputSchema.parse({
+        framingNote: null,
+        expectedRevision: 1,
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects an update input with no fields to change", () => {
+    expect(() =>
+      outlineItemUpdateInputSchema.parse({ expectedRevision: 1 }),
+    ).toThrow();
+  });
+
+  it("accepts remove, reorder, and approve inputs", () => {
+    expect(() =>
+      outlineItemRemoveInputSchema.parse({ expectedRevision: 1 }),
+    ).not.toThrow();
+    expect(() =>
+      outlineReorderInputSchema.parse({
+        itemIds: [blockId, blockIdB],
+        expectedRevision: 1,
+      }),
+    ).not.toThrow();
+    expect(() => outlineApproveInputSchema.parse({ expectedRevision: 1 })).not.toThrow();
+  });
+
+  it("rejects a reorder input that repeats ids", () => {
+    expect(() =>
+      outlineReorderInputSchema.parse({
+        itemIds: [blockId, blockId],
+        expectedRevision: 1,
+      }),
+    ).toThrow();
+  });
+
+  it("rejects an approval input without an expected revision", () => {
+    expect(() => outlineApproveInputSchema.parse({})).toThrow();
   });
 });

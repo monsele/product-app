@@ -1,0 +1,2 @@
+ALTER TYPE "public"."audit_event_type" ADD VALUE 'outline.edited' BEFORE 'version.restored';--> statement-breakpoint
+ALTER TYPE "public"."audit_event_type" ADD VALUE 'outline.approved' BEFORE 'version.restored';

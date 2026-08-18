@@ -1,7 +1,10 @@
 import type {
+  OutlineDurationStatus,
   OutlineGenerationState,
   OutlineItemKind,
+  OutlineValidation,
 } from "@avlp/schemas";
+export type { OutlineValidation };
 
 /** Human-readable label for the outline review route state. */
 export function outlineGenerationStateLabel(
@@ -65,4 +68,39 @@ export function outlineItemKindLabel(kind: OutlineItemKind): string {
     case "recall_question":
       return "Recall question";
   }
+}
+
+/** Human-readable label for the estimated-duration status. */
+export function outlineDurationStatusLabel(
+  status: OutlineDurationStatus,
+): string {
+  switch (status) {
+    case "under":
+      return "Under the lesson target";
+    case "over":
+      return "Over the lesson target";
+    case "within":
+      return "Within the lesson target";
+  }
+}
+
+/**
+ * Warning sentences for the outline review route. Duration and structure
+ * warnings never block approval; uncovered objectives do.
+ */
+export function outlineValidationWarnings(
+  validation: OutlineValidation,
+): string[] {
+  const warnings: string[] = [];
+  if (validation.durationWarning !== null)
+    warnings.push(validation.durationWarning);
+  if (validation.structureWarning !== null)
+    warnings.push(validation.structureWarning);
+  if (validation.uncoveredObjectiveIds.length > 0)
+    warnings.push(
+      `${validation.uncoveredObjectiveIds.length} approved objective${
+        validation.uncoveredObjectiveIds.length === 1 ? " is" : "s are"
+      } not covered by any outline item. Add links before approving.`,
+    );
+  return warnings;
 }

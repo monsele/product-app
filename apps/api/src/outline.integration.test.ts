@@ -185,6 +185,214 @@ describeWithPostgres("PostgresOutlineService (Postgres)", () => {
   });
 });
 
+describeWithPostgres("PostgresOutlineService editor (Postgres)", () => {
+  let database: TestDatabase | undefined;
+  let service: PostgresOutlineService;
+
+  beforeAll(async () => {
+    database = await createTestDatabase(serverUrl!);
+    await migrateDatabase(database.client);
+  });
+
+  beforeEach(async () => {
+    await database!.client.delete(outlineObjectiveLinks);
+    await database!.client.delete(lessonOutlineItems);
+    await database!.client.delete(lessonOutlineSets);
+    await database!.client.delete(outboxEvents);
+    await database!.client.delete(jobs);
+    await database!.client.delete(lessonConfigurations);
+    await database!.client.delete(learningObjectives);
+    await database!.client.delete(learningObjectiveSets);
+    await database!.client.delete(modelCalls);
+    await database!.client.delete(sourceSnapshots);
+    await database!.client.delete(parsedDocuments);
+    await database!.client.delete(sourceDocumentIngestionArtifacts);
+    await database!.client.delete(sourceDocuments);
+    await database!.client.delete(projects);
+    await database!.client.delete(users);
+    await seed(database!.client);
+    service = new PostgresOutlineService(
+      database!.client,
+      async () => approvalStatus,
+      () => new Date("2026-08-17T10:00:00.000Z"),
+    );
+  });
+
+  afterAll(async () => {
+    await database?.destroy();
+  });
+
+  it("adds, updates, reorders, and removes outline items in a draft", async () => {
+    const outlineSetId: Identifier = "019ffbf1-6666-7000-8000-000000000006";
+    const itemId: Identifier = "019ffbf1-7777-7000-8000-000000000006";
+    await seedDraftOutline(database!.client, outlineSetId, itemId);
+
+    const added = await service.add({
+      ownerUserId,
+      projectId,
+      body: {
+        kind: "concept",
+        title: "Condensation",
+        description: "Explain condensation.",
+        estimatedSeconds: 40,
+        objectiveIds: [objectiveId],
+        expectedRevision: 0,
+      },
+      correlationId: "019ffbf1-5555-7000-8000-000000000006",
+    });
+    expect(added.set?.items).toHaveLength(3);
+    expect(added.set?.totalEstimatedSeconds).toBe(100);
+    const addedItem = added.set!.items[2]!;
+    expect(addedItem).toMatchObject({ title: "Condensation", generated: false });
+
+    const updated = await service.update({
+      ownerUserId,
+      projectId,
+      itemId: addedItem.id,
+      body: {
+        title: "Condensation and clouds",
+        estimatedSeconds: 45,
+        objectiveIds: [objectiveId],
+        expectedRevision: 1,
+      },
+      correlationId: "019ffbf1-5555-7000-8000-000000000006",
+    });
+    expect(updated.set?.items[2]).toMatchObject({
+      title: "Condensation and clouds",
+      estimatedSeconds: 45,
+      revision: 1,
+    });
+    expect(updated.set?.totalEstimatedSeconds).toBe(105);
+
+    const reordered = await service.reorder({
+      ownerUserId,
+      projectId,
+      body: {
+        itemIds: [addedItem.id, itemId, "019ffbf1-9999-7000-8000-000000000006"],
+        expectedRevision: 2,
+      },
+      correlationId: "019ffbf1-5555-7000-8000-000000000006",
+    });
+    expect(reordered.set?.items.map((item) => item.id)).toEqual([
+      addedItem.id,
+      itemId,
+      "019ffbf1-9999-7000-8000-000000000006",
+    ]);
+
+    const removed = await service.remove({
+      ownerUserId,
+      projectId,
+      itemId: addedItem.id,
+      body: { expectedRevision: 3 },
+      correlationId: "019ffbf1-5555-7000-8000-000000000006",
+    });
+    expect(removed.set?.items).toHaveLength(2);
+    expect(removed.set?.items[0]).toMatchObject({
+      id: itemId,
+      order: 1,
+    });
+  });
+
+  it("rejects objective links outside the approved set", async () => {
+    const outlineSetId: Identifier = "019ffbf1-6666-7000-8000-000000000006";
+    const itemId: Identifier = "019ffbf1-7777-7000-8000-000000000006";
+    await seedDraftOutline(database!.client, outlineSetId, itemId);
+    await expect(
+      service.add({
+        ownerUserId,
+        projectId,
+        body: {
+          kind: "concept",
+          title: "Condensation",
+          description: "Explain condensation.",
+          estimatedSeconds: 40,
+          objectiveIds: ["019ffbf1-3333-7000-8000-000000000099"],
+          expectedRevision: 0,
+        },
+        correlationId: "019ffbf1-5555-7000-8000-000000000006",
+      }),
+    ).rejects.toMatchObject({ code: "validation_failed", statusCode: 400 });
+  });
+
+  it("blocks approval when an approved objective is uncovered", async () => {
+    const outlineSetId: Identifier = "019ffbf1-6666-7000-8000-000000000006";
+    const itemId: Identifier = "019ffbf1-7777-7000-8000-000000000006";
+    await seedDraftOutline(database!.client, outlineSetId, itemId);
+    await database!.client.insert(learningObjectives).values({
+      id: "019ffbf1-3333-7000-8000-000000000099",
+      ownerUserId,
+      projectId,
+      setId: objectiveSetId,
+      order: 2,
+      statement: "Recall how water moves through the cycle.",
+      verb: "recall",
+      confidence: 0.9,
+      sourceRefs: [],
+      generated: true,
+      revision: 0,
+      createdAt: new Date("2026-08-17T10:00:00.000Z"),
+      updatedAt: new Date("2026-08-17T10:00:00.000Z"),
+    });
+    await expect(
+      service.approve({
+        ownerUserId,
+        projectId,
+        body: { expectedRevision: 0 },
+        correlationId: "019ffbf1-5555-7000-8000-000000000006",
+      }),
+    ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
+  });
+
+  it("approves an outline, supersedes prior sets, and advances the project stage", async () => {
+    const outlineSetId: Identifier = "019ffbf1-6666-7000-8000-000000000006";
+    const itemId: Identifier = "019ffbf1-7777-7000-8000-000000000006";
+    await seedDraftOutline(database!.client, outlineSetId, itemId);
+    const result = await service.approve({
+      ownerUserId,
+      projectId,
+      body: { expectedRevision: 0 },
+      correlationId: "019ffbf1-5555-7000-8000-000000000006",
+    });
+    expect(result.state).toBe("approved");
+    const rows = await database!.client
+      .select({ status: lessonOutlineSets.status })
+      .from(lessonOutlineSets)
+      .where(eq(lessonOutlineSets.id, outlineSetId));
+    expect(rows[0]?.status).toBe("approved");
+    const projectsAfter = await database!.client
+      .select({ stage: projects.stage })
+      .from(projects)
+      .where(eq(projects.id, projectId));
+    expect(projectsAfter[0]?.stage).toBe("narration_storyboard_review");
+    const itemRows = await database!.client
+      .select()
+      .from(lessonOutlineItems)
+      .where(eq(lessonOutlineItems.setId, outlineSetId));
+    expect(itemRows).toHaveLength(2);
+  });
+
+  it("does not leak another tenant's outline items", async () => {
+    const outlineSetId: Identifier = "019ffbf1-6666-7000-8000-000000000006";
+    const itemId: Identifier = "019ffbf1-7777-7000-8000-000000000006";
+    await seedDraftOutline(database!.client, outlineSetId, itemId);
+    await expect(
+      service.add({
+        ownerUserId: otherOwnerUserId,
+        projectId,
+        body: {
+          kind: "concept",
+          title: "Condensation",
+          description: "Explain condensation.",
+          estimatedSeconds: 40,
+          objectiveIds: [objectiveId],
+          expectedRevision: 0,
+        },
+        correlationId: "019ffbf1-5555-7000-8000-000000000006",
+      }),
+    ).rejects.toMatchObject({ statusCode: 409 });
+  });
+});
+
 async function seed(database: DatabaseClient): Promise<void> {
   const timestamp = new Date("2026-08-17T09:00:00.000Z");
   await database.insert(users).values([

@@ -3524,6 +3524,35 @@ export type OutlineGenerationState = z.infer<
   typeof outlineGenerationStateSchema
 >;
 
+export const outlineDurationStatusValues = [
+  "under",
+  "over",
+  "within",
+] as const;
+export const outlineDurationStatusSchema = z.enum(outlineDurationStatusValues);
+export type OutlineDurationStatus = z.infer<
+  typeof outlineDurationStatusSchema
+>;
+
+/**
+ * ST-047 validation surfaced for the outline review route. `structurallyValid`
+ * blocks approval for an empty outline, items without objective links, a
+ * non-hook item without source references, or an uncited hook that is not
+ * labelled as generated framing. `uncoveredObjectiveIds` lists approved
+ * objectives no draft item links, which also blocks approval. Duration and
+ * structure warnings are informational and do not block approval.
+ */
+export const outlineValidationSchema = z
+  .object({
+    structurallyValid: z.boolean(),
+    durationStatus: outlineDurationStatusSchema,
+    durationWarning: z.string().max(500).nullable(),
+    uncoveredObjectiveIds: z.array(identifierSchema),
+    structureWarning: z.string().max(500).nullable(),
+  })
+  .strict();
+export type OutlineValidation = z.infer<typeof outlineValidationSchema>;
+
 /** `GET /projects/:id/outline` response. */
 export const outlineResponseSchema = z
   .object({
@@ -3533,6 +3562,105 @@ export const outlineResponseSchema = z
     latestJob: outlineGenerationJobStatusSchema.nullable(),
     canGenerate: z.boolean(),
     canApprove: z.boolean(),
+    validation: outlineValidationSchema,
   })
   .strict();
 export type OutlineResponse = z.infer<typeof outlineResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// ST-047 — Edit, reorder, link, and approve the lesson outline
+// ---------------------------------------------------------------------------
+
+/** Boundary for adding a teacher-authored outline item to the current draft. */
+export const outlineItemCreateInputSchema = z
+  .object({
+    kind: outlineItemKindSchema,
+    title: boundedText(160),
+    description: boundedText(1_000),
+    estimatedSeconds: z
+      .number()
+      .int()
+      .min(outlineItemMinimumSeconds)
+      .max(outlineItemMaximumSeconds),
+    objectiveIds: z.array(identifierSchema).min(1).max(20),
+    sourceBlockIds: z.array(identifierSchema).max(100).optional(),
+    framingNote: boundedText(500).optional(),
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type OutlineItemCreateInput = z.infer<
+  typeof outlineItemCreateInputSchema
+>;
+
+/** Boundary for editing one outline item in the current draft. */
+export const outlineItemUpdateInputSchema = z
+  .object({
+    kind: outlineItemKindSchema.optional(),
+    title: boundedText(160).optional(),
+    description: boundedText(1_000).optional(),
+    estimatedSeconds: z
+      .number()
+      .int()
+      .min(outlineItemMinimumSeconds)
+      .max(outlineItemMaximumSeconds)
+      .optional(),
+    objectiveIds: z.array(identifierSchema).min(1).max(20).optional(),
+    sourceBlockIds: z.array(identifierSchema).max(100).optional(),
+    framingNote: z.string().trim().min(1).max(500).nullable().optional(),
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (
+      value.kind === undefined &&
+      value.title === undefined &&
+      value.description === undefined &&
+      value.estimatedSeconds === undefined &&
+      value.objectiveIds === undefined &&
+      value.sourceBlockIds === undefined &&
+      value.framingNote === undefined
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["root"],
+        message: "Provide at least one field to update.",
+      });
+  });
+export type OutlineItemUpdateInput = z.infer<
+  typeof outlineItemUpdateInputSchema
+>;
+
+/** Boundary for removing one outline item from the current draft. */
+export const outlineItemRemoveInputSchema = z
+  .object({
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type OutlineItemRemoveInput = z.infer<
+  typeof outlineItemRemoveInputSchema
+>;
+
+/** Boundary for reordering the current draft's outline items. */
+export const outlineReorderInputSchema = z
+  .object({
+    itemIds: z.array(identifierSchema).min(1).max(20),
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (new Set(value.itemIds).size !== value.itemIds.length)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["itemIds"],
+        message: "Outline item ids must be unique.",
+      });
+  });
+export type OutlineReorderInput = z.infer<typeof outlineReorderInputSchema>;
+
+/** Boundary for approving the current draft outline. */
+export const outlineApproveInputSchema = z
+  .object({
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type OutlineApproveInput = z.infer<typeof outlineApproveInputSchema>;

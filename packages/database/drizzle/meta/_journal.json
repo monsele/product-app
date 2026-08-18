@@ -232,6 +232,13 @@
       "when": 1786999676094,
       "tag": "0032_greedy_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1787072339458,
+      "tag": "0033_needy_black_panther",
+      "breakpoints": true
     }
   ]
 }

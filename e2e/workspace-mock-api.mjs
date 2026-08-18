@@ -20,6 +20,11 @@ const projects = new Map([
 const uploads = new Map();
 const configurations = new Map();
 const objectiveState = new Map();
+const outlineState = new Map();
+
+const outlineObjectiveId = "019ffbf1-6111-738a-b087-6775ff97568c";
+const outlineItemA = "019ffbf1-6121-738a-b087-6775ff97568c";
+const outlineItemB = "019ffbf1-6122-738a-b087-6775ff97568c";
 
 function objectiveBlockId() {
   return "019ffbf1-2222-738a-b087-6775ff97568c";
@@ -89,6 +94,112 @@ function objectiveResponse(projectId) {
   };
 }
 
+function outlineSourceRef() {
+  return [
+    {
+      documentId: "019ffbf1-3333-738a-b087-6775ff97568c",
+      parsedDocumentVersion: 1,
+      pageStart: 1,
+      pageEnd: 1,
+      sectionId: "019ffbf1-1111-738a-b087-6775ff97568c",
+      blockIds: ["019ffbf1-2222-738a-b087-6775ff97568c"],
+    },
+  ];
+}
+
+function outlineSet(projectId, overrides = {}) {
+  const set = outlineState.get(projectId) ?? {
+    schemaVersion: 1,
+    id: "019ffbf1-610e-738a-b087-6775ff97568c",
+    projectId,
+    sourceSnapshotId: "019ffbf1-610e-738a-b087-6775ff97568c",
+    sourceSnapshotContentHash: "a".repeat(64),
+    objectiveSetId: "019ffbf1-610e-738a-b087-6775ff97568c",
+    objectiveSetContentHash: "b".repeat(64),
+    configurationVersion: 1,
+    promptId: "outline",
+    promptVersion: "v2",
+    model: "mock-model-1",
+    modelCallId: "019ffbf1-610e-738a-b087-6775ff97568c",
+    status: "draft",
+    revision: 0,
+    items: [
+      {
+        id: outlineItemA,
+        order: 1,
+        kind: "hook",
+        title: "Where does the water go?",
+        description: "Open with a question.",
+        estimatedSeconds: 20,
+        sourceRefs: [],
+        objectiveIds: [outlineObjectiveId],
+        framingNote: "Generated framing question.",
+        generated: true,
+        revision: 0,
+      },
+      {
+        id: outlineItemB,
+        order: 2,
+        kind: "concept",
+        title: "Evaporation",
+        description: "Explain evaporation.",
+        estimatedSeconds: 40,
+        sourceRefs: outlineSourceRef(),
+        objectiveIds: [outlineObjectiveId],
+        framingNote: null,
+        generated: true,
+        revision: 0,
+      },
+    ],
+    totalEstimatedSeconds: 60,
+    generatedAt: now,
+    createdAt: now,
+  };
+  return { ...set, ...overrides, items: set.items };
+}
+
+function outlineValidation(projectId) {
+  const set = outlineSet(projectId);
+  return {
+    structurallyValid:
+      set.items.length >= 1 &&
+      set.items.every(
+        (item) =>
+          item.objectiveIds.length >= 1 &&
+          (item.kind !== "hook" ||
+            item.sourceRefs.length > 0 ||
+            item.framingNote !== null),
+      ),
+    durationStatus: "within",
+    durationWarning: null,
+    uncoveredObjectiveIds: [],
+    structureWarning: null,
+  };
+}
+
+function outlineResponse(projectId) {
+  // The outline editor links items to approved objectives, so outline flows
+  // need an approved objective set even though the objectives page starts
+  // with a draft.
+  if (objectiveState.get(`${projectId}:approved`) === undefined)
+    objectiveState.set(`${projectId}:approved`, objectiveSet(projectId));
+  const set = outlineSet(projectId);
+  const approved = outlineState.get(`${projectId}:approved`) ?? null;
+  const validation = outlineValidation(projectId);
+  return {
+    state: set.status === "approved" ? "approved" : "draft",
+    set,
+    approved,
+    latestJob: null,
+    canGenerate: true,
+    canApprove:
+      set.status === "draft" &&
+      validation.structurallyValid &&
+      validation.uncoveredObjectiveIds.length === 0,
+    validation,
+  };
+}
+
 function narrationTarget(seconds) {
   const target = Math.round(
     (seconds / 60) * 140 * (1 - 0.2),
@@ -127,8 +238,9 @@ const server = createServer(async (request, response) => {
     response.writeHead(204, {
       "access-control-allow-origin": "http://127.0.0.1:3000",
       "access-control-allow-credentials": "true",
-      "access-control-allow-methods": "POST, PUT, OPTIONS",
-      "access-control-allow-headers": "content-type, x-amz-checksum-sha256",
+      "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "access-control-allow-headers":
+        "content-type, x-amz-checksum-sha256, idempotency-key",
     });
     return response.end();
   }
@@ -417,8 +529,7 @@ const server = createServer(async (request, response) => {
   }
   const objectivesMatch = url.pathname.match(
     /^\/projects\/([^/]+)\/objectives(?:\/([^/]+))?$/,
-  );
-  if (objectivesMatch !== null) {
+  );  if (objectivesMatch !== null) {
     const projectId = decodeURIComponent(objectivesMatch[1]);
     const project = projects.get(projectId);
     if (project === undefined)
@@ -555,6 +666,168 @@ const server = createServer(async (request, response) => {
       const set = { ...current, revision: current.revision + 1, objectives };
       objectiveState.set(projectId, set);
       return send(response, 200, objectiveResponse(projectId));
+    }
+    return send(response, 404, { error: { code: "not_found" } });
+  }
+  const outlineMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/outline(?:\/items(?:\/([^/]+))?|\/(reorder|approve))?$/,
+  );
+  if (outlineMatch !== null) {
+    const projectId = decodeURIComponent(outlineMatch[1]);
+    const project = projects.get(projectId);
+    if (project === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    const subPath = outlineMatch[3];
+    const itemId = outlineMatch[2];
+    if (request.method === "GET" && subPath === undefined && itemId === undefined)
+      return send(response, 200, outlineResponse(projectId));
+    if (request.method === "POST" && subPath === undefined && itemId === undefined) {
+      let body = "";
+      for await (const chunk of request) body += chunk;
+      const input = JSON.parse(body);
+      const current = outlineSet(projectId);
+      if (input.expectedRevision !== current.revision)
+        return send(response, 409, {
+          error: {
+            code: "bad_request",
+            message: "The outline changed. Please refresh and try again.",
+          },
+        });
+      const set = {
+        ...current,
+        revision: current.revision + 1,
+        items: [
+          ...current.items,
+          {
+            id: `019ffbf1-6123-738a-b087-6775ff97568${current.items.length}`,
+            order: current.items.length + 1,
+            kind: input.kind,
+            title: input.title,
+            description: input.description,
+            estimatedSeconds: input.estimatedSeconds,
+            sourceRefs:
+              input.sourceBlockIds !== undefined &&
+              input.sourceBlockIds.length > 0
+                ? outlineSourceRef()
+                : [],
+            objectiveIds: input.objectiveIds,
+            framingNote: input.framingNote ?? null,
+            generated: false,
+            revision: 0,
+          },
+        ],
+      };
+      set.totalEstimatedSeconds = set.items.reduce(
+        (total, item) => total + item.estimatedSeconds,
+        0,
+      );
+      outlineState.set(projectId, set);
+      return send(response, 200, outlineResponse(projectId));
+    }
+    if (request.method === "POST" && subPath === "reorder") {
+      let body = "";
+      for await (const chunk of request) body += chunk;
+      const input = JSON.parse(body);
+      const current = outlineSet(projectId);
+      if (input.expectedRevision !== current.revision)
+        return send(response, 409, {
+          error: {
+            code: "bad_request",
+            message: "The outline changed. Please refresh and try again.",
+          },
+        });
+      const byId = new Map(current.items.map((item) => [item.id, item]));
+      const items = input.itemIds.map((id, index) => ({
+        ...byId.get(id),
+        order: index + 1,
+      }));
+      const set = { ...current, revision: current.revision + 1, items };
+      outlineState.set(projectId, set);
+      return send(response, 200, outlineResponse(projectId));
+    }
+    if (request.method === "POST" && subPath === "approve") {
+      let body = "";
+      for await (const chunk of request) body += chunk;
+      const input = JSON.parse(body);
+      const current = outlineSet(projectId);
+      if (input.expectedRevision !== current.revision)
+        return send(response, 409, {
+          error: {
+            code: "bad_request",
+            message: "The outline changed. Please refresh and try again.",
+          },
+        });
+      const set = { ...current, status: "approved" };
+      outlineState.set(projectId, set);
+      outlineState.set(`${projectId}:approved`, set);
+      return send(response, 200, outlineResponse(projectId));
+    }
+    if (itemId === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    if (request.method === "PATCH") {
+      let body = "";
+      for await (const chunk of request) body += chunk;
+      const input = JSON.parse(body);
+      const current = outlineSet(projectId);
+      if (input.expectedRevision !== current.revision)
+        return send(response, 409, {
+          error: {
+            code: "bad_request",
+            message: "The outline changed. Please refresh and try again.",
+          },
+        });
+      const items = current.items.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              kind: input.kind ?? item.kind,
+              title: input.title ?? item.title,
+              description: input.description ?? item.description,
+              estimatedSeconds: input.estimatedSeconds ?? item.estimatedSeconds,
+              sourceRefs:
+                input.sourceBlockIds !== undefined &&
+                input.sourceBlockIds.length > 0
+                  ? outlineSourceRef()
+                  : item.sourceRefs,
+              objectiveIds: input.objectiveIds ?? item.objectiveIds,
+              framingNote:
+                input.framingNote === undefined
+                  ? item.framingNote
+                  : input.framingNote,
+              revision: item.revision + 1,
+            }
+          : item,
+      );
+      const set = { ...current, revision: current.revision + 1, items };
+      set.totalEstimatedSeconds = set.items.reduce(
+        (total, item) => total + item.estimatedSeconds,
+        0,
+      );
+      outlineState.set(projectId, set);
+      return send(response, 200, outlineResponse(projectId));
+    }
+    if (request.method === "DELETE") {
+      let body = "";
+      for await (const chunk of request) body += chunk;
+      const input = JSON.parse(body);
+      const current = outlineSet(projectId);
+      if (input.expectedRevision !== current.revision)
+        return send(response, 409, {
+          error: {
+            code: "bad_request",
+            message: "The outline changed. Please refresh and try again.",
+          },
+        });
+      const items = current.items
+        .filter((item) => item.id !== itemId)
+        .map((item, index) => ({ ...item, order: index + 1 }));
+      const set = { ...current, revision: current.revision + 1, items };
+      set.totalEstimatedSeconds = set.items.reduce(
+        (total, item) => total + item.estimatedSeconds,
+        0,
+      );
+      outlineState.set(projectId, set);
+      return send(response, 200, outlineResponse(projectId));
     }
     return send(response, 404, { error: { code: "not_found" } });
   }

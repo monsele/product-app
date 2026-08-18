@@ -288,7 +288,10 @@ type ObjectivesApiService = Pick<
   ObjectivesService,
   "generate" | "current" | "add" | "update" | "remove" | "reorder" | "approve"
 >;
-type OutlineApiService = Pick<OutlineService, "generate" | "current">;
+type OutlineApiService = Pick<
+  OutlineService,
+  "generate" | "current" | "add" | "update" | "remove" | "reorder" | "approve"
+>;
 
 @Controller("projects")
 class ProjectsController {
@@ -824,6 +827,114 @@ class ProjectsController {
       ownerUserId: access.ownerUserId,
       projectId: access.projectId,
       idempotencyKey,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/outline/items")
+  @HttpCode(200)
+  public async addOutlineItem(
+    @Param("projectId") projectId: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    return this.outline.add({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Patch(":projectId/outline/items/:itemId")
+  @HttpCode(200)
+  public async updateOutlineItem(
+    @Param("projectId") projectId: string,
+    @Param("itemId") itemIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const itemId = identifierSchema.safeParse(itemIdInput);
+    if (!itemId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.outline.update({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      itemId: itemId.data,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Delete(":projectId/outline/items/:itemId")
+  @HttpCode(200)
+  public async removeOutlineItem(
+    @Param("projectId") projectId: string,
+    @Param("itemId") itemIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const itemId = identifierSchema.safeParse(itemIdInput);
+    if (!itemId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.outline.remove({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      itemId: itemId.data,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/outline/reorder")
+  @HttpCode(200)
+  public async reorderOutlineItems(
+    @Param("projectId") projectId: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    return this.outline.reorder({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/outline/approve")
+  @HttpCode(200)
+  public async approveOutline(
+    @Param("projectId") projectId: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    return this.outline.approve({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      body: input,
       correlationId:
         request.correlationId ?? "00000000-0000-7000-8000-000000000000",
     });
@@ -1420,6 +1531,51 @@ const unavailableOutlineService: OutlineApiService = {
       new PublicError(
         "internal_error",
         "Outline generation is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  add: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Outline editing is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  update: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Outline editing is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  remove: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Outline editing is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  reorder: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Outline editing is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  approve: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Outline approval is unavailable.",
         503,
         true,
       ),

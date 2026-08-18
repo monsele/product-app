@@ -915,6 +915,8 @@ export const auditEventTypeValues = [
   "ai.generated",
   "objectives.edited",
   "objectives.approved",
+  "outline.edited",
+  "outline.approved",
   "version.restored",
   "render.initiated",
   "job.admin_retried",

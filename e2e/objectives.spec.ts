@@ -22,7 +22,9 @@ test("objective editor shows the draft objectives", async ({ page }) => {
     page.getByText(/Draft set/),
   ).toBeVisible();
   await expect(
-    page.getByText("Describe how evaporation forms water vapour."),
+    page.getByLabel("Objectives", { exact: true }).getByText(
+      "Describe how evaporation forms water vapour.",
+    ),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Approve objectives" }),
