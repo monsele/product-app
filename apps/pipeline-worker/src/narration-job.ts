@@ -1,6 +1,10 @@
 import { createHash } from "node:crypto";
 import { createId, serializeUtcTimestamp, type Identifier } from "@avlp/config";
 import {
+  computeNarrationBlockContentHash,
+  computeNarrationSetContentHash,
+} from "@avlp/config";
+import {
   lessonOutlineItems,
   lessonOutlineSets,
   narrationBlocks,
@@ -382,25 +386,37 @@ export async function persistNarrationSet(input: {
               },
             ],
     );
+    const text = block.sentences.map((sentence) => sentence.text).join(" ");
+    const sourceRefs = sourceRefsFor(blockIds);
     return {
       id: createId(timestamp),
       outlineItemId: block.outlineItemId,
       order: index + 1,
-      text: block.sentences.map((sentence) => sentence.text).join(" "),
+      text,
       estimatedWords: block.sentences.reduce(
         (sum, sentence) => sum + countWords(sentence.text),
         0,
       ),
       targetSeconds: item.estimatedSeconds,
-      sourceRefs: sourceRefsFor(blockIds),
+      sourceRefs,
       generatedAdditions,
       generated: true,
       revision: 0,
+      contentHash: computeNarrationBlockContentHash({
+        text,
+        sourceRefs,
+        generatedAdditions,
+        generated: true,
+      }),
     };
   });
   const totalEstimatedSeconds = input.output.blocks.reduce(
     (sum, block) => sum + (itemByOutputId.get(block.outlineItemId)?.estimatedSeconds ?? 0),
     0,
+  );
+  const contentHash = computeNarrationSetContentHash(
+    blocks,
+    totalEstimatedSeconds,
   );
   const set: LessonNarrationSet = lessonNarrationSetSchema.parse({
     schemaVersion: 1,
@@ -419,6 +435,7 @@ export async function persistNarrationSet(input: {
     revision: 0,
     blocks,
     totalEstimatedSeconds,
+    contentHash,
     generatedAt: serializeUtcTimestamp(timestamp),
     createdAt: serializeUtcTimestamp(timestamp),
   });
@@ -471,6 +488,7 @@ export async function persistNarrationSet(input: {
           generatedAdditions: block.generatedAdditions,
           generated: block.generated,
           revision: block.revision,
+          origin: "generated",
           createdAt: timestamp,
           updatedAt: timestamp,
         })),

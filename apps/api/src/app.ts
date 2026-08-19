@@ -294,7 +294,17 @@ type OutlineApiService = Pick<
   OutlineService,
   "generate" | "current" | "add" | "update" | "remove" | "reorder" | "approve"
 >;
-type NarrationApiService = Pick<NarrationService, "generate" | "current">;
+type NarrationApiService = Pick<
+  NarrationService,
+  | "generate"
+  | "current"
+  | "updateBlock"
+  | "regenerateBlock"
+  | "acceptCandidate"
+  | "rejectCandidate"
+  | "listBlockRevisions"
+  | "restoreBlockRevision"
+>;
 
 @Controller("projects")
 class ProjectsController {
@@ -975,6 +985,171 @@ class ProjectsController {
     });
   }
 
+  @Patch(":projectId/narration/blocks/:blockId")
+  @HttpCode(200)
+  public async updateNarrationBlock(
+    @Param("projectId") projectId: string,
+    @Param("blockId") blockIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const blockId = identifierSchema.safeParse(blockIdInput);
+    if (!blockId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.narration.updateBlock({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      blockId: blockId.data,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/narration-blocks/:blockId/regenerate")
+  @HttpCode(202)
+  public async regenerateNarrationBlock(
+    @Param("projectId") projectId: string,
+    @Param("blockId") blockIdInput: string,
+    @Body() input: unknown,
+    @Headers("idempotency-key") idempotencyKey: string | undefined,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const blockId = identifierSchema.safeParse(blockIdInput);
+    if (!blockId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.narration.regenerateBlock({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      blockId: blockId.data,
+      body: input,
+      idempotencyKey,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Get(":projectId/narration/blocks/:blockId/revisions")
+  @HttpCode(200)
+  public async narrationBlockRevisions(
+    @Param("projectId") projectId: string,
+    @Param("blockId") blockIdInput: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    const blockId = identifierSchema.safeParse(blockIdInput);
+    if (!blockId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.narration.listBlockRevisions({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      blockId: blockId.data,
+    });
+  }
+
+  @Post(":projectId/narration/blocks/:blockId/candidates/:candidateId/accept")
+  @HttpCode(200)
+  public async acceptNarrationCandidate(
+    @Param("projectId") projectId: string,
+    @Param("blockId") blockIdInput: string,
+    @Param("candidateId") candidateIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const blockId = identifierSchema.safeParse(blockIdInput);
+    const candidateId = identifierSchema.safeParse(candidateIdInput);
+    if (!blockId.success || !candidateId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.narration.acceptCandidate({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      blockId: blockId.data,
+      candidateId: candidateId.data,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/narration/blocks/:blockId/candidates/:candidateId/reject")
+  @HttpCode(200)
+  public async rejectNarrationCandidate(
+    @Param("projectId") projectId: string,
+    @Param("blockId") blockIdInput: string,
+    @Param("candidateId") candidateIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const blockId = identifierSchema.safeParse(blockIdInput);
+    const candidateId = identifierSchema.safeParse(candidateIdInput);
+    if (!blockId.success || !candidateId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.narration.rejectCandidate({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      blockId: blockId.data,
+      candidateId: candidateId.data,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/narration/blocks/:blockId/restore")
+  @HttpCode(200)
+  public async restoreNarrationBlockRevision(
+    @Param("projectId") projectId: string,
+    @Param("blockId") blockIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const blockId = identifierSchema.safeParse(blockIdInput);
+    if (!blockId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.narration.restoreBlockRevision({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      blockId: blockId.data,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
   @Post(":projectId/source-upload/:sessionId/complete")
   @HttpCode(202)
   public async completeSourceUpload(
@@ -1635,6 +1810,60 @@ const unavailableNarrationService: NarrationApiService = {
       new PublicError(
         "internal_error",
         "Narration generation is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  updateBlock: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Narration editing is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  regenerateBlock: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Narration editing is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  acceptCandidate: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Narration editing is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  rejectCandidate: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Narration editing is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  listBlockRevisions: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Narration editing is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  restoreBlockRevision: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Narration editing is unavailable.",
         503,
         true,
       ),

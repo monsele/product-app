@@ -917,6 +917,10 @@ export const auditEventTypeValues = [
   "objectives.approved",
   "outline.edited",
   "outline.approved",
+  "narration.edited",
+  "narration.block_candidate_accepted",
+  "narration.block_candidate_rejected",
+  "narration.block_restored",
   "version.restored",
   "render.initiated",
   "job.admin_retried",
@@ -1403,6 +1407,7 @@ export const narrationBlocks = pgTable(
     generatedAdditions: jsonb("generated_additions").notNull(),
     generated: boolean("generated").notNull().default(true),
     revision: integer("revision").notNull().default(0),
+    origin: text("origin").notNull().default("generated"),
     ...auditColumns(),
   },
   (table) => [
@@ -1411,5 +1416,90 @@ export const narrationBlocks = pgTable(
       table.order,
     ),
     index("narration_blocks_set_idx").on(table.setId),
+  ],
+);
+
+/**
+ * One generated block-transform candidate produced by a `narration.transform`
+ * job. Candidates are idempotent per (tenant, project, block, job key) and
+ * wait for the teacher to accept or reject them; accepting applies the
+ * candidate as a new block revision. `block_revision` is the block revision
+ * the candidate was generated from, used to reject stale acceptances.
+ */
+export const narrationBlockCandidates = pgTable(
+  "narration_block_candidates",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    setId: uuid("set_id")
+      .notNull()
+      .references(() => narrationSets.id, { onDelete: "cascade" }),
+    blockId: uuid("block_id")
+      .notNull()
+      .references(() => narrationBlocks.id, { onDelete: "cascade" }),
+    mode: text("mode").notNull(),
+    text: text("text").notNull(),
+    estimatedWords: integer("estimated_words").notNull(),
+    sourceRefs: jsonb("source_refs").notNull(),
+    generatedAdditions: jsonb("generated_additions").notNull(),
+    generated: boolean("generated").notNull().default(true),
+    status: text("status").notNull().default("pending"),
+    blockRevision: integer("block_revision").notNull(),
+    modelCallId: uuid("model_call_id")
+      .notNull()
+      .references(() => modelCalls.id, { onDelete: "restrict" }),
+    idempotencyKey: text("idempotency_key").notNull(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("narration_candidates_block_idempotency_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.blockId,
+      table.idempotencyKey,
+    ),
+    index("narration_candidates_set_block_status_idx").on(
+      table.setId,
+      table.blockId,
+      table.status,
+    ),
+  ],
+);
+
+/**
+ * One archived narration block revision used for rollback. Every narration
+ * mutation archives the previous current revision before advancing the block;
+ * restoring a revision clones it into a new current revision rather than
+ * mutating history.
+ */
+export const narrationBlockRevisions = pgTable(
+  "narration_block_revisions",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    setId: uuid("set_id")
+      .notNull()
+      .references(() => narrationSets.id, { onDelete: "cascade" }),
+    blockId: uuid("block_id")
+      .notNull()
+      .references(() => narrationBlocks.id, { onDelete: "cascade" }),
+    revision: integer("revision").notNull(),
+    text: text("text").notNull(),
+    estimatedWords: integer("estimated_words").notNull(),
+    sourceRefs: jsonb("source_refs").notNull(),
+    generatedAdditions: jsonb("generated_additions").notNull(),
+    generated: boolean("generated").notNull().default(true),
+    origin: text("origin").notNull(),
+    modelCallId: uuid("model_call_id").references(() => modelCalls.id, {
+      onDelete: "restrict",
+    }),
+    createdAt: utcTimestamp("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("narration_block_revisions_block_revision_unique").on(
+      table.blockId,
+      table.revision,
+    ),
+    index("narration_block_revisions_set_idx").on(table.setId),
   ],
 );

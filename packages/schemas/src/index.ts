@@ -3770,6 +3770,10 @@ export const lessonNarrationBlockSchema = z
     generatedAdditions: z.array(generatedAdditionSchema).max(20),
     generated: z.boolean(),
     revision: z.number().int().nonnegative(),
+    contentHash: z
+      .string()
+      .regex(sha256HexPattern, "Expected a hexadecimal SHA-256 checksum.")
+      .transform((value) => value.toLowerCase()),
   })
   .strict();
 export type LessonNarrationBlock = z.infer<typeof lessonNarrationBlockSchema>;
@@ -3804,6 +3808,10 @@ export const lessonNarrationSetSchema = z
     revision: z.number().int().nonnegative(),
     blocks: z.array(lessonNarrationBlockSchema).max(20),
     totalEstimatedSeconds: z.number().int().positive(),
+    contentHash: z
+      .string()
+      .regex(sha256HexPattern, "Expected a hexadecimal SHA-256 checksum.")
+      .transform((value) => value.toLowerCase()),
     generatedAt: z.string().datetime({ offset: true }),
     createdAt: z.string().datetime({ offset: true }),
   })
@@ -3933,9 +3941,250 @@ export const narrationResponseSchema = z
     set: lessonNarrationSetSchema.nullable(),
     approved: lessonNarrationSetSchema.nullable(),
     latestJob: narrationGenerationJobStatusSchema.nullable(),
+    latestTransformJob: narrationGenerationJobStatusSchema.nullable(),
     canGenerate: z.boolean(),
     canApprove: z.boolean(),
+    canEdit: z.boolean(),
+    stale: z.boolean(),
+    staleReason: z.string().max(500).nullable(),
+    candidates: z.array(z.lazy(() => narrationBlockCandidateSchema)).max(100),
     validation: narrationValidationSchema,
   })
   .strict();
 export type NarrationResponse = z.infer<typeof narrationResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// ST-049 — Edit or regenerate individual narration blocks with dependency
+// invalidation
+// ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// ST-049 — Edit or regenerate individual narration blocks with dependency
+// invalidation
+// ---------------------------------------------------------------------------
+
+/**
+ * Deterministic content hashes for narration blocks and sets live in
+ * `@avlp/config` (server-only). Schemas validate the hash format and expose
+ * the bounded editor/revision/candidate contracts below; derived-artifact
+ * staleness is detected by comparing stored content hashes.
+ */
+
+/** The four bounded block-transformation modes a teacher can request. */
+export const narrationTransformModeValues = [
+  "shorten",
+  "simplify",
+  "expand",
+  "regenerate",
+] as const;
+export const narrationTransformModeSchema = z.enum(
+  narrationTransformModeValues,
+);
+export type NarrationTransformMode = z.infer<
+  typeof narrationTransformModeSchema
+>;
+
+/** Maximum pending block-transform candidates retained per narration block. */
+export const narrationBlockMaximumActiveCandidates = 5 as const;
+
+export const narrationCandidateStatusValues = [
+  "pending",
+  "accepted",
+  "rejected",
+] as const;
+export const narrationCandidateStatusSchema = z.enum(
+  narrationCandidateStatusValues,
+);
+export type NarrationCandidateStatus = z.infer<
+  typeof narrationCandidateStatusSchema
+>;
+
+export const narrationBlockRevisionOriginValues = [
+  "generated",
+  "teacher_edit",
+  "transform",
+  "restore",
+] as const;
+export const narrationBlockRevisionOriginSchema = z.enum(
+  narrationBlockRevisionOriginValues,
+);
+export type NarrationBlockRevisionOrigin = z.infer<
+  typeof narrationBlockRevisionOriginSchema
+>;
+
+/** Boundary for the teacher editing one narration block directly. */
+export const narrationBlockUpdateInputSchema = z
+  .object({
+    text: boundedText(10_000),
+    sourceBlockIds: z.array(identifierSchema).max(100).optional(),
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type NarrationBlockUpdateInput = z.infer<
+  typeof narrationBlockUpdateInputSchema
+>;
+
+/**
+ * Boundary for requesting a one-block regeneration. `instruction` is an
+ * optional teacher direction; `expectedRevision` is the narration-set revision
+ * the request is based on and must still be current when the job runs.
+ */
+export const narrationBlockTransformInputSchema = z
+  .object({
+    mode: narrationTransformModeSchema,
+    instruction: boundedText(500).optional(),
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type NarrationBlockTransformInput = z.infer<
+  typeof narrationBlockTransformInputSchema
+>;
+
+/** `POST /projects/:id/narration-blocks/:blockId/regenerate` response. */
+export const narrationTransformResponseSchema = z
+  .object({
+    jobId: identifierSchema,
+    status: z.literal("queued"),
+  })
+  .strict();
+export type NarrationTransformResponse = z.infer<
+  typeof narrationTransformResponseSchema
+>;
+
+/** Boundary for accepting or rejecting one generated block candidate. */
+export const narrationCandidateDecisionInputSchema = z
+  .object({
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type NarrationCandidateDecisionInput = z.infer<
+  typeof narrationCandidateDecisionInputSchema
+>;
+
+/** Boundary for restoring a previous narration block revision. */
+export const narrationBlockRestoreInputSchema = z
+  .object({
+    revision: z.number().int().nonnegative(),
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type NarrationBlockRestoreInput = z.infer<
+  typeof narrationBlockRestoreInputSchema
+>;
+
+/**
+ * One generated block candidate from a transform job. The teacher accepts or
+ * rejects it; accepting applies the candidate as a new block revision and
+ * invalidates dependent artifacts.
+ */
+export const narrationBlockCandidateSchema = z
+  .object({
+    id: identifierSchema,
+    blockId: identifierSchema,
+    mode: narrationTransformModeSchema,
+    text: boundedText(10_000),
+    estimatedWords: z.number().int().positive(),
+    sourceRefs: z.array(sourceRefSchema).max(20),
+    generatedAdditions: z.array(generatedAdditionSchema).max(20),
+    status: narrationCandidateStatusSchema,
+    blockRevision: z.number().int().nonnegative(),
+    modelCallId: identifierSchema,
+    createdAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type NarrationBlockCandidate = z.infer<
+  typeof narrationBlockCandidateSchema
+>;
+
+/**
+ * One archived narration block revision used for rollback. Every mutation
+ * archives the previous current revision before advancing the block.
+ */
+export const narrationBlockRevisionSchema = z
+  .object({
+    id: identifierSchema,
+    blockId: identifierSchema,
+    revision: z.number().int().nonnegative(),
+    text: boundedText(10_000),
+    estimatedWords: z.number().int().positive(),
+    sourceRefs: z.array(sourceRefSchema).max(20),
+    generatedAdditions: z.array(generatedAdditionSchema).max(20),
+    origin: narrationBlockRevisionOriginSchema,
+    modelCallId: identifierSchema.nullable(),
+    createdAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type NarrationBlockRevision = z.infer<
+  typeof narrationBlockRevisionSchema
+>;
+
+/** `GET /projects/:id/narration/blocks/:blockId/revisions` response. */
+export const narrationBlockRevisionsResponseSchema = z
+  .object({
+    revisions: z.array(narrationBlockRevisionSchema).max(100),
+  })
+  .strict();
+export type NarrationBlockRevisionsResponse = z.infer<
+  typeof narrationBlockRevisionsResponseSchema
+>;
+
+/**
+ * Bounded parameters for one narration block transform. The job loads the
+ * narration set, its block, the neighboring blocks, and the approved outline
+ * from the database so the prompt and the deterministic checks always use the
+ * exact approved revisions.
+ */
+export const narrationTransformParamsSchema = z
+  .object({
+    narrationSetId: identifierSchema,
+    narrationSetRevision: z.number().int().nonnegative(),
+    blockId: identifierSchema,
+    outlineItemId: identifierSchema,
+    mode: narrationTransformModeSchema,
+    instruction: boundedText(500).nullable(),
+    configurationVersion: z.number().int().positive(),
+    lessonTitle: boundedText(200),
+    subject: boundedText(200),
+    ageBand: lessonAgeBandSchema,
+    difficulty: lessonDifficultySchema,
+    tone: lessonToneSchema,
+    targetDurationSeconds: targetDurationSecondsSchema,
+    includeRecallQuestions: z.boolean(),
+  })
+  .strict();
+export type NarrationTransformParams = z.infer<
+  typeof narrationTransformParamsSchema
+>;
+
+/**
+ * The versioned structured output a transform job must produce: exactly one
+ * block for the selected outline item, in the requested mode.
+ */
+export const narrationBlockTransformOutputSchema = z
+  .object({
+    schemaVersion: z.literal("narration-block-v1"),
+    mode: narrationTransformModeSchema,
+    block: narrationBlockOutputSchema,
+  })
+  .strict();
+export type NarrationBlockTransformOutput = z.infer<
+  typeof narrationBlockTransformOutputSchema
+>;
+
+/** The prompt/model the API uses for one-block narration transforms now. */
+export const narrationTransformCompatibilitySchema = z
+  .object({
+    promptId: z.string().trim().min(1).max(100),
+    promptVersion: z.string().trim().min(1).max(50),
+    model: z.string().trim().min(1).max(200),
+  })
+  .strict();
+export type NarrationTransformCompatibility = z.infer<
+  typeof narrationTransformCompatibilitySchema
+>;
+export const currentNarrationTransformCompatibility =
+  narrationTransformCompatibilitySchema.parse({
+    promptId: "narration-block",
+    promptVersion: "v1",
+    model: "mock-model-1",
+  });

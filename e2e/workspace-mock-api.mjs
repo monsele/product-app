@@ -21,10 +21,13 @@ const uploads = new Map();
 const configurations = new Map();
 const objectiveState = new Map();
 const outlineState = new Map();
+const narrationState = new Map();
 
 const outlineObjectiveId = "019ffbf1-6111-738a-b087-6775ff97568c";
 const outlineItemA = "019ffbf1-6121-738a-b087-6775ff97568c";
 const outlineItemB = "019ffbf1-6122-738a-b087-6775ff97568c";
+const narrationBlockId = "019ffbf1-6131-738a-b087-6775ff97568c";
+const narrationBlockIdB = "019ffbf1-6132-738a-b087-6775ff97568c";
 
 function objectiveBlockId() {
   return "019ffbf1-2222-738a-b087-6775ff97568c";
@@ -208,6 +211,80 @@ function narrationTarget(seconds) {
     min: Math.max(1, Math.round(target * 0.9)),
     target,
     max: Math.max(target, Math.round(target * 1.15)),
+  };
+}
+
+function narrationBlock(projectId, overrides = {}) {
+  return {
+    id: narrationBlockId,
+    outlineItemId: outlineItemA,
+    order: 1,
+    text: "Where does the water go when a puddle dries?",
+    estimatedWords: 38,
+    targetSeconds: 20,
+    sourceRefs: [],
+    generatedAdditions: [],
+    generated: true,
+    revision: 0,
+    contentHash: "c".repeat(64),
+    ...overrides,
+  };
+}
+
+function narrationSet(projectId, overrides = {}) {
+  const state = narrationState.get(projectId) ?? {
+    schemaVersion: 1,
+    id: "019ffbf1-610e-738a-b087-6775ff97568c",
+    projectId,
+    sourceSnapshotId: "019ffbf1-610e-738a-b087-6775ff97568c",
+    sourceSnapshotContentHash: "a".repeat(64),
+    outlineSetId: "019ffbf1-610e-738a-b087-6775ff97568c",
+    outlineSetContentHash: "b".repeat(64),
+    configurationVersion: 1,
+    promptId: "narration",
+    promptVersion: "v2",
+    model: "mock-model-1",
+    modelCallId: "019ffbf1-610e-738a-b087-6775ff97568c",
+    status: "draft",
+    revision: 0,
+    blocks: [narrationBlock(projectId)],
+    totalEstimatedSeconds: 180,
+    contentHash: "d".repeat(64),
+    generatedAt: now,
+    createdAt: now,
+  };
+  const { candidates: _candidates, ...set } = state;
+  return { ...set, ...overrides, blocks: set.blocks };
+}
+
+function narrationCandidates(projectId) {
+  return narrationState.get(`${projectId}:candidates`) ?? [];
+}
+
+function narrationResponse(projectId) {
+  const set = narrationSet(projectId);
+  const approved = narrationState.get(`${projectId}:approved`) ?? null;
+  const candidates = narrationCandidates(projectId);
+  return {
+    state: set.status === "approved" ? "approved" : "draft",
+    set,
+    approved,
+    latestJob: null,
+    latestTransformJob: null,
+    canGenerate: true,
+    canApprove: false,
+    canEdit: set.status === "draft",
+    stale: false,
+    staleReason: null,
+    candidates,
+    validation: {
+      structurallyValid: true,
+      durationStatus: "within",
+      durationWarning: null,
+      wordCountStatus: "within",
+      wordCountWarning: null,
+      uncoveredOutlineItemIds: [],
+    },
   };
 }
 
@@ -526,6 +603,208 @@ const server = createServer(async (request, response) => {
     };
     configurations.set(projectId, configuration);
     return send(response, 200, configurationResponse(projectId));
+  }
+  const narrationMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/narration(?:$|\/(.*)$)/,
+  );
+  if (narrationMatch !== null) {
+    const projectId = decodeURIComponent(narrationMatch[1]);
+    const rest = narrationMatch[2] ?? "";
+    if (request.method === "GET" && rest === "")
+      return send(response, 200, narrationResponse(projectId));
+    const blockMatch = rest.match(/^blocks\/([^/]+)(?:\/(.*))?$/);
+    if (blockMatch !== null) {
+      const blockId = decodeURIComponent(blockMatch[1]);
+      const subPath = blockMatch[2] ?? "";
+      const current = narrationSet(projectId);
+      if (request.method === "PATCH" && subPath === "") {
+        let body = "";
+        for await (const chunk of request) body += chunk;
+        const input = JSON.parse(body);
+        if (input.expectedRevision !== current.revision)
+          return send(response, 409, {
+            error: {
+              code: "bad_request",
+              message: "The narration changed. Please refresh and try again.",
+            },
+          });
+        const before = current.blocks.find((block) => block.id === blockId);
+        const revisions = narrationState.get(`${projectId}:revisions`) ?? [];
+        if (before !== undefined)
+          narrationState.set(`${projectId}:revisions`, [
+            ...revisions,
+            {
+              id: `019ffbf1-6143-738a-b087-6775ff97568${revisions.length}`,
+              blockId,
+              revision: before.revision,
+              text: before.text,
+              estimatedWords: before.estimatedWords,
+              sourceRefs: before.sourceRefs,
+              generatedAdditions: before.generatedAdditions,
+              origin: "generated",
+              modelCallId: null,
+              createdAt: now,
+            },
+          ]);
+        const blocks = current.blocks.map((block) =>
+          block.id === blockId
+            ? {
+                ...block,
+                text: input.text,
+                estimatedWords: input.text.trim().split(/\s+/).length,
+                revision: block.revision + 1,
+                contentHash: "c".repeat(64),
+              }
+            : block,
+        );
+        narrationState.set(projectId, {
+          ...current,
+          revision: current.revision + 1,
+          blocks,
+        });
+        return send(response, 200, narrationResponse(projectId));
+      }
+      if (request.method === "GET" && subPath === "revisions") {
+        const revisions = narrationState.get(`${projectId}:revisions`) ?? [];
+        return send(response, 200, { revisions });
+      }
+      if (request.method === "POST" && subPath === "restore") {
+        let body = "";
+        for await (const chunk of request) body += chunk;
+        const input = JSON.parse(body);
+        if (input.expectedRevision !== current.revision)
+          return send(response, 409, {
+            error: {
+              code: "bad_request",
+              message: "The narration changed. Please refresh and try again.",
+            },
+          });
+        const revisions = narrationState.get(`${projectId}:revisions`) ?? [];
+        const archived = revisions.find(
+          (revision) => revision.revision === input.revision,
+        );
+        if (archived === undefined)
+          return send(response, 404, { error: { code: "not_found" } });
+        narrationState.set(`${projectId}:revisions`, [
+          ...revisions,
+          {
+            ...current.blocks.find((block) => block.id === blockId),
+            revision: current.blocks.find((block) => block.id === blockId)
+              .revision,
+          },
+        ]);
+        const blocks = current.blocks.map((block) =>
+          block.id === blockId
+            ? {
+                ...block,
+                text: archived.text,
+                estimatedWords: archived.estimatedWords,
+                revision: block.revision + 1,
+                contentHash: "c".repeat(64),
+              }
+            : block,
+        );
+        narrationState.set(projectId, {
+          ...current,
+          revision: current.revision + 1,
+          blocks,
+        });
+        return send(response, 200, narrationResponse(projectId));
+      }
+      const candidateMatch = subPath.match(
+        /^candidates\/([^/]+)\/(accept|reject)$/,
+      );
+      if (candidateMatch !== null) {
+        let body = "";
+        for await (const chunk of request) body += chunk;
+        const input = JSON.parse(body);
+        if (input.expectedRevision !== current.revision)
+          return send(response, 409, {
+            error: {
+              code: "bad_request",
+              message: "The narration changed. Please refresh and try again.",
+            },
+          });
+        const candidateId = decodeURIComponent(candidateMatch[1]);
+        const action = candidateMatch[2];
+        const candidates = narrationCandidates(projectId);
+        const candidate = candidates.find((item) => item.id === candidateId);
+        if (candidate === undefined)
+          return send(response, 404, { error: { code: "not_found" } });
+        const updatedCandidates = candidates.map((item) =>
+          item.id === candidateId
+            ? {
+                ...item,
+                status: action === "accept" ? "accepted" : "rejected",
+              }
+            : item,
+        );
+        narrationState.set(`${projectId}:candidates`, updatedCandidates);
+        if (action === "accept") {
+          const blocks = current.blocks.map((block) =>
+            block.id === blockId
+              ? {
+                  ...block,
+                  text: candidate.text,
+                  estimatedWords: candidate.estimatedWords,
+                  revision: block.revision + 1,
+                  contentHash: "c".repeat(64),
+                }
+              : block,
+          );
+          narrationState.set(projectId, {
+            ...current,
+            revision: current.revision + 1,
+            blocks,
+          });
+        }
+        return send(response, 200, narrationResponse(projectId));
+      }
+    }
+    return send(response, 404, { error: { code: "not_found" } });
+  }
+  const transformMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/narration-blocks\/([^/]+)\/regenerate$/,
+  );
+  if (request.method === "POST" && transformMatch !== null) {
+    const projectId = decodeURIComponent(transformMatch[1]);
+    const blockId = decodeURIComponent(transformMatch[2]);
+    let body = "";
+    for await (const chunk of request) body += chunk;
+    const input = JSON.parse(body);
+    const current = narrationSet(projectId);
+    if (input.expectedRevision !== current.revision)
+      return send(response, 409, {
+        error: {
+          code: "bad_request",
+          message: "The narration changed. Please refresh and try again.",
+        },
+      });
+    const block = current.blocks.find((item) => item.id === blockId);
+    if (block === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    const candidateId = "019ffbf1-6141-738a-b087-6775ff97568c";
+    const candidates = narrationCandidates(projectId);
+    narrationState.set(`${projectId}:candidates`, [
+      ...candidates,
+      {
+        id: candidateId,
+        blockId,
+        mode: input.mode,
+        text: "A tighter, clearer rewrite of the opening question.",
+        estimatedWords: 8,
+        sourceRefs: [],
+        generatedAdditions: [],
+        status: "pending",
+        blockRevision: block.revision,
+        modelCallId: "019ffbf1-610e-738a-b087-6775ff97568c",
+        createdAt: now,
+      },
+    ]);
+    return send(response, 202, {
+      jobId: "019ffbf1-6140-738a-b087-6775ff97568c",
+      status: "queued",
+    });
   }
   const objectivesMatch = url.pathname.match(
     /^\/projects\/([^/]+)\/objectives(?:\/([^/]+))?$/,

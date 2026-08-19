@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { z, ZodError } from "zod";
 import { identifierSchema, type Identifier } from "./identifiers.js";
 
@@ -28,6 +28,61 @@ export const utcTimestampSchema = z
 export type UtcTimestamp = z.infer<typeof utcTimestampSchema>;
 export const serializeUtcTimestamp = (date: Date): UtcTimestamp =>
   date.toISOString();
+
+function sortCanonicalShape(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortCanonicalShape);
+  if (typeof value === "object" && value !== null) {
+    const record = value as Record<string, unknown>;
+    return Object.fromEntries(
+      Object.entries(record)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, nested]) => [key, sortCanonicalShape(nested)]),
+    );
+  }
+  return value;
+}
+
+/**
+ * Deterministic SHA-256 of one narration block's content. Derived artifacts
+ * (audio, captions, preview cache, validation, renders) store the narration
+ * content hashes they were built from; when a block changes its hash changes
+ * and only the affected derived artifacts are stale. Server-only: the web app
+ * never computes hashes and must not bundle this function.
+ */
+export function computeNarrationBlockContentHash(input: {
+  text: string;
+  sourceRefs: readonly unknown[];
+  generatedAdditions: readonly unknown[];
+  generated: boolean;
+}): string {
+  const canonical = JSON.stringify(
+    sortCanonicalShape({
+      text: input.text,
+      sourceRefs: input.sourceRefs,
+      generatedAdditions: input.generatedAdditions,
+      generated: input.generated,
+    }),
+  );
+  return createHash("sha256").update(canonical).digest("hex");
+}
+
+/**
+ * Deterministic SHA-256 of an ordered narration set: the ordered block content
+ * hashes plus the total estimated seconds. Two sets with the same hash narrate
+ * identical content.
+ */
+export function computeNarrationSetContentHash(
+  blocks: readonly { contentHash: string }[],
+  totalEstimatedSeconds: number,
+): string {
+  const canonical = JSON.stringify(
+    sortCanonicalShape({
+      totalEstimatedSeconds,
+      blocks: blocks.map((block) => ({ contentHash: block.contentHash })),
+    }),
+  );
+  return createHash("sha256").update(canonical).digest("hex");
+}
 
 export const paginationSchema = z.object({
   cursor: identifierSchema.optional(),

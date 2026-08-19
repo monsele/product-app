@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   isGenerating,
   narrationBudgetStatusLabel,
+  narrationCandidateStatusLabel,
   narrationFailureMessage,
   narrationGenerationStateLabel,
+  narrationTransformModeLabel,
   narrationValidationWarnings,
 } from "./narration-input";
 
@@ -27,7 +29,26 @@ describe("narration input helpers", () => {
     expect(
       narrationFailureMessage("MODEL_OUTPUT_DETERMINISTIC_FAILURE"),
     ).toContain("could not be validated");
+    expect(
+      narrationFailureMessage("NARRATION_SET_REVISION_MISMATCH"),
+    ).toContain("changed while the block");
+    expect(
+      narrationFailureMessage("NARRATION_OUTLINE_MISMATCH"),
+    ).toContain("outline");
     expect(narrationFailureMessage(null)).toContain("Try again");
+  });
+
+  it("labels every transform mode", () => {
+    expect(narrationTransformModeLabel("shorten")).toBe("Shorten");
+    expect(narrationTransformModeLabel("simplify")).toBe("Simplify");
+    expect(narrationTransformModeLabel("expand")).toBe("Expand");
+    expect(narrationTransformModeLabel("regenerate")).toBe("Regenerate");
+  });
+
+  it("labels candidate statuses", () => {
+    expect(narrationCandidateStatusLabel("pending")).toContain("Pending");
+    expect(narrationCandidateStatusLabel("accepted")).toBe("Accepted");
+    expect(narrationCandidateStatusLabel("rejected")).toBe("Rejected");
   });
 
   it("detects the generating state", () => {

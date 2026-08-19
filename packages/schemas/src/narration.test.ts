@@ -1,14 +1,28 @@
 import { describe, expect, it } from "vitest";
 import {
+  computeNarrationBlockContentHash,
+  computeNarrationSetContentHash,
+} from "@avlp/config";
+import {
   currentNarrationGenerationCompatibility,
+  currentNarrationTransformCompatibility,
   lessonNarrationBlockSchema,
   lessonNarrationSetSchema,
+  narrationBlockCandidateSchema,
   narrationBlockOutputSchema,
+  narrationBlockRestoreInputSchema,
+  narrationBlockRevisionSchema,
+  narrationBlockTransformInputSchema,
+  narrationBlockTransformOutputSchema,
+  narrationBlockUpdateInputSchema,
+  narrationCandidateDecisionInputSchema,
   narrationGenerationParamsSchema,
   narrationOutputV1Schema,
   narrationResponseSchema,
   narrationSentenceOutputSchema,
   narrationSetStatusSchema,
+  narrationTransformParamsSchema,
+  narrationTransformResponseSchema,
   narrationWordCountRange,
   type LessonNarrationSet,
   type NarrationOutputV1,
@@ -21,7 +35,7 @@ const outlineItemB = "019ffbf1-1111-7000-8000-000000000002";
 const sectionId = "019ffbf1-3333-7000-8000-000000000001";
 
 function blockRow(overrides: Record<string, unknown> = {}) {
-  return lessonNarrationBlockSchema.parse({
+  const base = {
     id: "019ffbf1-eeee-7000-8000-000000000001",
     outlineItemId: outlineItemA,
     order: 1,
@@ -41,12 +55,24 @@ function blockRow(overrides: Record<string, unknown> = {}) {
     generatedAdditions: [],
     generated: true,
     revision: 0,
-    ...overrides,
+  };
+  const merged = { ...base, ...overrides };
+  return lessonNarrationBlockSchema.parse({
+    ...merged,
+    contentHash:
+      "contentHash" in merged
+        ? merged.contentHash
+        : computeNarrationBlockContentHash({
+            text: merged.text as string,
+            sourceRefs: merged.sourceRefs as LessonNarrationSet["blocks"][number]["sourceRefs"],
+            generatedAdditions: merged.generatedAdditions as LessonNarrationSet["blocks"][number]["generatedAdditions"],
+            generated: merged.generated as boolean,
+          }),
   });
 }
 
 function setRow(overrides: Record<string, unknown> = {}): LessonNarrationSet {
-  return lessonNarrationSetSchema.parse({
+  const row = {
     schemaVersion: 1,
     id: "019ffbf1-eeee-7000-8000-000000000010",
     projectId: "019ffbf1-ffff-7000-8000-000000000001",
@@ -65,6 +91,11 @@ function setRow(overrides: Record<string, unknown> = {}): LessonNarrationSet {
     totalEstimatedSeconds: 20,
     generatedAt: "2026-08-17T10:00:00.000Z",
     createdAt: "2026-08-17T10:00:00.000Z",
+  };
+  const blocks = (overrides.blocks ?? row.blocks) as typeof row.blocks;
+  return lessonNarrationSetSchema.parse({
+    ...row,
+    contentHash: computeNarrationSetContentHash(blocks, row.totalEstimatedSeconds),
     ...overrides,
   });
 }
@@ -274,8 +305,13 @@ describe("narration response schema", () => {
         set: null,
         approved: null,
         latestJob: null,
+        latestTransformJob: null,
         canGenerate: true,
         canApprove: false,
+        canEdit: false,
+        stale: false,
+        staleReason: null,
+        candidates: [],
         validation: {
           structurallyValid: false,
           durationStatus: "within",
@@ -300,8 +336,13 @@ describe("narration response schema", () => {
           errorCode: null,
           updatedAt: "2026-08-17T10:00:00.000Z",
         },
+        latestTransformJob: null,
         canGenerate: false,
         canApprove: false,
+        canEdit: true,
+        stale: false,
+        staleReason: null,
+        candidates: [],
         validation: {
           structurallyValid: true,
           durationStatus: "within",
@@ -322,5 +363,198 @@ describe("narration generation compatibility", () => {
       promptVersion: "v2",
       model: "mock-model-1",
     });
+  });
+});
+
+describe("narration content hashes", () => {
+  it("derives a deterministic block content hash", () => {
+    const input = {
+      text: "Heating water turns it into vapour.",
+      sourceRefs: blockRow().sourceRefs,
+      generatedAdditions: [],
+      generated: true,
+    };
+    expect(computeNarrationBlockContentHash(input)).toMatch(/^[0-9a-f]{64}$/);
+    expect(computeNarrationBlockContentHash(input)).toBe(
+      computeNarrationBlockContentHash({ ...input, sourceRefs: [...input.sourceRefs] }),
+    );
+    expect(computeNarrationBlockContentHash({ ...input, text: "Changed." })).not.toBe(
+      computeNarrationBlockContentHash(input),
+    );
+  });
+
+  it("derives a set content hash that changes when a block changes", () => {
+    const blocks = [blockRow(), blockRow({ id: blockIdB })];
+    const first = computeNarrationSetContentHash(blocks, 40);
+    const changed = computeNarrationSetContentHash(
+      [blockRow(), blockRow({ id: blockIdB, text: "Changed block text." })],
+      40,
+    );
+    expect(first).toMatch(/^[0-9a-f]{64}$/);
+    expect(changed).not.toBe(first);
+  });
+
+  it("rejects a block or set with an invalid content hash", () => {
+    expect(() => lessonNarrationBlockSchema.parse({ ...blockRow(), contentHash: "x" })).toThrow();
+    expect(() => setRow({ contentHash: "x" })).toThrow();
+  });
+});
+
+describe("narration block update input", () => {
+  it("accepts a teacher edit that retains citations when source blocks are omitted", () => {
+    expect(() =>
+      narrationBlockUpdateInputSchema.parse({
+        text: "Heating water turns it into vapour.",
+        expectedRevision: 0,
+      }),
+    ).not.toThrow();
+  });
+
+  it("accepts a teacher edit that replaces citations explicitly", () => {
+    expect(() =>
+      narrationBlockUpdateInputSchema.parse({
+        text: "Heating water turns it into vapour.",
+        sourceBlockIds: [blockId],
+        expectedRevision: 0,
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects unknown fields and a missing expected revision", () => {
+    expect(() => narrationBlockUpdateInputSchema.parse({ text: "x" })).toThrow();
+    expect(() =>
+      narrationBlockUpdateInputSchema.parse({ text: "x", expectedRevision: 0, surprise: true }),
+    ).toThrow();
+  });
+});
+
+describe("narration block transform input", () => {
+  it("accepts every mode", () => {
+    for (const mode of ["shorten", "simplify", "expand", "regenerate"])
+      expect(() =>
+        narrationBlockTransformInputSchema.parse({ mode, expectedRevision: 0 }),
+      ).not.toThrow();
+  });
+
+  it("rejects an unknown mode", () => {
+    expect(() =>
+      narrationBlockTransformInputSchema.parse({ mode: "rewrite", expectedRevision: 0 }),
+    ).toThrow();
+  });
+});
+
+describe("narration transform contracts", () => {
+  it("accepts a bounded transform response", () => {
+    expect(() =>
+      narrationTransformResponseSchema.parse({
+        jobId: "019ffbf1-eeee-7000-8000-000000000050",
+        status: "queued",
+      }),
+    ).not.toThrow();
+  });
+
+  it("accepts bounded transform params", () => {
+    expect(() =>
+      narrationTransformParamsSchema.parse({
+        narrationSetId: "019ffbf1-eeee-7000-8000-000000000010",
+        narrationSetRevision: 0,
+        blockId: "019ffbf1-eeee-7000-8000-000000000001",
+        outlineItemId: outlineItemA,
+        mode: "shorten",
+        instruction: null,
+        configurationVersion: 3,
+        lessonTitle: "The water cycle",
+        subject: "Science",
+        ageBand: "11-13",
+        difficulty: "introductory",
+        tone: "friendly",
+        targetDurationSeconds: 300,
+        includeRecallQuestions: true,
+      }),
+    ).not.toThrow();
+  });
+
+  it("accepts a single-block transform output", () => {
+    expect(() =>
+      narrationBlockTransformOutputSchema.parse({
+        schemaVersion: "narration-block-v1",
+        mode: "shorten",
+        block: {
+          outlineItemId: outlineItemA,
+          sentences: [
+            { text: "Water turns into vapour when heated.", sourceBlockIds: [blockId] },
+          ],
+        },
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects a transform output for the wrong schema version", () => {
+    expect(() =>
+      narrationBlockTransformOutputSchema.parse({
+        schemaVersion: "narration-v1",
+        mode: "shorten",
+        block: {
+          outlineItemId: outlineItemA,
+          sentences: [
+            { text: "Water turns into vapour when heated.", sourceBlockIds: [blockId] },
+          ],
+        },
+      }),
+    ).toThrow();
+  });
+
+  it("targets the narration-block v1 prompt with the mock model", () => {
+    expect(currentNarrationTransformCompatibility).toMatchObject({
+      promptId: "narration-block",
+      promptVersion: "v1",
+      model: "mock-model-1",
+    });
+  });
+});
+
+describe("narration candidates and revisions", () => {
+  it("accepts a pending candidate", () => {
+    expect(() =>
+      narrationBlockCandidateSchema.parse({
+        id: "019ffbf1-eeee-7000-8000-000000000060",
+        blockId: "019ffbf1-eeee-7000-8000-000000000001",
+        mode: "shorten",
+        text: "Water turns into vapour when heated.",
+        estimatedWords: 7,
+        sourceRefs: blockRow().sourceRefs,
+        generatedAdditions: [],
+        status: "pending",
+        blockRevision: 0,
+        modelCallId: "019ffbf1-eeee-7000-8000-000000000030",
+        createdAt: "2026-08-17T11:00:00.000Z",
+      }),
+    ).not.toThrow();
+  });
+
+  it("accepts an archived block revision", () => {
+    expect(() =>
+      narrationBlockRevisionSchema.parse({
+        id: "019ffbf1-eeee-7000-8000-000000000070",
+        blockId: "019ffbf1-eeee-7000-8000-000000000001",
+        revision: 0,
+        text: "Heating water turns it into vapour.",
+        estimatedWords: 6,
+        sourceRefs: blockRow().sourceRefs,
+        generatedAdditions: [],
+        origin: "generated",
+        modelCallId: null,
+        createdAt: "2026-08-17T11:00:00.000Z",
+      }),
+    ).not.toThrow();
+  });
+
+  it("accepts candidate decision and restore inputs", () => {
+    expect(() =>
+      narrationCandidateDecisionInputSchema.parse({ expectedRevision: 0 }),
+    ).not.toThrow();
+    expect(() =>
+      narrationBlockRestoreInputSchema.parse({ revision: 1, expectedRevision: 0 }),
+    ).not.toThrow();
   });
 });

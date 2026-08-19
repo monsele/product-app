@@ -1,6 +1,8 @@
 import type {
   NarrationBudgetStatus,
+  NarrationCandidateStatus,
   NarrationGenerationState,
+  NarrationTransformMode,
   NarrationValidation,
 } from "@avlp/schemas";
 export type { NarrationValidation };
@@ -36,11 +38,20 @@ export function narrationFailureMessage(errorCode: string | null): string {
     case "SOURCE_SNAPSHOT_NOT_FOUND":
     case "SOURCE_SNAPSHOT_STALE":
       return "The approved source changed. Re-confirm the reviewed source and try again.";
+    case "NARRATION_SET_NOT_FOUND":
+    case "NARRATION_BLOCK_NOT_FOUND":
+      return "The narration changed. Refresh and try again.";
+    case "NARRATION_SET_REVISION_MISMATCH":
+      return "The narration changed while the block was being rewritten. Review the current narration and try again.";
+    case "NARRATION_SET_NOT_DRAFT":
+      return "Only draft narration can be regenerated block by block.";
+    case "NARRATION_OUTLINE_MISMATCH":
+      return "The approved outline no longer matches the narration. Review the outline and regenerate.";
     case "MODEL_OUTPUT_DETERMINISTIC_FAILURE":
     case "STRUCTURED_OUTPUT_INVALID":
-      return "The AI produced narration that could not be validated. Try again.";
+      return "The AI produced a rewrite that could not be validated. Try again.";
     case "CANDIDATE_PERSIST_FAILED":
-      return "The generated narration could not be saved. Try again.";
+      return "The generated rewrite could not be saved. Try again.";
     default:
       return "Narration generation failed. Try again.";
   }
@@ -62,6 +73,34 @@ export function narrationBudgetStatusLabel(
       return "Over the target";
     case "within":
       return "Within the target";
+  }
+}
+
+/** Human-readable label for a block rewrite mode. */
+export function narrationTransformModeLabel(mode: NarrationTransformMode): string {
+  switch (mode) {
+    case "shorten":
+      return "Shorten";
+    case "simplify":
+      return "Simplify";
+    case "expand":
+      return "Expand";
+    case "regenerate":
+      return "Regenerate";
+  }
+}
+
+/** Human-readable label for a candidate status. */
+export function narrationCandidateStatusLabel(
+  status: NarrationCandidateStatus,
+): string {
+  switch (status) {
+    case "pending":
+      return "Pending review";
+    case "accepted":
+      return "Accepted";
+    case "rejected":
+      return "Rejected";
   }
 }
 

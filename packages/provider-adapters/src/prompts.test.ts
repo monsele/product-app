@@ -42,6 +42,30 @@ describe("prompt registry", () => {
     expect(v2.evaluationCases).toContain("objectives-v1-age-appropriateness");
   });
 
+  it("registers the narration-block v1 prompt with every mode rendered", () => {
+    const registry = new StaticPromptRegistry(repositoryPrompts);
+    const definition = registry.get("narration-block", "v1");
+    expect(definition.kind).toBe("narration");
+    for (const mode of ["shorten", "simplify", "expand", "regenerate"]) {
+      const { system, user } = renderPrompt(definition, {
+        mode,
+        instruction: "Keep the opening question.",
+        currentBlock: JSON.stringify({ text: "The current block." }),
+        neighborBlocks: "[]",
+        outlineItem: JSON.stringify({ id: "item-1" }),
+        outlineItemId: "item-1",
+        wordBudget: JSON.stringify({ min: 10, target: 14, max: 18 }),
+        sourcePackage: JSON.stringify({ sections: [] }),
+        configuration: JSON.stringify({ ageBand: "11-13" }),
+      });
+      expect(system).toContain("ONE narration block");
+      expect(user).toContain(`Mode: ${mode}`);
+      expect(user).toContain("narration-block-v1");
+      expect(user).not.toContain("{{mode}}");
+      expect(user).not.toContain("{{sourcePackage}}");
+    }
+  });
+
   it("renders the objectives v2 prompt with bounded and citation instructions", () => {
     const registry = new StaticPromptRegistry(repositoryPrompts);
     const definition = registry.get("objectives", "v2");
