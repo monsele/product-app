@@ -3664,3 +3664,278 @@ export const outlineApproveInputSchema = z
   })
   .strict();
 export type OutlineApproveInput = z.infer<typeof outlineApproveInputSchema>;
+
+// ---------------------------------------------------------------------------
+// ST-048 — Generate grounded spoken narration by outline section
+// ---------------------------------------------------------------------------
+
+/** Maximum sentence length a narration block may contain. */
+export const narrationBlockMaximumSentences = 40 as const;
+
+/** Deterministic sentence-length ceiling for age-appropriate narration. */
+export const narrationSentenceMaximumWords = 40 as const;
+
+/**
+ * Minimum contiguous word run shared verbatim between a narration sentence and
+ * a source block that counts as a long copied passage.
+ */
+export const narrationCopiedPassageMinimumRun = 8 as const;
+
+/**
+ * One model-proposed spoken sentence (or claim group). A sentence either cites
+ * at least one source block ID or is labelled as an AI-generated addition;
+ * never both. Application code resolves block IDs into SourceRefs.
+ */
+export const narrationSentenceOutputSchema = z
+  .object({
+    text: boundedText(1_000),
+    sourceBlockIds: z.array(identifierSchema).max(100),
+    generatedAddition: z
+      .object({
+        kind: z.enum(["analogy", "example", "illustration", "clarification"]),
+        rationale: boundedText(500),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.sourceBlockIds.length === 0 && value.generatedAddition === undefined)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["root"],
+        message:
+          "Every narration sentence must cite source blocks or be labelled as a generated addition.",
+      });
+    if (value.sourceBlockIds.length > 0 && value.generatedAddition !== undefined)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["generatedAddition"],
+        message:
+          "A generated-addition sentence must not cite source blocks.",
+      });
+  });
+export type NarrationSentenceOutput = z.infer<
+  typeof narrationSentenceOutputSchema
+>;
+
+/** One outline item's narration: ordered spoken sentences with grounding. */
+export const narrationBlockOutputSchema = z
+  .object({
+    outlineItemId: identifierSchema,
+    sentences: z
+      .array(narrationSentenceOutputSchema)
+      .min(1)
+      .max(narrationBlockMaximumSentences),
+  })
+  .strict();
+export type NarrationBlockOutput = z.infer<typeof narrationBlockOutputSchema>;
+
+/**
+ * The versioned structured output the model must produce for one narration
+ * generation. Blocks are divided by approved outline item; the application
+ * assigns stable IDs, order, word counts, and resolved SourceRefs.
+ */
+export const narrationOutputV1Schema = z
+  .object({
+    schemaVersion: z.literal("narration-v1"),
+    targetDurationSeconds: targetDurationSecondsSchema,
+    blocks: z.array(narrationBlockOutputSchema).min(1).max(20),
+  })
+  .strict();
+export type NarrationOutputV1 = z.infer<typeof narrationOutputV1Schema>;
+
+export const narrationSetStatusValues = [
+  "draft",
+  "approved",
+  "superseded",
+] as const;
+export const narrationSetStatusSchema = z.enum(narrationSetStatusValues);
+export type NarrationSetStatus = z.infer<typeof narrationSetStatusSchema>;
+
+/**
+ * Persisted narration block within a narration set. `text` is the joined
+ * sentence text; `estimatedWords` is the deterministic word count; `sourceRefs`
+ * and `generatedAdditions` mirror the sentence grounding and AI additions.
+ */
+export const lessonNarrationBlockSchema = z
+  .object({
+    id: identifierSchema,
+    outlineItemId: identifierSchema,
+    order: z.number().int().positive(),
+    text: boundedText(10_000),
+    estimatedWords: z.number().int().positive(),
+    targetSeconds: z.number().int().positive(),
+    sourceRefs: z.array(sourceRefSchema).max(20),
+    generatedAdditions: z.array(generatedAdditionSchema).max(20),
+    generated: z.boolean(),
+    revision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type LessonNarrationBlock = z.infer<typeof lessonNarrationBlockSchema>;
+
+/**
+ * Immutable draft narration set produced by one narration generation. Editing
+ * and approval (ST-049) create revisions rather than mutating generated
+ * blocks. The approved outline-set content hash binds the narration to the
+ * exact approved outline it narrates.
+ */
+export const lessonNarrationSetSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    id: identifierSchema,
+    projectId: identifierSchema,
+    sourceSnapshotId: identifierSchema,
+    sourceSnapshotContentHash: z
+      .string()
+      .regex(sha256HexPattern, "Expected a hexadecimal SHA-256 checksum.")
+      .transform((value) => value.toLowerCase()),
+    outlineSetId: identifierSchema,
+    outlineSetContentHash: z
+      .string()
+      .regex(sha256HexPattern, "Expected a hexadecimal SHA-256 checksum.")
+      .transform((value) => value.toLowerCase()),
+    configurationVersion: z.number().int().positive(),
+    promptId: z.string().trim().min(1).max(100),
+    promptVersion: z.string().trim().min(1).max(50),
+    model: z.string().trim().min(1).max(200),
+    modelCallId: identifierSchema,
+    status: narrationSetStatusSchema,
+    revision: z.number().int().nonnegative(),
+    blocks: z.array(lessonNarrationBlockSchema).max(20),
+    totalEstimatedSeconds: z.number().int().positive(),
+    generatedAt: z.string().datetime({ offset: true }),
+    createdAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type LessonNarrationSet = z.infer<typeof lessonNarrationSetSchema>;
+
+/**
+ * Bounded configuration-derived parameters for one narration generation. The
+ * approved outline-set identity (not its content) travels here; the pipeline
+ * worker loads the approved set from the database so the model prompt and the
+ * deterministic coverage check always use the exact approved revision.
+ */
+export const narrationGenerationParamsSchema = z
+  .object({
+    configurationVersion: z.number().int().positive(),
+    lessonTitle: boundedText(200),
+    subject: boundedText(200),
+    ageBand: lessonAgeBandSchema,
+    difficulty: lessonDifficultySchema,
+    tone: lessonToneSchema,
+    targetDurationSeconds: targetDurationSecondsSchema,
+    includeRecallQuestions: z.boolean(),
+    outlineSetId: identifierSchema,
+    outlineSetRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type NarrationGenerationParams = z.infer<
+  typeof narrationGenerationParamsSchema
+>;
+
+/** The prompt/model the API uses for narration generation right now. */
+export const narrationGenerationCompatibilitySchema = z
+  .object({
+    promptId: z.string().trim().min(1).max(100),
+    promptVersion: z.string().trim().min(1).max(50),
+    model: z.string().trim().min(1).max(200),
+  })
+  .strict();
+export type NarrationGenerationCompatibility = z.infer<
+  typeof narrationGenerationCompatibilitySchema
+>;
+export const currentNarrationGenerationCompatibility =
+  narrationGenerationCompatibilitySchema.parse({
+    promptId: "narration",
+    promptVersion: "v2",
+    model: "mock-model-1",
+  });
+
+/** Latest narration generation job surfaced for the review route. */
+export const narrationGenerationJobStatusSchema = z
+  .object({
+    id: identifierSchema,
+    state: z.enum([
+      "queued",
+      "running",
+      "retry_wait",
+      "succeeded",
+      "failed",
+      "cancelled",
+    ]),
+    errorCode: z.string().max(100).nullable(),
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type NarrationGenerationJobStatus = z.infer<
+  typeof narrationGenerationJobStatusSchema
+>;
+
+export const narrationGenerationResponseSchema = z
+  .object({
+    jobId: identifierSchema,
+    status: z.literal("queued"),
+  })
+  .strict();
+export type NarrationGenerationResponse = z.infer<
+  typeof narrationGenerationResponseSchema
+>;
+
+/** Narration review route state derived from the latest set and job. */
+export const narrationGenerationStateValues = [
+  "idle",
+  "generating",
+  "draft",
+  "failed",
+  "approved",
+] as const;
+export const narrationGenerationStateSchema = z.enum(
+  narrationGenerationStateValues,
+);
+export type NarrationGenerationState = z.infer<
+  typeof narrationGenerationStateSchema
+>;
+
+export const narrationBudgetStatusValues = [
+  "under",
+  "over",
+  "within",
+] as const;
+export const narrationBudgetStatusSchema = z.enum(narrationBudgetStatusValues);
+export type NarrationBudgetStatus = z.infer<
+  typeof narrationBudgetStatusSchema
+>;
+
+/**
+ * ST-048 validation surfaced for the narration review route. `structurallyValid`
+ * blocks approval for an empty set or a block without grounding (each sentence
+ * must cite source or be a generated addition). `uncoveredOutlineItemIds` lists
+ * approved outline items with no narration block, which also blocks approval.
+ * Duration and word-count statuses are informational and do not block approval.
+ */
+export const narrationValidationSchema = z
+  .object({
+    structurallyValid: z.boolean(),
+    durationStatus: narrationBudgetStatusSchema,
+    durationWarning: z.string().max(500).nullable(),
+    wordCountStatus: narrationBudgetStatusSchema,
+    wordCountWarning: z.string().max(500).nullable(),
+    uncoveredOutlineItemIds: z.array(identifierSchema),
+  })
+  .strict();
+export type NarrationValidation = z.infer<typeof narrationValidationSchema>;
+
+/** `GET /projects/:id/narration` response. */
+export const narrationResponseSchema = z
+  .object({
+    state: narrationGenerationStateSchema,
+    set: lessonNarrationSetSchema.nullable(),
+    approved: lessonNarrationSetSchema.nullable(),
+    latestJob: narrationGenerationJobStatusSchema.nullable(),
+    canGenerate: z.boolean(),
+    canApprove: z.boolean(),
+    validation: narrationValidationSchema,
+  })
+  .strict();
+export type NarrationResponse = z.infer<typeof narrationResponseSchema>;

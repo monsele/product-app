@@ -44,6 +44,7 @@ import {
 } from "./model-call.js";
 import { createObjectivesGenerationJobHandler } from "./objectives-job.js";
 import { createOutlineGenerationJobHandler } from "./outline-job.js";
+import { createNarrationGenerationJobHandler } from "./narration-job.js";
 
 function processAbortSignal(): { signal: AbortSignal; dispose: () => void } {
   const controller = new AbortController();
@@ -169,6 +170,15 @@ export async function runPipelineWorker(
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),
           quotaGuard: new PostgresGenerationQuotaGuard(database.client, {
             "ai.outline": { maxCallsPerHour: 20 },
+          }),
+          pricing: mockPricing,
+        }),
+        createNarrationGenerationJobHandler({
+          database: database.client,
+          provider: new MockLanguageModelProvider(),
+          promptRegistry: new StaticPromptRegistry(repositoryPrompts),
+          quotaGuard: new PostgresGenerationQuotaGuard(database.client, {
+            "ai.narration": { maxCallsPerHour: 20 },
           }),
           pricing: mockPricing,
         }),

@@ -1319,3 +1319,97 @@ export const outlineObjectiveLinks = pgTable(
     ),
   ],
 );
+
+export const narrationSetStatusValues = [
+  "draft",
+  "approved",
+  "superseded",
+] as const;
+export const narrationSetStatus = pgEnum(
+  "narration_set_status",
+  narrationSetStatusValues,
+);
+
+/**
+ * One narration set (draft or approved) per project. The latest `draft` set is
+ * the teacher's working revision; ST-048 persists a generated draft and
+ * ST-049 editing/approval creates revisions rather than mutating generated
+ * blocks. The approved outline-set content hash binds the narration to the
+ * exact approved outline it narrates. The tenant-unique idempotency key makes
+ * generation retries idempotent end to end.
+ */
+export const narrationSets = pgTable(
+  "narration_sets",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    sourceSnapshotId: uuid("source_snapshot_id")
+      .notNull()
+      .references(() => sourceSnapshots.id, { onDelete: "restrict" }),
+    sourceSnapshotContentHash: text("source_snapshot_content_hash").notNull(),
+    outlineSetId: uuid("outline_set_id")
+      .notNull()
+      .references(() => lessonOutlineSets.id, { onDelete: "restrict" }),
+    outlineSetContentHash: text("outline_set_content_hash").notNull(),
+    configurationVersion: integer("configuration_version").notNull(),
+    promptId: text("prompt_id").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    model: text("model").notNull(),
+    modelCallId: uuid("model_call_id")
+      .notNull()
+      .references(() => modelCalls.id, { onDelete: "restrict" }),
+    status: narrationSetStatus("status").notNull().default("draft"),
+    revision: integer("revision").notNull().default(0),
+    idempotencyKey: text("idempotency_key").notNull(),
+    totalEstimatedSeconds: integer("total_estimated_seconds").notNull(),
+    generatedAt: utcTimestamp("generated_at").notNull(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("narration_sets_tenant_idempotency_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.idempotencyKey,
+    ),
+    index("narration_sets_owner_project_generated_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.generatedAt,
+    ),
+  ],
+);
+
+/**
+ * One narration block within a set. `text` is the joined spoken text,
+ * `estimated_words` the deterministic word count, `target_seconds` the outline
+ * item's time budget, and `source_refs`/`generated_additions` the grounding.
+ */
+export const narrationBlocks = pgTable(
+  "narration_blocks",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    setId: uuid("set_id")
+      .notNull()
+      .references(() => narrationSets.id, { onDelete: "cascade" }),
+    outlineItemId: uuid("outline_item_id")
+      .notNull()
+      .references(() => lessonOutlineItems.id, { onDelete: "restrict" }),
+    order: integer("order").notNull(),
+    text: text("text").notNull(),
+    estimatedWords: integer("estimated_words").notNull(),
+    targetSeconds: integer("target_seconds").notNull(),
+    sourceRefs: jsonb("source_refs").notNull(),
+    generatedAdditions: jsonb("generated_additions").notNull(),
+    generated: boolean("generated").notNull().default(true),
+    revision: integer("revision").notNull().default(0),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("narration_blocks_set_order_unique").on(
+      table.setId,
+      table.order,
+    ),
+    index("narration_blocks_set_idx").on(table.setId),
+  ],
+);
