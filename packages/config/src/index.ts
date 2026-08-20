@@ -84,6 +84,70 @@ export function computeNarrationSetContentHash(
   return createHash("sha256").update(canonical).digest("hex");
 }
 
+/**
+ * Deterministic SHA-256 of one storyboard scene's content. The scene content
+ * hash excludes the app-assigned identity (id/order) so identical semantic
+ * content always hashes identically; derived artifacts (previews, renders,
+ * asset bindings) can detect scene-level changes without a full diff.
+ */
+export function computeLessonStoryboardSceneContentHash(input: {
+  template: string;
+  title: string | undefined;
+  narration: string;
+  durationSeconds: number;
+  onScreenText: readonly unknown[];
+  transition: string;
+  visual: unknown;
+  sourceRefs: readonly unknown[];
+  generatedAdditions: readonly unknown[];
+  assetBindings: readonly unknown[];
+}): string {
+  const canonical = JSON.stringify(
+    sortCanonicalShape({
+      template: input.template,
+      title: input.title,
+      narration: input.narration,
+      durationSeconds: input.durationSeconds,
+      onScreenText: input.onScreenText,
+      transition: input.transition,
+      visual: input.visual,
+      sourceRefs: input.sourceRefs,
+      generatedAdditions: input.generatedAdditions,
+      assetBindings: input.assetBindings,
+    }),
+  );
+  return createHash("sha256").update(canonical).digest("hex");
+}
+
+/**
+ * Deterministic SHA-256 of an ordered storyboard: the ordered scene content
+ * hashes, each scene's narration-block assignment and planned asset
+ * requirements, the total allocated duration, and the covered objective IDs.
+ * Two storyboards with the same hash are visually and structurally identical.
+ */
+export function computeLessonStoryboardContentHash(input: {
+  totalDurationSeconds: number;
+  objectiveIds: readonly unknown[];
+  scenes: readonly {
+    contentHash: string;
+    narrationBlockIds: readonly unknown[];
+    assetRequirements: readonly unknown[];
+  }[];
+}): string {
+  const canonical = JSON.stringify(
+    sortCanonicalShape({
+      totalDurationSeconds: input.totalDurationSeconds,
+      objectiveIds: input.objectiveIds,
+      scenes: input.scenes.map((scene) => ({
+        contentHash: scene.contentHash,
+        narrationBlockIds: scene.narrationBlockIds,
+        assetRequirements: scene.assetRequirements,
+      })),
+    }),
+  );
+  return createHash("sha256").update(canonical).digest("hex");
+}
+
 export const paginationSchema = z.object({
   cursor: identifierSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(25),

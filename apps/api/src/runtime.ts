@@ -29,6 +29,7 @@ import { PostgresSourceSnapshotService } from "./source-snapshot.js";
 import { PostgresObjectivesService } from "./objectives.js";
 import { PostgresOutlineService } from "./outline.js";
 import { PostgresNarrationService } from "./narration.js";
+import { PostgresStoryboardService } from "./storyboard.js";
 
 export async function runApi(input: {
   telemetryShutdown: () => Promise<void>;
@@ -129,6 +130,10 @@ export async function runApi(input: {
         new PostgresSourceSnapshotService(database.client).status,
       ),
       narrationService: new PostgresNarrationService(
+        database.client,
+        new PostgresSourceSnapshotService(database.client).status,
+      ),
+      storyboardService: new PostgresStoryboardService(
         database.client,
         new PostgresSourceSnapshotService(database.client).status,
       ),

@@ -2,7 +2,7 @@
 story_id: ST-049
 title: "Edit or Regenerate Individual Narration Blocks with Dependency Invalidation"
 phase: "04 \u2014 AI Planning and Grounding"
-status: In Review
+status: Done
 priority: must-have
 epics: ["E9", "E14", "E15", "E16", "E17", "E20"]
 prd_user_stories: ["E9-US2"]
@@ -119,6 +119,7 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 - **Agent:** Kilo (deepseek-v4-flash) — `next-story` skill
 - **Started:** 2026-08-19
 - **Completed:** 2026-08-19 (marked In Review)
+- **Approved:** 2026-08-20 — human reviewer approved with follow-ups (M1 unsatisfiable shorten/expand direction checks, L1 candidate-cap race, L2 uncited candidate acceptance, L3 history retention); marked Done. Follow-ups are tracked in this record's known risks and the review report.
 - **Branch/PR:** `story/st-049` (local only; no PR opened)
 - **Files changed:**
   - `packages/schemas/src/index.ts` — ST-049 narration editor contracts (`narrationTransformModeSchema` shorten/simplify/expand/regenerate, `narrationBlockUpdateInputSchema`, `narrationBlockTransformInputSchema`, `narrationTransformParamsSchema`, `narrationBlockTransformOutputSchema` (`narration-block-v1`), `narrationTransformResponseSchema`, `narrationCandidateDecisionInputSchema`, `narrationBlockRestoreInputSchema`, `narrationBlockCandidateSchema`, `narrationBlockRevisionSchema`, `narrationBlockRevisionsResponseSchema`, `narrationBlockMaximumActiveCandidates`, `currentNarrationTransformCompatibility = narration-block@v1`); `contentHash` fields on `lessonNarrationBlockSchema`/`lessonNarrationSetSchema`; `NarrationResponse` extended with `canEdit`, `stale`/`staleReason`, `candidates`, `latestTransformJob`. Hash computation moved to `@avlp/config` to keep schemas browser-safe.

@@ -41,6 +41,15 @@ const narrationStages = new Set([
   "completed",
 ]);
 
+const storyboardStages = new Set([
+  "narration_storyboard_review",
+  "audio_generation",
+  "ready_for_validation",
+  "ready_to_render",
+  "rendering",
+  "completed",
+]);
+
 export default async function WorkspacePage({
   searchParams,
 }: {
@@ -117,6 +126,13 @@ export default async function WorkspacePage({
                 <p>
                   <a href={`/workspace/${project.id}/narration`}>
                     Review narration
+                  </a>
+                </p>
+              ) : null}
+              {storyboardStages.has(project.stage) ? (
+                <p>
+                  <a href={`/workspace/${project.id}/storyboard`}>
+                    Review storyboard
                   </a>
                 </p>
               ) : null}

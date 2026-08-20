@@ -470,7 +470,8 @@ export function createModelCallGenerationHandler<T>(
             now: timestamp,
           });
           candidateId = candidate.id;
-        } catch {
+        } catch (error) {
+          if (error instanceof JobExecutionError) throw error;
           throw new JobExecutionError(
             "retryable",
             "CANDIDATE_PERSIST_FAILED",

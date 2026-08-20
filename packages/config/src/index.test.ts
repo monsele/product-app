@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  computeLessonStoryboardContentHash,
+  computeLessonStoryboardSceneContentHash,
   createId,
   databaseEnvironmentSchema,
   getCorrelationId,
@@ -199,5 +201,102 @@ describe("parseEnvironment", () => {
         correlationId,
       },
     });
+  });
+});
+
+describe("storyboard content hashes", () => {
+  const scene = {
+    template: "definition",
+    title: "Evaporation",
+    narration: "Heating water turns it into vapour.",
+    durationSeconds: 30,
+    onScreenText: ["Key term"],
+    transition: "cut",
+    visual: { term: "Evaporation", definition: "A liquid becoming a gas." },
+    sourceRefs: [
+      {
+        documentId: "019ffbf1-4444-7000-8000-000000000001",
+        parsedDocumentVersion: 1,
+        pageStart: 1,
+        blockIds: ["019ffbf1-2222-7000-8000-000000000001"],
+      },
+    ],
+    generatedAdditions: [],
+    assetBindings: [],
+  };
+
+  it("is deterministic for identical scene content", () => {
+    const first = computeLessonStoryboardSceneContentHash(scene);
+    const second = computeLessonStoryboardSceneContentHash(scene);
+    expect(first).toBe(second);
+    expect(first).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("changes when scene content changes", () => {
+    const base = computeLessonStoryboardSceneContentHash(scene);
+    const changed = computeLessonStoryboardSceneContentHash({
+      ...scene,
+      narration: "Water vapour rises when water is heated.",
+    });
+    expect(changed).not.toBe(base);
+  });
+
+  it("is deterministic for an identical storyboard", () => {
+    const scenes = [
+      {
+        contentHash: computeLessonStoryboardSceneContentHash(scene),
+        narrationBlockIds: ["019ffbf1-2222-7000-8000-000000000001"],
+        assetRequirements: [{ slot: "subject", purpose: "A subject image." }],
+      },
+    ];
+    const first = computeLessonStoryboardContentHash({
+      totalDurationSeconds: 30,
+      objectiveIds: ["019ffbf1-9999-7000-8000-000000000001"],
+      scenes,
+    });
+    const second = computeLessonStoryboardContentHash({
+      totalDurationSeconds: 30,
+      objectiveIds: ["019ffbf1-9999-7000-8000-000000000001"],
+      scenes,
+    });
+    expect(first).toBe(second);
+    expect(first).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("changes when scene order or assignment changes", () => {
+    const sceneHash = computeLessonStoryboardSceneContentHash(scene);
+    const base = computeLessonStoryboardContentHash({
+      totalDurationSeconds: 60,
+      objectiveIds: ["019ffbf1-9999-7000-8000-000000000001"],
+      scenes: [
+        {
+          contentHash: sceneHash,
+          narrationBlockIds: ["019ffbf1-2222-7000-8000-000000000001"],
+          assetRequirements: [],
+        },
+        {
+          contentHash: sceneHash,
+          narrationBlockIds: ["019ffbf1-2223-7000-8000-000000000001"],
+          assetRequirements: [],
+        },
+      ],
+    });
+    const swapped = computeLessonStoryboardContentHash({
+      totalDurationSeconds: 60,
+      objectiveIds: ["019ffbf1-9999-7000-8000-000000000001"],
+      scenes: [
+        {
+          contentHash: sceneHash,
+          narrationBlockIds: ["019ffbf1-2223-7000-8000-000000000001"],
+          assetRequirements: [],
+        },
+        {
+          contentHash: sceneHash,
+          narrationBlockIds: ["019ffbf1-2222-7000-8000-000000000001"],
+          assetRequirements: [],
+        },
+      ],
+    });
+    expect(swapped).not.toBe(base);
   });
 });

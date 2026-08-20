@@ -4188,3 +4188,590 @@ export const currentNarrationTransformCompatibility =
     promptVersion: "v1",
     model: "mock-model-1",
   });
+
+// ---------------------------------------------------------------------------
+// ST-050 — Generate a valid LessonSpec storyboard from approved narration
+// ---------------------------------------------------------------------------
+
+/** Minimum/maximum number of scenes the model may propose for one lesson. */
+export const storyboardSceneCountMinimum = 3 as const;
+export const storyboardSceneCountMaximum = 50 as const;
+
+/** Per-scene duration bounds used by the deterministic duration allocator. */
+export const storyboardSceneMinimumSeconds = 3 as const;
+export const storyboardSceneMaximumSeconds = 60 as const;
+
+/** Maximum planned asset requirements the model may attach to one scene. */
+export const storyboardSceneMaximumAssetRequirements = 10 as const;
+
+/** Duration-sum tolerance relative to the configured target duration. */
+export const storyboardDurationToleranceRatio = 0.05 as const;
+
+/**
+ * Absolute scene-duration sum tolerance for a target. The allocator always
+ * produces an exact sum; the tolerance exists so review-route validation can
+ * report near-miss drafts without blocking them.
+ */
+export function storyboardDurationToleranceSeconds(target: number): number {
+  return Math.max(10, Math.round(target * storyboardDurationToleranceRatio));
+}
+
+/**
+ * One planned asset slot the storyboard requires but cannot resolve yet.
+ * Missing assets become requirements, never invented public URLs or fake
+ * asset bindings; the asset catalog (ST-057/058) resolves them later.
+ */
+export const storyboardAssetRequirementSchema = z
+  .object({
+    slot: boundedText(64),
+    purpose: boundedText(300),
+  })
+  .strict();
+export type StoryboardAssetRequirement = z.infer<
+  typeof storyboardAssetRequirementSchema
+>;
+
+/** One entry of the ten-template catalog the model must choose from. */
+export const storyboardTemplateCatalogEntrySchema = z
+  .object({
+    template: sceneTemplateSchema,
+    purpose: boundedText(500),
+    assetSlots: z.array(boundedText(64)).max(20),
+    itemLimits: z.record(z.string().max(100), z.number().int().positive()),
+    textLimits: z.record(z.string().max(100), z.number().int().positive()),
+    guidance: boundedText(1_000),
+  })
+  .strict();
+export type StoryboardTemplateCatalogEntry = z.infer<
+  typeof storyboardTemplateCatalogEntrySchema
+>;
+
+/**
+ * The versioned ten-template catalog given to the storyboard planner. Field
+ * limits are product constraints mirrored from the scene contract; the model
+ * must pick a template and fill only its fields, never coordinates or code.
+ */
+export const storyboardTemplateCatalog: readonly StoryboardTemplateCatalogEntry[] =
+  [
+    {
+      template: "hook",
+      purpose:
+        "Open the lesson with a question that frames the topic before the first explanation.",
+      assetSlots: ["subject"],
+      itemLimits: { "visual.supportingElements": 3 },
+      textLimits: {
+        "visual.question": 80,
+        "visual.prompt": 48,
+        onScreenText: 300,
+      },
+      guidance:
+        "Keep the question under 80 characters. A prompt and up to 3 very short supporting elements are optional.",
+    },
+    {
+      template: "definition",
+      purpose: "Define one key term with a concise explanation and optional example.",
+      assetSlots: ["visual-example"],
+      itemLimits: {},
+      textLimits: {
+        "visual.term": 80,
+        "visual.definition": 120,
+        "visual.exampleLabel": 48,
+        "visual.exampleText": 48,
+      },
+      guidance:
+        "exampleLabel and exampleText must be provided together or omitted together.",
+    },
+    {
+      template: "process",
+      purpose: "Show a linear sequence of 2 to 6 steps.",
+      assetSlots: [
+        "step-1-icon",
+        "step-2-icon",
+        "step-3-icon",
+        "step-4-icon",
+        "step-5-icon",
+        "step-6-icon",
+      ],
+      itemLimits: { "visual.steps": 6 },
+      textLimits: { "visual.steps": 80 },
+      guidance: "Keep each step to one short phrase.",
+    },
+    {
+      template: "input-process-output",
+      purpose: "Illustrate how inputs are transformed into outputs by one process.",
+      assetSlots: [
+        "input-1-icon",
+        "input-2-icon",
+        "input-3-icon",
+        "input-4-icon",
+        "process-icon",
+        "output-1-icon",
+        "output-2-icon",
+        "output-3-icon",
+        "output-4-icon",
+      ],
+      itemLimits: { "visual.inputs": 4, "visual.outputs": 4 },
+      textLimits: {
+        "visual.inputs.label": 80,
+        "visual.process.label": 80,
+        "visual.outputs.label": 80,
+      },
+      guidance: "One process item with at least one input and one output.",
+    },
+    {
+      template: "comparison",
+      purpose: "Compare two subjects through shared and differing features.",
+      assetSlots: ["left-subject-image", "right-subject-image"],
+      itemLimits: { "visual.similarities": 4, "visual.differences": 4 },
+      textLimits: {
+        "visual.leftSubject.label": 80,
+        "visual.rightSubject.label": 80,
+        "visual.similarities": 80,
+        "visual.differences": 80,
+      },
+      guidance: "Use short phrases for similarities and differences.",
+    },
+    {
+      template: "cause-effect",
+      purpose: "Explain why something happens using causes, a mechanism, and effects.",
+      assetSlots: [
+        "cause-1-icon",
+        "cause-2-icon",
+        "cause-3-icon",
+        "mechanism-icon",
+        "effect-1-icon",
+        "effect-2-icon",
+        "effect-3-icon",
+      ],
+      itemLimits: {
+        "visual.causes": 3,
+        "visual.effects": 3,
+        "visual.connections": 9,
+      },
+      textLimits: {
+        "visual.causes.label": 80,
+        "visual.mechanism.label": 80,
+        "visual.effects.label": 80,
+      },
+      guidance:
+        "Node IDs must be unique lowercase slugs such as cause-1. Connections must form the complete cause-to-mechanism-to-effect chain.",
+    },
+    {
+      template: "labelled-diagram",
+      purpose: "Label parts of a shape-based diagram (cell, cycle, plant, or system).",
+      assetSlots: ["diagram"],
+      itemLimits: { "visual.labels": 6 },
+      textLimits: { "visual.labels.text": 80 },
+      guidance:
+        "At storyboard time choose kind 'shapes' with an approved shape (cell, cycle, plant, system). Asset diagrams need an approved diagram that is not available yet.",
+    },
+    {
+      template: "analogy",
+      purpose: "Map a familiar system onto the source concept to aid understanding.",
+      assetSlots: ["central-visual"],
+      itemLimits: { "visual.mappings": 4 },
+      textLimits: {
+        "visual.sourceConcept": 80,
+        "visual.familiarSystem": 80,
+        "visual.mappings.concept": 60,
+        "visual.mappings.analogy": 60,
+      },
+      guidance: "Each mapping must use distinct concept and familiar-system terms.",
+    },
+    {
+      template: "worked-example",
+      purpose: "Work through a problem step by step with a final answer.",
+      assetSlots: [],
+      itemLimits: { "visual.steps": 12 },
+      textLimits: {
+        "visual.problem": 1000,
+        "visual.steps": 300,
+        "visual.answer": 1000,
+      },
+      guidance: "Steps are strings; order them from first to last.",
+    },
+    {
+      template: "summary",
+      purpose: "Close the lesson with key takeaways and an optional call to action.",
+      assetSlots: [],
+      itemLimits: { "visual.takeaways.text": 4 },
+      textLimits: {
+        "visual.takeaways.text": 140,
+        "visual.centralModel": 140,
+        "visual.callToAction": 120,
+      },
+      guidance:
+        "Prefer a centralModel text summary. A central asset slot requires an approved illustration that is not available yet.",
+    },
+  ];
+
+const storyboardSceneOutputBase = {
+  narrationBlockIds: z.array(identifierSchema).min(1).max(100),
+  onScreenText: z.array(boundedText(300)).max(12),
+  estimatedSeconds: z
+    .number()
+    .int()
+    .min(storyboardSceneMinimumSeconds)
+    .max(storyboardSceneMaximumSeconds),
+  transition: z.enum(["cut", "fade", "slide"]),
+  sourceBlockIds: z.array(identifierSchema).min(1).max(100),
+  generatedAdditions: z.array(generatedAdditionSchema).max(20),
+  assetRequirements: z
+    .array(storyboardAssetRequirementSchema)
+    .max(storyboardSceneMaximumAssetRequirements),
+  title: boundedText(160).optional(),
+} as const;
+
+/**
+ * One model-proposed scene. The model chooses the template, narration-block
+ * assignment, visual data, on-screen text, estimated duration, transition,
+ * source citations, and planned asset requirements; application code assigns
+ * stable IDs, order, resolved SourceRefs, and allocated durations. The
+ * narration text itself is derived from the assigned approved narration
+ * blocks so the model can never invent spoken content. Every scene must cite
+ * at least one source block (resolved into the scene's canonical `sourceRefs`
+ * at persistence); generated additions are optional labels for content that is
+ * not in the source, never a substitute for citations.
+ */
+export const storyboardSceneOutputSchema = z.discriminatedUnion("template", [
+  z
+    .object({
+      ...storyboardSceneOutputBase,
+      template: z.literal("hook"),
+      visual: hookVisualSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ...storyboardSceneOutputBase,
+      template: z.literal("definition"),
+      visual: definitionVisualSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ...storyboardSceneOutputBase,
+      template: z.literal("process"),
+      visual: processVisualSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ...storyboardSceneOutputBase,
+      template: z.literal("input-process-output"),
+      visual: ipoVisualSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ...storyboardSceneOutputBase,
+      template: z.literal("comparison"),
+      visual: comparisonVisualSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ...storyboardSceneOutputBase,
+      template: z.literal("cause-effect"),
+      visual: causeEffectVisualSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ...storyboardSceneOutputBase,
+      template: z.literal("labelled-diagram"),
+      visual: diagramVisualSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ...storyboardSceneOutputBase,
+      template: z.literal("analogy"),
+      visual: analogyVisualSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ...storyboardSceneOutputBase,
+      template: z.literal("worked-example"),
+      visual: workedExampleVisualSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ...storyboardSceneOutputBase,
+      template: z.literal("summary"),
+      visual: summaryVisualSchema,
+    })
+    .strict(),
+]);
+export type StoryboardSceneOutput = z.infer<
+  typeof storyboardSceneOutputSchema
+>;
+
+/**
+ * The versioned structured output the model must produce for one storyboard
+ * generation. Scenes are ordered; the concatenation of their narration-block
+ * assignments must equal the approved narration's ordered block list exactly.
+ * Every scene must cite at least one source block and the model-proposed
+ * duration total must stay within the target tolerance.
+ */
+export const storyboardOutputV1Schema = z
+  .object({
+    schemaVersion: z.literal("storyboard-v1"),
+    targetDurationSeconds: targetDurationSecondsSchema,
+    scenes: z
+      .array(storyboardSceneOutputSchema)
+      .min(storyboardSceneCountMinimum)
+      .max(storyboardSceneCountMaximum),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const proposedTotal = value.scenes.reduce(
+      (sum, scene) => sum + scene.estimatedSeconds,
+      0,
+    );
+    const tolerance = storyboardDurationToleranceSeconds(value.targetDurationSeconds);
+    if (Math.abs(proposedTotal - value.targetDurationSeconds) > tolerance)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["scenes"],
+        message: `Scene durations total ${proposedTotal}s, outside the ${tolerance}s tolerance of the ${value.targetDurationSeconds}s target.`,
+      });
+  });
+export type StoryboardOutputV1 = z.infer<typeof storyboardOutputV1Schema>;
+
+export const lessonSpecStatusValues = [
+  "draft",
+  "approved",
+  "superseded",
+] as const;
+export const lessonSpecStatusSchema = z.enum(lessonSpecStatusValues);
+export type LessonSpecStatus = z.infer<typeof lessonSpecStatusSchema>;
+
+/**
+ * One persisted storyboard scene. `scene` is a fully valid `SceneSpec` (the
+ * LessonSpec scene contract); `narrationBlockIds` records which approved
+ * narration blocks the scene covers, and `assetRequirements` the planned asset
+ * slots that are not yet resolved to real bindings.
+ */
+export const lessonStoryboardSceneSchema = z
+  .object({
+    id: identifierSchema,
+    stableSceneId: identifierSchema,
+    order: z.number().int().positive(),
+    template: sceneTemplateSchema,
+    durationSeconds: z
+      .number()
+      .int()
+      .min(storyboardSceneMinimumSeconds)
+      .max(storyboardSceneMaximumSeconds),
+    narrationBlockIds: z.array(identifierSchema).min(1).max(100),
+    assetRequirements: z
+      .array(storyboardAssetRequirementSchema)
+      .max(storyboardSceneMaximumAssetRequirements),
+    scene: sceneSpecSchema,
+  })
+  .strict();
+export type LessonStoryboardScene = z.infer<
+  typeof lessonStoryboardSceneSchema
+>;
+
+/**
+ * The persisted storyboard draft produced by one storyboard generation. The
+ * payload is the ordered scene collection with every scene validated against
+ * the LessonSpec scene contract; top-level objective links, configuration,
+ * narration/outline binding hashes, and generation metadata make the draft
+ * traceable and stale when any input revision changes.
+ */
+export const lessonStoryboardSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    id: identifierSchema,
+    projectId: identifierSchema,
+    basedOnNarrationSetId: identifierSchema,
+    narrationSetContentHash: z
+      .string()
+      .regex(sha256HexPattern, "Expected a hexadecimal SHA-256 checksum.")
+      .transform((value) => value.toLowerCase()),
+    outlineSetId: identifierSchema,
+    outlineSetContentHash: z
+      .string()
+      .regex(sha256HexPattern, "Expected a hexadecimal SHA-256 checksum.")
+      .transform((value) => value.toLowerCase()),
+    configurationVersion: z.number().int().positive(),
+    promptId: z.string().trim().min(1).max(100),
+    promptVersion: z.string().trim().min(1).max(50),
+    model: z.string().trim().min(1).max(200),
+    modelCallId: identifierSchema,
+    status: lessonSpecStatusSchema,
+    revision: z.number().int().nonnegative(),
+    title: boundedText(200),
+    subject: boundedText(200),
+    targetDurationSeconds: targetDurationSecondsSchema,
+    totalDurationSeconds: z.number().int().positive(),
+    objectiveIds: z.array(identifierSchema).min(1).max(50),
+    contentHash: z
+      .string()
+      .regex(sha256HexPattern, "Expected a hexadecimal SHA-256 checksum.")
+      .transform((value) => value.toLowerCase()),
+    scenes: z.array(lessonStoryboardSceneSchema).min(1).max(100),
+    generatedAt: z.string().datetime({ offset: true }),
+    createdAt: z.string().datetime({ offset: true }),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const seenSceneIds = new Set<string>();
+    const seenOrders = new Set<number>();
+    for (const [index, scene] of value.scenes.entries()) {
+      if (seenSceneIds.has(scene.id))
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["scenes", index, "id"],
+          message: "Storyboard scene ids must be unique.",
+        });
+      if (seenOrders.has(scene.order))
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["scenes", index, "order"],
+          message: "Storyboard scene order values must be unique.",
+        });
+      seenSceneIds.add(scene.id);
+      seenOrders.add(scene.order);
+    }
+    const total = value.scenes.reduce(
+      (sum, scene) => sum + scene.durationSeconds,
+      0,
+    );
+    if (total !== value.totalDurationSeconds)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["totalDurationSeconds"],
+        message:
+          "totalDurationSeconds must equal the sum of the scene durations.",
+      });
+  });
+export type LessonStoryboard = z.infer<typeof lessonStoryboardSchema>;
+
+/**
+ * Bounded configuration-derived parameters for one storyboard generation. The
+ * narration-set identity (not its content) travels here; the pipeline worker
+ * loads the working narration set, its blocks, and the approved outline it is
+ * bound to from the database so the prompt and deterministic coverage checks
+ * always use the exact revisions.
+ */
+export const storyboardGenerationParamsSchema = z
+  .object({
+    configurationVersion: z.number().int().positive(),
+    lessonTitle: boundedText(200),
+    subject: boundedText(200),
+    ageBand: lessonAgeBandSchema,
+    difficulty: lessonDifficultySchema,
+    tone: lessonToneSchema,
+    targetDurationSeconds: targetDurationSecondsSchema,
+    includeRecallQuestions: z.boolean(),
+    narrationSetId: identifierSchema,
+    narrationSetRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type StoryboardGenerationParams = z.infer<
+  typeof storyboardGenerationParamsSchema
+>;
+
+/** The prompt/model the API uses for storyboard generation right now. */
+export const storyboardGenerationCompatibilitySchema = z
+  .object({
+    promptId: z.string().trim().min(1).max(100),
+    promptVersion: z.string().trim().min(1).max(50),
+    model: z.string().trim().min(1).max(200),
+  })
+  .strict();
+export type StoryboardGenerationCompatibility = z.infer<
+  typeof storyboardGenerationCompatibilitySchema
+>;
+export const currentStoryboardGenerationCompatibility =
+  storyboardGenerationCompatibilitySchema.parse({
+    promptId: "storyboard",
+    promptVersion: "v1",
+    model: "mock-model-1",
+  });
+
+/** Latest storyboard generation job surfaced for the review route. */
+export const storyboardGenerationJobStatusSchema = z
+  .object({
+    id: identifierSchema,
+    state: z.enum([
+      "queued",
+      "running",
+      "retry_wait",
+      "succeeded",
+      "failed",
+      "cancelled",
+    ]),
+    errorCode: z.string().max(100).nullable(),
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type StoryboardGenerationJobStatus = z.infer<
+  typeof storyboardGenerationJobStatusSchema
+>;
+
+export const storyboardGenerationResponseSchema = z
+  .object({
+    jobId: identifierSchema,
+    status: z.literal("queued"),
+  })
+  .strict();
+export type StoryboardGenerationResponse = z.infer<
+  typeof storyboardGenerationResponseSchema
+>;
+
+/** Storyboard review route state derived from the latest draft and job. */
+export const storyboardGenerationStateValues = [
+  "idle",
+  "generating",
+  "draft",
+  "failed",
+  "approved",
+] as const;
+export const storyboardGenerationStateSchema = z.enum(
+  storyboardGenerationStateValues,
+);
+export type StoryboardGenerationState = z.infer<
+  typeof storyboardGenerationStateSchema
+>;
+
+/**
+ * ST-050 validation surfaced for the storyboard review route. A saved draft is
+ * always structurally valid with no uncovered outline items or unassigned
+ * narration blocks (the job rejects invalid output before persistence);
+ * `uncoveredOutlineItemIds` and `unassignedBlockIds` are empty for a saved
+ * draft and list gaps only for pre-persistence diagnostics.
+ */
+export const storyboardValidationSchema = z
+  .object({
+    structurallyValid: z.boolean(),
+    durationStatus: narrationBudgetStatusSchema,
+    durationWarning: z.string().max(500).nullable(),
+    uncoveredOutlineItemIds: z.array(identifierSchema),
+    unassignedBlockIds: z.array(identifierSchema),
+  })
+  .strict();
+export type StoryboardValidation = z.infer<typeof storyboardValidationSchema>;
+
+/** `GET /projects/:id/storyboard` response. */
+export const storyboardResponseSchema = z
+  .object({
+    state: storyboardGenerationStateSchema,
+    storyboard: lessonStoryboardSchema.nullable(),
+    approved: lessonStoryboardSchema.nullable(),
+    latestJob: storyboardGenerationJobStatusSchema.nullable(),
+    canGenerate: z.boolean(),
+    canApprove: z.boolean(),
+    canEdit: z.boolean(),
+    stale: z.boolean(),
+    staleReason: z.string().max(500).nullable(),
+    validation: storyboardValidationSchema,
+  })
+  .strict();
+export type StoryboardResponse = z.infer<typeof storyboardResponseSchema>;

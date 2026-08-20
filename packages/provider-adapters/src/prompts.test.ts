@@ -66,6 +66,31 @@ describe("prompt registry", () => {
     }
   });
 
+  it("renders the storyboard v1 prompt with the template catalog and narration", () => {
+    const registry = new StaticPromptRegistry(repositoryPrompts);
+    const definition = registry.get("storyboard", "v1");
+    expect(definition.kind).toBe("storyboard");
+    expect(definition.templateCatalogVersion).toBe("mvp-default");
+    const { system, user } = renderPrompt(definition, {
+      templateCatalog: JSON.stringify([{ template: "definition" }]),
+      narration: JSON.stringify([{ id: "block-1", text: "Narration." }]),
+      outline: JSON.stringify([{ id: "item-1" }]),
+      sourcePackage: JSON.stringify({ sections: [] }),
+      configuration: JSON.stringify({ targetDurationSeconds: 300 }),
+    });
+    expect(system).toContain("storyboard planner");
+    expect(system).toContain("pixel coordinates");
+    expect(system).toContain("Return ONLY a JSON object");
+    expect(user).toContain("storyboard-v1");
+    expect(user).toContain("narrationBlockIds");
+    expect(user).toContain("assetRequirements");
+    expect(user).not.toContain("{{templateCatalog}}");
+    expect(user).not.toContain("{{narration}}");
+    expect(user).not.toContain("{{outline}}");
+    expect(user).not.toContain("{{sourcePackage}}");
+    expect(user).not.toContain("{{configuration}}");
+  });
+
   it("renders the objectives v2 prompt with bounded and citation instructions", () => {
     const registry = new StaticPromptRegistry(repositoryPrompts);
     const definition = registry.get("objectives", "v2");

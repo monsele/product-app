@@ -22,6 +22,7 @@ const configurations = new Map();
 const objectiveState = new Map();
 const outlineState = new Map();
 const narrationState = new Map();
+const storyboardState = new Map();
 
 const outlineObjectiveId = "019ffbf1-6111-738a-b087-6775ff97568c";
 const outlineItemA = "019ffbf1-6121-738a-b087-6775ff97568c";
@@ -301,6 +302,92 @@ function configurationResponse(projectId) {
         ? null
         : narrationTarget(configuration.targetDurationSeconds),
     canProceed: configuration !== null,
+  };
+}
+
+function storyboardScene(projectId) {
+  return {
+    id: "019ffbf1-6151-738a-b087-6775ff97568c",
+    stableSceneId: "019ffbf1-6151-738a-b087-6775ff97568c",
+    order: 1,
+    template: "definition",
+    durationSeconds: 30,
+    narrationBlockIds: [narrationBlockId],
+    assetRequirements: [],
+    scene: {
+      id: "019ffbf1-6151-738a-b087-6775ff97568c",
+      order: 1,
+      narration: "Where does the water go when a puddle dries?",
+      durationSeconds: 30,
+      onScreenText: ["Where does the water go?"],
+      transition: "cut",
+      assetBindings: [],
+      sourceRefs: [
+        {
+          documentId: "019ffbf1-3333-738a-b087-6775ff97568c",
+          parsedDocumentVersion: 1,
+          pageStart: 1,
+          pageEnd: 1,
+          sectionId: "019ffbf1-1111-738a-b087-6775ff97568c",
+          blockIds: [narrationBlockId],
+        },
+      ],
+      generatedAdditions: [],
+      template: "definition",
+      visual: { term: "The water cycle", definition: "Water moves through the environment in a continuous cycle." },
+    },
+  };
+}
+
+function storyboardDraft(projectId, overrides = {}) {
+  const state = storyboardState.get(projectId) ?? {
+    schemaVersion: 1,
+    id: "019ffbf1-610e-738a-b087-6775ff97568c",
+    projectId,
+    basedOnNarrationSetId: "019ffbf1-610e-738a-b087-6775ff97568c",
+    narrationSetContentHash: "a".repeat(64),
+    outlineSetId: "019ffbf1-610e-738a-b087-6775ff97568c",
+    outlineSetContentHash: "b".repeat(64),
+    configurationVersion: 1,
+    promptId: "storyboard",
+    promptVersion: "v1",
+    model: "mock-model-1",
+    modelCallId: "019ffbf1-610e-738a-b087-6775ff97568c",
+    status: "draft",
+    revision: 0,
+    title: "The water cycle",
+    subject: "Science",
+    targetDurationSeconds: 180,
+    totalDurationSeconds: 30,
+    objectiveIds: [outlineObjectiveId],
+    contentHash: "d".repeat(64),
+    scenes: [storyboardScene(projectId)],
+    generatedAt: now,
+    createdAt: now,
+  };
+  return { ...state, ...overrides, scenes: state.scenes };
+}
+
+function storyboardResponse(projectId) {
+  const draft = storyboardDraft(projectId);
+  const approved = storyboardState.get(`${projectId}:approved`) ?? null;
+  return {
+    state: draft.status === "approved" ? "approved" : "draft",
+    storyboard: draft,
+    approved,
+    latestJob: null,
+    canGenerate: true,
+    canApprove: false,
+    canEdit: false,
+    stale: false,
+    staleReason: null,
+    validation: {
+      structurallyValid: true,
+      durationStatus: "within",
+      durationWarning: null,
+      uncoveredOutlineItemIds: [],
+      unassignedBlockIds: [],
+    },
   };
 }
 
@@ -760,6 +847,29 @@ const server = createServer(async (request, response) => {
         }
         return send(response, 200, narrationResponse(projectId));
       }
+    }
+    return send(response, 404, { error: { code: "not_found" } });
+  }
+  const storyboardMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/storyboard(?:\/(.*))?$/,
+  );
+  if (storyboardMatch !== null) {
+    const projectId = decodeURIComponent(storyboardMatch[1]);
+    const rest = storyboardMatch[2] ?? "";
+    if (request.method === "GET" && rest === "") {
+      const project = projects.get(projectId);
+      if (project === undefined)
+        return send(response, 404, { error: { code: "not_found" } });
+      return send(response, 200, storyboardResponse(projectId));
+    }
+    if (request.method === "POST" && rest === "generate") {
+      const project = projects.get(projectId);
+      if (project === undefined)
+        return send(response, 404, { error: { code: "not_found" } });
+      return send(response, 202, {
+        jobId: "019ffbf1-6150-738a-b087-6775ff97568c",
+        status: "queued",
+      });
     }
     return send(response, 404, { error: { code: "not_found" } });
   }

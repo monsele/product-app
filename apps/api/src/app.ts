@@ -67,6 +67,7 @@ import type { SourceSnapshotService } from "./source-snapshot.js";
 import type { ObjectivesService } from "./objectives.js";
 import type { OutlineService } from "./outline.js";
 import type { NarrationService } from "./narration.js";
+import type { StoryboardService } from "./storyboard.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
 const TELEMETRY_SHUTDOWN = Symbol("TELEMETRY_SHUTDOWN");
@@ -87,6 +88,7 @@ const SOURCE_SNAPSHOT_SERVICE = Symbol("SOURCE_SNAPSHOT_SERVICE");
 const OBJECTIVES_SERVICE = Symbol("OBJECTIVES_SERVICE");
 const OUTLINE_SERVICE = Symbol("OUTLINE_SERVICE");
 const NARRATION_SERVICE = Symbol("NARRATION_SERVICE");
+const STORYBOARD_SERVICE = Symbol("STORYBOARD_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -305,6 +307,7 @@ type NarrationApiService = Pick<
   | "listBlockRevisions"
   | "restoreBlockRevision"
 >;
+type StoryboardApiService = Pick<StoryboardService, "generate" | "current">;
 
 @Controller("projects")
 class ProjectsController {
@@ -334,6 +337,8 @@ class ProjectsController {
     private readonly outline: OutlineApiService,
     @Inject(NARRATION_SERVICE)
     private readonly narration: NarrationApiService,
+    @Inject(STORYBOARD_SERVICE)
+    private readonly storyboard: StoryboardApiService,
   ) {}
 
   @Post()
@@ -1150,6 +1155,36 @@ class ProjectsController {
     });
   }
 
+  @Get(":projectId/storyboard")
+  public async getStoryboard(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    return this.storyboard.current({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+    });
+  }
+
+  @Post(":projectId/storyboard/generate")
+  @HttpCode(202)
+  public async generateStoryboard(
+    @Param("projectId") projectId: string,
+    @Headers("idempotency-key") idempotencyKey: string | undefined,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    return this.storyboard.generate({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      idempotencyKey,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
   @Post(":projectId/source-upload/:sessionId/complete")
   @HttpCode(202)
   public async completeSourceUpload(
@@ -1307,6 +1342,7 @@ function createAppModule(
   objectivesService: ObjectivesApiService,
   outlineService: OutlineApiService,
   narrationService: NarrationApiService,
+  storyboardService: StoryboardApiService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -1340,6 +1376,7 @@ function createAppModule(
       { provide: OBJECTIVES_SERVICE, useValue: objectivesService },
       { provide: OUTLINE_SERVICE, useValue: outlineService },
       { provide: NARRATION_SERVICE, useValue: narrationService },
+      { provide: STORYBOARD_SERVICE, useValue: storyboardService },
     ],
   };
 }
@@ -1364,6 +1401,7 @@ export type CreateAppOptions = {
   objectivesService?: ObjectivesApiService;
   outlineService?: OutlineApiService;
   narrationService?: NarrationApiService;
+  storyboardService?: StoryboardApiService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -1870,6 +1908,27 @@ const unavailableNarrationService: NarrationApiService = {
     ),
 };
 
+const unavailableStoryboardService: StoryboardApiService = {
+  generate: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Storyboard generation is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  current: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Storyboard generation is unavailable.",
+        503,
+        true,
+      ),
+    ),
+};
+
 export async function createApp(
   options: CreateAppOptions = {},
 ): Promise<NestFastifyApplication> {
@@ -1898,6 +1957,7 @@ export async function createApp(
       options.objectivesService ?? unavailableObjectivesService,
       options.outlineService ?? unavailableOutlineService,
       options.narrationService ?? unavailableNarrationService,
+      options.storyboardService ?? unavailableStoryboardService,
     ),
     new FastifyAdapter({
       logger: {

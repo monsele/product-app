@@ -1503,3 +1503,104 @@ export const narrationBlockRevisions = pgTable(
     index("narration_block_revisions_set_idx").on(table.setId),
   ],
 );
+
+export const lessonSpecStatusValues = [
+  "draft",
+  "approved",
+  "superseded",
+] as const;
+export const lessonSpecStatus = pgEnum(
+  "lesson_spec_status",
+  lessonSpecStatusValues,
+);
+
+/**
+ * One storyboard draft per generation (ST-050). The payload is the canonical
+ * ordered scene collection plus top-level lesson metadata, each scene stored
+ * normalized in `scenes` for the review route and later editor operations.
+ * The approved narration-set content hash binds the storyboard to the exact
+ * narration revision it visualizes, and the approved outline-set content hash
+ * records the outline it covers. The tenant-unique idempotency key makes
+ * generation retries idempotent end to end.
+ */
+export const lessonSpecs = pgTable(
+  "lesson_specs",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    schemaVersion: text("schema_version").notNull(),
+    basedOnNarrationSetId: uuid("based_on_narration_set_id")
+      .notNull()
+      .references(() => narrationSets.id, { onDelete: "restrict" }),
+    narrationSetContentHash: text("narration_set_content_hash").notNull(),
+    outlineSetId: uuid("outline_set_id")
+      .notNull()
+      .references(() => lessonOutlineSets.id, { onDelete: "restrict" }),
+    outlineSetContentHash: text("outline_set_content_hash").notNull(),
+    configurationVersion: integer("configuration_version").notNull(),
+    promptId: text("prompt_id").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    model: text("model").notNull(),
+    modelCallId: uuid("model_call_id")
+      .notNull()
+      .references(() => modelCalls.id, { onDelete: "restrict" }),
+    status: lessonSpecStatus("status").notNull().default("draft"),
+    revision: integer("revision").notNull().default(0),
+    idempotencyKey: text("idempotency_key").notNull(),
+    title: text("title").notNull(),
+    subject: text("subject").notNull(),
+    targetDurationSeconds: integer("target_duration_seconds").notNull(),
+    totalDurationSeconds: integer("total_duration_seconds").notNull(),
+    objectiveIds: jsonb("objective_ids").notNull(),
+    contentHash: text("content_hash").notNull(),
+    payload: jsonb("payload").notNull(),
+    generatedAt: utcTimestamp("generated_at").notNull(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("lesson_specs_tenant_idempotency_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.idempotencyKey,
+    ),
+    index("lesson_specs_owner_project_generated_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.generatedAt,
+    ),
+  ],
+);
+
+/**
+ * One storyboard scene within a lesson spec. `stable_scene_id` stays constant
+ * across ordinary edits; regenerated content increments `revision`.
+ * `narration_block_ids` records which approved narration blocks the scene
+ * covers, and `asset_requirements` the planned asset slots that are not yet
+ * resolved to real bindings.
+ */
+export const scenes = pgTable(
+  "scenes",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    lessonSpecId: uuid("lesson_spec_id")
+      .notNull()
+      .references(() => lessonSpecs.id, { onDelete: "cascade" }),
+    stableSceneId: uuid("stable_scene_id").notNull(),
+    order: integer("order").notNull(),
+    template: text("template").notNull(),
+    durationSeconds: integer("duration_seconds").notNull(),
+    narrationBlockIds: jsonb("narration_block_ids").notNull(),
+    assetRequirements: jsonb("asset_requirements").notNull(),
+    sceneJson: jsonb("scene_json").notNull(),
+    revision: integer("revision").notNull().default(0),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("scenes_lesson_spec_order_unique").on(
+      table.lessonSpecId,
+      table.order,
+    ),
+    index("scenes_lesson_spec_idx").on(table.lessonSpecId),
+  ],
+);

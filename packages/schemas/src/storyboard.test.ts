@@ -1,0 +1,397 @@
+import { describe, expect, it } from "vitest";
+import {
+  lessonStoryboardSchema,
+  lessonStoryboardSceneSchema,
+  sceneSpecSchema,
+  sceneTemplateValues,
+  storyboardAssetRequirementSchema,
+  storyboardDurationToleranceSeconds,
+  storyboardGenerationParamsSchema,
+  storyboardGenerationResponseSchema,
+  storyboardOutputV1Schema,
+  storyboardResponseSchema,
+  storyboardSceneOutputSchema,
+  storyboardTemplateCatalog,
+  storyboardTemplateCatalogEntrySchema,
+  type LessonStoryboard,
+  type LessonStoryboardScene,
+  type StoryboardSceneOutput,
+} from "./index.js";
+
+const blockA = "019ffbf1-2222-7000-8000-000000000001";
+const blockB = "019ffbf1-2223-7000-8000-000000000001";
+const objectiveId = "019ffbf1-9999-7000-8000-000000000001";
+
+function sceneOutput(overrides: Record<string, unknown> = {}): StoryboardSceneOutput {
+  return storyboardSceneOutputSchema.parse({
+    template: "definition",
+    narrationBlockIds: [blockA],
+    onScreenText: ["Key term"],
+    visual: { term: "Evaporation", definition: "A liquid becoming a gas." },
+    estimatedSeconds: 30,
+    transition: "cut",
+    sourceBlockIds: [blockA],
+    generatedAdditions: [],
+    assetRequirements: [],
+    ...overrides,
+  });
+}
+
+function sampleOutput() {
+  return storyboardOutputV1Schema.parse({
+    schemaVersion: "storyboard-v1",
+    targetDurationSeconds: 300,
+    scenes: [
+      sceneOutput({
+        template: "hook",
+        visual: { question: "What happens when water heats up?" },
+      }),
+      sceneOutput({ narrationBlockIds: [blockB] }),
+      sceneOutput(),
+      sceneOutput(),
+      sceneOutput(),
+    ].map((scene) => ({ ...scene, estimatedSeconds: 60 })),
+  });
+}
+
+function sceneSpec(overrides: Record<string, unknown> = {}) {
+  return sceneSpecSchema.parse({
+    id: "019ffbf1-eeee-7000-8000-000000000001",
+    order: 1,
+    narration: "Heating water turns it into vapour.",
+    durationSeconds: 30,
+    onScreenText: ["Key term"],
+    transition: "cut",
+    assetBindings: [],
+    sourceRefs: [
+      {
+        documentId: "019ffbf1-4444-7000-8000-000000000001",
+        parsedDocumentVersion: 1,
+        pageStart: 1,
+        blockIds: [blockA],
+      },
+    ],
+    generatedAdditions: [],
+    template: "definition",
+    visual: { term: "Evaporation", definition: "A liquid becoming a gas." },
+    ...overrides,
+  });
+}
+
+function storyboardScene(overrides: Record<string, unknown> = {}): LessonStoryboardScene {
+  return lessonStoryboardSceneSchema.parse({
+    id: "019ffbf1-eeee-7000-8000-000000000001",
+    stableSceneId: "019ffbf1-eeee-7000-8000-000000000001",
+    order: 1,
+    template: "definition",
+    durationSeconds: 30,
+    narrationBlockIds: [blockA],
+    assetRequirements: [],
+    scene: sceneSpec(),
+    ...overrides,
+  });
+}
+
+function sampleStoryboard(): LessonStoryboard {
+  return lessonStoryboardSchema.parse({
+    schemaVersion: 1,
+    id: "019ffbf1-eeee-7000-8000-000000000010",
+    projectId: "019ffbf1-ffff-7000-8000-000000000001",
+    basedOnNarrationSetId: "019ffbf1-eeee-7000-8000-000000000020",
+    narrationSetContentHash: "a".repeat(64),
+    outlineSetId: "019ffbf1-eeee-7000-8000-000000000021",
+    outlineSetContentHash: "b".repeat(64),
+    configurationVersion: 2,
+    promptId: "storyboard",
+    promptVersion: "v1",
+    model: "mock-model-1",
+    modelCallId: "019ffbf1-eeee-7000-8000-000000000030",
+    status: "draft",
+    revision: 0,
+    title: "The water cycle",
+    subject: "Science",
+    targetDurationSeconds: 300,
+    totalDurationSeconds: 30,
+    objectiveIds: [objectiveId],
+    contentHash: "c".repeat(64),
+    scenes: [storyboardScene()],
+    generatedAt: "2026-08-18T10:00:00.000Z",
+    createdAt: "2026-08-18T10:00:00.000Z",
+  });
+}
+
+describe("storyboard template catalog", () => {
+  it("provides one entry for every supported template with positive limits", () => {
+    expect(storyboardTemplateCatalog).toHaveLength(sceneTemplateValues.length);
+    for (const entry of storyboardTemplateCatalog) {
+      const parsed = storyboardTemplateCatalogEntrySchema.parse(entry);
+      expect(sceneTemplateValues).toContain(parsed.template);
+      expect(Object.values(parsed.itemLimits).every((limit) => limit > 0)).toBe(true);
+      expect(Object.values(parsed.textLimits).every((limit) => limit > 0)).toBe(true);
+      expect(parsed.guidance.length).toBeGreaterThan(0);
+    }
+    expect(new Set(storyboardTemplateCatalog.map((entry) => entry.template)).size).toBe(
+      sceneTemplateValues.length,
+    );
+  });
+
+  it("catalog guidance steers asset-dependent templates to storyboard-safe defaults", () => {
+    const diagram = storyboardTemplateCatalog.find(
+      (entry) => entry.template === "labelled-diagram",
+    );
+    expect(diagram?.guidance).toContain("shapes");
+  });
+});
+
+describe("storyboard scene output schema", () => {
+  it("accepts every supported template with its own visual shape", () => {
+    const fixtures: Record<string, unknown> = {
+      hook: { question: "What will you discover?" },
+      definition: { term: "Term", definition: "A concise explanation." },
+      process: { steps: ["First step", "Second step"] },
+      "input-process-output": {
+        inputs: [{ label: "Input" }],
+        process: { label: "Process" },
+        outputs: [{ label: "Output" }],
+      },
+      comparison: {
+        leftSubject: { label: "Left" },
+        rightSubject: { label: "Right" },
+        similarities: ["Shared"],
+        differences: ["Different"],
+      },
+      "cause-effect": {
+        causes: [{ id: "cause-1", label: "Cause" }],
+        effects: [{ id: "effect-1", label: "Effect" }],
+        connections: [{ from: "cause-1", to: "effect-1" }],
+      },
+      "labelled-diagram": {
+        kind: "shapes",
+        shape: "system",
+        labels: [{ anchor: "top-left", id: "label-1", text: "Part" }],
+      },
+      analogy: {
+        sourceConcept: "Concept",
+        familiarSystem: "Familiar system",
+        mappings: [{ concept: "Part", analogy: "Familiar part" }],
+      },
+      "worked-example": {
+        problem: "Problem",
+        steps: ["Step one"],
+        answer: "Answer",
+      },
+      summary: { takeaways: [{ text: "Takeaway" }] },
+    };
+    for (const template of sceneTemplateValues) {
+      expect(() =>
+        sceneOutput({ template, visual: fixtures[template] }),
+      ).not.toThrow();
+    }
+  });
+
+  it("rejects an unsupported template", () => {
+    expect(() => sceneOutput({ template: "unknown" })).toThrow();
+  });
+
+  it("rejects a scene without narration blocks", () => {
+    expect(() => sceneOutput({ narrationBlockIds: [] })).toThrow();
+  });
+
+  it("rejects over-limit visual text", () => {
+    expect(() =>
+      sceneOutput({ visual: { term: "T".repeat(81), definition: "Short." } }),
+    ).toThrow();
+  });
+
+  it("rejects an estimated duration outside the scene bounds", () => {
+    expect(() => sceneOutput({ estimatedSeconds: 61 })).toThrow();
+  });
+
+  it("rejects asset requirements beyond the per-scene cap", () => {
+    expect(() =>
+      sceneOutput({
+        assetRequirements: Array.from({ length: 11 }, () => ({
+          slot: "slot",
+          purpose: "Needed later.",
+        })),
+      }),
+    ).toThrow();
+  });
+});
+
+describe("storyboard output schema", () => {
+  it("accepts a bounded grounded output", () => {
+    expect(() => sampleOutput()).not.toThrow();
+  });
+
+  it("rejects an unknown schema version", () => {
+    expect(() =>
+      storyboardOutputV1Schema.parse({
+        ...sampleOutput(),
+        schemaVersion: "storyboard-v2",
+      }),
+    ).toThrow();
+  });
+
+  it("rejects fewer than the minimum scene count", () => {
+    expect(() =>
+      storyboardOutputV1Schema.parse({
+        ...sampleOutput(),
+        scenes: [sceneOutput()],
+      }),
+    ).toThrow();
+  });
+
+  it("rejects an ungrounded scene", () => {
+    expect(() =>
+      storyboardOutputV1Schema.parse({
+        ...sampleOutput(),
+        scenes: [
+          sceneOutput(),
+          sceneOutput({ template: "hook", visual: { question: "Why?" }, sourceBlockIds: [] }),
+          sceneOutput({ sourceBlockIds: [], generatedAdditions: [] }),
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it("rejects a scene grounded only by a generated addition", () => {
+    expect(() =>
+      storyboardSceneOutputSchema.parse(
+        sceneOutput({
+          sourceBlockIds: [],
+          generatedAdditions: [
+            { kind: "analogy", content: "Like a sponge.", rationale: "A generated analogy." },
+          ],
+        }),
+      ),
+    ).toThrow();
+  });
+
+  it("accepts a scene with generated additions alongside citations", () => {
+    expect(() =>
+      storyboardSceneOutputSchema.parse(
+        sceneOutput({
+          generatedAdditions: [
+            { kind: "analogy", content: "Like a sponge.", rationale: "A generated analogy." },
+          ],
+        }),
+      ),
+    ).not.toThrow();
+  });
+});
+
+describe("lesson storyboard schema", () => {
+  it("round-trips a valid storyboard", () => {
+    const parsed = lessonStoryboardSchema.parse(JSON.parse(JSON.stringify(sampleStoryboard())));
+    expect(parsed.totalDurationSeconds).toBe(30);
+    expect(parsed.scenes).toHaveLength(1);
+  });
+
+  it("rejects duplicate scene ids", () => {
+    const duplicate = sampleStoryboard();
+    duplicate.scenes = [storyboardScene(), storyboardScene({ order: 2 })];
+    expect(() => lessonStoryboardSchema.parse(JSON.parse(JSON.stringify(duplicate)))).toThrow();
+  });
+
+  it("rejects a total duration that does not match the scene sum", () => {
+    expect(() =>
+      lessonStoryboardSchema.parse(
+        JSON.parse(
+          JSON.stringify({ ...sampleStoryboard(), totalDurationSeconds: 60 }),
+        ),
+      ),
+    ).toThrow();
+  });
+
+  it("rejects an empty objective list", () => {
+    expect(() =>
+      lessonStoryboardSchema.parse(
+        JSON.parse(JSON.stringify({ ...sampleStoryboard(), objectiveIds: [] })),
+      ),
+    ).toThrow();
+  });
+});
+
+describe("storyboard generation params and responses", () => {
+  it("accepts bounded generation params", () => {
+    expect(() =>
+      storyboardGenerationParamsSchema.parse({
+        configurationVersion: 2,
+        lessonTitle: "The water cycle",
+        subject: "Science",
+        ageBand: "11-13",
+        difficulty: "introductory",
+        tone: "friendly",
+        targetDurationSeconds: 300,
+        includeRecallQuestions: false,
+        narrationSetId: "019ffbf1-eeee-7000-8000-000000000020",
+        narrationSetRevision: 0,
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects generation params without a narration set", () => {
+    expect(() =>
+      storyboardGenerationParamsSchema.parse({
+        configurationVersion: 2,
+        lessonTitle: "The water cycle",
+        subject: "Science",
+        ageBand: "11-13",
+        difficulty: "introductory",
+        tone: "friendly",
+        targetDurationSeconds: 300,
+        includeRecallQuestions: false,
+        narrationSetRevision: 0,
+      }),
+    ).toThrow();
+  });
+
+  it("accepts the queued generation response", () => {
+    expect(() =>
+      storyboardGenerationResponseSchema.parse({
+        jobId: "019ffbf1-eeee-7000-8000-000000000040",
+        status: "queued",
+      }),
+    ).not.toThrow();
+  });
+
+  it("accepts an idle review response without a storyboard", () => {
+    expect(() =>
+      storyboardResponseSchema.parse({
+        state: "idle",
+        storyboard: null,
+        approved: null,
+        latestJob: null,
+        canGenerate: true,
+        canApprove: false,
+        canEdit: false,
+        stale: false,
+        staleReason: null,
+        validation: {
+          structurallyValid: false,
+          durationStatus: "within",
+          durationWarning: null,
+          uncoveredOutlineItemIds: [],
+          unassignedBlockIds: [],
+        },
+      }),
+    ).not.toThrow();
+  });
+});
+
+describe("storyboard asset requirement schema", () => {
+  it("rejects a requirement without a purpose", () => {
+    expect(() =>
+      storyboardAssetRequirementSchema.parse({ slot: "subject" }),
+    ).toThrow();
+  });
+});
+
+describe("storyboard duration tolerance", () => {
+  it("never returns a tolerance below ten seconds", () => {
+    expect(storyboardDurationToleranceSeconds(180)).toBeGreaterThanOrEqual(10);
+    expect(storyboardDurationToleranceSeconds(300)).toBe(15);
+    expect(storyboardDurationToleranceSeconds(420)).toBe(21);
+  });
+});
