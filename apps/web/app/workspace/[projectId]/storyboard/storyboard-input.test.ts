@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   isGenerating,
+  sceneCandidateStatusLabel,
+  sceneRegenerationFailureMessage,
+  sceneRegenerationModeLabel,
   storyboardFailureMessage,
   storyboardGenerationStateLabel,
   storyboardValidationWarnings,
@@ -75,6 +78,44 @@ describe("storyboard validation warnings", () => {
     );
     expect(warnings.some((warning) => warning.includes("narration block"))).toBe(
       true,
+    );
+  });
+});
+
+describe("scene regeneration helpers", () => {
+  it("labels every regeneration mode", () => {
+    expect(sceneRegenerationModeLabel("improve-visual")).toBe(
+      "Improve visual choice",
+    );
+    expect(sceneRegenerationModeLabel("simplify")).toBe("Simplify");
+    expect(sceneRegenerationModeLabel("shorten")).toBe("Shorten");
+    expect(sceneRegenerationModeLabel("regenerate")).toBe("Regenerate");
+  });
+
+  it("labels every candidate status", () => {
+    expect(sceneCandidateStatusLabel("pending")).toBe("Pending review");
+    expect(sceneCandidateStatusLabel("accepted")).toBe("Applied");
+    expect(sceneCandidateStatusLabel("rejected")).toBe("Discarded");
+  });
+
+  it("explains known scene regeneration failure codes", () => {
+    expect(sceneRegenerationFailureMessage("SCENE_NOT_FOUND")).toContain(
+      "no longer exists",
+    );
+    expect(sceneRegenerationFailureMessage("LESSON_SPEC_REVISION_MISMATCH")).toContain(
+      "changed",
+    );
+    expect(sceneRegenerationFailureMessage("MODEL_OUTPUT_DETERMINISTIC_FAILURE")).toContain(
+      "validated",
+    );
+    expect(sceneRegenerationFailureMessage("AI_QUOTA_EXCEEDED")).toContain(
+      "quota",
+    );
+  });
+
+  it("falls back to the storyboard message for unknown codes", () => {
+    expect(sceneRegenerationFailureMessage("SOMETHING_NEW")).toContain(
+      "Try again",
     );
   });
 });

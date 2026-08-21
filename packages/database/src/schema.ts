@@ -925,6 +925,8 @@ export const auditEventTypeValues = [
   "render.initiated",
   "job.admin_retried",
   "job.admin_cancelled",
+  "storyboard.scene_candidate_accepted",
+  "storyboard.scene_candidate_rejected",
 ] as const;
 export const auditEventType = pgEnum("audit_event_type", auditEventTypeValues);
 
@@ -1602,5 +1604,49 @@ export const scenes = pgTable(
       table.order,
     ),
     index("scenes_lesson_spec_idx").on(table.lessonSpecId),
+  ],
+);
+
+/**
+ * One generated scene candidate from a scene-regeneration job (ST-051). The
+ * candidate stores the before/after scene for teacher comparison and records
+ * the scene revision it was generated against so a stale storyboard revision
+ * blocks application. The tenant-unique idempotency key makes regeneration
+ * retries idempotent end to end.
+ */
+export const sceneCandidates = pgTable(
+  "scene_candidates",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    lessonSpecId: uuid("lesson_spec_id")
+      .notNull()
+      .references(() => lessonSpecs.id, { onDelete: "cascade" }),
+    sceneId: uuid("scene_id")
+      .notNull()
+      .references(() => scenes.id, { onDelete: "cascade" }),
+    mode: text("mode").notNull(),
+    beforeScene: jsonb("before_scene").notNull(),
+    afterScene: jsonb("after_scene").notNull(),
+    status: text("status").notNull().default("pending"),
+    sceneRevision: integer("scene_revision").notNull(),
+    modelCallId: uuid("model_call_id")
+      .notNull()
+      .references(() => modelCalls.id, { onDelete: "restrict" }),
+    idempotencyKey: text("idempotency_key").notNull(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("scene_candidates_tenant_idempotency_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.sceneId,
+      table.idempotencyKey,
+    ),
+    index("scene_candidates_lesson_spec_scene_status_idx").on(
+      table.lessonSpecId,
+      table.sceneId,
+      table.status,
+    ),
   ],
 );

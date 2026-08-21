@@ -91,6 +91,46 @@ describe("prompt registry", () => {
     expect(user).not.toContain("{{configuration}}");
   });
 
+  it("renders the scene-regeneration v1 prompt with read-only neighbors", () => {
+    const registry = new StaticPromptRegistry(repositoryPrompts);
+    const definition = registry.get("scene-regeneration", "v1");
+    expect(definition.kind).toBe("storyboard");
+    expect(definition.templateCatalogVersion).toBe("mvp-default");
+    for (const mode of [
+      "improve-visual",
+      "simplify",
+      "shorten",
+      "regenerate",
+    ]) {
+      const { system, user } = renderPrompt(definition, {
+        templateCatalog: JSON.stringify([{ template: "definition" }]),
+        currentScene: JSON.stringify({ id: "scene-1", narrationBlockIds: ["block-1"] }),
+        neighborScenes: JSON.stringify([{ id: "scene-0" }, { id: "scene-2" }]),
+        narrationBlocks: JSON.stringify([{ id: "block-1", text: "Narration." }]),
+        outline: JSON.stringify([{ id: "item-1" }]),
+        sourcePackage: JSON.stringify({ sections: [] }),
+        configuration: JSON.stringify({ targetDurationSeconds: 300 }),
+        mode,
+        instruction: "Keep the opening question.",
+      });
+      expect(system).toContain("exactly ONE scene");
+      expect(system).toContain("read-only context");
+      expect(system).toContain("narrationBlockIds");
+      expect(user).toContain("scene-regeneration-v1");
+      expect(user).toContain(`Regeneration mode: ${mode}`);
+      expect(user).toContain("MUST equal the current scene's narrationBlockIds");
+      expect(user).not.toContain("{{templateCatalog}}");
+      expect(user).not.toContain("{{currentScene}}");
+      expect(user).not.toContain("{{neighborScenes}}");
+      expect(user).not.toContain("{{narrationBlocks}}");
+      expect(user).not.toContain("{{outline}}");
+      expect(user).not.toContain("{{sourcePackage}}");
+      expect(user).not.toContain("{{configuration}}");
+      expect(user).not.toContain("{{mode}}");
+      expect(user).not.toContain("{{instruction}}");
+    }
+  });
+
   it("renders the objectives v2 prompt with bounded and citation instructions", () => {
     const registry = new StaticPromptRegistry(repositoryPrompts);
     const definition = registry.get("objectives", "v2");

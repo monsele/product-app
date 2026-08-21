@@ -371,11 +371,14 @@ function storyboardDraft(projectId, overrides = {}) {
 function storyboardResponse(projectId) {
   const draft = storyboardDraft(projectId);
   const approved = storyboardState.get(`${projectId}:approved`) ?? null;
+  const sceneCandidates = storyboardState.get(`${projectId}:sceneCandidates`) ?? [];
   return {
     state: draft.status === "approved" ? "approved" : "draft",
     storyboard: draft,
     approved,
     latestJob: null,
+    latestSceneRegenerationJob: storyboardState.get(`${projectId}:sceneRegenerationJob`) ?? null,
+    sceneCandidates,
     canGenerate: true,
     canApprove: false,
     canEdit: false,
@@ -872,6 +875,102 @@ const server = createServer(async (request, response) => {
       });
     }
     return send(response, 404, { error: { code: "not_found" } });
+  }
+  const sceneRegenerateMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/scenes\/([^/]+)\/regenerate$/,
+  );
+  if (request.method === "POST" && sceneRegenerateMatch !== null) {
+    const projectId = decodeURIComponent(sceneRegenerateMatch[1]);
+    const sceneId = decodeURIComponent(sceneRegenerateMatch[2]);
+    const project = projects.get(projectId);
+    if (project === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    const draft = storyboardDraft(projectId);
+    const scene = draft.scenes.find((item) => item.stableSceneId === sceneId);
+    if (scene === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    const candidateId = "019ffbf1-6152-738a-b087-6775ff97568c";
+    const candidates = storyboardState.get(`${projectId}:sceneCandidates`) ?? [];
+    storyboardState.set(`${projectId}:sceneCandidates`, [
+      ...candidates,
+      {
+        id: candidateId,
+        sceneId,
+        mode: "improve-visual",
+        before: scene,
+        after: {
+          ...scene,
+          template: "labelled-diagram",
+          scene: {
+            ...scene.scene,
+            template: "labelled-diagram",
+            visual: {
+              kind: "shapes",
+              shape: "system",
+              labels: [
+                { anchor: "center", id: "water", text: "Water" },
+                { anchor: "top", id: "vapour", text: "Vapour" },
+              ],
+            },
+          },
+        },
+        status: "pending",
+        sceneRevision: 0,
+        modelCallId: "019ffbf1-6150-738a-b087-6775ff97568c",
+        createdAt: now,
+      },
+    ]);
+    return send(response, 202, {
+      jobId: "019ffbf1-6153-738a-b087-6775ff97568c",
+      status: "queued",
+    });
+  }
+  const sceneDecisionMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/scenes\/([^/]+)\/(apply|reject)-candidate$/,
+  );
+  if (request.method === "POST" && sceneDecisionMatch !== null) {
+    const projectId = decodeURIComponent(sceneDecisionMatch[1]);
+    const sceneId = decodeURIComponent(sceneDecisionMatch[2]);
+    const decision = sceneDecisionMatch[3];
+    const project = projects.get(projectId);
+    if (project === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    let body = "";
+    for await (const chunk of request) body += chunk;
+    const input = JSON.parse(body);
+    const candidates = storyboardState.get(`${projectId}:sceneCandidates`) ?? [];
+    const candidate = candidates.find((item) => item.id === input.candidateId);
+    if (candidate === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    if (candidate.status !== "pending")
+      return send(response, 409, {
+        error: { code: "bad_request", message: "The candidate is no longer pending." },
+      });
+    const draft = storyboardDraft(projectId);
+    const scene = draft.scenes.find((item) => item.stableSceneId === sceneId);
+    if (scene === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    if (decision === "apply") {
+      const replacement = candidates.map((item) =>
+        item.id === candidate.id
+          ? { ...item, status: "accepted" }
+          : item,
+      );
+      storyboardState.set(`${projectId}:sceneCandidates`, replacement);
+      const updatedScenes = draft.scenes.map((item) =>
+        item.stableSceneId === sceneId ? candidate.after : item,
+      );
+      storyboardState.set(projectId, {
+        ...draft,
+        revision: draft.revision + 1,
+        scenes: updatedScenes,
+      });
+    } else {
+      storyboardState.set(`${projectId}:sceneCandidates`, candidates.map((item) =>
+        item.id === candidate.id ? { ...item, status: "rejected" } : item,
+      ));
+    }
+    return send(response, 200, storyboardResponse(projectId));
   }
   const transformMatch = url.pathname.match(
     /^\/projects\/([^/]+)\/narration-blocks\/([^/]+)\/regenerate$/,

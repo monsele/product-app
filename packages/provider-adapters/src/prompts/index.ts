@@ -7,6 +7,7 @@ import { objectivesPromptV1 } from "./objectives/v1.js";
 import { objectivesPromptV2 } from "./objectives/v2.js";
 import { outlinePromptV1 } from "./outline/v1.js";
 import { outlinePromptV2 } from "./outline/v2.js";
+import { sceneRegenerationPromptV1 } from "./scene-regeneration/v1.js";
 import { storyboardPromptV1 } from "./storyboard/v1.js";
 
 /**
@@ -22,5 +23,6 @@ export const repositoryPrompts: readonly PromptDefinition[] = [
   narrationPromptV2,
   narrationBlockPromptV1,
   storyboardPromptV1,
+  sceneRegenerationPromptV1,
   groundingPromptV1,
 ];

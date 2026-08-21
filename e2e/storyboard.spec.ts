@@ -38,3 +38,35 @@ test("storyboard page queues a regeneration without losing the draft", async ({
   await page.getByRole("button", { name: "Regenerate storyboard" }).click();
   await expect(page.getByTestId("storyboard-scenes")).toBeVisible();
 });
+
+test("storyboard page regenerates one scene and compares the candidate", async ({
+  page,
+}) => {
+  await setSessionCookie(page);
+  await page.goto(`/workspace/${projectId}/storyboard`);
+  await expect(page.getByTestId("storyboard-scenes")).toBeVisible();
+  await page
+    .getByTestId("storyboard-scene-regenerate-019ffbf1-6151-738a-b087-6775ff97568c")
+    .click();
+  await expect(page.getByTestId("storyboard-scenes")).toBeVisible();
+});
+
+test("storyboard page applies a regenerated scene candidate", async ({
+  page,
+}) => {
+  await setSessionCookie(page);
+  await page.goto(`/workspace/${projectId}/storyboard`);
+  await page
+    .getByTestId("storyboard-scene-regenerate-019ffbf1-6151-738a-b087-6775ff97568c")
+    .click();
+  const candidate = page.getByTestId(
+    "storyboard-candidate-019ffbf1-6152-738a-b087-6775ff97568c",
+  );
+  await expect(candidate).toBeVisible();
+  await page
+    .getByTestId("storyboard-candidate-apply-019ffbf1-6152-738a-b087-6775ff97568c")
+    .click();
+  await expect(
+    page.getByText(/A storyboard draft is ready for review/),
+  ).toBeVisible();
+});

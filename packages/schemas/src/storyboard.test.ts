@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  currentSceneRegenerationCompatibility,
   lessonStoryboardSchema,
   lessonStoryboardSceneSchema,
+  sceneCandidateDecisionInputSchema,
+  sceneCandidateSchema,
+  sceneRegenerationInputSchema,
+  sceneRegenerationOutputSchema,
+  sceneRegenerationParamsSchema,
+  sceneRegenerationResponseSchema,
   sceneSpecSchema,
   sceneTemplateValues,
   storyboardAssetRequirementSchema,
@@ -363,6 +370,8 @@ describe("storyboard generation params and responses", () => {
         storyboard: null,
         approved: null,
         latestJob: null,
+        latestSceneRegenerationJob: null,
+        sceneCandidates: [],
         canGenerate: true,
         canApprove: false,
         canEdit: false,
@@ -393,5 +402,295 @@ describe("storyboard duration tolerance", () => {
     expect(storyboardDurationToleranceSeconds(180)).toBeGreaterThanOrEqual(10);
     expect(storyboardDurationToleranceSeconds(300)).toBe(15);
     expect(storyboardDurationToleranceSeconds(420)).toBe(21);
+  });
+});
+
+describe("scene regeneration schemas", () => {
+  const lessonSpecId = "019ffbf1-eeee-7000-8000-000000000100";
+  const sceneId = "019ffbf1-eeee-7000-8000-000000000050";
+  const narrationSetId = "019ffbf1-eeee-7000-8000-000000000020";
+  const blockA = "019ffbf1-2222-7000-8000-000000000001";
+  const objectiveId = "019ffbf1-9999-7000-8000-000000000001";
+
+  function candidateScene(overrides: Record<string, unknown> = {}) {
+    return lessonStoryboardSceneSchema.parse({
+      id: sceneId,
+      stableSceneId: sceneId,
+      order: 1,
+      template: "definition",
+      durationSeconds: 30,
+      narrationBlockIds: [blockA],
+      assetRequirements: [],
+      scene: {
+        id: sceneId,
+        order: 1,
+        narration: "Water evaporates when heated.",
+        durationSeconds: 30,
+        onScreenText: ["Key term"],
+        transition: "cut",
+        assetBindings: [],
+        sourceRefs: [
+          {
+            documentId: "019ffbf1-3333-7000-8000-000000000001",
+            parsedDocumentVersion: 1,
+            pageStart: 1,
+            pageEnd: 1,
+            sectionId: "019ffbf1-2222-7000-8000-000000000001",
+            blockIds: [blockA],
+          },
+        ],
+        generatedAdditions: [],
+        template: "definition",
+        visual: { term: "Evaporation", definition: "A liquid becoming a gas." },
+      },
+      ...overrides,
+    });
+  }
+
+  it("accepts every regeneration mode input", () => {
+    for (const mode of [
+      "improve-visual",
+      "simplify",
+      "shorten",
+      "regenerate",
+    ])
+      expect(() =>
+        sceneRegenerationInputSchema.parse({
+          mode,
+          expectedRevision: 0,
+        }),
+      ).not.toThrow();
+  });
+
+  it("rejects an unknown regeneration mode", () => {
+    expect(() =>
+      sceneRegenerationInputSchema.parse({
+        mode: "expand-all",
+        expectedRevision: 0,
+      }),
+    ).toThrow();
+  });
+
+  it("accepts bounded regeneration params", () => {
+    expect(() =>
+      sceneRegenerationParamsSchema.parse({
+        lessonSpecId,
+        lessonSpecRevision: 0,
+        sceneId,
+        sceneRevision: 0,
+        mode: "improve-visual",
+        instruction: "Use a clearer diagram.",
+        configurationVersion: 3,
+        lessonTitle: "The water cycle",
+        subject: "Science",
+        ageBand: "11-13",
+        difficulty: "introductory",
+        tone: "friendly",
+        targetDurationSeconds: 300,
+        includeRecallQuestions: false,
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects regeneration params without a scene", () => {
+    expect(() =>
+      sceneRegenerationParamsSchema.parse({
+        lessonSpecId,
+        lessonSpecRevision: 0,
+        sceneRevision: 0,
+        mode: "regenerate",
+        instruction: null,
+        configurationVersion: 3,
+        lessonTitle: "The water cycle",
+        subject: "Science",
+        ageBand: "11-13",
+        difficulty: "introductory",
+        tone: "friendly",
+        targetDurationSeconds: 300,
+        includeRecallQuestions: false,
+      }),
+    ).toThrow();
+  });
+
+  it("accepts a single-scene regeneration output", () => {
+    expect(() =>
+      sceneRegenerationOutputSchema.parse({
+        schemaVersion: "scene-regeneration-v1",
+        mode: "improve-visual",
+        scene: {
+          template: "definition",
+          narrationBlockIds: [blockA],
+          onScreenText: ["Key term"],
+          visual: {
+            term: "Evaporation",
+            definition: "Water turning into water vapour.",
+          },
+          estimatedSeconds: 30,
+          transition: "fade",
+          sourceBlockIds: [blockA],
+          generatedAdditions: [],
+          assetRequirements: [],
+        },
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects an output with an unsupported scene template", () => {
+    expect(() =>
+      sceneRegenerationOutputSchema.parse({
+        schemaVersion: "scene-regeneration-v1",
+        mode: "regenerate",
+        scene: {
+          template: "slideshow",
+          narrationBlockIds: [blockA],
+          onScreenText: [],
+          visual: { term: "Evaporation", definition: "Water vapour." },
+          estimatedSeconds: 30,
+          transition: "cut",
+          sourceBlockIds: [blockA],
+          generatedAdditions: [],
+          assetRequirements: [],
+        },
+      }),
+    ).toThrow();
+  });
+
+  it("accepts a pending scene candidate", () => {
+    expect(() =>
+      sceneCandidateSchema.parse({
+        id: "019ffbf1-eeee-7000-8000-000000000110",
+        sceneId,
+        mode: "simplify",
+        before: candidateScene(),
+        after: candidateScene({
+          template: "definition",
+          scene: {
+            ...candidateScene().scene,
+            onScreenText: ["A simpler term"],
+            visual: {
+              term: "Evaporation",
+              definition: "Water becoming gas.",
+            },
+          },
+        }),
+        status: "pending",
+        sceneRevision: 0,
+        modelCallId: "019ffbf1-eeee-7000-8000-000000000005",
+        createdAt: "2026-08-18T10:00:00.000Z",
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects a candidate with an invalid status", () => {
+    expect(() =>
+      sceneCandidateSchema.parse({
+        id: "019ffbf1-eeee-7000-8000-000000000110",
+        sceneId,
+        mode: "regenerate",
+        before: candidateScene(),
+        after: candidateScene(),
+        status: "expired",
+        sceneRevision: 0,
+        modelCallId: "019ffbf1-eeee-7000-8000-000000000005",
+        createdAt: "2026-08-18T10:00:00.000Z",
+      }),
+    ).toThrow();
+  });
+
+  it("exposes the current scene-regeneration compatibility", () => {
+    expect(currentSceneRegenerationCompatibility.promptId).toBe(
+      "scene-regeneration",
+    );
+    expect(currentSceneRegenerationCompatibility.promptVersion).toBe("v1");
+  });
+
+  it("accepts the queued scene-regeneration response", () => {
+    expect(() =>
+      sceneRegenerationResponseSchema.parse({
+        jobId: "019ffbf1-eeee-7000-8000-000000000120",
+        status: "queued",
+      }),
+    ).not.toThrow();
+  });
+
+  it("accepts candidate apply decisions", () => {
+    expect(() =>
+      sceneCandidateDecisionInputSchema.parse({
+        expectedRevision: 0,
+        expectedSceneRevision: 0,
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects a candidate apply decision without a scene revision", () => {
+    expect(() =>
+      sceneCandidateDecisionInputSchema.parse({ expectedRevision: 0 }),
+    ).toThrow();
+  });
+
+  it("accepts a review response with scene candidates", () => {
+    expect(() =>
+      storyboardResponseSchema.parse({
+        state: "draft",
+        storyboard: lessonStoryboardSchema.parse({
+          schemaVersion: 1,
+          id: "019ffbf1-eeee-7000-8000-000000000040",
+          projectId: "019ffbf1-ffff-7000-8000-000000000001",
+          basedOnNarrationSetId: narrationSetId,
+          narrationSetContentHash: "a".repeat(64),
+          outlineSetId: "019ffbf1-eeee-7000-8000-000000000002",
+          outlineSetContentHash: "b".repeat(64),
+          configurationVersion: 3,
+          promptId: "storyboard",
+          promptVersion: "v1",
+          model: "mock-model-1",
+          modelCallId: "019ffbf1-eeee-7000-8000-000000000005",
+          status: "draft",
+          revision: 0,
+          title: "The water cycle",
+          subject: "Science",
+          targetDurationSeconds: 180,
+          totalDurationSeconds: 30,
+          objectiveIds: [objectiveId],
+          contentHash: "c".repeat(64),
+          scenes: [candidateScene()],
+          generatedAt: "2026-08-18T10:00:00.000Z",
+          createdAt: "2026-08-18T10:00:00.000Z",
+        }),
+        approved: null,
+        latestJob: null,
+        latestSceneRegenerationJob: {
+          id: "019ffbf1-eeee-7000-8000-000000000120",
+          state: "succeeded",
+          errorCode: null,
+          updatedAt: "2026-08-18T10:00:00.000Z",
+        },
+        sceneCandidates: [
+          sceneCandidateSchema.parse({
+            id: "019ffbf1-eeee-7000-8000-000000000110",
+            sceneId,
+            mode: "simplify",
+            before: candidateScene(),
+            after: candidateScene(),
+            status: "pending",
+            sceneRevision: 0,
+            modelCallId: "019ffbf1-eeee-7000-8000-000000000005",
+            createdAt: "2026-08-18T10:00:00.000Z",
+          }),
+        ],
+        canGenerate: true,
+        canApprove: false,
+        canEdit: false,
+        stale: false,
+        staleReason: null,
+        validation: {
+          structurallyValid: true,
+          durationStatus: "within",
+          durationWarning: null,
+          uncoveredOutlineItemIds: [],
+          unassignedBlockIds: [],
+        },
+      }),
+    ).not.toThrow();
   });
 });

@@ -9,6 +9,7 @@ import {
 } from "@avlp/auth";
 import {
   lessonStoryboardSchema,
+  type SceneRegenerationResponse,
   type StoryboardGenerationResponse,
   type StoryboardResponse,
 } from "@avlp/schemas";
@@ -92,6 +93,8 @@ function sampleResponse(overrides: Record<string, unknown> = {}): StoryboardResp
       errorCode: null,
       updatedAt: "2026-08-18T10:00:00.000Z",
     },
+    latestSceneRegenerationJob: null,
+    sceneCandidates: [],
     canGenerate: true,
     canApprove: false,
     canEdit: false,
@@ -151,6 +154,18 @@ describe("storyboard API", () => {
         }),
       ),
       current: vi.fn(async (): Promise<StoryboardResponse> => sampleResponse()),
+      regenerateScene: vi.fn(
+        async (): Promise<SceneRegenerationResponse> => ({
+          jobId,
+          status: "queued",
+        }),
+      ),
+      applySceneCandidate: vi.fn(
+        async (): Promise<StoryboardResponse> => sampleResponse(),
+      ),
+      rejectSceneCandidate: vi.fn(
+        async (): Promise<StoryboardResponse> => sampleResponse(),
+      ),
       ...service,
     };
     app = await createApp({
@@ -245,5 +260,121 @@ describe("storyboard API", () => {
     });
     expect(response.statusCode).toBe(403);
     expect(storyboardService.generate).not.toHaveBeenCalled();
+  });
+
+  it("queues a scene regeneration for the project owner", async () => {
+    const { fixture, server, storyboardService } = await api();
+    const response = await server.inject({
+      method: "POST",
+      url: `/projects/${fixture.projectId}/scenes/019ffbf1-eeee-7000-8000-000000000050/regenerate`,
+      cookies: { [sessionCookieName]: "owner" },
+      headers: {
+        origin: "https://teacher.example.test",
+        "idempotency-key": "scene-regenerate-1",
+      },
+      payload: {
+        mode: "improve-visual",
+        expectedRevision: 0,
+      },
+    });
+    expect(response.statusCode).toBe(202);
+    expect(response.json()).toEqual({ jobId, status: "queued" });
+    expect(storyboardService.regenerateScene).toHaveBeenCalledWith({
+      ownerUserId: fixture.ownerUserId,
+      projectId: fixture.projectId,
+      sceneId: "019ffbf1-eeee-7000-8000-000000000050",
+      body: { mode: "improve-visual", expectedRevision: 0 },
+      idempotencyKey: "scene-regenerate-1",
+      correlationId: expect.any(String),
+    });
+  });
+
+  it("forbids regenerating a scene for another tenant", async () => {
+    const { fixture, server, storyboardService } = await api();
+    const response = await server.inject({
+      method: "POST",
+      url: `/projects/${fixture.projectId}/scenes/019ffbf1-eeee-7000-8000-000000000050/regenerate`,
+      cookies: { [sessionCookieName]: "other" },
+      headers: {
+        origin: "https://teacher.example.test",
+        "idempotency-key": "scene-regenerate-1",
+      },
+      payload: {
+        mode: "regenerate",
+        expectedRevision: 0,
+      },
+    });
+    expect(response.statusCode).toBe(404);
+    expect(storyboardService.regenerateScene).not.toHaveBeenCalled();
+  });
+
+  it("applies a scene candidate for the project owner", async () => {
+    const { fixture, server, storyboardService } = await api();
+    const candidateId = "019ffbf1-eeee-7000-8000-000000000060";
+    const response = await server.inject({
+      method: "POST",
+      url: `/projects/${fixture.projectId}/scenes/019ffbf1-eeee-7000-8000-000000000050/apply-candidate`,
+      cookies: { [sessionCookieName]: "owner" },
+      headers: {
+        origin: "https://teacher.example.test",
+      },
+      payload: {
+        candidateId,
+        expectedRevision: 0,
+        expectedSceneRevision: 0,
+      },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().state).toBe("draft");
+    expect(storyboardService.applySceneCandidate).toHaveBeenCalledWith({
+      ownerUserId: fixture.ownerUserId,
+      projectId: fixture.projectId,
+      sceneId: "019ffbf1-eeee-7000-8000-000000000050",
+      candidateId,
+      body: {
+        candidateId,
+        expectedRevision: 0,
+        expectedSceneRevision: 0,
+      },
+      correlationId: expect.any(String),
+    });
+  });
+
+  it("rejects an apply-candidate request without a candidate id", async () => {
+    const { fixture, server, storyboardService } = await api();
+    const response = await server.inject({
+      method: "POST",
+      url: `/projects/${fixture.projectId}/scenes/019ffbf1-eeee-7000-8000-000000000050/apply-candidate`,
+      cookies: { [sessionCookieName]: "owner" },
+      headers: {
+        origin: "https://teacher.example.test",
+      },
+      payload: {
+        expectedRevision: 0,
+        expectedSceneRevision: 0,
+      },
+    });
+    expect(response.statusCode).toBe(400);
+    expect(storyboardService.applySceneCandidate).not.toHaveBeenCalled();
+  });
+
+  it("rejects a scene candidate for another tenant", async () => {
+    const { fixture, server, storyboardService } = await api();
+    const candidateId = "019ffbf1-eeee-7000-8000-000000000060";
+    const response = await server.inject({
+      method: "POST",
+      url: `/projects/${fixture.projectId}/scenes/019ffbf1-eeee-7000-8000-000000000050/reject-candidate`,
+      cookies: { [sessionCookieName]: "other" },
+      headers: {
+        origin: "https://teacher.example.test",
+      },
+      payload: {
+        candidateId,
+        expectedRevision: 0,
+        expectedSceneRevision: 0,
+      },
+    });
+    expect(response.statusCode).toBe(404);
+    expect(storyboardService.rejectSceneCandidate).not.toHaveBeenCalled();
   });
 });

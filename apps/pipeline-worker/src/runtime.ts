@@ -46,6 +46,7 @@ import { createObjectivesGenerationJobHandler } from "./objectives-job.js";
 import { createOutlineGenerationJobHandler } from "./outline-job.js";
 import { createNarrationGenerationJobHandler } from "./narration-job.js";
 import { createNarrationBlockTransformJobHandler } from "./narration-transform-job.js";
+import { createSceneRegenerationJobHandler } from "./scene-regeneration-job.js";
 import { createStoryboardGenerationJobHandler } from "./storyboard-job.js";
 
 function processAbortSignal(): { signal: AbortSignal; dispose: () => void } {
@@ -199,6 +200,15 @@ export async function runPipelineWorker(
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),
           quotaGuard: new PostgresGenerationQuotaGuard(database.client, {
             "ai.storyboard": { maxCallsPerHour: 20 },
+          }),
+          pricing: mockPricing,
+        }),
+        createSceneRegenerationJobHandler({
+          database: database.client,
+          provider: new MockLanguageModelProvider(),
+          promptRegistry: new StaticPromptRegistry(repositoryPrompts),
+          quotaGuard: new PostgresGenerationQuotaGuard(database.client, {
+            "ai.scene_regeneration": { maxCallsPerHour: 20 },
           }),
           pricing: mockPricing,
         }),

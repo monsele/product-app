@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import {
+  computeLessonStoryboardContentHash,
+  computeLessonStoryboardSceneContentHash,
   computeNarrationBlockContentHash,
   computeNarrationSetContentHash,
   createId,
@@ -16,21 +18,33 @@ import {
   narrationBlocks,
   narrationSets,
   outboxEvents,
+  sceneCandidates,
+  scenes,
   type DatabaseClient,
   type DatabaseExecutor,
 } from "@avlp/database";
 import { createIdempotencyKey, createJobEnvelope } from "@avlp/jobs";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
+  currentSceneRegenerationCompatibility,
   currentStoryboardGenerationCompatibility,
+  lessonStoryboardSceneSchema,
   lessonStoryboardSchema,
   modelCallJobPayloadSchema,
+  sceneCandidateDecisionInputSchema,
+  sceneCandidateSchema,
+  sceneRegenerationInputSchema,
+  sceneRegenerationMaximumActiveCandidates,
+  sceneRegenerationParamsSchema,
+  sceneRegenerationResponseSchema,
   storyboardDurationToleranceSeconds,
   storyboardGenerationParamsSchema,
   storyboardGenerationResponseSchema,
   storyboardResponseSchema,
   type LessonStoryboard,
   type NarrationBudgetStatus,
+  type SceneCandidate,
+  type SceneRegenerationResponse,
   type SourceApprovalStatus,
   type SourceRef,
   type StoryboardGenerationParams,
@@ -38,7 +52,8 @@ import {
   type StoryboardResponse,
   type StoryboardValidation,
 } from "@avlp/schemas";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
+import { z } from "zod";
 import type { SourceSnapshotService } from "./source-snapshot.js";
 
 function canonicalHash(value: unknown): string {
@@ -69,6 +84,30 @@ export interface StoryboardService {
   current(input: {
     ownerUserId: Identifier;
     projectId: Identifier;
+  }): Promise<StoryboardResponse>;
+  regenerateScene(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    sceneId: Identifier;
+    body: unknown;
+    idempotencyKey: string | undefined;
+    correlationId: Identifier;
+  }): Promise<SceneRegenerationResponse>;
+  applySceneCandidate(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    sceneId: Identifier;
+    candidateId: Identifier;
+    body: unknown;
+    correlationId: Identifier;
+  }): Promise<StoryboardResponse>;
+  rejectSceneCandidate(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    sceneId: Identifier;
+    candidateId: Identifier;
+    body: unknown;
+    correlationId: Identifier;
   }): Promise<StoryboardResponse>;
 }
 
@@ -301,6 +340,19 @@ export class PostgresStoryboardService implements StoryboardService {
             input.projectId,
             storyboard.basedOnNarrationSetId,
           );
+    const sceneCandidates =
+      workingRow === undefined
+        ? []
+        : await this.sceneCandidatesForLessonSpec(
+            this.database,
+            input.ownerUserId,
+            input.projectId,
+            workingRow.id,
+          );
+    const latestSceneRegenerationJob = await this.latestSceneRegenerationJobRow(
+      input.ownerUserId,
+      input.projectId,
+    );
     const generating =
       latestJob !== undefined &&
       (latestJob.state === "queued" ||
@@ -341,6 +393,18 @@ export class PostgresStoryboardService implements StoryboardService {
               errorCode: jobErrorCode(latestJob.errorMetadata),
               updatedAt: serializeUtcTimestamp(latestJob.updatedAt),
             },
+      latestSceneRegenerationJob:
+        latestSceneRegenerationJob === undefined
+          ? null
+          : {
+              id: latestSceneRegenerationJob.id,
+              state: latestSceneRegenerationJob.state,
+              errorCode: jobErrorCode(latestSceneRegenerationJob.errorMetadata),
+              updatedAt: serializeUtcTimestamp(
+                latestSceneRegenerationJob.updatedAt,
+              ),
+            },
+      sceneCandidates,
       canGenerate:
         configuration !== undefined &&
         approval.approved &&
@@ -353,6 +417,425 @@ export class PostgresStoryboardService implements StoryboardService {
       staleReason: stale.staleReason,
       validation,
     });
+  }
+
+  public async regenerateScene(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    sceneId: Identifier;
+    body: unknown;
+    idempotencyKey: string | undefined;
+    correlationId: Identifier;
+  }): Promise<SceneRegenerationResponse> {
+    const parsed = parseBoundary(sceneRegenerationInputSchema, input.body);
+    const idempotencyKey = input.idempotencyKey?.trim();
+    if (
+      idempotencyKey === undefined ||
+      idempotencyKey.length === 0 ||
+      idempotencyKey.length > 200
+    )
+      throw new PublicError(
+        "validation_failed",
+        "An idempotency key is required to regenerate a scene.",
+        400,
+        false,
+        { "idempotency-key": "Provide a non-empty key up to 200 characters." },
+      );
+    const timestamp = this.now();
+    return this.database.transaction(async (transaction) => {
+      const lessonSpec = await this.mutableDraftLessonSpecRow(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        parsed.expectedRevision,
+      );
+      const storyboard = parseStoryboard(lessonSpec);
+      const currentScene = storyboard.scenes.find(
+        (scene) => scene.stableSceneId === input.sceneId,
+      );
+      if (currentScene === undefined) throw sceneNotFound();
+      const sceneRow = await this.sceneRow(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        lessonSpec.id,
+        input.sceneId,
+      );
+      if (sceneRow === undefined) throw sceneNotFound();
+      const pending = await this.pendingSceneCandidateCount(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        sceneRow.id,
+      );
+      if (pending >= sceneRegenerationMaximumActiveCandidates)
+        throw new PublicError(
+          "bad_request",
+          `This scene already has ${pending} pending regenerations. Apply or reject them first.`,
+          409,
+        );
+      const narrationSet = await this.workingNarrationSetRow(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+      );
+      if (narrationSet === undefined) throw sceneNarrationMissing();
+      if (narrationSet.id !== storyboard.basedOnNarrationSetId)
+        throw sceneSourceSnapshotMismatch();
+      const configuration = await this.loadConfiguration(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+      );
+      if (configuration === undefined) throw sceneConfigurationMissing();
+      const blockIds = currentScene.scene.sourceRefs.flatMap((ref) =>
+        ref.blockIds,
+      );
+      const params = sceneRegenerationParamsSchema.parse({
+        lessonSpecId: lessonSpec.id,
+        lessonSpecRevision: lessonSpec.revision,
+        sceneId: input.sceneId,
+        sceneRevision: sceneRow.revision,
+        mode: parsed.mode,
+        instruction: parsed.instruction ?? null,
+        configurationVersion: configuration.version,
+        lessonTitle: configuration.lessonTitle,
+        subject: configuration.subject,
+        ageBand: configuration.ageBand,
+        difficulty: configuration.difficulty,
+        tone: configuration.tone,
+        targetDurationSeconds: configuration.targetDurationSeconds,
+        includeRecallQuestions: configuration.includeRecallQuestions,
+      });
+      const payload = modelCallJobPayloadSchema.parse({
+        schemaVersion: 1,
+        operationType: "ai.scene_regeneration",
+        sourceSnapshotId: narrationSet.sourceSnapshotId,
+        promptId: currentSceneRegenerationCompatibility.promptId,
+        promptVersion: currentSceneRegenerationCompatibility.promptVersion,
+        model: currentSceneRegenerationCompatibility.model,
+        ...(blockIds.length === 0 ? {} : { narrowing: { blockIds } }),
+        params,
+      });
+      const paramsHash = canonicalHash(params);
+      const inputVersion = [
+        "scene-regenerate",
+        narrationSet.sourceSnapshotId,
+        narrationSet.sourceSnapshotContentHash,
+        currentSceneRegenerationCompatibility.promptVersion,
+        paramsHash,
+      ].join(":");
+      const envelope = createJobEnvelope(modelCallJobPayloadSchema, {
+        jobId: createId(timestamp),
+        jobType: "storyboard.scene-regenerate",
+        projectId: input.projectId,
+        ownerUserId: input.ownerUserId,
+        inputVersion,
+        idempotencyKey: createIdempotencyKey({
+          jobType: "storyboard.scene-regenerate",
+          projectId: input.projectId,
+          inputVersion,
+          options: { requestKey: idempotencyKey },
+        }),
+        correlationId: input.correlationId,
+        payloadVersion: 1,
+        payload,
+        requestedAt: timestamp,
+      });
+      const [created] = await transaction
+        .insert(jobs)
+        .values({
+          id: envelope.jobId,
+          jobType: envelope.jobType,
+          queueName: "pipeline",
+          projectId: envelope.projectId,
+          ownerUserId: envelope.ownerUserId,
+          inputVersion: envelope.inputVersion,
+          idempotencyKey: envelope.idempotencyKey,
+          correlationId: envelope.correlationId,
+          payloadVersion: envelope.payloadVersion,
+          payload: envelope.payload,
+        })
+        .onConflictDoNothing()
+        .returning({ id: jobs.id });
+      const jobId =
+        created?.id ??
+        (
+          await transaction
+            .select({ id: jobs.id })
+            .from(jobs)
+            .where(
+              and(
+                eq(jobs.ownerUserId, input.ownerUserId),
+                eq(jobs.projectId, input.projectId),
+                eq(jobs.idempotencyKey, envelope.idempotencyKey),
+              ),
+            )
+            .limit(1)
+        )[0]?.id;
+      if (jobId === undefined)
+        throw new Error(
+          "The idempotent scene regeneration job could not be read.",
+        );
+      if (created !== undefined) {
+        await transaction.insert(outboxEvents).values({
+          id: createId(timestamp),
+          jobId,
+          eventType: "storyboard.scene_regenerate_requested.v1",
+          queueName: "pipeline",
+          envelope,
+          deliveryOptions: { maxAttempts: 3, retryDelayMs: 5_000 },
+        });
+        await new PostgresAuditWriter(transaction).write({
+          ownerUserId: input.ownerUserId,
+          projectId: input.projectId,
+          actor: { type: "user", userId: input.ownerUserId },
+          eventType: "ai.generated",
+          target: { type: "storyboard_scene_regeneration", id: jobId },
+          correlationId: input.correlationId,
+          metadata: {
+            operationType: payload.operationType,
+            promptId: payload.promptId,
+            promptVersion: payload.promptVersion,
+            mode: params.mode,
+            lessonSpecId: params.lessonSpecId,
+            sceneId: params.sceneId,
+            sourceSnapshotId: payload.sourceSnapshotId,
+          },
+          occurredAt: timestamp,
+        });
+      }
+      return sceneRegenerationResponseSchema.parse({
+        jobId,
+        status: "queued",
+      });
+    });
+  }
+
+  public async applySceneCandidate(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    sceneId: Identifier;
+    candidateId: Identifier;
+    body: unknown;
+    correlationId: Identifier;
+  }): Promise<StoryboardResponse> {
+    const parsed = parseBoundary(sceneCandidateDecisionInputSchema, input.body);
+    const timestamp = this.now();
+    await this.database.transaction(async (transaction) => {
+      const lessonSpec = await this.mutableDraftLessonSpecRow(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        parsed.expectedRevision,
+      );
+      const storyboard = parseStoryboard(lessonSpec);
+      const currentScene = storyboard.scenes.find(
+        (scene) => scene.stableSceneId === input.sceneId,
+      );
+      if (currentScene === undefined) throw sceneNotFound();
+      const sceneRow = await this.sceneRow(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        lessonSpec.id,
+        input.sceneId,
+      );
+      if (sceneRow === undefined) throw sceneNotFound();
+      if (sceneRow.revision !== parsed.expectedSceneRevision)
+        throw sceneConflict();
+      const candidate = await this.loadSceneCandidate(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        lessonSpec.id,
+        sceneRow.id,
+        input.candidateId,
+      );
+      if (candidate === undefined) throw sceneCandidateNotFound();
+      if (candidate.status !== "pending") throw sceneCandidateNotPending();
+      if (candidate.sceneRevision !== sceneRow.revision) throw sceneConflict();
+      const afterScene = lessonStoryboardSceneSchema.parse(
+        candidate.afterScene,
+      );
+      const replacement = lessonStoryboardSceneSchema.parse({
+        ...afterScene,
+        id: currentScene.id,
+        stableSceneId: currentScene.stableSceneId,
+        order: currentScene.order,
+      });
+      const scenesUpdated = storyboard.scenes.map((scene) =>
+        scene.stableSceneId === replacement.stableSceneId
+          ? replacement
+          : scene,
+      );
+      const totalDurationSeconds = scenesUpdated.reduce(
+        (sum, scene) => sum + scene.durationSeconds,
+        0,
+      );
+      const updatedStoryboard = lessonStoryboardSchema.parse({
+        ...storyboard,
+        revision: storyboard.revision + 1,
+        totalDurationSeconds,
+        contentHash: computeLessonStoryboardContentHash({
+          totalDurationSeconds,
+          objectiveIds: storyboard.objectiveIds,
+          scenes: scenesUpdated.map((scene) => ({
+            contentHash: computeLessonStoryboardSceneContentHash({
+              template: scene.scene.template,
+              title: scene.scene.title,
+              narration: scene.scene.narration,
+              durationSeconds: scene.scene.durationSeconds,
+              onScreenText: scene.scene.onScreenText,
+              transition: scene.scene.transition,
+              visual: scene.scene.visual,
+              sourceRefs: scene.scene.sourceRefs,
+              generatedAdditions: scene.scene.generatedAdditions,
+              assetBindings: scene.scene.assetBindings,
+            }),
+            narrationBlockIds: scene.narrationBlockIds,
+            assetRequirements: scene.assetRequirements,
+          })),
+        }),
+        scenes: scenesUpdated,
+      });
+      const [updated] = await transaction
+        .update(lessonSpecs)
+        .set({
+          revision: lessonSpec.revision + 1,
+          totalDurationSeconds,
+          contentHash: updatedStoryboard.contentHash,
+          payload: updatedStoryboard,
+          updatedAt: timestamp,
+        })
+        .where(
+          and(
+            eq(lessonSpecs.id, lessonSpec.id),
+            eq(lessonSpecs.ownerUserId, input.ownerUserId),
+            eq(lessonSpecs.projectId, input.projectId),
+            eq(lessonSpecs.revision, lessonSpec.revision),
+          ),
+        )
+        .returning({ id: lessonSpecs.id });
+      if (updated === undefined) throw sceneConflict();
+      await transaction
+        .update(scenes)
+        .set({
+          template: replacement.template,
+          durationSeconds: replacement.durationSeconds,
+          narrationBlockIds: replacement.narrationBlockIds,
+          assetRequirements: replacement.assetRequirements,
+          sceneJson: replacement.scene,
+          revision: sceneRow.revision + 1,
+          updatedAt: timestamp,
+        })
+        .where(
+          and(
+            eq(scenes.id, sceneRow.id),
+            eq(scenes.ownerUserId, input.ownerUserId),
+            eq(scenes.projectId, input.projectId),
+            eq(scenes.revision, sceneRow.revision),
+          ),
+        );
+      await transaction
+        .update(sceneCandidates)
+        .set({ status: "accepted", updatedAt: timestamp })
+        .where(
+          and(
+            eq(sceneCandidates.id, candidate.id),
+            eq(sceneCandidates.ownerUserId, input.ownerUserId),
+            eq(sceneCandidates.projectId, input.projectId),
+            eq(sceneCandidates.status, "pending"),
+          ),
+        );
+      await new PostgresAuditWriter(transaction).write({
+        ownerUserId: input.ownerUserId,
+        projectId: input.projectId,
+        actor: { type: "user", userId: input.ownerUserId },
+        eventType: "storyboard.scene_candidate_accepted",
+        target: { type: "storyboard_scene_candidate", id: candidate.id },
+        correlationId: input.correlationId,
+        metadata: {
+          sceneId: input.sceneId,
+          mode: candidate.mode,
+          lessonSpecRevision: parsed.expectedRevision + 1,
+          sceneRevision: sceneRow.revision + 1,
+          modelCallId: candidate.modelCallId,
+          invalidatedScope: ["preview", "assets", "audio", "validation", "render"],
+        },
+        occurredAt: timestamp,
+      });
+    });
+    return this.current({ ownerUserId: input.ownerUserId, projectId: input.projectId });
+  }
+
+  public async rejectSceneCandidate(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    sceneId: Identifier;
+    candidateId: Identifier;
+    body: unknown;
+    correlationId: Identifier;
+  }): Promise<StoryboardResponse> {
+    const parsed = parseBoundary(sceneCandidateDecisionInputSchema, input.body);
+    const timestamp = this.now();
+    await this.database.transaction(async (transaction) => {
+      const lessonSpec = await this.mutableDraftLessonSpecRow(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        parsed.expectedRevision,
+      );
+      const sceneRow = await this.sceneRow(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        lessonSpec.id,
+        input.sceneId,
+      );
+      if (sceneRow === undefined) throw sceneNotFound();
+      if (sceneRow.revision !== parsed.expectedSceneRevision)
+        throw sceneConflict();
+      const candidate = await this.loadSceneCandidate(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        lessonSpec.id,
+        sceneRow.id,
+        input.candidateId,
+      );
+      if (candidate === undefined) throw sceneCandidateNotFound();
+      if (candidate.status !== "pending") throw sceneCandidateNotPending();
+      const [updated] = await transaction
+        .update(sceneCandidates)
+        .set({ status: "rejected", updatedAt: timestamp })
+        .where(
+          and(
+            eq(sceneCandidates.id, candidate.id),
+            eq(sceneCandidates.ownerUserId, input.ownerUserId),
+            eq(sceneCandidates.projectId, input.projectId),
+            eq(sceneCandidates.status, "pending"),
+          ),
+        )
+        .returning({ id: sceneCandidates.id });
+      if (updated === undefined) throw sceneConflict();
+      await new PostgresAuditWriter(transaction).write({
+        ownerUserId: input.ownerUserId,
+        projectId: input.projectId,
+        actor: { type: "user", userId: input.ownerUserId },
+        eventType: "storyboard.scene_candidate_rejected",
+        target: { type: "storyboard_scene_candidate", id: candidate.id },
+        correlationId: input.correlationId,
+        metadata: {
+          sceneId: input.sceneId,
+          mode: candidate.mode,
+          lessonSpecRevision: parsed.expectedRevision,
+          sceneRevision: parsed.expectedSceneRevision,
+        },
+        occurredAt: timestamp,
+      });
+    });
+    return this.current({ ownerUserId: input.ownerUserId, projectId: input.projectId });
   }
 
   private computeStaleness(input: {
@@ -763,6 +1246,167 @@ export class PostgresStoryboardService implements StoryboardService {
       updatedAt: job.updatedAt,
     };
   }
+
+  private async latestSceneRegenerationJobRow(
+    ownerUserId: Identifier,
+    projectId: Identifier,
+  ): Promise<
+    | {
+        id: Identifier;
+        state: GenerationJobState;
+        errorMetadata: unknown;
+        updatedAt: Date;
+      }
+    | undefined
+  > {
+    const [job] = await this.database
+      .select({
+        id: jobs.id,
+        state: jobs.state,
+        errorMetadata: jobs.errorMetadata,
+        updatedAt: jobs.updatedAt,
+      })
+      .from(jobs)
+      .where(
+        and(
+          eq(jobs.ownerUserId, ownerUserId),
+          eq(jobs.projectId, projectId),
+          eq(jobs.jobType, "storyboard.scene-regenerate"),
+        ),
+      )
+      .orderBy(desc(jobs.createdAt))
+      .limit(1);
+    if (job === undefined) return undefined;
+    return {
+      id: job.id as Identifier,
+      state: job.state as GenerationJobState,
+      errorMetadata: job.errorMetadata,
+      updatedAt: job.updatedAt,
+    };
+  }
+
+  private async mutableDraftLessonSpecRow(
+    executor: DatabaseExecutor,
+    ownerUserId: Identifier,
+    projectId: Identifier,
+    expectedRevision: number,
+  ): Promise<LessonSpecRow> {
+    const [row] = await executor
+      .select()
+      .from(lessonSpecs)
+      .where(
+        and(
+          eq(lessonSpecs.ownerUserId, ownerUserId),
+          eq(lessonSpecs.projectId, projectId),
+          eq(lessonSpecs.status, "draft"),
+        ),
+      )
+      .orderBy(desc(lessonSpecs.generatedAt))
+      .limit(1)
+      .for("update");
+    if (row === undefined) throw nothingToEdit();
+    if (row.revision !== expectedRevision) throw sceneConflict();
+    return row;
+  }
+
+  private async sceneRow(
+    executor: DatabaseExecutor,
+    ownerUserId: Identifier,
+    projectId: Identifier,
+    lessonSpecId: Identifier,
+    stableSceneId: Identifier,
+  ): Promise<typeof scenes.$inferSelect | undefined> {
+    const [row] = await executor
+      .select()
+      .from(scenes)
+      .where(
+        and(
+          eq(scenes.lessonSpecId, lessonSpecId),
+          eq(scenes.stableSceneId, stableSceneId),
+          eq(scenes.ownerUserId, ownerUserId),
+          eq(scenes.projectId, projectId),
+        ),
+      )
+      .limit(1);
+    return row;
+  }
+
+  private async pendingSceneCandidateCount(
+    executor: DatabaseExecutor,
+    ownerUserId: Identifier,
+    projectId: Identifier,
+    sceneId: Identifier,
+  ): Promise<number> {
+    const [row] = await executor
+      .select({ count: sql<number>`count(*)::int` })
+      .from(sceneCandidates)
+      .where(
+        and(
+          eq(sceneCandidates.sceneId, sceneId),
+          eq(sceneCandidates.ownerUserId, ownerUserId),
+          eq(sceneCandidates.projectId, projectId),
+          eq(sceneCandidates.status, "pending"),
+        ),
+      );
+    return row?.count ?? 0;
+  }
+
+  private async loadSceneCandidate(
+    executor: DatabaseExecutor,
+    ownerUserId: Identifier,
+    projectId: Identifier,
+    lessonSpecId: Identifier,
+    sceneId: Identifier,
+    candidateId: Identifier,
+  ): Promise<typeof sceneCandidates.$inferSelect | undefined> {
+    const [row] = await executor
+      .select()
+      .from(sceneCandidates)
+      .where(
+        and(
+          eq(sceneCandidates.id, candidateId),
+          eq(sceneCandidates.lessonSpecId, lessonSpecId),
+          eq(sceneCandidates.sceneId, sceneId),
+          eq(sceneCandidates.ownerUserId, ownerUserId),
+          eq(sceneCandidates.projectId, projectId),
+        ),
+      )
+      .limit(1);
+    return row;
+  }
+
+  private async sceneCandidatesForLessonSpec(
+    executor: DatabaseExecutor,
+    ownerUserId: Identifier,
+    projectId: Identifier,
+    lessonSpecId: Identifier,
+  ): Promise<SceneCandidate[]> {
+    const rows = await executor
+      .select()
+      .from(sceneCandidates)
+      .where(
+        and(
+          eq(sceneCandidates.lessonSpecId, lessonSpecId),
+          eq(sceneCandidates.ownerUserId, ownerUserId),
+          eq(sceneCandidates.projectId, projectId),
+        ),
+      )
+      .orderBy(desc(sceneCandidates.createdAt))
+      .limit(100);
+    return rows.map((row) =>
+      sceneCandidateSchema.parse({
+        id: row.id,
+        sceneId: row.sceneId,
+        mode: row.mode,
+        before: row.beforeScene,
+        after: row.afterScene,
+        status: row.status,
+        sceneRevision: row.sceneRevision,
+        modelCallId: row.modelCallId,
+        createdAt: serializeUtcTimestamp(row.createdAt),
+      }),
+    );
+  }
 }
 
 function parseStoryboard(row: LessonSpecRow): LessonStoryboard {
@@ -809,6 +1453,88 @@ function storyboardSourceSnapshotMismatch(): PublicError {
     "bad_request",
     "The source was re-approved after the narration was generated. Regenerate the outline and narration, then generate a storyboard.",
     409,
+  );
+}
+
+function sceneNotFound(): PublicError {
+  return new PublicError(
+    "not_found",
+    "The requested scene was not found.",
+    404,
+  );
+}
+
+function sceneCandidateNotFound(): PublicError {
+  return new PublicError(
+    "not_found",
+    "The requested scene regeneration candidate was not found.",
+    404,
+  );
+}
+
+function sceneCandidateNotPending(): PublicError {
+  return new PublicError(
+    "bad_request",
+    "This scene regeneration candidate is no longer pending.",
+    409,
+  );
+}
+
+function sceneConflict(): PublicError {
+  return new PublicError(
+    "bad_request",
+    "The storyboard or scene changed. Please refresh and try again.",
+    409,
+  );
+}
+
+function nothingToEdit(): PublicError {
+  return new PublicError(
+    "bad_request",
+    "Generate a storyboard before editing individual scenes.",
+    409,
+  );
+}
+
+function sceneConfigurationMissing(): PublicError {
+  return new PublicError(
+    "bad_request",
+    "Save the lesson configuration before regenerating a scene.",
+    409,
+  );
+}
+
+function sceneNarrationMissing(): PublicError {
+  return new PublicError(
+    "bad_request",
+    "Generate narration before regenerating a scene.",
+    409,
+  );
+}
+
+function sceneSourceSnapshotMismatch(): PublicError {
+  return new PublicError(
+    "bad_request",
+    "The source was re-approved after the narration was generated. Regenerate the outline, narration, and storyboard first.",
+    409,
+  );
+}
+
+function parseBoundary<T>(schema: z.ZodType<T>, input: unknown): T {
+  const parsed = schema.safeParse(input);
+  if (parsed.success) return parsed.data;
+  const fieldErrors = Object.fromEntries(
+    parsed.error.issues.map((issue) => [
+      issue.path.join("."),
+      issue.message,
+    ]),
+  );
+  throw new PublicError(
+    "validation_failed",
+    "The request body is invalid.",
+    400,
+    false,
+    fieldErrors,
   );
 }
 

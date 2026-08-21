@@ -4653,6 +4653,160 @@ export const lessonStoryboardSchema = z
   });
 export type LessonStoryboard = z.infer<typeof lessonStoryboardSchema>;
 
+// ---------------------------------------------------------------------------
+// ST-051 — Regenerate one storyboard scene without altering neighboring
+// teacher edits
+// ---------------------------------------------------------------------------
+
+/** The four bounded scene-regeneration modes a teacher can request. */
+export const sceneRegenerationModeValues = [
+  "improve-visual",
+  "simplify",
+  "shorten",
+  "regenerate",
+] as const;
+export const sceneRegenerationModeSchema = z.enum(
+  sceneRegenerationModeValues,
+);
+export type SceneRegenerationMode = z.infer<
+  typeof sceneRegenerationModeSchema
+>;
+
+/** Maximum pending scene-regeneration candidates retained per scene. */
+export const sceneRegenerationMaximumActiveCandidates = 5 as const;
+
+export const sceneCandidateStatusValues = [
+  "pending",
+  "accepted",
+  "rejected",
+] as const;
+export const sceneCandidateStatusSchema = z.enum(sceneCandidateStatusValues);
+export type SceneCandidateStatus = z.infer<typeof sceneCandidateStatusSchema>;
+
+/**
+ * Boundary for requesting a one-scene regeneration. `instruction` is an
+ * optional teacher direction; `expectedRevision` is the storyboard (lesson
+ * spec) revision the request is based on and must still be current when the
+ * job runs.
+ */
+export const sceneRegenerationInputSchema = z
+  .object({
+    mode: sceneRegenerationModeSchema,
+    instruction: boundedText(500).optional(),
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type SceneRegenerationInput = z.infer<
+  typeof sceneRegenerationInputSchema
+>;
+
+/**
+ * Bounded parameters for one scene regeneration. The job loads the working
+ * lesson spec, the target scene, its neighbors, and the bound narration set
+ * from the database so the prompt and deterministic checks always use the
+ * exact revisions.
+ */
+export const sceneRegenerationParamsSchema = z
+  .object({
+    lessonSpecId: identifierSchema,
+    lessonSpecRevision: z.number().int().nonnegative(),
+    sceneId: identifierSchema,
+    sceneRevision: z.number().int().nonnegative(),
+    mode: sceneRegenerationModeSchema,
+    instruction: boundedText(500).nullable(),
+    configurationVersion: z.number().int().positive(),
+    lessonTitle: boundedText(200),
+    subject: boundedText(200),
+    ageBand: lessonAgeBandSchema,
+    difficulty: lessonDifficultySchema,
+    tone: lessonToneSchema,
+    targetDurationSeconds: targetDurationSecondsSchema,
+    includeRecallQuestions: z.boolean(),
+  })
+  .strict();
+export type SceneRegenerationParams = z.infer<
+  typeof sceneRegenerationParamsSchema
+>;
+
+/**
+ * The versioned structured output a scene-regeneration job must produce:
+ * exactly one scene in the requested mode. The scene keeps the same narration
+ * blocks; the model changes the template choice, visual data, on-screen text,
+ * duration estimate, transition, citations, generated additions, and planned
+ * asset requirements for that one scene only.
+ */
+export const sceneRegenerationOutputSchema = z
+  .object({
+    schemaVersion: z.literal("scene-regeneration-v1"),
+    mode: sceneRegenerationModeSchema,
+    scene: storyboardSceneOutputSchema,
+  })
+  .strict();
+export type SceneRegenerationOutput = z.infer<
+  typeof sceneRegenerationOutputSchema
+>;
+
+/** `POST /projects/:id/scenes/:sceneId/regenerate` response. */
+export const sceneRegenerationResponseSchema = z
+  .object({
+    jobId: identifierSchema,
+    status: z.literal("queued"),
+  })
+  .strict();
+export type SceneRegenerationResponse = z.infer<
+  typeof sceneRegenerationResponseSchema
+>;
+
+/** Boundary for applying or rejecting one generated scene candidate. */
+export const sceneCandidateDecisionInputSchema = z
+  .object({
+    expectedRevision: z.number().int().nonnegative(),
+    expectedSceneRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type SceneCandidateDecisionInput = z.infer<
+  typeof sceneCandidateDecisionInputSchema
+>;
+
+/**
+ * One generated scene candidate from a regeneration job. The teacher compares
+ * the before/after scenes and applies or rejects the candidate; applying
+ * replaces only the selected scene and invalidates only its dependent
+ * artifacts.
+ */
+export const sceneCandidateSchema = z
+  .object({
+    id: identifierSchema,
+    sceneId: identifierSchema,
+    mode: sceneRegenerationModeSchema,
+    before: lessonStoryboardSceneSchema,
+    after: lessonStoryboardSceneSchema,
+    status: sceneCandidateStatusSchema,
+    sceneRevision: z.number().int().nonnegative(),
+    modelCallId: identifierSchema,
+    createdAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type SceneCandidate = z.infer<typeof sceneCandidateSchema>;
+
+/** The prompt/model the API uses for scene regeneration right now. */
+export const sceneRegenerationCompatibilitySchema = z
+  .object({
+    promptId: z.string().trim().min(1).max(100),
+    promptVersion: z.string().trim().min(1).max(50),
+    model: z.string().trim().min(1).max(200),
+  })
+  .strict();
+export type SceneRegenerationCompatibility = z.infer<
+  typeof sceneRegenerationCompatibilitySchema
+>;
+export const currentSceneRegenerationCompatibility =
+  sceneRegenerationCompatibilitySchema.parse({
+    promptId: "scene-regeneration",
+    promptVersion: "v1",
+    model: "mock-model-1",
+  });
+
 /**
  * Bounded configuration-derived parameters for one storyboard generation. The
  * narration-set identity (not its content) travels here; the pipeline worker
@@ -4766,6 +4920,8 @@ export const storyboardResponseSchema = z
     storyboard: lessonStoryboardSchema.nullable(),
     approved: lessonStoryboardSchema.nullable(),
     latestJob: storyboardGenerationJobStatusSchema.nullable(),
+    latestSceneRegenerationJob: storyboardGenerationJobStatusSchema.nullable(),
+    sceneCandidates: z.array(sceneCandidateSchema).max(100),
     canGenerate: z.boolean(),
     canApprove: z.boolean(),
     canEdit: z.boolean(),

@@ -307,7 +307,14 @@ type NarrationApiService = Pick<
   | "listBlockRevisions"
   | "restoreBlockRevision"
 >;
-type StoryboardApiService = Pick<StoryboardService, "generate" | "current">;
+type StoryboardApiService = Pick<
+  StoryboardService,
+  | "generate"
+  | "current"
+  | "regenerateScene"
+  | "applySceneCandidate"
+  | "rejectSceneCandidate"
+>;
 
 @Controller("projects")
 class ProjectsController {
@@ -1185,6 +1192,93 @@ class ProjectsController {
     });
   }
 
+  @Post(":projectId/scenes/:sceneId/regenerate")
+  @HttpCode(202)
+  public async regenerateStoryboardScene(
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneIdInput: string,
+    @Body() input: unknown,
+    @Headers("idempotency-key") idempotencyKey: string | undefined,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const sceneId = identifierSchema.safeParse(sceneIdInput);
+    if (!sceneId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.storyboard.regenerateScene({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      sceneId: sceneId.data,
+      body: input,
+      idempotencyKey,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/scenes/:sceneId/apply-candidate")
+  @HttpCode(200)
+  public async applyStoryboardSceneCandidate(
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const sceneId = identifierSchema.safeParse(sceneIdInput);
+    if (!sceneId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    const candidateId = readCandidateId(input);
+    return this.storyboard.applySceneCandidate({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      sceneId: sceneId.data,
+      candidateId,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/scenes/:sceneId/reject-candidate")
+  @HttpCode(200)
+  public async rejectStoryboardSceneCandidate(
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const sceneId = identifierSchema.safeParse(sceneIdInput);
+    if (!sceneId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    const candidateId = readCandidateId(input);
+    return this.storyboard.rejectSceneCandidate({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      sceneId: sceneId.data,
+      candidateId,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
   @Post(":projectId/source-upload/:sessionId/complete")
   @HttpCode(202)
   public async completeSourceUpload(
@@ -1253,6 +1347,26 @@ function assertAuthorizedProject(
       true,
     );
   return access;
+}
+
+function readCandidateId(input: unknown): Identifier {
+  const parsed = identifierSchema.safeParse(
+    typeof input === "object" &&
+      input !== null &&
+      "candidateId" in input &&
+      typeof input.candidateId === "string"
+      ? input.candidateId
+      : undefined,
+  );
+  if (!parsed.success)
+    throw new PublicError(
+      "validation_failed",
+      "The request body must include a valid candidateId.",
+      400,
+      false,
+      { candidateId: "Provide the scene regeneration candidate id." },
+    );
+  return parsed.data;
 }
 
 export function sessionCookieOptions() {
@@ -1923,6 +2037,33 @@ const unavailableStoryboardService: StoryboardApiService = {
       new PublicError(
         "internal_error",
         "Storyboard generation is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  regenerateScene: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Storyboard scene regeneration is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  applySceneCandidate: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Storyboard scene regeneration is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  rejectSceneCandidate: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Storyboard scene regeneration is unavailable.",
         503,
         true,
       ),

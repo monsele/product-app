@@ -1,4 +1,6 @@
 import type {
+  SceneCandidate,
+  SceneRegenerationMode,
   StoryboardGenerationState,
   StoryboardValidation,
 } from "@avlp/schemas";
@@ -19,6 +21,34 @@ export function storyboardGenerationStateLabel(
       return "Storyboard generation failed.";
     case "idle":
       return "No storyboard has been generated yet.";
+  }
+}
+
+/** Human-readable label for a scene regeneration mode. */
+export function sceneRegenerationModeLabel(
+  mode: SceneRegenerationMode,
+): string {
+  switch (mode) {
+    case "improve-visual":
+      return "Improve visual choice";
+    case "simplify":
+      return "Simplify";
+    case "shorten":
+      return "Shorten";
+    case "regenerate":
+      return "Regenerate";
+  }
+}
+
+/** Human-readable label for a scene candidate status. */
+export function sceneCandidateStatusLabel(status: SceneCandidate["status"]): string {
+  switch (status) {
+    case "pending":
+      return "Pending review";
+    case "accepted":
+      return "Applied";
+    case "rejected":
+      return "Discarded";
   }
 }
 
@@ -47,6 +77,35 @@ export function storyboardFailureMessage(errorCode: string | null): string {
       return "The generated storyboard could not be saved. Try again.";
     default:
       return "Storyboard generation failed. Try again.";
+  }
+}
+
+/**
+ * Friendly message for known scene-regeneration failure codes. Falls back to
+ * the storyboard-level message so a failed scene job still reads clearly.
+ */
+export function sceneRegenerationFailureMessage(
+  errorCode: string | null,
+): string {
+  switch (errorCode) {
+    case "LESSON_SPEC_NOT_FOUND":
+    case "SCENE_NOT_FOUND":
+      return "The storyboard or scene no longer exists. Refresh the page.";
+    case "LESSON_SPEC_NOT_DRAFT":
+      return "Only draft storyboards can be regenerated scene by scene.";
+    case "LESSON_SPEC_REVISION_MISMATCH":
+    case "SCENE_REVISION_MISMATCH":
+    case "NARRATION_SET_MISMATCH":
+      return "The storyboard or narration changed after this regeneration was requested. Refresh and try again.";
+    case "MODEL_OUTPUT_DETERMINISTIC_FAILURE":
+    case "STRUCTURED_OUTPUT_INVALID":
+      return "The AI produced a scene that could not be validated. Try again.";
+    case "AI_QUOTA_EXCEEDED":
+      return "The generation quota for this project has been reached. Try again later.";
+    case "CANDIDATE_PERSIST_FAILED":
+      return "The regenerated scene could not be saved. Try again.";
+    default:
+      return storyboardFailureMessage(errorCode);
   }
 }
 

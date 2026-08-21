@@ -260,6 +260,13 @@
       "when": 1787222523220,
       "tag": "0036_dusty_ulik",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1787249169964,
+      "tag": "0037_exotic_salo",
+      "breakpoints": true
     }
   ]
 }
