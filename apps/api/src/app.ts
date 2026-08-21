@@ -80,7 +80,9 @@ const SOURCE_UPLOAD_SERVICE = Symbol("SOURCE_UPLOAD_SERVICE");
 const PROJECT_SERVICE = Symbol("PROJECT_SERVICE");
 const INGESTION_STATUS_SERVICE = Symbol("INGESTION_STATUS_SERVICE");
 const PARSED_DOCUMENT_REVIEW_SERVICE = Symbol("PARSED_DOCUMENT_REVIEW_SERVICE");
-const SOURCE_SECTION_SELECTION_SERVICE = Symbol("SOURCE_SECTION_SELECTION_SERVICE");
+const SOURCE_SECTION_SELECTION_SERVICE = Symbol(
+  "SOURCE_SECTION_SELECTION_SERVICE",
+);
 const CONTENT_BLOCK_CORRECTION_SERVICE = Symbol(
   "CONTENT_BLOCK_CORRECTION_SERVICE",
 );
@@ -318,6 +320,8 @@ type StoryboardApiService = Pick<
   | "regenerateScene"
   | "applySceneCandidate"
   | "rejectSceneCandidate"
+  | "scenes"
+  | "sceneDetail"
 >;
 type CitationApiService = Pick<CitationService, "forScene">;
 type GroundingApiService = Pick<GroundingService, "check" | "current">;
@@ -485,7 +489,10 @@ class ProjectsController {
     @Req() request: RequestWithAuth & AuthorizedProjectRequest,
   ): Promise<unknown> {
     const access = assertAuthorizedProject(request, projectId);
-    return this.parsedDocumentReview.review(access.ownerUserId, access.projectId);
+    return this.parsedDocumentReview.review(
+      access.ownerUserId,
+      access.projectId,
+    );
   }
 
   @Get(":projectId/parsed-document/sections/:sectionId")
@@ -1181,6 +1188,39 @@ class ProjectsController {
     return this.storyboard.current({
       ownerUserId: access.ownerUserId,
       projectId: access.projectId,
+    });
+  }
+
+  @Get(":projectId/storyboard/scenes")
+  public async getStoryboardScenes(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    return this.storyboard.scenes({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+    });
+  }
+
+  @Get(":projectId/storyboard/scenes/:sceneId")
+  public async getStoryboardSceneDetail(
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneIdInput: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    const sceneId = identifierSchema.safeParse(sceneIdInput);
+    if (!sceneId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.storyboard.sceneDetail({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      sceneId: sceneId.data,
     });
   }
 
@@ -2133,6 +2173,24 @@ const unavailableStoryboardService: StoryboardApiService = {
       new PublicError(
         "internal_error",
         "Storyboard scene regeneration is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  scenes: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "The storyboard scene list is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  sceneDetail: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "The storyboard scene detail is unavailable.",
         503,
         true,
       ),

@@ -41,7 +41,10 @@ import {
   storyboardGenerationParamsSchema,
   storyboardGenerationResponseSchema,
   storyboardResponseSchema,
+  storyboardSceneDetailResponseSchema,
+  storyboardSceneListResponseSchema,
   type LessonStoryboard,
+  type LessonStoryboardScene,
   type NarrationBudgetStatus,
   type SceneCandidate,
   type SceneRegenerationResponse,
@@ -50,6 +53,9 @@ import {
   type StoryboardGenerationParams,
   type StoryboardGenerationResponse,
   type StoryboardResponse,
+  type StoryboardSceneDetailResponse,
+  type StoryboardSceneListResponse,
+  type StoryboardSceneStatus,
   type StoryboardValidation,
 } from "@avlp/schemas";
 import { and, desc, eq, sql } from "drizzle-orm";
@@ -109,6 +115,15 @@ export interface StoryboardService {
     body: unknown;
     correlationId: Identifier;
   }): Promise<StoryboardResponse>;
+  scenes(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+  }): Promise<StoryboardSceneListResponse>;
+  sceneDetail(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    sceneId: Identifier;
+  }): Promise<StoryboardSceneDetailResponse>;
 }
 
 type LessonSpecRow = typeof lessonSpecs.$inferSelect;
@@ -838,6 +853,152 @@ export class PostgresStoryboardService implements StoryboardService {
     return this.current({ ownerUserId: input.ownerUserId, projectId: input.projectId });
   }
 
+  public async scenes(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+  }): Promise<StoryboardSceneListResponse> {
+    const workingRow = await this.workingLessonSpecRow(
+      input.ownerUserId,
+      input.projectId,
+    );
+    if (workingRow === undefined)
+      throw new PublicError(
+        "not_found",
+        "Generate a storyboard before opening the scene list.",
+        404,
+      );
+    const storyboard = parseStoryboard(workingRow);
+    const configuration = await this.loadConfiguration(
+      this.database,
+      input.ownerUserId,
+      input.projectId,
+    );
+    const approval = await this.sourceApprovalStatus({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+    });
+    const approvedOutline = await this.latestApprovedOutlineSetRow(
+      this.database,
+      input.ownerUserId,
+      input.projectId,
+    );
+    const approvedOutlineItems =
+      approvedOutline === undefined
+        ? []
+        : await this.loadOutlineItems(
+            this.database,
+            approvedOutline.id,
+            input.ownerUserId,
+            input.projectId,
+          );
+    const narrationSetContentHash = await this.recomputeNarrationSetContentHash(
+      this.database,
+      input.ownerUserId,
+      input.projectId,
+      storyboard.basedOnNarrationSetId,
+    );
+    const stale = this.computeStaleness({
+      storyboard,
+      configuration,
+      approval,
+      approvedOutline,
+      approvedOutlineItems,
+      narrationSetContentHash,
+    });
+    const validation = this.computeValidation({
+      storyboard,
+      approvedOutlineItemIds: approvedOutlineItems.map((item) => item.id),
+      narrationBlocksFor: await this.loadNarrationSetBlocks(
+        this.database,
+        input.ownerUserId,
+        input.projectId,
+        storyboard.basedOnNarrationSetId,
+      ),
+    });
+    return storyboardSceneListResponseSchema.parse({
+      revision: storyboard.revision,
+      stale: stale.stale,
+      staleReason: stale.staleReason,
+      totalDurationSeconds: storyboard.totalDurationSeconds,
+      targetDurationSeconds: storyboard.targetDurationSeconds,
+      scenes: storyboard.scenes.map((scene) =>
+        projectSceneListEntry(scene, stale.stale, validation),
+      ),
+    });
+  }
+
+  public async sceneDetail(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    sceneId: Identifier;
+  }): Promise<StoryboardSceneDetailResponse> {
+    const workingRow = await this.workingLessonSpecRow(
+      input.ownerUserId,
+      input.projectId,
+    );
+    if (workingRow === undefined) throw sceneNotFound();
+    const storyboard = parseStoryboard(workingRow);
+    const currentScene = storyboard.scenes.find(
+      (scene) => scene.stableSceneId === input.sceneId,
+    );
+    if (currentScene === undefined) throw sceneNotFound();
+    const configuration = await this.loadConfiguration(
+      this.database,
+      input.ownerUserId,
+      input.projectId,
+    );
+    const approval = await this.sourceApprovalStatus({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+    });
+    const approvedOutline = await this.latestApprovedOutlineSetRow(
+      this.database,
+      input.ownerUserId,
+      input.projectId,
+    );
+    const approvedOutlineItems =
+      approvedOutline === undefined
+        ? []
+        : await this.loadOutlineItems(
+            this.database,
+            approvedOutline.id,
+            input.ownerUserId,
+            input.projectId,
+          );
+    const narrationSetContentHash = await this.recomputeNarrationSetContentHash(
+      this.database,
+      input.ownerUserId,
+      input.projectId,
+      storyboard.basedOnNarrationSetId,
+    );
+    const stale = this.computeStaleness({
+      storyboard,
+      configuration,
+      approval,
+      approvedOutline,
+      approvedOutlineItems,
+      narrationSetContentHash,
+    });
+    const validation = this.computeValidation({
+      storyboard,
+      approvedOutlineItemIds: approvedOutlineItems.map((item) => item.id),
+      narrationBlocksFor: await this.loadNarrationSetBlocks(
+        this.database,
+        input.ownerUserId,
+        input.projectId,
+        storyboard.basedOnNarrationSetId,
+      ),
+    });
+    return storyboardSceneDetailResponseSchema.parse({
+      scene: currentScene,
+      status: projectSceneStatus(
+        stale.stale,
+        validation,
+        projectSceneAssetStatus(currentScene),
+      ),
+    });
+  }
+
   private computeStaleness(input: {
     storyboard: LessonStoryboard | null;
     configuration: typeof lessonConfigurations.$inferSelect | undefined;
@@ -1411,6 +1572,62 @@ export class PostgresStoryboardService implements StoryboardService {
 
 function parseStoryboard(row: LessonSpecRow): LessonStoryboard {
   return lessonStoryboardSchema.parse(row.payload);
+}
+
+const sceneNarrationSummaryLength = 120;
+
+function truncateNarration(
+  text: string,
+  maximum = sceneNarrationSummaryLength,
+): string {
+  if (text.length <= maximum) return text;
+  return `${text.slice(0, maximum).trimEnd()}…`;
+}
+
+function projectSceneAssetStatus(
+  scene: LessonStoryboardScene,
+): "none" | "planned" | "resolved" {
+  if (scene.scene.assetBindings.length > 0) return "resolved";
+  if (scene.assetRequirements.length > 0) return "planned";
+  return "none";
+}
+
+function projectSceneStatus(
+  stale: boolean,
+  validation: StoryboardValidation,
+  assets: "none" | "planned" | "resolved",
+): StoryboardSceneStatus {
+  return {
+    assets,
+    audio: "not_generated",
+    validation: !validation.structurallyValid
+      ? "error"
+      : validation.durationStatus !== "within"
+        ? "warning"
+        : "ok",
+    stale,
+  };
+}
+
+function projectSceneListEntry(
+  scene: LessonStoryboardScene,
+  stale: boolean,
+  validation: StoryboardValidation,
+) {
+  return {
+    sceneId: scene.stableSceneId,
+    order: scene.order,
+    template: scene.template,
+    title: scene.scene.title ?? null,
+    narrationSummary: truncateNarration(scene.scene.narration),
+    narrationBlockCount: scene.narrationBlockIds.length,
+    durationSeconds: scene.durationSeconds,
+    status: projectSceneStatus(
+      stale,
+      validation,
+      projectSceneAssetStatus(scene),
+    ),
+  };
 }
 
 function jobErrorCode(errorMetadata: unknown): string | null {

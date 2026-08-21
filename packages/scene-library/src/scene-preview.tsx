@@ -328,6 +328,7 @@ export function ScenePreviewPlayer({
         ref={playerRef}
         renderLoading={() => <p role="status">Loading scene preview…</p>}
         showVolumeControls
+        spaceKeyToPlayOrPause={false}
         style={{ width: "100%" }}
       />
     </section>

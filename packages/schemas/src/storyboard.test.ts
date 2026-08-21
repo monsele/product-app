@@ -17,6 +17,9 @@ import {
   storyboardGenerationResponseSchema,
   storyboardOutputV1Schema,
   storyboardResponseSchema,
+  storyboardSceneDetailResponseSchema,
+  storyboardSceneListEntrySchema,
+  storyboardSceneListResponseSchema,
   storyboardSceneOutputSchema,
   storyboardTemplateCatalog,
   storyboardTemplateCatalogEntrySchema,
@@ -29,7 +32,9 @@ const blockA = "019ffbf1-2222-7000-8000-000000000001";
 const blockB = "019ffbf1-2223-7000-8000-000000000001";
 const objectiveId = "019ffbf1-9999-7000-8000-000000000001";
 
-function sceneOutput(overrides: Record<string, unknown> = {}): StoryboardSceneOutput {
+function sceneOutput(
+  overrides: Record<string, unknown> = {},
+): StoryboardSceneOutput {
   return storyboardSceneOutputSchema.parse({
     template: "definition",
     narrationBlockIds: [blockA],
@@ -85,7 +90,9 @@ function sceneSpec(overrides: Record<string, unknown> = {}) {
   });
 }
 
-function storyboardScene(overrides: Record<string, unknown> = {}): LessonStoryboardScene {
+function storyboardScene(
+  overrides: Record<string, unknown> = {},
+): LessonStoryboardScene {
   return lessonStoryboardSceneSchema.parse({
     id: "019ffbf1-eeee-7000-8000-000000000001",
     stableSceneId: "019ffbf1-eeee-7000-8000-000000000001",
@@ -133,13 +140,17 @@ describe("storyboard template catalog", () => {
     for (const entry of storyboardTemplateCatalog) {
       const parsed = storyboardTemplateCatalogEntrySchema.parse(entry);
       expect(sceneTemplateValues).toContain(parsed.template);
-      expect(Object.values(parsed.itemLimits).every((limit) => limit > 0)).toBe(true);
-      expect(Object.values(parsed.textLimits).every((limit) => limit > 0)).toBe(true);
+      expect(Object.values(parsed.itemLimits).every((limit) => limit > 0)).toBe(
+        true,
+      );
+      expect(Object.values(parsed.textLimits).every((limit) => limit > 0)).toBe(
+        true,
+      );
       expect(parsed.guidance.length).toBeGreaterThan(0);
     }
-    expect(new Set(storyboardTemplateCatalog.map((entry) => entry.template)).size).toBe(
-      sceneTemplateValues.length,
-    );
+    expect(
+      new Set(storyboardTemplateCatalog.map((entry) => entry.template)).size,
+    ).toBe(sceneTemplateValues.length);
   });
 
   it("catalog guidance steers asset-dependent templates to storyboard-safe defaults", () => {
@@ -255,7 +266,11 @@ describe("storyboard output schema", () => {
         ...sampleOutput(),
         scenes: [
           sceneOutput(),
-          sceneOutput({ template: "hook", visual: { question: "Why?" }, sourceBlockIds: [] }),
+          sceneOutput({
+            template: "hook",
+            visual: { question: "Why?" },
+            sourceBlockIds: [],
+          }),
           sceneOutput({ sourceBlockIds: [], generatedAdditions: [] }),
         ],
       }),
@@ -268,7 +283,11 @@ describe("storyboard output schema", () => {
         sceneOutput({
           sourceBlockIds: [],
           generatedAdditions: [
-            { kind: "analogy", content: "Like a sponge.", rationale: "A generated analogy." },
+            {
+              kind: "analogy",
+              content: "Like a sponge.",
+              rationale: "A generated analogy.",
+            },
           ],
         }),
       ),
@@ -280,7 +299,11 @@ describe("storyboard output schema", () => {
       storyboardSceneOutputSchema.parse(
         sceneOutput({
           generatedAdditions: [
-            { kind: "analogy", content: "Like a sponge.", rationale: "A generated analogy." },
+            {
+              kind: "analogy",
+              content: "Like a sponge.",
+              rationale: "A generated analogy.",
+            },
           ],
         }),
       ),
@@ -290,7 +313,9 @@ describe("storyboard output schema", () => {
 
 describe("lesson storyboard schema", () => {
   it("round-trips a valid storyboard", () => {
-    const parsed = lessonStoryboardSchema.parse(JSON.parse(JSON.stringify(sampleStoryboard())));
+    const parsed = lessonStoryboardSchema.parse(
+      JSON.parse(JSON.stringify(sampleStoryboard())),
+    );
     expect(parsed.totalDurationSeconds).toBe(30);
     expect(parsed.scenes).toHaveLength(1);
   });
@@ -298,7 +323,9 @@ describe("lesson storyboard schema", () => {
   it("rejects duplicate scene ids", () => {
     const duplicate = sampleStoryboard();
     duplicate.scenes = [storyboardScene(), storyboardScene({ order: 2 })];
-    expect(() => lessonStoryboardSchema.parse(JSON.parse(JSON.stringify(duplicate)))).toThrow();
+    expect(() =>
+      lessonStoryboardSchema.parse(JSON.parse(JSON.stringify(duplicate))),
+    ).toThrow();
   });
 
   it("rejects a total duration that does not match the scene sum", () => {
@@ -448,12 +475,7 @@ describe("scene regeneration schemas", () => {
   }
 
   it("accepts every regeneration mode input", () => {
-    for (const mode of [
-      "improve-visual",
-      "simplify",
-      "shorten",
-      "regenerate",
-    ])
+    for (const mode of ["improve-visual", "simplify", "shorten", "regenerate"])
       expect(() =>
         sceneRegenerationInputSchema.parse({
           mode,
@@ -692,5 +714,93 @@ describe("scene regeneration schemas", () => {
         },
       }),
     ).not.toThrow();
+  });
+});
+
+describe("ST-054 storyboard scene list and detail read model", () => {
+  const sceneId = "019ffbf1-eeee-7000-8000-000000000050";
+
+  function detailScene() {
+    return lessonStoryboardSceneSchema.parse({
+      id: sceneId,
+      stableSceneId: sceneId,
+      order: 1,
+      template: "definition",
+      durationSeconds: 30,
+      narrationBlockIds: [blockA],
+      assetRequirements: [],
+      scene: sceneSpec({
+        id: sceneId,
+        order: 1,
+        narration: "Heating water turns it into vapour.",
+      }),
+    });
+  }
+
+  const listEntry = () =>
+    storyboardSceneListEntrySchema.parse({
+      sceneId,
+      order: 1,
+      template: "definition",
+      title: null,
+      narrationSummary: "Heating water turns it into vapour.",
+      narrationBlockCount: 1,
+      durationSeconds: 30,
+      status: {
+        assets: "planned",
+        audio: "not_generated",
+        validation: "ok",
+        stale: false,
+      },
+    });
+
+  it("accepts a scene list response with projected statuses", () => {
+    expect(() =>
+      storyboardSceneListResponseSchema.parse({
+        revision: 2,
+        stale: true,
+        staleReason: "The approved narration changed.",
+        totalDurationSeconds: 30,
+        targetDurationSeconds: 180,
+        scenes: [listEntry()],
+      }),
+    ).not.toThrow();
+  });
+
+  it("accepts a scene detail response with the full scene", () => {
+    expect(() =>
+      storyboardSceneDetailResponseSchema.parse({
+        scene: detailScene(),
+        status: {
+          assets: "none",
+          audio: "not_generated",
+          validation: "warning",
+          stale: true,
+        },
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects an entry whose duration is outside the scene bounds", () => {
+    expect(() =>
+      storyboardSceneListEntrySchema.parse({
+        ...listEntry(),
+        durationSeconds: 0,
+      }),
+    ).toThrow();
+  });
+
+  it("rejects unknown status projections", () => {
+    expect(() =>
+      storyboardSceneListEntrySchema.parse({
+        ...listEntry(),
+        status: {
+          assets: "generated",
+          audio: "not_generated",
+          validation: "ok",
+          stale: false,
+        },
+      }),
+    ).toThrow();
   });
 });

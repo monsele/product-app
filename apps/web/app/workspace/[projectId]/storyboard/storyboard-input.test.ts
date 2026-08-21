@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   isGenerating,
+  sceneAssetStatusLabel,
+  sceneAudioStatusLabel,
   sceneCandidateStatusLabel,
   sceneRegenerationFailureMessage,
   sceneRegenerationModeLabel,
+  sceneValidationStatusLabel,
   storyboardFailureMessage,
   storyboardGenerationStateLabel,
   storyboardValidationWarnings,
@@ -16,7 +19,9 @@ describe("storyboard generation state label", () => {
     expect(storyboardGenerationStateLabel("generating")).toContain(
       "Generating",
     );
-    expect(storyboardGenerationStateLabel("draft")).toContain("ready for review");
+    expect(storyboardGenerationStateLabel("draft")).toContain(
+      "ready for review",
+    );
     expect(storyboardGenerationStateLabel("failed")).toContain("failed");
     expect(storyboardGenerationStateLabel("approved")).toContain("approved");
   });
@@ -30,15 +35,15 @@ describe("storyboard generation state label", () => {
 describe("storyboard failure messages", () => {
   it("explains known failure codes", () => {
     expect(storyboardFailureMessage("AI_QUOTA_EXCEEDED")).toContain("quota");
-    expect(storyboardFailureMessage("NARRATION_SET_REVISION_MISMATCH")).toContain(
-      "narration",
-    );
+    expect(
+      storyboardFailureMessage("NARRATION_SET_REVISION_MISMATCH"),
+    ).toContain("narration");
     expect(storyboardFailureMessage("OUTLINE_SET_NOT_APPROVED")).toContain(
       "outline",
     );
-    expect(storyboardFailureMessage("MODEL_OUTPUT_DETERMINISTIC_FAILURE")).toContain(
-      "validated",
-    );
+    expect(
+      storyboardFailureMessage("MODEL_OUTPUT_DETERMINISTIC_FAILURE"),
+    ).toContain("validated");
   });
 
   it("falls back for unknown codes", () => {
@@ -76,9 +81,9 @@ describe("storyboard validation warnings", () => {
     expect(warnings.some((warning) => warning.includes("outline item"))).toBe(
       true,
     );
-    expect(warnings.some((warning) => warning.includes("narration block"))).toBe(
-      true,
-    );
+    expect(
+      warnings.some((warning) => warning.includes("narration block")),
+    ).toBe(true);
   });
 });
 
@@ -102,12 +107,12 @@ describe("scene regeneration helpers", () => {
     expect(sceneRegenerationFailureMessage("SCENE_NOT_FOUND")).toContain(
       "no longer exists",
     );
-    expect(sceneRegenerationFailureMessage("LESSON_SPEC_REVISION_MISMATCH")).toContain(
-      "changed",
-    );
-    expect(sceneRegenerationFailureMessage("MODEL_OUTPUT_DETERMINISTIC_FAILURE")).toContain(
-      "validated",
-    );
+    expect(
+      sceneRegenerationFailureMessage("LESSON_SPEC_REVISION_MISMATCH"),
+    ).toContain("changed");
+    expect(
+      sceneRegenerationFailureMessage("MODEL_OUTPUT_DETERMINISTIC_FAILURE"),
+    ).toContain("validated");
     expect(sceneRegenerationFailureMessage("AI_QUOTA_EXCEEDED")).toContain(
       "quota",
     );
@@ -117,5 +122,23 @@ describe("scene regeneration helpers", () => {
     expect(sceneRegenerationFailureMessage("SOMETHING_NEW")).toContain(
       "Try again",
     );
+  });
+});
+
+describe("scene status projections", () => {
+  it("labels every asset status", () => {
+    expect(sceneAssetStatusLabel("none")).toBe("No assets planned");
+    expect(sceneAssetStatusLabel("planned")).toBe("Assets planned");
+    expect(sceneAssetStatusLabel("resolved")).toBe("Assets resolved");
+  });
+
+  it("labels the audio status", () => {
+    expect(sceneAudioStatusLabel("not_generated")).toBe("No audio generated");
+  });
+
+  it("labels every validation status", () => {
+    expect(sceneValidationStatusLabel("ok")).toBe("Valid");
+    expect(sceneValidationStatusLabel("warning")).toBe("Needs attention");
+    expect(sceneValidationStatusLabel("error")).toBe("Invalid");
   });
 });

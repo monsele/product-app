@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
 import { createId } from "@avlp/config";
+import {
+  computeNarrationBlockContentHash,
+  computeNarrationSetContentHash,
+} from "@avlp/config";
 import {
   auditEvents,
   jobs,
@@ -218,7 +223,9 @@ function jobRow(state = "succeeded") {
   };
 }
 
-function storyboardPayload(overrides: Record<string, unknown> = {}): LessonStoryboard {
+function storyboardPayload(
+  overrides: Record<string, unknown> = {},
+): LessonStoryboard {
   return lessonStoryboardSchema.parse({
     schemaVersion: 1,
     id: "019ffbf1-eeee-7000-8000-000000000040",
@@ -252,7 +259,8 @@ function storyboardPayload(overrides: Record<string, unknown> = {}): LessonStory
         scene: {
           id: "019ffbf1-eeee-7000-8000-000000000050",
           order: 1,
-          narration: "Water evaporates when heated and rises as water vapour into the sky.",
+          narration:
+            "Water evaporates when heated and rises as water vapour into the sky.",
           durationSeconds: 30,
           onScreenText: ["Key term"],
           transition: "cut",
@@ -269,7 +277,10 @@ function storyboardPayload(overrides: Record<string, unknown> = {}): LessonStory
           ],
           generatedAdditions: [],
           template: "definition",
-          visual: { term: "Evaporation", definition: "A liquid becoming a gas." },
+          visual: {
+            term: "Evaporation",
+            definition: "A liquid becoming a gas.",
+          },
         },
       },
       {
@@ -283,7 +294,8 @@ function storyboardPayload(overrides: Record<string, unknown> = {}): LessonStory
         scene: {
           id: "019ffbf1-eeee-7000-8000-000000000051",
           order: 2,
-          narration: "Condensation forms clouds when water vapour cools and becomes liquid.",
+          narration:
+            "Condensation forms clouds when water vapour cools and becomes liquid.",
           durationSeconds: 30,
           onScreenText: [],
           transition: "cut",
@@ -537,7 +549,9 @@ describe("PostgresStoryboardService.generate", () => {
     expect(result.jobId).toMatch(/^[0-9a-f-]{36}$/);
     const insertedJob = inserts.find((item) => item.table === jobs);
     expect(insertedJob).toBeDefined();
-    const payload = (insertedJob!.value as { payload: { operationType: string } }).payload;
+    const payload = (
+      insertedJob!.value as { payload: { operationType: string } }
+    ).payload;
     expect(payload.operationType).toBe("ai.storyboard");
     expect(inserts.some((item) => item.table === outboxEvents)).toBe(true);
     expect(inserts.some((item) => item.table === auditEvents)).toBe(true);
@@ -550,8 +564,12 @@ describe("PostgresStoryboardService.generate", () => {
     });
     expect(second.jobId).toBe(result.jobId);
     expect(jobIdsByKey.size).toBe(1);
-    expect(inserts.filter((item) => item.table === outboxEvents)).toHaveLength(1);
-    expect(inserts.filter((item) => item.table === auditEvents)).toHaveLength(1);
+    expect(inserts.filter((item) => item.table === outboxEvents)).toHaveLength(
+      1,
+    );
+    expect(inserts.filter((item) => item.table === auditEvents)).toHaveLength(
+      1,
+    );
   });
 });
 
@@ -670,5 +688,228 @@ describe("PostgresStoryboardService current validation", () => {
     expect(response.validation.structurallyValid).toBe(false);
     expect(response.validation.unassignedBlockIds).toEqual([blockB]);
     expect(response.validation.uncoveredOutlineItemIds).toContain(outlineItemB);
+  });
+});
+
+describe("PostgresStoryboardService.scenes", () => {
+  const fixtureOptions = {
+    configRows: [configRow()],
+    outlineSetRows: [approvedOutlineSetRow()],
+    outlineItemRows: outlineItemRows(),
+    narrationSetRows: [narrationSetRow()],
+    narrationBlockRows: narrationBlockRows(),
+    lessonSpecRows: [lessonSpecRow()],
+  };
+
+  it("rejects the scene list when no storyboard draft exists", async () => {
+    const { database } = fakeDatabase({ configRows: [configRow()] });
+    const { service } = createService(database, approvedStatus);
+    await expect(
+      service.scenes({ ownerUserId, projectId }),
+    ).rejects.toMatchObject({ code: "not_found", statusCode: 404 });
+  });
+
+  it("returns ordered scene entries with projected statuses", async () => {
+    const { database } = fakeDatabase(fixtureOptions);
+    const { service } = createService(database, approvedStatus);
+    const response = await service.scenes({ ownerUserId, projectId });
+    expect(response.revision).toBe(0);
+    expect(response.scenes).toHaveLength(2);
+    expect(response.scenes.map((scene) => scene.order)).toEqual([1, 2]);
+    expect(response.scenes[0]!.template).toBe("definition");
+    expect(response.scenes[0]!.durationSeconds).toBe(30);
+    expect(response.scenes[0]!.title).toBeNull();
+    expect(response.scenes[0]!.narrationSummary).toBe(
+      "Water evaporates when heated and rises as water vapour into the sky.",
+    );
+    expect(response.scenes[0]!.status).toEqual({
+      assets: "none",
+      audio: "not_generated",
+      validation: "warning",
+      stale: true,
+    });
+  });
+
+  it("projects planned and resolved asset statuses from scene bindings", async () => {
+    const payload = storyboardPayload({
+      scenes: [
+        {
+          ...storyboardPayload().scenes[0]!,
+          assetRequirements: [
+            { slot: "visual-example", purpose: "Show evaporation." },
+          ],
+        },
+        {
+          ...storyboardPayload().scenes[1]!,
+          scene: {
+            ...storyboardPayload().scenes[1]!.scene,
+            assetBindings: [
+              {
+                assetId: "019ffbf1-eeee-7000-8000-000000000099",
+                role: "illustration" as const,
+                slot: "visual-example",
+              },
+            ],
+          },
+        },
+      ],
+      contentHash: "f".repeat(64),
+    });
+    const { database } = fakeDatabase({
+      ...fixtureOptions,
+      lessonSpecRows: [lessonSpecRow({ payload })],
+    });
+    const { service } = createService(database, approvedStatus);
+    const response = await service.scenes({ ownerUserId, projectId });
+    expect(response.scenes[0]!.status.assets).toBe("planned");
+    expect(response.scenes[1]!.status.assets).toBe("resolved");
+  });
+
+  it("projects an error validation status when the draft is structurally invalid", async () => {
+    const partialPayload = storyboardPayload({
+      scenes: [storyboardPayload().scenes[0]!],
+      totalDurationSeconds: 30,
+      contentHash: "e".repeat(64),
+    });
+    const { database } = fakeDatabase({
+      ...fixtureOptions,
+      lessonSpecRows: [lessonSpecRow({ payload: partialPayload })],
+    });
+    const { service } = createService(database, approvedStatus);
+    const response = await service.scenes({ ownerUserId, projectId });
+    expect(response.scenes[0]!.status.validation).toBe("error");
+  });
+
+  it("reports a consistent draft as fresh with an ok validation status", async () => {
+    const narrationHash = computeNarrationSetContentHash(
+      narrationBlockRows().map((block) => ({
+        contentHash: computeNarrationBlockContentHash({
+          text: block.text,
+          sourceRefs: block.sourceRefs,
+          generatedAdditions: block.generatedAdditions,
+          generated: block.generated,
+        }),
+      })),
+      narrationSetRow().totalEstimatedSeconds,
+    );
+    const outlineHash = createHash("sha256")
+      .update(
+        JSON.stringify(
+          outlineItemRows().map((item) => ({
+            id: item.id,
+            order: item.order,
+            kind: item.kind,
+            title: item.title,
+            description: item.description,
+            estimatedSeconds: item.estimatedSeconds,
+          })),
+        ),
+      )
+      .digest("hex");
+    const payload = storyboardPayload({
+      narrationSetContentHash: narrationHash,
+      outlineSetContentHash: outlineHash,
+      targetDurationSeconds: 180,
+      totalDurationSeconds: 180,
+      contentHash: "f".repeat(64),
+      scenes: [
+        {
+          ...storyboardPayload().scenes[0]!,
+          durationSeconds: 60,
+          scene: {
+            ...storyboardPayload().scenes[0]!.scene,
+            durationSeconds: 60,
+          },
+        },
+        {
+          ...storyboardPayload().scenes[1]!,
+          durationSeconds: 60,
+          scene: {
+            ...storyboardPayload().scenes[1]!.scene,
+            durationSeconds: 60,
+          },
+        },
+        {
+          ...storyboardPayload().scenes[0]!,
+          id: "019ffbf1-eeee-7000-8000-000000000052",
+          stableSceneId: "019ffbf1-eeee-7000-8000-000000000052",
+          order: 3,
+          durationSeconds: 60,
+          scene: {
+            ...storyboardPayload().scenes[0]!.scene,
+            id: "019ffbf1-eeee-7000-8000-000000000052",
+            order: 3,
+            durationSeconds: 60,
+          },
+        },
+      ],
+    });
+    const { database } = fakeDatabase({
+      ...fixtureOptions,
+      lessonSpecRows: [lessonSpecRow({ payload })],
+    });
+    const { service } = createService(database, approvedStatus);
+    const response = await service.scenes({ ownerUserId, projectId });
+    expect(response.scenes).toHaveLength(3);
+    for (const scene of response.scenes)
+      expect(scene.status).toMatchObject({
+        validation: "ok",
+        stale: false,
+      });
+  });
+});
+
+describe("PostgresStoryboardService.sceneDetail", () => {
+  it("returns the selected scene with its status projection", async () => {
+    const { database } = fakeDatabase({
+      configRows: [configRow()],
+      outlineSetRows: [approvedOutlineSetRow()],
+      outlineItemRows: outlineItemRows(),
+      narrationSetRows: [narrationSetRow()],
+      narrationBlockRows: narrationBlockRows(),
+      lessonSpecRows: [lessonSpecRow()],
+    });
+    const { service } = createService(database, approvedStatus);
+    const response = await service.sceneDetail({
+      ownerUserId,
+      projectId,
+      sceneId: "019ffbf1-eeee-7000-8000-000000000050",
+    });
+    expect(response.scene.stableSceneId).toBe(
+      "019ffbf1-eeee-7000-8000-000000000050",
+    );
+    expect(response.scene.scene.narration).toContain("evaporates");
+    expect(response.status.audio).toBe("not_generated");
+  });
+
+  it("rejects an unknown scene id", async () => {
+    const { database } = fakeDatabase({
+      configRows: [configRow()],
+      outlineSetRows: [approvedOutlineSetRow()],
+      outlineItemRows: outlineItemRows(),
+      narrationSetRows: [narrationSetRow()],
+      narrationBlockRows: narrationBlockRows(),
+      lessonSpecRows: [lessonSpecRow()],
+    });
+    const { service } = createService(database, approvedStatus);
+    await expect(
+      service.sceneDetail({
+        ownerUserId,
+        projectId,
+        sceneId: "019ffbf1-eeee-7000-8000-000000000099",
+      }),
+    ).rejects.toMatchObject({ code: "not_found", statusCode: 404 });
+  });
+
+  it("rejects a scene detail when no storyboard draft exists", async () => {
+    const { database } = fakeDatabase();
+    const { service } = createService(database, approvedStatus);
+    await expect(
+      service.sceneDetail({
+        ownerUserId,
+        projectId,
+        sceneId: "019ffbf1-eeee-7000-8000-000000000050",
+      }),
+    ).rejects.toMatchObject({ code: "not_found", statusCode: 404 });
   });
 });

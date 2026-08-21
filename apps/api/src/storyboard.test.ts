@@ -12,6 +12,8 @@ import {
   type SceneRegenerationResponse,
   type StoryboardGenerationResponse,
   type StoryboardResponse,
+  type StoryboardSceneDetailResponse,
+  type StoryboardSceneListResponse,
 } from "@avlp/schemas";
 import type { StoryboardService } from "./storyboard.js";
 import { createApp, sessionCookieName } from "./app.js";
@@ -35,7 +37,8 @@ function sampleStoryboard(overrides: Record<string, unknown> = {}) {
     scene: {
       id: "019ffbf1-eeee-7000-8000-000000000050",
       order: 1,
-      narration: "Water evaporates when heated and rises as water vapour into the sky.",
+      narration:
+        "Water evaporates when heated and rises as water vapour into the sky.",
       durationSeconds: 30,
       onScreenText: [],
       transition: "cut",
@@ -82,7 +85,9 @@ function sampleStoryboard(overrides: Record<string, unknown> = {}) {
   });
 }
 
-function sampleResponse(overrides: Record<string, unknown> = {}): StoryboardResponse {
+function sampleResponse(
+  overrides: Record<string, unknown> = {},
+): StoryboardResponse {
   return {
     state: "draft",
     storyboard: sampleStoryboard(),
@@ -147,25 +152,54 @@ describe("storyboard API", () => {
       confirmPasswordReset: async () => {},
     };
     const storyboardService: StoryboardService = {
-      generate: vi.fn(
-        async (): Promise<StoryboardGenerationResponse> => ({
-          jobId,
-          status: "queued",
-        }),
-      ),
+      generate: vi.fn(async (): Promise<StoryboardGenerationResponse> => ({
+        jobId,
+        status: "queued",
+      })),
       current: vi.fn(async (): Promise<StoryboardResponse> => sampleResponse()),
-      regenerateScene: vi.fn(
-        async (): Promise<SceneRegenerationResponse> => ({
-          jobId,
-          status: "queued",
-        }),
+      regenerateScene: vi.fn(async (): Promise<SceneRegenerationResponse> => ({
+        jobId,
+        status: "queued",
+      })),
+      applySceneCandidate: vi.fn(async (): Promise<StoryboardResponse> =>
+        sampleResponse(),
       ),
-      applySceneCandidate: vi.fn(
-        async (): Promise<StoryboardResponse> => sampleResponse(),
+      rejectSceneCandidate: vi.fn(async (): Promise<StoryboardResponse> =>
+        sampleResponse(),
       ),
-      rejectSceneCandidate: vi.fn(
-        async (): Promise<StoryboardResponse> => sampleResponse(),
-      ),
+      scenes: vi.fn(async (): Promise<StoryboardSceneListResponse> => ({
+        revision: 0,
+        stale: false,
+        staleReason: null,
+        totalDurationSeconds: 30,
+        targetDurationSeconds: 180,
+        scenes: [
+          {
+            sceneId: "019ffbf1-eeee-7000-8000-000000000050",
+            order: 1,
+            template: "definition",
+            title: null,
+            narrationSummary: "Water evaporates when heated",
+            narrationBlockCount: 1,
+            durationSeconds: 30,
+            status: {
+              assets: "none",
+              audio: "not_generated",
+              validation: "ok",
+              stale: false,
+            },
+          },
+        ],
+      })),
+      sceneDetail: vi.fn(async (): Promise<StoryboardSceneDetailResponse> => ({
+        scene: sampleStoryboard().scenes[0]!,
+        status: {
+          assets: "none",
+          audio: "not_generated",
+          validation: "ok",
+          stale: false,
+        },
+      })),
       ...service,
     };
     app = await createApp({
@@ -376,5 +410,59 @@ describe("storyboard API", () => {
     });
     expect(response.statusCode).toBe(404);
     expect(storyboardService.rejectSceneCandidate).not.toHaveBeenCalled();
+  });
+
+  it("returns the storyboard scene list for the project owner", async () => {
+    const { fixture, server, storyboardService } = await api();
+    const response = await server.inject({
+      method: "GET",
+      url: `/projects/${fixture.projectId}/storyboard/scenes`,
+      cookies: { [sessionCookieName]: "owner" },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(storyboardService.scenes).toHaveBeenCalledWith({
+      ownerUserId: fixture.ownerUserId,
+      projectId: fixture.projectId,
+    });
+    expect(response.json().scenes[0].template).toBe("definition");
+  });
+
+  it("hides the storyboard scene list from another tenant", async () => {
+    const { fixture, server, storyboardService } = await api();
+    const response = await server.inject({
+      method: "GET",
+      url: `/projects/${fixture.projectId}/storyboard/scenes`,
+      cookies: { [sessionCookieName]: "other" },
+    });
+    expect(response.statusCode).toBe(404);
+    expect(storyboardService.scenes).not.toHaveBeenCalled();
+  });
+
+  it("returns the selected storyboard scene detail for the project owner", async () => {
+    const { fixture, server, storyboardService } = await api();
+    const sceneId = "019ffbf1-eeee-7000-8000-000000000050";
+    const response = await server.inject({
+      method: "GET",
+      url: `/projects/${fixture.projectId}/storyboard/scenes/${sceneId}`,
+      cookies: { [sessionCookieName]: "owner" },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(storyboardService.sceneDetail).toHaveBeenCalledWith({
+      ownerUserId: fixture.ownerUserId,
+      projectId: fixture.projectId,
+      sceneId,
+    });
+    expect(response.json().scene.stableSceneId).toBe(sceneId);
+  });
+
+  it("hides a storyboard scene detail from another tenant", async () => {
+    const { fixture, server, storyboardService } = await api();
+    const response = await server.inject({
+      method: "GET",
+      url: `/projects/${fixture.projectId}/storyboard/scenes/019ffbf1-eeee-7000-8000-000000000050`,
+      cookies: { [sessionCookieName]: "other" },
+    });
+    expect(response.statusCode).toBe(404);
+    expect(storyboardService.sceneDetail).not.toHaveBeenCalled();
   });
 });

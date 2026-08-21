@@ -205,9 +205,7 @@ function outlineResponse(projectId) {
 }
 
 function narrationTarget(seconds) {
-  const target = Math.round(
-    (seconds / 60) * 140 * (1 - 0.2),
-  );
+  const target = Math.round((seconds / 60) * 140 * (1 - 0.2));
   return {
     min: Math.max(1, Math.round(target * 0.9)),
     target,
@@ -334,8 +332,61 @@ function storyboardScene(projectId) {
       ],
       generatedAdditions: [],
       template: "definition",
-      visual: { term: "The water cycle", definition: "Water moves through the environment in a continuous cycle." },
+      visual: {
+        term: "The water cycle",
+        definition:
+          "Water moves through the environment in a continuous cycle.",
+      },
     },
+  };
+}
+
+function storyboardSceneTwo(projectId) {
+  return {
+    id: "019ffbf1-6154-738a-b087-6775ff97568c",
+    stableSceneId: "019ffbf1-6154-738a-b087-6775ff97568c",
+    order: 2,
+    template: "summary",
+    durationSeconds: 30,
+    narrationBlockIds: [narrationBlockIdB],
+    assetRequirements: [],
+    scene: {
+      id: "019ffbf1-6154-738a-b087-6775ff97568c",
+      order: 2,
+      narration:
+        "The water cycle repeats as water moves between the sky and the ground.",
+      durationSeconds: 30,
+      onScreenText: ["The cycle repeats"],
+      transition: "fade",
+      assetBindings: [],
+      sourceRefs: [
+        {
+          documentId: "019ffbf1-3333-738a-b087-6775ff97568c",
+          parsedDocumentVersion: 1,
+          pageStart: 1,
+          pageEnd: 1,
+          sectionId: "019ffbf1-1111-738a-b087-6775ff97568c",
+          blockIds: [narrationBlockIdB],
+        },
+      ],
+      generatedAdditions: [],
+      template: "summary",
+      visual: { takeaways: [{ text: "The cycle repeats." }] },
+    },
+  };
+}
+
+function storyboardSceneStatus(scene) {
+  return {
+    assets:
+      scene.scene.assetBindings.length > 0
+        ? "resolved"
+        : scene.assetRequirements.length > 0
+          ? "planned"
+          : "none",
+    audio: "not_generated",
+    validation: "ok",
+    stale: false,
   };
 }
 
@@ -358,10 +409,10 @@ function storyboardDraft(projectId, overrides = {}) {
     title: "The water cycle",
     subject: "Science",
     targetDurationSeconds: 180,
-    totalDurationSeconds: 30,
+    totalDurationSeconds: 60,
     objectiveIds: [outlineObjectiveId],
     contentHash: "d".repeat(64),
-    scenes: [storyboardScene(projectId)],
+    scenes: [storyboardScene(projectId), storyboardSceneTwo(projectId)],
     generatedAt: now,
     createdAt: now,
   };
@@ -371,13 +422,15 @@ function storyboardDraft(projectId, overrides = {}) {
 function storyboardResponse(projectId) {
   const draft = storyboardDraft(projectId);
   const approved = storyboardState.get(`${projectId}:approved`) ?? null;
-  const sceneCandidates = storyboardState.get(`${projectId}:sceneCandidates`) ?? [];
+  const sceneCandidates =
+    storyboardState.get(`${projectId}:sceneCandidates`) ?? [];
   return {
     state: draft.status === "approved" ? "approved" : "draft",
     storyboard: draft,
     approved,
     latestJob: null,
-    latestSceneRegenerationJob: storyboardState.get(`${projectId}:sceneRegenerationJob`) ?? null,
+    latestSceneRegenerationJob:
+      storyboardState.get(`${projectId}:sceneRegenerationJob`) ?? null,
     sceneCandidates,
     canGenerate: true,
     canApprove: false,
@@ -599,7 +652,8 @@ const server = createServer(async (request, response) => {
               contentType: "image/png",
               width: 800,
               height: 600,
-              previewUrl: "http://127.0.0.1:3002/signed-figure/019ffbf1-6114.png",
+              previewUrl:
+                "http://127.0.0.1:3002/signed-figure/019ffbf1-6114.png",
             },
           ],
           tables: [],
@@ -674,7 +728,8 @@ const server = createServer(async (request, response) => {
       return send(response, 409, {
         error: {
           code: "bad_request",
-          message: "The lesson configuration changed. Please refresh and try again.",
+          message:
+            "The lesson configuration changed. Please refresh and try again.",
           retryable: false,
         },
       });
@@ -874,6 +929,44 @@ const server = createServer(async (request, response) => {
         status: "queued",
       });
     }
+    if (request.method === "GET" && rest === "scenes") {
+      const project = projects.get(projectId);
+      if (project === undefined)
+        return send(response, 404, { error: { code: "not_found" } });
+      const draft = storyboardDraft(projectId);
+      return send(response, 200, {
+        revision: draft.revision,
+        stale: false,
+        staleReason: null,
+        totalDurationSeconds: draft.totalDurationSeconds,
+        targetDurationSeconds: draft.targetDurationSeconds,
+        scenes: draft.scenes.map((scene) => ({
+          sceneId: scene.stableSceneId,
+          order: scene.order,
+          template: scene.template,
+          title: scene.scene.title ?? null,
+          narrationSummary: scene.scene.narration.slice(0, 120),
+          narrationBlockCount: scene.narrationBlockIds.length,
+          durationSeconds: scene.durationSeconds,
+          status: storyboardSceneStatus(scene),
+        })),
+      });
+    }
+    const sceneDetailMatch = rest.match(/^scenes\/([^/]+)$/);
+    if (request.method === "GET" && sceneDetailMatch !== null) {
+      const project = projects.get(projectId);
+      if (project === undefined)
+        return send(response, 404, { error: { code: "not_found" } });
+      const sceneId = decodeURIComponent(sceneDetailMatch[1]);
+      const draft = storyboardDraft(projectId);
+      const scene = draft.scenes.find((item) => item.stableSceneId === sceneId);
+      if (scene === undefined)
+        return send(response, 404, { error: { code: "not_found" } });
+      return send(response, 200, {
+        scene,
+        status: storyboardSceneStatus(scene),
+      });
+    }
     return send(response, 404, { error: { code: "not_found" } });
   }
   const sceneRegenerateMatch = url.pathname.match(
@@ -890,36 +983,39 @@ const server = createServer(async (request, response) => {
     if (scene === undefined)
       return send(response, 404, { error: { code: "not_found" } });
     const candidateId = "019ffbf1-6152-738a-b087-6775ff97568c";
-    const candidates = storyboardState.get(`${projectId}:sceneCandidates`) ?? [];
-    storyboardState.set(`${projectId}:sceneCandidates`, [
-      ...candidates,
-      {
-        id: candidateId,
-        sceneId,
-        mode: "improve-visual",
-        before: scene,
-        after: {
-          ...scene,
-          template: "labelled-diagram",
-          scene: {
-            ...scene.scene,
+    const candidates =
+      storyboardState.get(`${projectId}:sceneCandidates`) ?? [];
+    if (!candidates.some((item) => item.id === candidateId)) {
+      storyboardState.set(`${projectId}:sceneCandidates`, [
+        ...candidates,
+        {
+          id: candidateId,
+          sceneId,
+          mode: "improve-visual",
+          before: scene,
+          after: {
+            ...scene,
             template: "labelled-diagram",
-            visual: {
-              kind: "shapes",
-              shape: "system",
-              labels: [
-                { anchor: "center", id: "water", text: "Water" },
-                { anchor: "top", id: "vapour", text: "Vapour" },
-              ],
+            scene: {
+              ...scene.scene,
+              template: "labelled-diagram",
+              visual: {
+                kind: "shapes",
+                shape: "system",
+                labels: [
+                  { anchor: "center", id: "water", text: "Water" },
+                  { anchor: "top", id: "vapour", text: "Vapour" },
+                ],
+              },
             },
           },
+          status: "pending",
+          sceneRevision: 0,
+          modelCallId: "019ffbf1-6150-738a-b087-6775ff97568c",
+          createdAt: now,
         },
-        status: "pending",
-        sceneRevision: 0,
-        modelCallId: "019ffbf1-6150-738a-b087-6775ff97568c",
-        createdAt: now,
-      },
-    ]);
+      ]);
+    }
     return send(response, 202, {
       jobId: "019ffbf1-6153-738a-b087-6775ff97568c",
       status: "queued",
@@ -938,13 +1034,17 @@ const server = createServer(async (request, response) => {
     let body = "";
     for await (const chunk of request) body += chunk;
     const input = JSON.parse(body);
-    const candidates = storyboardState.get(`${projectId}:sceneCandidates`) ?? [];
+    const candidates =
+      storyboardState.get(`${projectId}:sceneCandidates`) ?? [];
     const candidate = candidates.find((item) => item.id === input.candidateId);
     if (candidate === undefined)
       return send(response, 404, { error: { code: "not_found" } });
     if (candidate.status !== "pending")
       return send(response, 409, {
-        error: { code: "bad_request", message: "The candidate is no longer pending." },
+        error: {
+          code: "bad_request",
+          message: "The candidate is no longer pending.",
+        },
       });
     const draft = storyboardDraft(projectId);
     const scene = draft.scenes.find((item) => item.stableSceneId === sceneId);
@@ -952,9 +1052,7 @@ const server = createServer(async (request, response) => {
       return send(response, 404, { error: { code: "not_found" } });
     if (decision === "apply") {
       const replacement = candidates.map((item) =>
-        item.id === candidate.id
-          ? { ...item, status: "accepted" }
-          : item,
+        item.id === candidate.id ? { ...item, status: "accepted" } : item,
       );
       storyboardState.set(`${projectId}:sceneCandidates`, replacement);
       const updatedScenes = draft.scenes.map((item) =>
@@ -966,9 +1064,12 @@ const server = createServer(async (request, response) => {
         scenes: updatedScenes,
       });
     } else {
-      storyboardState.set(`${projectId}:sceneCandidates`, candidates.map((item) =>
-        item.id === candidate.id ? { ...item, status: "rejected" } : item,
-      ));
+      storyboardState.set(
+        `${projectId}:sceneCandidates`,
+        candidates.map((item) =>
+          item.id === candidate.id ? { ...item, status: "rejected" } : item,
+        ),
+      );
     }
     return send(response, 200, storyboardResponse(projectId));
   }
@@ -1059,7 +1160,11 @@ const server = createServer(async (request, response) => {
             claimId: "019ffbf1-6151-738a-b087-6775ff975692",
             status: "supported",
             supportedSpans: [
-              { start: 0, end: 20, sourceBlockId: "019ffbf1-6120-738a-b087-6775ff97568c" },
+              {
+                start: 0,
+                end: 20,
+                sourceBlockId: "019ffbf1-6120-738a-b087-6775ff97568c",
+              },
             ],
             unsupportedSpans: [],
             modelAssisted: true,
@@ -1067,7 +1172,13 @@ const server = createServer(async (request, response) => {
             checkedAt: "2026-08-20T10:00:00.000Z",
           },
         ],
-        summary: { total: 1, supported: 1, unsupported: 0, generatedAddition: 0, needsReview: 0 },
+        summary: {
+          total: 1,
+          supported: 1,
+          unsupported: 0,
+          generatedAddition: 0,
+          needsReview: 0,
+        },
         modelCalls: ["019ffbf1-6151-738a-b087-6775ff975693"],
         createdAt: "2026-08-20T10:00:00.000Z",
       },
@@ -1138,7 +1249,8 @@ const server = createServer(async (request, response) => {
   }
   const objectivesMatch = url.pathname.match(
     /^\/projects\/([^/]+)\/objectives(?:\/([^/]+))?$/,
-  );  if (objectivesMatch !== null) {
+  );
+  if (objectivesMatch !== null) {
     const projectId = decodeURIComponent(objectivesMatch[1]);
     const project = projects.get(projectId);
     if (project === undefined)
@@ -1171,9 +1283,7 @@ const server = createServer(async (request, response) => {
             statement: input.statement,
             verb: input.verb,
             confidence: 1,
-            sourceRefs: input.sourceBlockIds
-              ? objectiveSourceRef()
-              : [],
+            sourceRefs: input.sourceBlockIds ? objectiveSourceRef() : [],
             generated: false,
             revision: 0,
             groundingStatus: input.sourceBlockIds ? "supported" : "unsupported",
@@ -1288,9 +1398,17 @@ const server = createServer(async (request, response) => {
       return send(response, 404, { error: { code: "not_found" } });
     const subPath = outlineMatch[3];
     const itemId = outlineMatch[2];
-    if (request.method === "GET" && subPath === undefined && itemId === undefined)
+    if (
+      request.method === "GET" &&
+      subPath === undefined &&
+      itemId === undefined
+    )
       return send(response, 200, outlineResponse(projectId));
-    if (request.method === "POST" && subPath === undefined && itemId === undefined) {
+    if (
+      request.method === "POST" &&
+      subPath === undefined &&
+      itemId === undefined
+    ) {
       let body = "";
       for await (const chunk of request) body += chunk;
       const input = JSON.parse(body);

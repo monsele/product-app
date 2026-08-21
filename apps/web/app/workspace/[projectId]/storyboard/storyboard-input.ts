@@ -2,9 +2,50 @@ import type {
   SceneCandidate,
   SceneRegenerationMode,
   StoryboardGenerationState,
+  StoryboardSceneAssetStatus,
+  StoryboardSceneAudioStatus,
+  StoryboardSceneValidationStatus,
   StoryboardValidation,
 } from "@avlp/schemas";
 export type { StoryboardValidation };
+
+/** Human-readable label for a scene asset-readiness projection. */
+export function sceneAssetStatusLabel(
+  status: StoryboardSceneAssetStatus,
+): string {
+  switch (status) {
+    case "none":
+      return "No assets planned";
+    case "planned":
+      return "Assets planned";
+    case "resolved":
+      return "Assets resolved";
+  }
+}
+
+/** Human-readable label for a scene audio-readiness projection. */
+export function sceneAudioStatusLabel(
+  status: StoryboardSceneAudioStatus,
+): string {
+  switch (status) {
+    case "not_generated":
+      return "No audio generated";
+  }
+}
+
+/** Human-readable label for a scene validation projection. */
+export function sceneValidationStatusLabel(
+  status: StoryboardSceneValidationStatus,
+): string {
+  switch (status) {
+    case "ok":
+      return "Valid";
+    case "warning":
+      return "Needs attention";
+    case "error":
+      return "Invalid";
+  }
+}
 
 /** Human-readable label for the storyboard review route state. */
 export function storyboardGenerationStateLabel(
@@ -41,7 +82,9 @@ export function sceneRegenerationModeLabel(
 }
 
 /** Human-readable label for a scene candidate status. */
-export function sceneCandidateStatusLabel(status: SceneCandidate["status"]): string {
+export function sceneCandidateStatusLabel(
+  status: SceneCandidate["status"],
+): string {
   switch (status) {
     case "pending":
       return "Pending review";

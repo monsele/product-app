@@ -5350,3 +5350,107 @@ export const storyboardResponseSchema = z
   })
   .strict();
 export type StoryboardResponse = z.infer<typeof storyboardResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// ST-054 — Storyboard scene list, selection, and navigation read model
+// ---------------------------------------------------------------------------
+
+/** Asset-readiness projection for one storyboard scene. */
+export const storyboardSceneAssetStatusValues = [
+  "none",
+  "planned",
+  "resolved",
+] as const;
+export const storyboardSceneAssetStatusSchema = z.enum(
+  storyboardSceneAssetStatusValues,
+);
+export type StoryboardSceneAssetStatus = z.infer<
+  typeof storyboardSceneAssetStatusSchema
+>;
+
+/**
+ * Audio-readiness projection for one storyboard scene. Audio generation lands
+ * in ST-063; until then every scene reports `not_generated`.
+ */
+export const storyboardSceneAudioStatusValues = ["not_generated"] as const;
+export const storyboardSceneAudioStatusSchema = z.enum(
+  storyboardSceneAudioStatusValues,
+);
+export type StoryboardSceneAudioStatus = z.infer<
+  typeof storyboardSceneAudioStatusSchema
+>;
+
+/** Validation-readiness projection for one storyboard scene. */
+export const storyboardSceneValidationStatusValues = [
+  "ok",
+  "warning",
+  "error",
+] as const;
+export const storyboardSceneValidationStatusSchema = z.enum(
+  storyboardSceneValidationStatusValues,
+);
+export type StoryboardSceneValidationStatus = z.infer<
+  typeof storyboardSceneValidationStatusSchema
+>;
+
+/** Status projection attached to each storyboard scene list entry and detail. */
+export const storyboardSceneStatusSchema = z
+  .object({
+    assets: storyboardSceneAssetStatusSchema,
+    audio: storyboardSceneAudioStatusSchema,
+    validation: storyboardSceneValidationStatusSchema,
+    stale: z.boolean(),
+  })
+  .strict();
+export type StoryboardSceneStatus = z.infer<typeof storyboardSceneStatusSchema>;
+
+/** One lightweight scene summary for the ordered storyboard editor list. */
+export const storyboardSceneListEntrySchema = z
+  .object({
+    sceneId: identifierSchema,
+    order: z.number().int().positive(),
+    template: sceneTemplateSchema,
+    title: boundedText(160).nullable(),
+    narrationSummary: boundedText(200),
+    narrationBlockCount: z.number().int().min(1).max(100),
+    durationSeconds: z
+      .number()
+      .int()
+      .min(storyboardSceneMinimumSeconds)
+      .max(storyboardSceneMaximumSeconds),
+    status: storyboardSceneStatusSchema,
+  })
+  .strict();
+export type StoryboardSceneListEntry = z.infer<
+  typeof storyboardSceneListEntrySchema
+>;
+
+/**
+ * `GET /projects/:id/storyboard/scenes` response. The list carries the
+ * storyboard revision so the editor can key its query cache by it and refetch
+ * whenever the draft changes.
+ */
+export const storyboardSceneListResponseSchema = z
+  .object({
+    revision: z.number().int().nonnegative(),
+    stale: z.boolean(),
+    staleReason: z.string().max(500).nullable(),
+    totalDurationSeconds: z.number().int().positive(),
+    targetDurationSeconds: targetDurationSecondsSchema,
+    scenes: z.array(storyboardSceneListEntrySchema).min(1).max(100),
+  })
+  .strict();
+export type StoryboardSceneListResponse = z.infer<
+  typeof storyboardSceneListResponseSchema
+>;
+
+/** `GET /projects/:id/storyboard/scenes/:sceneId` response. */
+export const storyboardSceneDetailResponseSchema = z
+  .object({
+    scene: lessonStoryboardSceneSchema,
+    status: storyboardSceneStatusSchema,
+  })
+  .strict();
+export type StoryboardSceneDetailResponse = z.infer<
+  typeof storyboardSceneDetailResponseSchema
+>;

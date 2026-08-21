@@ -1,30 +1,41 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  sceneRegenerationModeValues,
   storyboardResponseSchema,
-  type LessonStoryboard,
-  type LessonStoryboardScene,
-  type SceneCandidate,
-  type SceneRegenerationMode,
   type StoryboardResponse,
+  type StoryboardSceneDetailResponse,
+  type StoryboardSceneListResponse,
 } from "@avlp/schemas";
 import {
   isGenerating,
-  sceneCandidateStatusLabel,
   sceneRegenerationFailureMessage,
-  sceneRegenerationModeLabel,
   storyboardFailureMessage,
   storyboardGenerationStateLabel,
   storyboardValidationWarnings,
 } from "./storyboard-input";
-import { SceneCitations } from "./citation-panel";
-import { SceneGrounding } from "./grounding-panel";
+import {
+  cachedStoryboardSceneList,
+  fetchStoryboardSceneDetail,
+  fetchStoryboardSceneList,
+  invalidateStoryboardSceneList,
+} from "./storyboard-scene-query";
+import { SceneList } from "./scene-list";
+import { SceneDetailPanel } from "./scene-detail-panel";
 
 type ViewState =
   | { kind: "loading" }
   | { kind: "ready"; value: StoryboardResponse }
+  | { kind: "failed"; message: string };
+
+type SceneListViewState =
+  | { kind: "loading" }
+  | { kind: "ready"; value: StoryboardSceneListResponse }
+  | { kind: "failed"; message: string };
+
+type SceneDetailState =
+  | { kind: "loading" }
+  | { kind: "ready"; value: StoryboardSceneDetailResponse }
   | { kind: "failed"; message: string };
 
 function apiUrl(path: string): string {
@@ -43,8 +54,13 @@ function extractErrorMessage(payload: unknown, fallback: string): string {
     : fallback;
 }
 
-function visualSummary(scene: LessonStoryboardScene): string {
-  return JSON.stringify(scene.scene.visual).slice(0, 200);
+/** Reads the deep-linked scene id from the URL hash, e.g. `#scene=<id>`. */
+function readHashSceneId(): string | null {
+  if (typeof window === "undefined") return null;
+  const hash = window.location.hash;
+  if (!hash.startsWith("#scene=")) return null;
+  const sceneId = decodeURIComponent(hash.slice("#scene=".length));
+  return sceneId.length === 0 ? null : sceneId;
 }
 
 export function StoryboardPanel({ projectId }: { projectId: string }) {
@@ -52,10 +68,13 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
   const [pending, setPending] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
-  const [sceneForms, setSceneForms] = useState<Record<string, SceneRegenerationMode>>(
-    {},
-  );
   const [pendingScenes, setPendingScenes] = useState<Set<string>>(new Set());
+  const [sceneList, setSceneList] = useState<SceneListViewState>({
+    kind: "loading",
+  });
+  const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<SceneDetailState>({ kind: "loading" });
+  const [detailAttempt, setDetailAttempt] = useState(0);
 
   const refresh = useCallback(async () => {
     const response = await fetch(
@@ -106,6 +125,7 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
 
   const value = view.kind === "ready" ? view.value : null;
   const generating = value !== null && isGenerating(value.state);
+  const revision = value?.storyboard?.revision ?? null;
 
   useEffect(() => {
     if (!pending && !generating && pendingScenes.size === 0) return;
@@ -123,7 +143,9 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
     setPending(true);
     try {
       const response = await fetch(
-        apiUrl(`/projects/${encodeURIComponent(projectId)}/storyboard/generate`),
+        apiUrl(
+          `/projects/${encodeURIComponent(projectId)}/storyboard/generate`,
+        ),
         {
           method: "POST",
           credentials: "include",
@@ -152,6 +174,131 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
     }
   }, [projectId, refresh]);
 
+  // Load the lightweight scene list keyed by project and storyboard revision.
+  useEffect(() => {
+    if (revision === null) {
+      setSceneList({ kind: "loading" });
+      return;
+    }
+    const cached = cachedStoryboardSceneList(projectId, revision);
+    setSceneList(
+      cached === undefined
+        ? { kind: "loading" }
+        : { kind: "ready", value: cached },
+    );
+    let cancelled = false;
+    void fetchStoryboardSceneList(projectId)
+      .then((value) => {
+        if (!cancelled) setSceneList({ kind: "ready", value });
+      })
+      .catch(() => {
+        if (!cancelled)
+          setSceneList((current) =>
+            current.kind === "ready"
+              ? current
+              : {
+                  kind: "failed",
+                  message: "The storyboard scene list could not be loaded.",
+                },
+          );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, revision]);
+
+  const listScenes = sceneList.kind === "ready" ? sceneList.value.scenes : [];
+
+  // Keep a valid selection: the deep-linked scene from the URL hash when
+  // present, otherwise the first scene. The selection survives storyboard saves
+  // and refetches because stable scene ids persist across revisions.
+  useEffect(() => {
+    if (listScenes.length === 0) return;
+    setSelectedSceneId((current) => {
+      if (
+        current !== null &&
+        listScenes.some((scene) => scene.sceneId === current)
+      )
+        return current;
+      const hashScene = readHashSceneId();
+      const preferred =
+        hashScene !== null &&
+        listScenes.some((scene) => scene.sceneId === hashScene)
+          ? hashScene
+          : listScenes[0]!.sceneId;
+      return preferred;
+    });
+  }, [listScenes]);
+
+  // Honor hash changes and back/forward navigation for the deep-linked scene.
+  useEffect(() => {
+    const onLocationChange = (): void => {
+      const scene = readHashSceneId();
+      if (scene !== null) setSelectedSceneId(scene);
+    };
+    window.addEventListener("hashchange", onLocationChange);
+    window.addEventListener("popstate", onLocationChange);
+    return () => {
+      window.removeEventListener("hashchange", onLocationChange);
+      window.removeEventListener("popstate", onLocationChange);
+    };
+  }, []);
+
+  const selectScene = useCallback((sceneId: string) => {
+    setSelectedSceneId(sceneId);
+    window.location.hash = `scene=${encodeURIComponent(sceneId)}`;
+  }, []);
+
+  // Fetch full scene JSON only for the selected scene, and refresh it whenever
+  // the storyboard revision changes so the panel never shows stale persisted
+  // state after a save.
+  useEffect(() => {
+    if (selectedSceneId === null) {
+      setDetail({ kind: "loading" });
+      return;
+    }
+    setDetail({ kind: "loading" });
+    let cancelled = false;
+    void fetchStoryboardSceneDetail(projectId, selectedSceneId)
+      .then((value) => {
+        if (!cancelled) setDetail({ kind: "ready", value });
+      })
+      .catch(() => {
+        if (!cancelled)
+          setDetail({
+            kind: "failed",
+            message: "The selected scene could not be loaded.",
+          });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, selectedSceneId, revision, detailAttempt]);
+
+  const onStoryboardChanged = useCallback(() => {
+    invalidateStoryboardSceneList(projectId);
+    void refresh().catch(() => undefined);
+  }, [projectId, refresh]);
+
+  const markScenePending = useCallback((sceneId: string) => {
+    setPendingScenes((current) => new Set(current).add(sceneId));
+  }, []);
+
+  const markSceneDone = useCallback((sceneId: string) => {
+    setPendingScenes((current) => {
+      const next = new Set(current);
+      next.delete(sceneId);
+      return next;
+    });
+  }, []);
+
+  const storyboard = value?.storyboard ?? null;
+  const warnings = useMemo(
+    () =>
+      value === null ? [] : storyboardValidationWarnings(value.validation),
+    [value],
+  );
+
   if (view.kind === "loading")
     return (
       <section aria-labelledby="storyboard-heading">
@@ -170,10 +317,6 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
         </button>
       </section>
     );
-
-  const storyboard = view.value.storyboard;
-  const approved = view.value.approved;
-  const warnings = storyboardValidationWarnings(view.value.validation);
 
   return (
     <section aria-labelledby="storyboard-heading">
@@ -224,7 +367,8 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
         </p>
       ))}
 
-      {approved !== null && approved.id !== storyboard?.id ? (
+      {view.value.approved !== null &&
+      view.value.approved.id !== storyboard?.id ? (
         <p role="status">
           An approved storyboard still guides production until you review this
           draft.
@@ -238,330 +382,53 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
           storyboard.
         </p>
       ) : (
-        <StoryboardDraft
-          storyboard={storyboard}
-          approved={approved}
-          projectId={projectId}
-          generating={generating}
-          sceneForms={sceneForms}
-          setSceneForm={setSceneForms}
-          pendingScenes={pendingScenes}
-          setPendingScenes={setPendingScenes}
-          sceneCandidates={view.value.sceneCandidates}
-          setActionMessage={setActionMessage}
-        />
+        <div style={{ display: "flex", gap: 24 }}>
+          <div style={{ flex: "1 1 45%" }}>
+            <h3>Scene list</h3>
+            {sceneList.kind === "loading" ? (
+              <p role="status">Loading the scene list…</p>
+            ) : sceneList.kind === "failed" ? (
+              <p role="alert">{sceneList.message}</p>
+            ) : (
+              <SceneList
+                scenes={listScenes}
+                selectedSceneId={selectedSceneId}
+                stale={view.value.stale}
+                onSelect={selectScene}
+              />
+            )}
+          </div>
+          <div style={{ flex: "1 1 55%" }}>
+            {selectedSceneId === null ? (
+              <p role="status">Select a scene to see its detail.</p>
+            ) : detail.kind === "loading" ? (
+              <p role="status">Loading the selected scene…</p>
+            ) : detail.kind === "failed" ? (
+              <section aria-label="Selected scene detail">
+                <p role="alert">{detail.message}</p>
+                <button
+                  type="button"
+                  onClick={() => setDetailAttempt((current) => current + 1)}
+                >
+                  Try again
+                </button>
+              </section>
+            ) : (
+              <SceneDetailPanel
+                projectId={projectId}
+                detail={detail.value}
+                lessonSpecId={storyboard.id}
+                lessonSpecRevision={storyboard.revision}
+                sceneCandidates={view.value.sceneCandidates}
+                generating={generating}
+                onChanged={onStoryboardChanged}
+                onScenePending={markScenePending}
+                onSceneDone={markSceneDone}
+              />
+            )}
+          </div>
+        </div>
       )}
     </section>
-  );
-}
-
-function StoryboardDraft({
-  storyboard,
-  approved,
-  projectId,
-  generating,
-  sceneForms,
-  setSceneForm,
-  pendingScenes,
-  setPendingScenes,
-  sceneCandidates,
-  setActionMessage,
-}: {
-  storyboard: LessonStoryboard;
-  approved: LessonStoryboard | null;
-  projectId: string;
-  generating: boolean;
-  sceneForms: Record<string, SceneRegenerationMode>;
-  setSceneForm: (value: Record<string, SceneRegenerationMode>) => void;
-  pendingScenes: Set<string>;
-  setPendingScenes: (value: Set<string>) => void;
-  sceneCandidates: readonly SceneCandidate[];
-  setActionMessage: (message: string | null) => void;
-}) {
-  const [busy, setBusy] = useState(false);
-
-  const regenerateScene = useCallback(
-    async (sceneId: string, mode: SceneRegenerationMode) => {
-      setActionMessage(null);
-      setBusy(true);
-      setPendingScenes(new Set(pendingScenes).add(sceneId));
-      try {
-        const response = await fetch(
-          apiUrl(
-            `/projects/${encodeURIComponent(projectId)}/scenes/${encodeURIComponent(sceneId)}/regenerate`,
-          ),
-          {
-            method: "POST",
-            credentials: "include",
-            cache: "no-store",
-            headers: {
-              "idempotency-key": globalThis.crypto.randomUUID(),
-              "content-type": "application/json",
-            },
-            body: JSON.stringify({ mode, expectedRevision: storyboard.revision }),
-          },
-        );
-        const payload: unknown = await response.json().catch(() => null);
-        if (!response.ok)
-          throw new Error(
-            extractErrorMessage(
-              payload,
-              "Unable to start scene regeneration.",
-            ),
-          );
-      } catch (error) {
-        setPendingScenes(new Set());
-        setActionMessage(
-          error instanceof Error
-            ? error.message
-            : "Unable to start scene regeneration.",
-        );
-      } finally {
-        setBusy(false);
-      }
-    },
-    [projectId, setPendingScenes, setActionMessage, storyboard.revision],
-  );
-
-  const decideCandidate = useCallback(
-    async (
-      sceneId: string,
-      candidate: SceneCandidate,
-      decision: "apply" | "reject",
-    ) => {
-      setActionMessage(null);
-      setBusy(true);
-      try {
-        const response = await fetch(
-          apiUrl(
-            `/projects/${encodeURIComponent(projectId)}/scenes/${encodeURIComponent(sceneId)}/${decision}-candidate`,
-          ),
-          {
-            method: "POST",
-            credentials: "include",
-            cache: "no-store",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({
-              candidateId: candidate.id,
-              expectedRevision: storyboard.revision,
-              expectedSceneRevision: candidate.sceneRevision,
-            }),
-          },
-        );
-        const payload: unknown = await response.json().catch(() => null);
-        if (!response.ok)
-          throw new Error(
-            extractErrorMessage(
-              payload,
-              decision === "apply"
-                ? "Unable to apply the regenerated scene."
-                : "Unable to discard the regenerated scene.",
-            ),
-          );
-      } catch (error) {
-        setActionMessage(
-          error instanceof Error
-            ? error.message
-            : decision === "apply"
-              ? "Unable to apply the regenerated scene."
-              : "Unable to discard the regenerated scene.",
-        );
-      } finally {
-        setBusy(false);
-      }
-    },
-    [projectId, setActionMessage, storyboard.revision],
-  );
-
-  const candidatesByScene = new Map<string, SceneCandidate[]>();
-  for (const candidate of sceneCandidates)
-    candidatesByScene.set(candidate.sceneId, [
-      ...(candidatesByScene.get(candidate.sceneId) ?? []),
-      candidate,
-    ]);
-
-  return (
-    <div>
-      <p>
-        {storyboard.status === "approved" ? "Approved" : "Draft"} storyboard{" "}
-        {storyboard.id.slice(0, 8)} — prompt {storyboard.promptId}@
-        {storyboard.promptVersion}, configuration v
-        {storyboard.configurationVersion}. Total duration:{" "}
-        {storyboard.totalDurationSeconds} seconds (target{" "}
-        {storyboard.targetDurationSeconds}).
-      </p>
-
-      <ol aria-label="Storyboard scenes" data-testid="storyboard-scenes">
-        {storyboard.scenes.map((scene) => (
-          <li key={scene.id} data-testid={`storyboard-scene-${scene.id}`}>
-            <p>
-              {scene.order}. {scene.template} — {scene.durationSeconds}s ·{" "}
-              {scene.narrationBlockIds.length} narration block
-              {scene.narrationBlockIds.length === 1 ? "" : "s"}
-              {scene.scene.title !== undefined
-                ? ` · ${scene.scene.title}`
-                : ""}
-            </p>
-            <p>{scene.scene.narration}</p>
-            {scene.scene.onScreenText.length > 0 ? (
-              <p>On screen: {scene.scene.onScreenText.join(" · ")}</p>
-            ) : null}
-            <p>Visual: {visualSummary(scene)}</p>
-            {scene.assetRequirements.length > 0 ? (
-              <ul aria-label="Planned assets">
-                {scene.assetRequirements.map((requirement, index) => (
-                  <li key={`${requirement.slot}-${index}`}>
-                    {requirement.slot}: {requirement.purpose}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-
-            <div>
-              <label htmlFor={`scene-mode-${scene.stableSceneId}`}>
-                Regenerate this scene
-              </label>{" "}
-              <select
-                id={`scene-mode-${scene.stableSceneId}`}
-                value={sceneForms[scene.stableSceneId] ?? "regenerate"}
-                onChange={(event) =>
-                  setSceneForm({
-                    ...sceneForms,
-                    [scene.stableSceneId]: event.target
-                      .value as SceneRegenerationMode,
-                  })
-                }
-                disabled={busy || pendingScenes.has(scene.stableSceneId)}
-              >
-                {sceneRegenerationModeValues.map((mode) => (
-                  <option key={mode} value={mode}>
-                    {sceneRegenerationModeLabel(mode)}
-                  </option>
-                ))}
-              </select>{" "}
-              <button
-                type="button"
-                data-testid={`storyboard-scene-regenerate-${scene.stableSceneId}`}
-                onClick={() =>
-                  void regenerateScene(
-                    scene.stableSceneId,
-                    sceneForms[scene.stableSceneId] ?? "regenerate",
-                  )
-                }
-                disabled={
-                  busy ||
-                  pendingScenes.has(scene.stableSceneId) ||
-                  generating
-                }
-              >
-                {pendingScenes.has(scene.stableSceneId)
-                  ? "Regenerating…"
-                  : "Regenerate scene"}
-              </button>
-            </div>
-
-            <SceneCandidates
-              candidates={candidatesByScene.get(scene.stableSceneId) ?? []}
-              busy={busy}
-              onDecide={(candidate, decision) =>
-                void decideCandidate(scene.stableSceneId, candidate, decision)
-              }
-            />
-
-            <SceneCitations
-              projectId={projectId}
-              sceneId={scene.stableSceneId}
-            />
-
-            <SceneGrounding
-              projectId={projectId}
-              sceneId={scene.stableSceneId}
-              lessonSpecId={storyboard.id}
-              lessonSpecRevision={storyboard.revision}
-            />
-          </li>
-        ))}
-      </ol>
-
-      {approved !== null ? (
-        <section aria-label="Approved storyboard">
-          <h3>Approved storyboard</h3>
-          <ol>
-            {approved.scenes.map((scene) => (
-              <li key={scene.id}>
-                {scene.order}. {scene.template} · {scene.durationSeconds}s
-              </li>
-            ))}
-          </ol>
-        </section>
-      ) : null}
-
-      <p role="status">
-        <a href={`/workspace/${encodeURIComponent(projectId)}/narration`}>
-          Review the narration
-        </a>{" "}
-        if the storyboard does not match your plan.
-      </p>
-    </div>
-  );
-}
-
-function SceneCandidates({
-  candidates,
-  busy,
-  onDecide,
-}: {
-  candidates: readonly SceneCandidate[];
-  busy: boolean;
-  onDecide: (candidate: SceneCandidate, decision: "apply" | "reject") => void;
-}) {
-  if (candidates.length === 0) return null;
-  return (
-    <ul aria-label="Scene regeneration candidates">
-      {candidates.map((candidate) => (
-        <li key={candidate.id} data-testid={`storyboard-candidate-${candidate.id}`}>
-          <p>
-            {sceneRegenerationModeLabel(candidate.mode)} —{" "}
-            {sceneCandidateStatusLabel(candidate.status)}
-          </p>
-          <section aria-label="Before">
-            <h4>Before</h4>
-            <p>
-              {candidate.before.template} · {candidate.before.durationSeconds}s
-            </p>
-            <p>{candidate.before.scene.narration}</p>
-            <p>Visual: {visualSummary(candidate.before)}</p>
-          </section>
-          <section aria-label="After">
-            <h4>After</h4>
-            <p>
-              {candidate.after.template} · {candidate.after.durationSeconds}s
-            </p>
-            <p>{candidate.after.scene.narration}</p>
-            <p>Visual: {visualSummary(candidate.after)}</p>
-          </section>
-          {candidate.status === "pending" ? (
-            <div>
-              <button
-                type="button"
-                data-testid={`storyboard-candidate-apply-${candidate.id}`}
-                onClick={() => onDecide(candidate, "apply")}
-                disabled={busy}
-              >
-                Apply candidate
-              </button>{" "}
-              <button
-                type="button"
-                data-testid={`storyboard-candidate-reject-${candidate.id}`}
-                onClick={() => onDecide(candidate, "reject")}
-                disabled={busy}
-              >
-                Discard candidate
-              </button>
-            </div>
-          ) : null}
-        </li>
-      ))}
-    </ul>
   );
 }
