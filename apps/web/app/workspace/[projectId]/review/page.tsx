@@ -20,12 +20,15 @@ function isProjectPayload(value: unknown): value is ProjectPayload {
 
 export default async function IngestionReviewPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ section?: string; block?: string }>;
 }) {
   const token = (await cookies()).get("avlp_session")?.value;
   if (token === undefined) redirect("/sign-in");
   const { projectId } = await params;
+  const query = await searchParams;
   const response = await fetch(
     `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}/projects/${encodeURIComponent(projectId)}`,
     {
@@ -39,7 +42,13 @@ export default async function IngestionReviewPage({
     <main>
       <h1>Review extracted document</h1>
       <p>{payload.project.title}</p>
-      <IngestionReviewViewer projectId={projectId} />
+      <IngestionReviewViewer
+        projectId={projectId}
+        {...(query.section === undefined
+          ? {}
+          : { focusSectionId: query.section })}
+        {...(query.block === undefined ? {} : { focusBlockId: query.block })}
+      />
       <a href="/workspace">Back to workspace</a>
     </main>
   );

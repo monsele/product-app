@@ -68,6 +68,7 @@ import type { ObjectivesService } from "./objectives.js";
 import type { OutlineService } from "./outline.js";
 import type { NarrationService } from "./narration.js";
 import type { StoryboardService } from "./storyboard.js";
+import type { CitationService } from "./citations.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
 const TELEMETRY_SHUTDOWN = Symbol("TELEMETRY_SHUTDOWN");
@@ -89,6 +90,7 @@ const OBJECTIVES_SERVICE = Symbol("OBJECTIVES_SERVICE");
 const OUTLINE_SERVICE = Symbol("OUTLINE_SERVICE");
 const NARRATION_SERVICE = Symbol("NARRATION_SERVICE");
 const STORYBOARD_SERVICE = Symbol("STORYBOARD_SERVICE");
+const CITATION_SERVICE = Symbol("CITATION_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -315,6 +317,7 @@ type StoryboardApiService = Pick<
   | "applySceneCandidate"
   | "rejectSceneCandidate"
 >;
+type CitationApiService = Pick<CitationService, "forScene">;
 
 @Controller("projects")
 class ProjectsController {
@@ -346,6 +349,8 @@ class ProjectsController {
     private readonly narration: NarrationApiService,
     @Inject(STORYBOARD_SERVICE)
     private readonly storyboard: StoryboardApiService,
+    @Inject(CITATION_SERVICE)
+    private readonly citations: CitationApiService,
   ) {}
 
   @Post()
@@ -1279,6 +1284,27 @@ class ProjectsController {
     });
   }
 
+  @Get(":projectId/scenes/:sceneId/citations")
+  public async sceneCitations(
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneIdInput: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    const sceneId = identifierSchema.safeParse(sceneIdInput);
+    if (!sceneId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.citations.forScene({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      sceneId: sceneId.data,
+    });
+  }
+
   @Post(":projectId/source-upload/:sessionId/complete")
   @HttpCode(202)
   public async completeSourceUpload(
@@ -1457,6 +1483,7 @@ function createAppModule(
   outlineService: OutlineApiService,
   narrationService: NarrationApiService,
   storyboardService: StoryboardApiService,
+  citationService: CitationApiService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -1491,6 +1518,7 @@ function createAppModule(
       { provide: OUTLINE_SERVICE, useValue: outlineService },
       { provide: NARRATION_SERVICE, useValue: narrationService },
       { provide: STORYBOARD_SERVICE, useValue: storyboardService },
+      { provide: CITATION_SERVICE, useValue: citationService },
     ],
   };
 }
@@ -1516,6 +1544,7 @@ export type CreateAppOptions = {
   outlineService?: OutlineApiService;
   narrationService?: NarrationApiService;
   storyboardService?: StoryboardApiService;
+  citationService?: CitationApiService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -2070,6 +2099,18 @@ const unavailableStoryboardService: StoryboardApiService = {
     ),
 };
 
+const unavailableCitationService: CitationApiService = {
+  forScene: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Scene citations are unavailable.",
+        503,
+        true,
+      ),
+    ),
+};
+
 export async function createApp(
   options: CreateAppOptions = {},
 ): Promise<NestFastifyApplication> {
@@ -2099,6 +2140,7 @@ export async function createApp(
       options.outlineService ?? unavailableOutlineService,
       options.narrationService ?? unavailableNarrationService,
       options.storyboardService ?? unavailableStoryboardService,
+      options.citationService ?? unavailableCitationService,
     ),
     new FastifyAdapter({
       logger: {

@@ -20,6 +20,8 @@ import {
 } from "@avlp/database";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
+  citationIssueSchema,
+  resolvedCitationSchema,
   sourceApprovalResponseSchema,
   sourceApprovalStatusSchema,
   sourceBlockLookupEntrySchema,
@@ -31,9 +33,15 @@ import {
   sourceSnapshotSectionSchema,
   sourceSnapshotTableSchema,
   sourceSnapshotVersion,
+  type CitationIssue,
+  type ResolvedCitation,
+  type ResolvedCitationBlock,
+  type ResolvedCitationFigure,
+  type ResolvedCitationTable,
   type SourceApprovalResponse,
   type SourceApprovalStatus,
   type SourceBlockLookupEntry,
+  type SourceRef,
   type SourceSnapshot,
   type SourceSnapshotBlock,
   type SourceSnapshotFigure,
@@ -348,6 +356,11 @@ export interface SourceSnapshotService {
     snapshotId: Identifier;
     blockIds: readonly Identifier[];
   }): Promise<SourceBlockLookupEntry[]>;
+  resolveSourceRefs(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    sourceRefs: readonly SourceRef[];
+  }): Promise<ResolvedCitation[]>;
 }
 
 type SnapshotRow = typeof sourceSnapshots.$inferSelect;
@@ -544,6 +557,23 @@ export class PostgresSourceSnapshotService implements SourceSnapshotService {
       );
     }
     return entries;
+  }
+
+  public async resolveSourceRefs(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    sourceRefs: readonly SourceRef[];
+  }): Promise<ResolvedCitation[]> {
+    const latest = await this.latestSnapshot(
+      this.database,
+      input.ownerUserId,
+      input.projectId,
+    );
+    if (latest === undefined) throw sourceSnapshotNotFound();
+    return resolveSourceRefsAgainstSnapshot(
+      parseSnapshot(latest),
+      input.sourceRefs,
+    );
   }
 
   private async loadEffectiveSource(
@@ -786,4 +816,127 @@ function atLeastOneSectionRequired(): PublicError {
     "At least one section must remain included before confirming the source.",
     409,
   );
+}
+
+/**
+ * Resolves scene source references against an approved snapshot into
+ * teacher-facing labels and bounded excerpts. Every stale or unknown
+ * identifier becomes a `CitationIssue` on the resolved citation rather than
+ * being silently dropped, so invalid grounding is always visible.
+ */
+export function resolveSourceRefsAgainstSnapshot(
+  snapshot: SourceSnapshot,
+  sourceRefs: readonly SourceRef[],
+): ResolvedCitation[] {
+  const sectionsById = new Map(
+    snapshot.sections.map((section) => [section.sectionId, section]),
+  );
+  const blocksById = new Map(
+    snapshot.blocks.map((block) => [block.blockId, block]),
+  );
+  const figuresById = new Map(
+    snapshot.figures.map((figure) => [figure.figureId, figure]),
+  );
+  const tablesById = new Map(
+    snapshot.tables.map((table) => [table.tableId, table]),
+  );
+
+  return sourceRefs.map((ref) => {
+    const issues: CitationIssue[] = [];
+    if (ref.documentId !== snapshot.parsedDocumentId)
+      issues.push(
+        citationIssueSchema.parse({
+          kind: "document_mismatch",
+          id: ref.documentId,
+        }),
+      );
+    if (ref.parsedDocumentVersion !== snapshot.parsedDocumentVersion)
+      issues.push(
+        citationIssueSchema.parse({
+          kind: "version_mismatch",
+          id: ref.documentId,
+        }),
+      );
+
+    let sectionHeading: string | undefined;
+    if (ref.sectionId !== undefined) {
+      const section = sectionsById.get(ref.sectionId);
+      if (section === undefined)
+        issues.push(
+          citationIssueSchema.parse({
+            kind: "missing_section",
+            id: ref.sectionId,
+          }),
+        );
+      else sectionHeading = section.heading;
+    }
+
+    const blocks: ResolvedCitationBlock[] = [];
+    for (const blockId of ref.blockIds) {
+      const block = blocksById.get(blockId);
+      if (block === undefined) {
+        issues.push(
+          citationIssueSchema.parse({ kind: "missing_block", id: blockId }),
+        );
+        continue;
+      }
+      blocks.push({
+        blockId: block.blockId,
+        sectionId: block.sectionId,
+        kind: block.kind,
+        page: block.pageStart,
+        text: sourceSnapshotBlockText(block),
+      });
+    }
+
+    const figures: ResolvedCitationFigure[] = [];
+    for (const figureId of ref.figureIds ?? []) {
+      const figure = figuresById.get(figureId);
+      if (figure === undefined) {
+        issues.push(
+          citationIssueSchema.parse({ kind: "missing_figure", id: figureId }),
+        );
+        continue;
+      }
+      figures.push({
+        figureId: figure.figureId,
+        sectionId: figure.sectionId,
+        page: figure.pageStart,
+        ...(figure.altText === undefined ? {} : { altText: figure.altText }),
+        ...(figure.sourceLocator === undefined
+          ? {}
+          : { sourceLocator: figure.sourceLocator }),
+      });
+    }
+
+    const tables: ResolvedCitationTable[] = [];
+    for (const tableId of ref.tableIds ?? []) {
+      const table = tablesById.get(tableId);
+      if (table === undefined) {
+        issues.push(
+          citationIssueSchema.parse({ kind: "missing_table", id: tableId }),
+        );
+        continue;
+      }
+      tables.push({
+        tableId: table.tableId,
+        sectionId: table.sectionId,
+        page: table.pageStart,
+        columns: table.columns,
+      });
+    }
+
+    return resolvedCitationSchema.parse({
+      documentId: ref.documentId,
+      parsedDocumentVersion: ref.parsedDocumentVersion,
+      pageStart: ref.pageStart,
+      ...(ref.pageEnd === undefined ? {} : { pageEnd: ref.pageEnd }),
+      ...(ref.sectionId === undefined ? {} : { sectionId: ref.sectionId }),
+      ...(sectionHeading === undefined ? {} : { sectionHeading }),
+      blocks,
+      figures,
+      tables,
+      issues,
+    });
+  });
 }

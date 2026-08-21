@@ -972,6 +972,52 @@ const server = createServer(async (request, response) => {
     }
     return send(response, 200, storyboardResponse(projectId));
   }
+  const sceneCitationsMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/scenes\/([^/]+)\/citations$/,
+  );
+  if (request.method === "GET" && sceneCitationsMatch !== null) {
+    const projectId = decodeURIComponent(sceneCitationsMatch[1]);
+    const sceneId = decodeURIComponent(sceneCitationsMatch[2]);
+    const project = projects.get(projectId);
+    if (project === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    const draft = storyboardDraft(projectId);
+    const scene = draft.scenes.find((item) => item.stableSceneId === sceneId);
+    if (scene === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    return send(response, 200, {
+      sceneId,
+      citations: [
+        {
+          documentId: "019ffbf1-3333-738a-b087-6775ff97568c",
+          parsedDocumentVersion: 1,
+          pageStart: 1,
+          pageEnd: 1,
+          sectionId: "019ffbf1-1111-738a-b087-6775ff97568c",
+          sectionHeading: "Introduction",
+          blocks: [
+            {
+              blockId: "019ffbf1-6120-738a-b087-6775ff97568c",
+              sectionId: "019ffbf1-1111-738a-b087-6775ff97568c",
+              kind: "paragraph",
+              page: 1,
+              text: "Water moves through the environment in a continuous cycle.",
+            },
+          ],
+          figures: [],
+          tables: [],
+          issues: [],
+        },
+      ],
+      generatedAdditions: [
+        {
+          kind: "analogy",
+          content: "The water cycle is like a conveyor belt.",
+          rationale: "Makes the cycle concrete.",
+        },
+      ],
+    });
+  }
   const transformMatch = url.pathname.match(
     /^\/projects\/([^/]+)\/narration-blocks\/([^/]+)\/regenerate$/,
   );

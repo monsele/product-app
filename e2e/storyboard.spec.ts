@@ -70,3 +70,30 @@ test("storyboard page applies a regenerated scene candidate", async ({
     page.getByText(/A storyboard draft is ready for review/),
   ).toBeVisible();
 });
+
+test("storyboard page shows scene source citations and generated additions", async ({
+  page,
+}) => {
+  await setSessionCookie(page);
+  await page.goto(`/workspace/${projectId}/storyboard`);
+  await expect(
+    page.getByTestId("citations-019ffbf1-6151-738a-b087-6775ff97568c"),
+  ).toBeVisible();
+  await expect(page.getByText(/Introduction/)).toBeVisible();
+  await expect(
+    page.getByText(/Water moves through the environment in a continuous cycle/),
+  ).toBeVisible();
+  await expect(page.getByText(/Generated additions/)).toBeVisible();
+  await expect(page.getByText(/The water cycle is like a conveyor belt/)).toBeVisible();
+});
+
+test("scene citation deep link opens the source review context", async ({
+  page,
+}) => {
+  await setSessionCookie(page);
+  await page.goto(`/workspace/${projectId}/storyboard`);
+  const link = page.getByRole("link", { name: /Open in source/ }).first();
+  await expect(link).toBeVisible();
+  const href = await link.getAttribute("href");
+  expect(href).toContain("/review?section=");
+});

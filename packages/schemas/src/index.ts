@@ -2789,6 +2789,108 @@ export function parseSourceSnapshot(input: unknown): SourceSnapshot {
 }
 
 // ---------------------------------------------------------------------------
+// ST-052 — Resolve and display scene source citations
+// ---------------------------------------------------------------------------
+
+/**
+ * Why a single source-reference identifier could not be resolved against the
+ * approved snapshot. Reported per reference rather than silently dropped so a
+ * stale or invalid citation is always visible to the teacher.
+ */
+export const citationIssueKindValues = [
+  "document_mismatch",
+  "version_mismatch",
+  "missing_section",
+  "missing_block",
+  "missing_figure",
+  "missing_table",
+] as const;
+export const citationIssueKindSchema = z.enum(citationIssueKindValues);
+export type CitationIssueKind = z.infer<typeof citationIssueKindSchema>;
+
+export const citationIssueSchema = z
+  .object({
+    kind: citationIssueKindSchema,
+    id: identifierSchema,
+  })
+  .strict();
+export type CitationIssue = z.infer<typeof citationIssueSchema>;
+
+/** Resolved block excerpt backing a citation. */
+export const resolvedCitationBlockSchema = z
+  .object({
+    blockId: identifierSchema,
+    sectionId: identifierSchema,
+    kind: z.enum(["paragraph", "list", "equation", "caption"]),
+    page: z.number().int().positive(),
+    text: normalizedText(50_000),
+  })
+  .strict();
+export type ResolvedCitationBlock = z.infer<
+  typeof resolvedCitationBlockSchema
+>;
+
+/** Resolved figure label backing a citation (no image payload). */
+export const resolvedCitationFigureSchema = z
+  .object({
+    figureId: identifierSchema,
+    sectionId: identifierSchema,
+    page: z.number().int().positive(),
+    altText: normalizedText(10_000).optional(),
+    sourceLocator: normalizedText(2_000).optional(),
+  })
+  .strict();
+export type ResolvedCitationFigure = z.infer<
+  typeof resolvedCitationFigureSchema
+>;
+
+/** Resolved table label backing a citation (columns only, no cell payload). */
+export const resolvedCitationTableSchema = z
+  .object({
+    tableId: identifierSchema,
+    sectionId: identifierSchema,
+    page: z.number().int().positive(),
+    columns: z.array(normalizedText(1_000)).min(1).max(500),
+  })
+  .strict();
+export type ResolvedCitationTable = z.infer<
+  typeof resolvedCitationTableSchema
+>;
+
+/**
+ * One scene SourceRef resolved against the approved snapshot into
+ * teacher-facing labels and bounded excerpts. `issues` records every stale or
+ * unknown identifier so invalid grounding is surfaced, never silently ignored.
+ */
+export const resolvedCitationSchema = z
+  .object({
+    documentId: identifierSchema,
+    parsedDocumentVersion: z.number().int().positive(),
+    pageStart: z.number().int().positive(),
+    pageEnd: z.number().int().positive().optional(),
+    sectionId: identifierSchema.optional(),
+    sectionHeading: normalizedText(1_000).optional(),
+    blocks: z.array(resolvedCitationBlockSchema).max(100),
+    figures: z.array(resolvedCitationFigureSchema).max(100),
+    tables: z.array(resolvedCitationTableSchema).max(100),
+    issues: z.array(citationIssueSchema).max(100),
+  })
+  .strict();
+export type ResolvedCitation = z.infer<typeof resolvedCitationSchema>;
+
+/** `GET /projects/:id/scenes/:sceneId/citations` response. */
+export const sceneCitationsResponseSchema = z
+  .object({
+    sceneId: identifierSchema,
+    citations: z.array(resolvedCitationSchema).max(100),
+    generatedAdditions: z.array(generatedAdditionSchema).max(20),
+  })
+  .strict();
+export type SceneCitationsResponse = z.infer<
+  typeof sceneCitationsResponseSchema
+>;
+
+// ---------------------------------------------------------------------------
 // ST-043 — AI provider model-call contracts
 // ---------------------------------------------------------------------------
 

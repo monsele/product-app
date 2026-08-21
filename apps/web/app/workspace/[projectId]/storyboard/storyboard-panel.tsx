@@ -19,6 +19,7 @@ import {
   storyboardGenerationStateLabel,
   storyboardValidationWarnings,
 } from "./storyboard-input";
+import { SceneCitations } from "./citation-panel";
 
 type ViewState =
   | { kind: "loading" }
@@ -464,6 +465,11 @@ function StoryboardDraft({
               onDecide={(candidate, decision) =>
                 void decideCandidate(scene.stableSceneId, candidate, decision)
               }
+            />
+
+            <SceneCitations
+              projectId={projectId}
+              sceneId={scene.stableSceneId}
             />
           </li>
         ))}

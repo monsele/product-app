@@ -57,7 +57,15 @@ function selectionFor(
   return selections[sectionId];
 }
 
-export function IngestionReviewViewer({ projectId }: { projectId: string }) {
+export function IngestionReviewViewer({
+  projectId,
+  focusSectionId,
+  focusBlockId,
+}: {
+  projectId: string;
+  focusSectionId?: string;
+  focusBlockId?: string;
+}) {
   const [state, setState] = useState<State>({ kind: "loading" });
   const [selections, setSelections] = useState<
     Record<string, SourceSectionSelection>
@@ -229,6 +237,35 @@ export function IngestionReviewViewer({ projectId }: { projectId: string }) {
     },
     [projectId],
   );
+
+  const focusedRef = useRef(false);
+
+  useEffect(() => {
+    if (state.kind !== "ready" || focusSectionId === undefined) return;
+    if (!expandedSections.has(focusSectionId)) void toggleSection(focusSectionId);
+  }, [state.kind, focusSectionId, expandedSections, toggleSection]);
+
+  useEffect(() => {
+    if (
+      state.kind !== "ready" ||
+      focusSectionId === undefined ||
+      focusedRef.current
+    )
+      return;
+    const detail = sectionStates[focusSectionId]?.detail;
+    if (detail === undefined) return;
+    focusedRef.current = true;
+    const target =
+      focusBlockId !== undefined
+        ? window.document.querySelector(
+            `[data-block-id="${focusBlockId}"]`,
+          )
+        : window.document.getElementById(`section-${focusSectionId}`);
+    if (target !== null) {
+      target.scrollIntoView({ block: "center" });
+      if (target instanceof HTMLElement) target.focus();
+    }
+  }, [state.kind, focusSectionId, focusBlockId, sectionStates]);
 
   const updateSection = useCallback(
     async (sectionId: string, action: SectionSelectionAction) => {

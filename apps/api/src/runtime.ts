@@ -30,6 +30,7 @@ import { PostgresObjectivesService } from "./objectives.js";
 import { PostgresOutlineService } from "./outline.js";
 import { PostgresNarrationService } from "./narration.js";
 import { PostgresStoryboardService } from "./storyboard.js";
+import { PostgresCitationService } from "./citations.js";
 
 export async function runApi(input: {
   telemetryShutdown: () => Promise<void>;
@@ -136,6 +137,10 @@ export async function runApi(input: {
       storyboardService: new PostgresStoryboardService(
         database.client,
         new PostgresSourceSnapshotService(database.client).status,
+      ),
+      citationService: new PostgresCitationService(
+        database.client,
+        new PostgresSourceSnapshotService(database.client).resolveSourceRefs,
       ),
       projectAuthorizer,
       ...(environment.WEB_ORIGIN === undefined
