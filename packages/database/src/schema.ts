@@ -1603,6 +1603,7 @@ export const scenes = pgTable(
       table.lessonSpecId,
       table.order,
     ),
+    uniqueIndex("scenes_stable_scene_id_unique").on(table.stableSceneId),
     index("scenes_lesson_spec_idx").on(table.lessonSpecId),
   ],
 );
@@ -1648,5 +1649,80 @@ export const sceneCandidates = pgTable(
       table.sceneId,
       table.status,
     ),
+  ],
+);
+
+/**
+ * One grounding check result for a lesson or scene (ST-053).
+ * Tied to exact lesson spec and source snapshot content hashes for reproducibility.
+ * The tenant-unique idempotency key makes retries idempotent end to end.
+ * Rows are inserted only on completion; job lifecycle state lives in `jobs`.
+ */
+export const groundingChecks = pgTable(
+  "grounding_checks",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    lessonSpecId: uuid("lesson_spec_id")
+      .notNull()
+      .references(() => lessonSpecs.id, { onDelete: "cascade" }),
+    lessonSpecRevision: integer("lesson_spec_revision").notNull(),
+    lessonSpecContentHash: text("lesson_spec_content_hash").notNull(),
+    sourceSnapshotId: uuid("source_snapshot_id")
+      .notNull()
+      .references(() => sourceSnapshots.id, { onDelete: "restrict" }),
+    sourceSnapshotContentHash: text("source_snapshot_content_hash").notNull(),
+    scope: text("scope").notNull(),
+    sceneId: uuid("scene_id").references(() => scenes.stableSceneId, {
+      onDelete: "cascade",
+    }),
+    claims: jsonb("claims").notNull(),
+    results: jsonb("results").notNull(),
+    summary: jsonb("summary").notNull(),
+    modelCallIds: jsonb("model_call_ids").notNull().default([]),
+    idempotencyKey: text("idempotency_key").notNull(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("grounding_checks_tenant_idempotency_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.idempotencyKey,
+    ),
+    index("grounding_checks_lesson_spec_idx").on(table.lessonSpecId),
+    index("grounding_checks_scene_idx").on(table.sceneId),
+  ],
+);
+
+/**
+ * Citation history snapshot preserved with lesson versions (ST-053).
+ * Records the grounding state at the time of version creation.
+ * Note: lessonVersions table will be added in ST-060; for now we store the version ID as a UUID.
+ */
+export const citationHistorySnapshots = pgTable(
+  "citation_history_snapshots",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    lessonVersionId: uuid("lesson_version_id").notNull(),
+    lessonSpecId: uuid("lesson_spec_id")
+      .notNull()
+      .references(() => lessonSpecs.id, { onDelete: "restrict" }),
+    lessonSpecRevision: integer("lesson_spec_revision").notNull(),
+    sourceSnapshotId: uuid("source_snapshot_id")
+      .notNull()
+      .references(() => sourceSnapshots.id, { onDelete: "restrict" }),
+    sourceSnapshotContentHash: text("source_snapshot_content_hash").notNull(),
+    sceneCitations: jsonb("scene_citations").notNull(),
+    groundingCheckId: uuid("grounding_check_id").references(() => groundingChecks.id, { onDelete: "set null" }),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("citation_history_snapshots_tenant_version_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.lessonVersionId,
+    ),
+    index("citation_history_snapshots_lesson_spec_idx").on(table.lessonSpecId),
   ],
 );

@@ -31,6 +31,7 @@ import { PostgresOutlineService } from "./outline.js";
 import { PostgresNarrationService } from "./narration.js";
 import { PostgresStoryboardService } from "./storyboard.js";
 import { PostgresCitationService } from "./citations.js";
+import { PostgresGroundingService } from "./grounding.js";
 
 export async function runApi(input: {
   telemetryShutdown: () => Promise<void>;
@@ -141,6 +142,10 @@ export async function runApi(input: {
       citationService: new PostgresCitationService(
         database.client,
         new PostgresSourceSnapshotService(database.client).resolveSourceRefs,
+      ),
+      groundingService: new PostgresGroundingService(
+        database.client,
+        new PostgresSourceSnapshotService(database.client).status,
       ),
       projectAuthorizer,
       ...(environment.WEB_ORIGIN === undefined

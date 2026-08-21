@@ -20,6 +20,7 @@ import {
   storyboardValidationWarnings,
 } from "./storyboard-input";
 import { SceneCitations } from "./citation-panel";
+import { SceneGrounding } from "./grounding-panel";
 
 type ViewState =
   | { kind: "loading" }
@@ -470,6 +471,13 @@ function StoryboardDraft({
             <SceneCitations
               projectId={projectId}
               sceneId={scene.stableSceneId}
+            />
+
+            <SceneGrounding
+              projectId={projectId}
+              sceneId={scene.stableSceneId}
+              lessonSpecId={storyboard.id}
+              lessonSpecRevision={storyboard.revision}
             />
           </li>
         ))}

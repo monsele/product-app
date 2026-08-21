@@ -97,3 +97,26 @@ test("scene citation deep link opens the source review context", async ({
   const href = await link.getAttribute("href");
   expect(href).toContain("/review?section=");
 });
+
+test("storyboard page shows scene grounding status", async ({ page }) => {
+  await setSessionCookie(page);
+  await page.goto(`/workspace/${projectId}/storyboard`);
+  await expect(
+    page.getByTestId("grounding-019ffbf1-6151-738a-b087-6775ff97568c"),
+  ).toBeVisible();
+  await expect(page.getByText(/1 supported · 0 unsupported/)).toBeVisible();
+  await expect(page.getByText(/Supported by source/)).toBeVisible();
+});
+
+test("storyboard page runs a grounding recheck from the scene", async ({
+  page,
+}) => {
+  await setSessionCookie(page);
+  await page.goto(`/workspace/${projectId}/storyboard`);
+  await page
+    .getByTestId("grounding-run-019ffbf1-6151-738a-b087-6775ff97568c")
+    .click();
+  await expect(
+    page.getByTestId("grounding-019ffbf1-6151-738a-b087-6775ff97568c"),
+  ).toBeVisible();
+});

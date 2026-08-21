@@ -1018,6 +1018,81 @@ const server = createServer(async (request, response) => {
       ],
     });
   }
+  const groundingLatestMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/grounding-checks\/latest$/,
+  );
+  if (request.method === "GET" && groundingLatestMatch !== null) {
+    const projectId = decodeURIComponent(groundingLatestMatch[1]);
+    const project = projects.get(projectId);
+    if (project === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    const sceneId = storyboardDraft(projectId).scenes[0]?.stableSceneId;
+    return send(response, 200, {
+      check: {
+        schemaVersion: "grounding-check-v1",
+        id: "019ffbf1-6151-738a-b087-6775ff97568f",
+        projectId,
+        lessonSpecId: "019ffbf1-6151-738a-b087-6775ff975690",
+        lessonSpecRevision: 0,
+        lessonSpecContentHash: "a".repeat(64),
+        sourceSnapshotId: "019ffbf1-6151-738a-b087-6775ff975691",
+        sourceSnapshotContentHash: "b".repeat(64),
+        claims: [
+          {
+            id: "019ffbf1-6151-738a-b087-6775ff975692",
+            text: "Water moves through the environment in a continuous cycle.",
+            sourceRefs: [
+              {
+                documentId: "019ffbf1-3333-738a-b087-6775ff97568c",
+                parsedDocumentVersion: 1,
+                pageStart: 1,
+                pageEnd: 1,
+                sectionId: "019ffbf1-1111-738a-b087-6775ff97568c",
+                blockIds: ["019ffbf1-6120-738a-b087-6775ff97568c"],
+              },
+            ],
+            location: { type: "narration", sceneId, sentenceIndex: 0 },
+          },
+        ],
+        results: [
+          {
+            claimId: "019ffbf1-6151-738a-b087-6775ff975692",
+            status: "supported",
+            supportedSpans: [
+              { start: 0, end: 20, sourceBlockId: "019ffbf1-6120-738a-b087-6775ff97568c" },
+            ],
+            unsupportedSpans: [],
+            modelAssisted: true,
+            modelCallId: "019ffbf1-6151-738a-b087-6775ff975693",
+            checkedAt: "2026-08-20T10:00:00.000Z",
+          },
+        ],
+        summary: { total: 1, supported: 1, unsupported: 0, generatedAddition: 0, needsReview: 0 },
+        modelCalls: ["019ffbf1-6151-738a-b087-6775ff975693"],
+        createdAt: "2026-08-20T10:00:00.000Z",
+      },
+      latestJob: {
+        id: "019ffbf1-6151-738a-b087-6775ff975694",
+        state: "succeeded",
+        errorCode: null,
+        updatedAt: "2026-08-20T10:00:05.000Z",
+      },
+    });
+  }
+  const groundingCheckMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/grounding-checks$/,
+  );
+  if (request.method === "POST" && groundingCheckMatch !== null) {
+    const projectId = decodeURIComponent(groundingCheckMatch[1]);
+    const project = projects.get(projectId);
+    if (project === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    return send(response, 202, {
+      jobId: "019ffbf1-6151-738a-b087-6775ff975695",
+      status: "queued",
+      cached: false,
+    });
+  }
   const transformMatch = url.pathname.match(
     /^\/projects\/([^/]+)\/narration-blocks\/([^/]+)\/regenerate$/,
   );

@@ -2891,6 +2891,224 @@ export type SceneCitationsResponse = z.infer<
 >;
 
 // ---------------------------------------------------------------------------
+// ST-053 — Recheck grounding after teacher edits and preserve citation history
+// ---------------------------------------------------------------------------
+
+/**
+ * Classification of a claim's grounding status after recheck.
+ * - supported: The claim is fully supported by the cited source blocks.
+ * - unsupported: The claim is not supported by the cited source blocks.
+ * - generated_addition: The claim is a teacher/AI-generated addition (analogy, example, etc.) explicitly labelled as such.
+ * - needs_review: The claim requires human review (partial support, ambiguous, etc.).
+ */
+export const groundingStatusValues = [
+  "supported",
+  "unsupported",
+  "generated_addition",
+  "needs_review",
+] as const;
+export const groundingStatusSchema = z.enum(groundingStatusValues);
+export type GroundingStatus = z.infer<typeof groundingStatusSchema>;
+
+/**
+ * A single claim unit extracted from narration or on-screen text for grounding check.
+ * Each claim is a self-contained factual assertion that can be verified against source.
+ */
+export const groundingClaimSchema = z
+  .object({
+    id: identifierSchema,
+    text: boundedText(2_000),
+    sourceRefs: z.array(sourceRefSchema).max(20),
+    generatedAddition: generatedAdditionSchema.optional(),
+    location: z.object({
+      type: z.enum(["narration", "on_screen_text"]),
+      blockId: identifierSchema.optional(),
+      sceneId: identifierSchema.optional(),
+      sentenceIndex: z.number().int().nonnegative().optional(),
+    }),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const hasSourceRefs = value.sourceRefs.length > 0;
+    const hasGeneratedAddition = value.generatedAddition !== undefined;
+    if (!hasSourceRefs && !hasGeneratedAddition) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["sourceRefs"],
+        message: "A claim must have either sourceRefs or a generatedAddition.",
+      });
+    }
+    if (hasSourceRefs && hasGeneratedAddition) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["generatedAddition"],
+        message: "A claim cannot have both sourceRefs and a generatedAddition.",
+      });
+    }
+  });
+export type GroundingClaim = z.infer<typeof groundingClaimSchema>;
+
+/**
+ * Result of checking one claim against the approved source snapshot.
+ */
+export const groundingClaimResultSchema = z
+  .object({
+    claimId: identifierSchema,
+    status: groundingStatusSchema,
+    supportedSpans: z
+      .array(
+        z
+          .object({
+            start: z.number().int().nonnegative(),
+            end: z.number().int().positive(),
+            sourceBlockId: identifierSchema,
+          })
+          .refine((span) => span.start < span.end, {
+            message: "A supported span start must be less than its end.",
+          })
+      )
+      .max(50),
+    unsupportedSpans: z
+      .array(
+        z
+          .object({
+            start: z.number().int().nonnegative(),
+            end: z.number().int().positive(),
+            reason: boundedText(500),
+          })
+          .refine((span) => span.start < span.end, {
+            message: "An unsupported span start must be less than its end.",
+          })
+      )
+      .max(50),
+    modelAssisted: z.boolean(),
+    modelCallId: identifierSchema.nullable(),
+    checkedAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type GroundingClaimResult = z.infer<typeof groundingClaimResultSchema>;
+
+/**
+ * Complete grounding check result for a lesson revision.
+ * Tied to exact content hashes and source snapshot for reproducibility.
+ */
+export const groundingCheckSchema = z
+  .object({
+    schemaVersion: z.literal("grounding-check-v1"),
+    id: identifierSchema,
+    projectId: identifierSchema,
+    lessonSpecId: identifierSchema,
+    lessonSpecRevision: z.number().int().nonnegative(),
+    lessonSpecContentHash: z
+      .string()
+      .regex(sha256HexPattern, "Expected a hexadecimal SHA-256 checksum.")
+      .transform((value) => value.toLowerCase()),
+    sourceSnapshotId: identifierSchema,
+    sourceSnapshotContentHash: z
+      .string()
+      .regex(sha256HexPattern, "Expected a hexadecimal SHA-256 checksum.")
+      .transform((value) => value.toLowerCase()),
+    claims: z.array(groundingClaimSchema).max(500),
+    results: z.array(groundingClaimResultSchema).max(500),
+    summary: z.object({
+      total: z.number().int().nonnegative(),
+      supported: z.number().int().nonnegative(),
+      unsupported: z.number().int().nonnegative(),
+      generatedAddition: z.number().int().nonnegative(),
+      needsReview: z.number().int().nonnegative(),
+    }),
+    modelCalls: z.array(identifierSchema).max(20),
+    createdAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type GroundingCheck = z.infer<typeof groundingCheckSchema>;
+
+/**
+ * Citation history snapshot preserved with lesson versions.
+ * Records the grounding state at the time of version creation.
+ */
+export const citationHistorySnapshotSchema = z
+  .object({
+    schemaVersion: z.literal("citation-history-v1"),
+    lessonVersionId: identifierSchema,
+    lessonSpecId: identifierSchema,
+    lessonSpecRevision: z.number().int().nonnegative(),
+    sourceSnapshotId: identifierSchema,
+    sourceSnapshotContentHash: z
+      .string()
+      .regex(sha256HexPattern, "Expected a hexadecimal SHA-256 checksum.")
+      .transform((value) => value.toLowerCase()),
+    sceneCitations: z.array(sceneCitationsResponseSchema).max(100),
+    groundingCheckId: identifierSchema.nullable(),
+    createdAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type CitationHistorySnapshot = z.infer<typeof citationHistorySnapshotSchema>;
+
+/**
+ * API request to trigger a grounding check for a scene or lesson.
+ */
+export const groundingCheckRequestSchema = z
+  .object({
+    scope: z.enum(["scene", "lesson"]),
+    sceneId: identifierSchema.optional(),
+    lessonSpecId: identifierSchema,
+    lessonSpecRevision: z.number().int().nonnegative(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.scope === "scene" && value.sceneId === undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["sceneId"],
+        message: "sceneId is required when scope is 'scene'.",
+      });
+    }
+  });
+export type GroundingCheckRequest = z.infer<typeof groundingCheckRequestSchema>;
+
+/**
+ * API response for a grounding check request.
+ * `cached` is true when the exact same content was already checked and the
+ * existing completed result was reused instead of queueing a new paid job.
+ */
+export const groundingCheckResponseSchema = z
+  .object({
+    jobId: identifierSchema,
+    status: z.literal("queued"),
+    cached: z.boolean().default(false),
+  })
+  .strict();
+export type GroundingCheckResponse = z.infer<typeof groundingCheckResponseSchema>;
+
+/**
+ * API response for retrieving grounding check results.
+ */
+export const groundingCheckResultResponseSchema = z
+  .object({
+    check: groundingCheckSchema.nullable(),
+    latestJob: z
+      .object({
+        id: identifierSchema,
+        state: z.enum([
+          "queued",
+          "running",
+          "retry_wait",
+          "succeeded",
+          "failed",
+          "cancelled",
+        ]),
+        errorCode: z.string().max(100).nullable(),
+        updatedAt: z.string().datetime({ offset: true }),
+      })
+      .nullable(),
+  })
+  .strict();
+export type GroundingCheckResultResponse = z.infer<
+  typeof groundingCheckResultResponseSchema
+>;
+
+// ---------------------------------------------------------------------------
 // ST-043 — AI provider model-call contracts
 // ---------------------------------------------------------------------------
 
@@ -2991,6 +3209,40 @@ export const modelCallJobPayloadSchema = z
   })
   .strict();
 export type ModelCallJobPayload = z.infer<typeof modelCallJobPayloadSchema>;
+
+/**
+ * Bounded parameters for one grounding check (ST-053). The job loads the
+ * working lesson spec, its scenes, and the approved source snapshot from the
+ * database so the prompt and the deterministic checks always use the exact
+ * revisions and content hashes recorded at request time.
+ */
+export const groundingCheckParamsSchema = z
+  .object({
+    lessonSpecId: identifierSchema,
+    lessonSpecRevision: z.number().int().nonnegative(),
+    lessonSpecContentHash: z
+      .string()
+      .regex(sha256HexPattern, "Expected a hexadecimal SHA-256 checksum.")
+      .transform((value) => value.toLowerCase()),
+    sourceSnapshotId: identifierSchema,
+    sourceSnapshotContentHash: z
+      .string()
+      .regex(sha256HexPattern, "Expected a hexadecimal SHA-256 checksum.")
+      .transform((value) => value.toLowerCase()),
+    scope: z.enum(["scene", "lesson"]),
+    sceneId: identifierSchema.optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.scope === "scene" && value.sceneId === undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["sceneId"],
+        message: "sceneId is required when scope is 'scene'.",
+      });
+    }
+  });
+export type GroundingCheckParams = z.infer<typeof groundingCheckParamsSchema>;
 
 /**
  * Structured generation result returned by the model-call lifecycle after a
@@ -4273,6 +4525,56 @@ export type NarrationBlockTransformOutput = z.infer<
   typeof narrationBlockTransformOutputSchema
 >;
 
+/**
+ * The versioned structured output a grounding check job must produce for one claim.
+ * The model evaluates whether the claim is supported by the cited source blocks.
+ */
+export const groundingClaimOutputSchema = z
+  .object({
+    schemaVersion: z.literal("grounding-claim-v1"),
+    claimId: identifierSchema,
+    status: groundingStatusSchema,
+    supportedSpans: z
+      .array(
+        z
+          .object({
+            start: z.number().int().nonnegative(),
+            end: z.number().int().positive(),
+            sourceBlockId: identifierSchema,
+          })
+          .refine((span) => span.start < span.end, {
+            message: "A supported span start must be less than its end.",
+          })
+      )
+      .max(50),
+    unsupportedSpans: z
+      .array(
+        z
+          .object({
+            start: z.number().int().nonnegative(),
+            end: z.number().int().positive(),
+            reason: boundedText(500),
+          })
+          .refine((span) => span.start < span.end, {
+            message: "An unsupported span start must be less than its end.",
+          })
+      )
+      .max(50),
+  })
+  .strict();
+export type GroundingClaimOutput = z.infer<typeof groundingClaimOutputSchema>;
+
+/**
+ * The versioned structured output a grounding check job must produce: an array of claim results.
+ */
+export const groundingOutputSchema = z
+  .object({
+    schemaVersion: z.literal("grounding-v1"),
+    results: z.array(groundingClaimOutputSchema).max(500),
+  })
+  .strict();
+export type GroundingOutput = z.infer<typeof groundingOutputSchema>;
+
 /** The prompt/model the API uses for one-block narration transforms now. */
 export const narrationTransformCompatibilitySchema = z
   .object({
@@ -4290,6 +4592,21 @@ export const currentNarrationTransformCompatibility =
     promptVersion: "v1",
     model: "mock-model-1",
   });
+
+/** The prompt/model the API uses for grounding checks now. */
+export const groundingCompatibilitySchema = z
+  .object({
+    promptId: z.string().trim().min(1).max(100),
+    promptVersion: z.string().trim().min(1).max(50),
+    model: z.string().trim().min(1).max(200),
+  })
+  .strict();
+export type GroundingCompatibility = z.infer<typeof groundingCompatibilitySchema>;
+export const currentGroundingCompatibility = groundingCompatibilitySchema.parse({
+  promptId: "grounding",
+  promptVersion: "v2",
+  model: "mock-model-1",
+});
 
 // ---------------------------------------------------------------------------
 // ST-050 — Generate a valid LessonSpec storyboard from approved narration
