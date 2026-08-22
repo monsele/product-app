@@ -927,6 +927,7 @@ export const auditEventTypeValues = [
   "job.admin_cancelled",
   "storyboard.scene_candidate_accepted",
   "storyboard.scene_candidate_rejected",
+  "storyboard.edited",
 ] as const;
 export const auditEventType = pgEnum("audit_event_type", auditEventTypeValues);
 

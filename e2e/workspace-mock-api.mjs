@@ -447,6 +447,91 @@ function storyboardResponse(projectId) {
   };
 }
 
+function storyboardSceneListResponse(projectId) {
+  const draft = storyboardDraft(projectId);
+  return {
+    revision: draft.revision,
+    stale: false,
+    staleReason: null,
+    totalDurationSeconds: draft.totalDurationSeconds,
+    targetDurationSeconds: draft.targetDurationSeconds,
+    scenes: draft.scenes.map((scene) => ({
+      sceneId: scene.stableSceneId,
+      order: scene.order,
+      template: scene.template,
+      title: scene.scene.title ?? null,
+      narrationSummary: scene.scene.narration.slice(0, 120),
+      narrationBlockCount: scene.narrationBlockIds.length,
+      durationSeconds: scene.durationSeconds,
+      status: storyboardSceneStatus(scene),
+    })),
+  };
+}
+
+function renumberStoryboardScenes(scenes) {
+  return scenes.map((scene, index) => ({
+    ...scene,
+    order: index + 1,
+    scene: { ...scene.scene, order: index + 1 },
+  }));
+}
+
+function newMockSceneId() {
+  const hex = (length) =>
+    Array.from({ length }, () =>
+      Math.floor(Math.random() * 16).toString(16),
+    ).join("");
+  return `019ffbf1-6199-7${hex(3)}-8${hex(3)}-${hex(12)}`;
+}
+
+function mockSceneVisual(template) {
+  switch (template) {
+    case "hook":
+      return { question: "What will you discover?" };
+    case "process":
+      return { steps: ["First step", "Second step"] };
+    case "input-process-output":
+      return {
+        inputs: [{ label: "Input" }],
+        process: { label: "Process" },
+        outputs: [{ label: "Output" }],
+      };
+    case "comparison":
+      return {
+        leftSubject: { label: "Left subject" },
+        rightSubject: { label: "Right subject" },
+        similarities: ["Shared feature"],
+        differences: ["Key difference"],
+      };
+    case "cause-effect":
+      return {
+        causes: [{ id: "cause-1", label: "Cause", assetSlot: "cause-1-icon" }],
+        effects: [
+          { id: "effect-1", label: "Effect", assetSlot: "effect-1-icon" },
+        ],
+        connections: [{ from: "cause-1", to: "effect-1" }],
+      };
+    case "labelled-diagram":
+      return {
+        kind: "shapes",
+        shape: "system",
+        labels: [{ anchor: "top-left", id: "label-1", text: "Label" }],
+      };
+    case "analogy":
+      return {
+        sourceConcept: "Concept",
+        familiarSystem: "Familiar system",
+        mappings: [{ concept: "Concept part", analogy: "Familiar part" }],
+      };
+    case "worked-example":
+      return { problem: "Example problem", steps: ["First step"], answer: "Answer" };
+    case "summary":
+      return { takeaways: [{ text: "Key takeaway" }] };
+    default:
+      return { term: "Key term", definition: "A concise explanation." };
+  }
+}
+
 function send(response, status, body) {
   response.writeHead(status, { "content-type": "application/json" });
   response.end(JSON.stringify(body));
@@ -968,6 +1053,191 @@ const server = createServer(async (request, response) => {
       });
     }
     return send(response, 404, { error: { code: "not_found" } });
+  }
+  const sceneReorderMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/scenes\/reorder$/,
+  );
+  if (request.method === "POST" && sceneReorderMatch !== null) {
+    const projectId = decodeURIComponent(sceneReorderMatch[1]);
+    const project = projects.get(projectId);
+    if (project === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    let body = "";
+    for await (const chunk of request) body += chunk;
+    const input = JSON.parse(body);
+    const draft = storyboardDraft(projectId);
+    if (input.expectedRevision !== draft.revision)
+      return send(response, 409, {
+        error: {
+          code: "bad_request",
+          message: "The storyboard changed. Please refresh and try again.",
+        },
+      });
+    const byId = new Map(draft.scenes.map((scene) => [scene.stableSceneId, scene]));
+    if (
+      byId.size !== input.sceneIds.length ||
+      [...byId.keys()].some((id) => !input.sceneIds.includes(id))
+    )
+      return send(response, 409, {
+        error: { code: "bad_request", message: "Scene list mismatch." },
+      });
+    const scenes = renumberStoryboardScenes(
+      input.sceneIds.map((id) => byId.get(id)),
+    );
+    storyboardState.set(projectId, {
+      ...draft,
+      revision: draft.revision + 1,
+      totalDurationSeconds: scenes.reduce(
+        (sum, scene) => sum + scene.durationSeconds,
+        0,
+      ),
+      scenes,
+    });
+    return send(response, 200, storyboardSceneListResponse(projectId));
+  }
+  const sceneCreateMatch = url.pathname.match(/^\/projects\/([^/]+)\/scenes$/);
+  if (request.method === "POST" && sceneCreateMatch !== null) {
+    const projectId = decodeURIComponent(sceneCreateMatch[1]);
+    const project = projects.get(projectId);
+    if (project === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    let body = "";
+    for await (const chunk of request) body += chunk;
+    const input = JSON.parse(body);
+    const draft = storyboardDraft(projectId);
+    if (input.expectedRevision !== draft.revision)
+      return send(response, 409, {
+        error: {
+          code: "bad_request",
+          message: "The storyboard changed. Please refresh and try again.",
+        },
+      });
+    const sceneId = newMockSceneId();
+    const scenes = renumberStoryboardScenes([
+      ...draft.scenes,
+      {
+        id: sceneId,
+        stableSceneId: sceneId,
+        order: draft.scenes.length + 1,
+        template: input.template,
+        durationSeconds: 10,
+        narrationBlockIds: [],
+        assetRequirements: [],
+        scene: {
+          id: sceneId,
+          order: draft.scenes.length + 1,
+          narration: "New scene narration.",
+          durationSeconds: 10,
+          onScreenText: [],
+          transition: "cut",
+          assetBindings: [],
+          sourceRefs: [],
+          generatedAdditions: [],
+          template: input.template,
+          visual: mockSceneVisual(input.template),
+        },
+      },
+    ]);
+    storyboardState.set(projectId, {
+      ...draft,
+      revision: draft.revision + 1,
+      totalDurationSeconds: scenes.reduce(
+        (sum, scene) => sum + scene.durationSeconds,
+        0,
+      ),
+      scenes,
+    });
+    return send(response, 200, storyboardSceneListResponse(projectId));
+  }
+  const sceneDuplicateMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/scenes\/([^/]+)\/duplicate$/,
+  );
+  if (request.method === "POST" && sceneDuplicateMatch !== null) {
+    const projectId = decodeURIComponent(sceneDuplicateMatch[1]);
+    const sceneId = decodeURIComponent(sceneDuplicateMatch[2]);
+    const project = projects.get(projectId);
+    if (project === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    let body = "";
+    for await (const chunk of request) body += chunk;
+    const input = JSON.parse(body);
+    const draft = storyboardDraft(projectId);
+    if (input.expectedRevision !== draft.revision)
+      return send(response, 409, {
+        error: {
+          code: "bad_request",
+          message: "The storyboard changed. Please refresh and try again.",
+        },
+      });
+    const index = draft.scenes.findIndex(
+      (scene) => scene.stableSceneId === sceneId,
+    );
+    if (index < 0)
+      return send(response, 404, { error: { code: "not_found" } });
+    const source = draft.scenes[index];
+    const newId = newMockSceneId();
+    const duplicate = {
+      ...source,
+      id: newId,
+      stableSceneId: newId,
+      scene: { ...source.scene, id: newId },
+    };
+    const reordered = [...draft.scenes];
+    reordered.splice(index + 1, 0, duplicate);
+    const scenes = renumberStoryboardScenes(reordered);
+    storyboardState.set(projectId, {
+      ...draft,
+      revision: draft.revision + 1,
+      totalDurationSeconds: scenes.reduce(
+        (sum, scene) => sum + scene.durationSeconds,
+        0,
+      ),
+      scenes,
+    });
+    return send(response, 200, storyboardSceneListResponse(projectId));
+  }
+  const sceneDeleteMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/scenes\/([^/]+)$/,
+  );
+  if (request.method === "DELETE" && sceneDeleteMatch !== null) {
+    const projectId = decodeURIComponent(sceneDeleteMatch[1]);
+    const sceneId = decodeURIComponent(sceneDeleteMatch[2]);
+    const project = projects.get(projectId);
+    if (project === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    let body = "";
+    for await (const chunk of request) body += chunk;
+    const input = JSON.parse(body);
+    const draft = storyboardDraft(projectId);
+    if (input.expectedRevision !== draft.revision)
+      return send(response, 409, {
+        error: {
+          code: "bad_request",
+          message: "The storyboard changed. Please refresh and try again.",
+        },
+      });
+    if (draft.scenes.length <= 1)
+      return send(response, 409, {
+        error: {
+          code: "bad_request",
+          message: "A storyboard must keep at least one scene.",
+        },
+      });
+    if (!draft.scenes.some((scene) => scene.stableSceneId === sceneId))
+      return send(response, 404, { error: { code: "not_found" } });
+    const scenes = renumberStoryboardScenes(
+      draft.scenes.filter((scene) => scene.stableSceneId !== sceneId),
+    );
+    storyboardState.set(projectId, {
+      ...draft,
+      revision: draft.revision + 1,
+      totalDurationSeconds: scenes.reduce(
+        (sum, scene) => sum + scene.durationSeconds,
+        0,
+      ),
+      scenes,
+    });
+    return send(response, 200, storyboardSceneListResponse(projectId));
   }
   const sceneRegenerateMatch = url.pathname.match(
     /^\/projects\/([^/]+)\/scenes\/([^/]+)\/regenerate$/,

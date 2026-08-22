@@ -26,6 +26,7 @@ import {
 import { createIdempotencyKey, createJobEnvelope } from "@avlp/jobs";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
+  createDefaultStoryboardSceneSpec,
   currentSceneRegenerationCompatibility,
   currentStoryboardGenerationCompatibility,
   lessonStoryboardSceneSchema,
@@ -41,8 +42,13 @@ import {
   storyboardGenerationParamsSchema,
   storyboardGenerationResponseSchema,
   storyboardResponseSchema,
+  storyboardSceneCreateInputSchema,
+  storyboardSceneDefaultDurationSeconds,
+  storyboardSceneDeleteInputSchema,
   storyboardSceneDetailResponseSchema,
+  storyboardSceneDuplicateInputSchema,
   storyboardSceneListResponseSchema,
+  storyboardSceneReorderInputSchema,
   type LessonStoryboard,
   type LessonStoryboardScene,
   type NarrationBudgetStatus,
@@ -58,7 +64,7 @@ import {
   type StoryboardSceneStatus,
   type StoryboardValidation,
 } from "@avlp/schemas";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { SourceSnapshotService } from "./source-snapshot.js";
 
@@ -124,6 +130,32 @@ export interface StoryboardService {
     projectId: Identifier;
     sceneId: Identifier;
   }): Promise<StoryboardSceneDetailResponse>;
+  addScene(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    body: unknown;
+    correlationId: Identifier;
+  }): Promise<StoryboardSceneListResponse>;
+  duplicateScene(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    sceneId: Identifier;
+    body: unknown;
+    correlationId: Identifier;
+  }): Promise<StoryboardSceneListResponse>;
+  deleteScene(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    sceneId: Identifier;
+    body: unknown;
+    correlationId: Identifier;
+  }): Promise<StoryboardSceneListResponse>;
+  reorderScenes(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    body: unknown;
+    correlationId: Identifier;
+  }): Promise<StoryboardSceneListResponse>;
 }
 
 type LessonSpecRow = typeof lessonSpecs.$inferSelect;
@@ -999,6 +1031,424 @@ export class PostgresStoryboardService implements StoryboardService {
     });
   }
 
+  public async addScene(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    body: unknown;
+    correlationId: Identifier;
+  }): Promise<StoryboardSceneListResponse> {
+    const parsed = parseBoundary(storyboardSceneCreateInputSchema, input.body);
+    const timestamp = this.now();
+    await this.database.transaction(async (transaction) => {
+      const lessonSpec = await this.mutableDraftLessonSpecRow(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        parsed.expectedRevision,
+      );
+      const storyboard = parseStoryboard(lessonSpec);
+      const sceneId = createId(timestamp);
+      const sceneSpec = createDefaultStoryboardSceneSpec(parsed.template, {
+        id: sceneId,
+        order: storyboard.scenes.length + 1,
+        durationSeconds: storyboardSceneDefaultDurationSeconds,
+      });
+      const added = lessonStoryboardSceneSchema.parse({
+        id: sceneId,
+        stableSceneId: sceneId,
+        order: storyboard.scenes.length + 1,
+        template: parsed.template,
+        durationSeconds: storyboardSceneDefaultDurationSeconds,
+        narrationBlockIds: [],
+        assetRequirements: [],
+        scene: sceneSpec,
+      });
+      const nextScenes = this.renumberScenes([...storyboard.scenes, added]);
+      const updatedStoryboard = this.rebuildStoryboard(storyboard, nextScenes);
+      await this.persistStoryboard(
+        transaction,
+        lessonSpec,
+        updatedStoryboard,
+        timestamp,
+      );
+      await this.syncSceneRows(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        lessonSpec.id,
+        nextScenes,
+        timestamp,
+      );
+      await new PostgresAuditWriter(transaction).write({
+        ownerUserId: input.ownerUserId,
+        projectId: input.projectId,
+        actor: { type: "user", userId: input.ownerUserId },
+        eventType: "storyboard.edited",
+        target: { type: "storyboard_scene", id: sceneId },
+        correlationId: input.correlationId,
+        metadata: {
+          operation: "add",
+          template: parsed.template,
+          order: nextScenes.length,
+          lessonSpecRevision: updatedStoryboard.revision,
+          invalidatedScope: ["timeline", "validation", "render"],
+        },
+        occurredAt: timestamp,
+      });
+    });
+    return this.scenes({ ownerUserId: input.ownerUserId, projectId: input.projectId });
+  }
+
+  public async duplicateScene(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    sceneId: Identifier;
+    body: unknown;
+    correlationId: Identifier;
+  }): Promise<StoryboardSceneListResponse> {
+    const parsed = parseBoundary(storyboardSceneDuplicateInputSchema, input.body);
+    const timestamp = this.now();
+    await this.database.transaction(async (transaction) => {
+      const lessonSpec = await this.mutableDraftLessonSpecRow(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        parsed.expectedRevision,
+      );
+      const storyboard = parseStoryboard(lessonSpec);
+      const sourceIndex = storyboard.scenes.findIndex(
+        (scene) => scene.stableSceneId === input.sceneId,
+      );
+      if (sourceIndex < 0) throw sceneNotFound();
+      const source = storyboard.scenes[sourceIndex]!;
+      const sceneId = createId(timestamp);
+      const duplicate = lessonStoryboardSceneSchema.parse({
+        ...source,
+        id: sceneId,
+        stableSceneId: sceneId,
+        scene: { ...source.scene, id: sceneId },
+      });
+      const reordered = [...storyboard.scenes];
+      reordered.splice(sourceIndex + 1, 0, duplicate);
+      const nextScenes = this.renumberScenes(reordered);
+      const updatedStoryboard = this.rebuildStoryboard(storyboard, nextScenes);
+      await this.persistStoryboard(
+        transaction,
+        lessonSpec,
+        updatedStoryboard,
+        timestamp,
+      );
+      await this.syncSceneRows(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        lessonSpec.id,
+        nextScenes,
+        timestamp,
+      );
+      await new PostgresAuditWriter(transaction).write({
+        ownerUserId: input.ownerUserId,
+        projectId: input.projectId,
+        actor: { type: "user", userId: input.ownerUserId },
+        eventType: "storyboard.edited",
+        target: { type: "storyboard_scene", id: sceneId },
+        correlationId: input.correlationId,
+        metadata: {
+          operation: "duplicate",
+          sourceSceneId: source.stableSceneId,
+          lessonSpecRevision: updatedStoryboard.revision,
+          invalidatedScope: ["timeline", "validation", "render"],
+        },
+        occurredAt: timestamp,
+      });
+    });
+    return this.scenes({ ownerUserId: input.ownerUserId, projectId: input.projectId });
+  }
+
+  public async deleteScene(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    sceneId: Identifier;
+    body: unknown;
+    correlationId: Identifier;
+  }): Promise<StoryboardSceneListResponse> {
+    const parsed = parseBoundary(storyboardSceneDeleteInputSchema, input.body);
+    const timestamp = this.now();
+    await this.database.transaction(async (transaction) => {
+      const lessonSpec = await this.mutableDraftLessonSpecRow(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        parsed.expectedRevision,
+      );
+      const storyboard = parseStoryboard(lessonSpec);
+      if (storyboard.scenes.length <= 1) throw atLeastOneSceneRequired();
+      const scene = storyboard.scenes.find(
+        (candidate) => candidate.stableSceneId === input.sceneId,
+      );
+      if (scene === undefined) throw sceneNotFound();
+      const nextScenes = this.renumberScenes(
+        storyboard.scenes.filter(
+          (candidate) => candidate.stableSceneId !== input.sceneId,
+        ),
+      );
+      const updatedStoryboard = this.rebuildStoryboard(storyboard, nextScenes);
+      await this.persistStoryboard(
+        transaction,
+        lessonSpec,
+        updatedStoryboard,
+        timestamp,
+      );
+      await this.syncSceneRows(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        lessonSpec.id,
+        nextScenes,
+        timestamp,
+      );
+      await new PostgresAuditWriter(transaction).write({
+        ownerUserId: input.ownerUserId,
+        projectId: input.projectId,
+        actor: { type: "user", userId: input.ownerUserId },
+        eventType: "storyboard.edited",
+        target: { type: "storyboard_scene", id: input.sceneId },
+        correlationId: input.correlationId,
+        metadata: {
+          operation: "delete",
+          lessonSpecRevision: updatedStoryboard.revision,
+          invalidatedScope: ["timeline", "validation", "render"],
+        },
+        occurredAt: timestamp,
+      });
+    });
+    return this.scenes({ ownerUserId: input.ownerUserId, projectId: input.projectId });
+  }
+
+  public async reorderScenes(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    body: unknown;
+    correlationId: Identifier;
+  }): Promise<StoryboardSceneListResponse> {
+    const parsed = parseBoundary(storyboardSceneReorderInputSchema, input.body);
+    const timestamp = this.now();
+    await this.database.transaction(async (transaction) => {
+      const lessonSpec = await this.mutableDraftLessonSpecRow(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        parsed.expectedRevision,
+      );
+      const storyboard = parseStoryboard(lessonSpec);
+      const byId = new Map(
+        storyboard.scenes.map((scene) => [scene.stableSceneId, scene]),
+      );
+      if (
+        byId.size !== parsed.sceneIds.length ||
+        [...byId.keys()].some((id) => !parsed.sceneIds.includes(id))
+      )
+        throw sceneReorderMismatch();
+      const nextScenes = this.renumberScenes(
+        parsed.sceneIds.map((stableSceneId) => {
+          const scene = byId.get(stableSceneId);
+          if (scene === undefined) throw sceneReorderMismatch();
+          return scene;
+        }),
+      );
+      const updatedStoryboard = this.rebuildStoryboard(storyboard, nextScenes);
+      await this.persistStoryboard(
+        transaction,
+        lessonSpec,
+        updatedStoryboard,
+        timestamp,
+      );
+      await this.syncSceneRows(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        lessonSpec.id,
+        nextScenes,
+        timestamp,
+      );
+      await new PostgresAuditWriter(transaction).write({
+        ownerUserId: input.ownerUserId,
+        projectId: input.projectId,
+        actor: { type: "user", userId: input.ownerUserId },
+        eventType: "storyboard.edited",
+        target: { type: "storyboard", id: storyboard.id },
+        correlationId: input.correlationId,
+        metadata: {
+          operation: "reorder",
+          sceneIds: parsed.sceneIds,
+          lessonSpecRevision: updatedStoryboard.revision,
+          invalidatedScope: ["timeline", "validation", "render"],
+        },
+        occurredAt: timestamp,
+      });
+    });
+    return this.scenes({ ownerUserId: input.ownerUserId, projectId: input.projectId });
+  }
+
+  private renumberScenes(
+    scenes: readonly LessonStoryboardScene[],
+  ): LessonStoryboardScene[] {
+    return scenes.map((scene, index) => ({
+      ...scene,
+      order: index + 1,
+      scene: { ...scene.scene, order: index + 1 },
+    }));
+  }
+
+  private rebuildStoryboard(
+    storyboard: LessonStoryboard,
+    scenes: readonly LessonStoryboardScene[],
+  ): LessonStoryboard {
+    const totalDurationSeconds = scenes.reduce(
+      (sum, scene) => sum + scene.durationSeconds,
+      0,
+    );
+    return lessonStoryboardSchema.parse({
+      ...storyboard,
+      revision: storyboard.revision + 1,
+      totalDurationSeconds,
+      contentHash: computeLessonStoryboardContentHash({
+        totalDurationSeconds,
+        objectiveIds: storyboard.objectiveIds,
+        scenes: scenes.map((scene) => ({
+          contentHash: computeLessonStoryboardSceneContentHash({
+            template: scene.scene.template,
+            title: scene.scene.title,
+            narration: scene.scene.narration,
+            durationSeconds: scene.scene.durationSeconds,
+            onScreenText: scene.scene.onScreenText,
+            transition: scene.scene.transition,
+            visual: scene.scene.visual,
+            sourceRefs: scene.scene.sourceRefs,
+            generatedAdditions: scene.scene.generatedAdditions,
+            assetBindings: scene.scene.assetBindings,
+          }),
+          narrationBlockIds: scene.narrationBlockIds,
+          assetRequirements: scene.assetRequirements,
+        })),
+      }),
+      scenes,
+    });
+  }
+
+  private async persistStoryboard(
+    executor: DatabaseExecutor,
+    lessonSpec: LessonSpecRow,
+    storyboard: LessonStoryboard,
+    timestamp: Date,
+  ): Promise<void> {
+    const [updated] = await executor
+      .update(lessonSpecs)
+      .set({
+        revision: storyboard.revision,
+        totalDurationSeconds: storyboard.totalDurationSeconds,
+        contentHash: storyboard.contentHash,
+        payload: storyboard,
+        updatedAt: timestamp,
+      })
+      .where(
+        and(
+          eq(lessonSpecs.id, lessonSpec.id),
+          eq(lessonSpecs.ownerUserId, lessonSpec.ownerUserId),
+          eq(lessonSpecs.projectId, lessonSpec.projectId),
+          eq(lessonSpecs.revision, lessonSpec.revision),
+        ),
+      )
+      .returning({ id: lessonSpecs.id });
+    if (updated === undefined) throw sceneConflict();
+  }
+
+  /**
+   * Reconciles the normalized `scenes` rows with the reordered storyboard
+   * payload. Existing orders are first negated to free the positive order
+   * space, removed rows are deleted, new rows are inserted, and then every row
+   * receives its final contiguous positive order without ever violating the
+   * unique `(lesson_spec_id, order)` index.
+   */
+  private async syncSceneRows(
+    executor: DatabaseExecutor,
+    ownerUserId: Identifier,
+    projectId: Identifier,
+    lessonSpecId: Identifier,
+    nextScenes: readonly LessonStoryboardScene[],
+    timestamp: Date,
+  ): Promise<void> {
+    await executor
+      .update(scenes)
+      .set({ order: sql`-${scenes.order}`, updatedAt: timestamp })
+      .where(
+        and(
+          eq(scenes.lessonSpecId, lessonSpecId),
+          eq(scenes.ownerUserId, ownerUserId),
+          eq(scenes.projectId, projectId),
+        ),
+      );
+    const existingRows = await executor
+      .select({ id: scenes.id })
+      .from(scenes)
+      .where(
+        and(
+          eq(scenes.lessonSpecId, lessonSpecId),
+          eq(scenes.ownerUserId, ownerUserId),
+          eq(scenes.projectId, projectId),
+        ),
+      );
+    const nextIds = new Set(nextScenes.map((scene) => scene.id));
+    const removedIds = existingRows
+      .map((row) => row.id)
+      .filter((id) => !nextIds.has(id));
+    if (removedIds.length > 0)
+      await executor.delete(scenes).where(
+        and(
+          eq(scenes.lessonSpecId, lessonSpecId),
+          eq(scenes.ownerUserId, ownerUserId),
+          eq(scenes.projectId, projectId),
+          inArray(scenes.id, removedIds),
+        ),
+      );
+    const existingIds = new Set(existingRows.map((row) => row.id));
+    const newScenes = nextScenes.filter((scene) => !existingIds.has(scene.id));
+    if (newScenes.length > 0)
+      await executor.insert(scenes).values(
+        newScenes.map((scene) => ({
+          id: scene.id,
+          projectId,
+          ownerUserId,
+          lessonSpecId,
+          stableSceneId: scene.stableSceneId,
+          order: scene.order,
+          template: scene.template,
+          durationSeconds: scene.durationSeconds,
+          narrationBlockIds: scene.narrationBlockIds,
+          assetRequirements: scene.assetRequirements,
+          sceneJson: scene.scene,
+          revision: 0,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        })),
+      );
+    await Promise.all(
+      nextScenes.map((scene, index) =>
+        executor
+          .update(scenes)
+          .set({ order: index + 1, updatedAt: timestamp })
+          .where(
+            and(
+              eq(scenes.id, scene.id),
+              eq(scenes.lessonSpecId, lessonSpecId),
+              eq(scenes.ownerUserId, ownerUserId),
+              eq(scenes.projectId, projectId),
+            ),
+          ),
+      ),
+    );
+  }
+
   private computeStaleness(input: {
     storyboard: LessonStoryboard | null;
     configuration: typeof lessonConfigurations.$inferSelect | undefined;
@@ -1733,6 +2183,22 @@ function sceneSourceSnapshotMismatch(): PublicError {
   return new PublicError(
     "bad_request",
     "The source was re-approved after the narration was generated. Regenerate the outline, narration, and storyboard first.",
+    409,
+  );
+}
+
+function atLeastOneSceneRequired(): PublicError {
+  return new PublicError(
+    "bad_request",
+    "A storyboard must keep at least one scene.",
+    409,
+  );
+}
+
+function sceneReorderMismatch(): PublicError {
+  return new PublicError(
+    "bad_request",
+    "The reorder list must contain every current scene exactly once.",
     409,
   );
 }

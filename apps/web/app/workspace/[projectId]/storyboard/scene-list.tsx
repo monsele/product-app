@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type DragEvent,
   type JSX,
   type KeyboardEvent,
 } from "react";
@@ -42,21 +43,48 @@ export function visibleSceneRange(
   return { start: first, end: Math.min(sceneCount, first + windowRows) };
 }
 
+/**
+ * Returns the ordered scene ids after moving the scene at `fromIndex` to
+ * `toIndex`. Used by the drag-and-drop reorder handler; it never mutates the
+ * input array and clamps invalid indices by returning the original order.
+ */
+export function reorderSceneIds(
+  sceneIds: readonly string[],
+  fromIndex: number,
+  toIndex: number,
+): string[] {
+  if (
+    fromIndex === toIndex ||
+    fromIndex < 0 ||
+    fromIndex >= sceneIds.length ||
+    toIndex < 0 ||
+    toIndex >= sceneIds.length
+  )
+    return [...sceneIds];
+  const next = [...sceneIds];
+  const [moved] = next.splice(fromIndex, 1);
+  next.splice(toIndex, 0, moved!);
+  return next;
+}
+
 export function SceneList({
   scenes,
   selectedSceneId,
   stale,
   onSelect,
+  onReorder,
 }: {
   scenes: readonly StoryboardSceneListEntry[];
   selectedSceneId: string | null;
   stale: boolean;
   onSelect: (sceneId: string) => void;
+  onReorder: (sceneIds: string[]) => void;
 }): JSX.Element {
   const containerRef = useRef<HTMLOListElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   const selectedIndex = useMemo(
     () => scenes.findIndex((scene) => scene.sceneId === selectedSceneId),
@@ -108,6 +136,38 @@ export function SceneList({
     [scenes, onSelect],
   );
 
+  const handleDragStart = useCallback((index: number) => {
+    setDragIndex(index);
+  }, []);
+
+  const handleDragOver = useCallback((event: DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  }, []);
+
+  const handleDrop = useCallback(
+    (index: number, event: DragEvent<HTMLElement>) => {
+      event.preventDefault();
+      if (dragIndex === null || dragIndex === index) {
+        setDragIndex(null);
+        return;
+      }
+      onReorder(
+        reorderSceneIds(
+          scenes.map((scene) => scene.sceneId),
+          dragIndex,
+          index,
+        ),
+      );
+      setDragIndex(null);
+    },
+    [dragIndex, scenes, onReorder],
+  );
+
+  const handleDragEnd = useCallback(() => {
+    setDragIndex(null);
+  }, []);
+
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLOListElement>) => {
       switch (event.key) {
@@ -158,7 +218,8 @@ export function SceneList({
       }}
     >
       <li aria-hidden style={{ height: start * sceneRowHeight }} />
-      {windowScenes.map((scene) => {
+      {windowScenes.map((scene, windowIndex) => {
+        const index = start + windowIndex;
         const selected = scene.sceneId === selectedSceneId;
         const sceneStale = scene.status.stale || stale;
         return (
@@ -166,11 +227,17 @@ export function SceneList({
             key={scene.sceneId}
             aria-selected={selected}
             data-testid={`storyboard-scene-${scene.sceneId}`}
+            draggable
             id={`storyboard-scene-option-${scene.sceneId}`}
             onClick={() => onSelect(scene.sceneId)}
+            onDragEnd={handleDragEnd}
+            onDragOver={handleDragOver}
+            onDragStart={() => handleDragStart(index)}
+            onDrop={(event) => handleDrop(index, event)}
             role="option"
             style={{
               boxSizing: "border-box",
+              cursor: "grab",
               height: sceneRowHeight,
               padding: "6px 8px",
             }}

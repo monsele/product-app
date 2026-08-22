@@ -200,6 +200,38 @@ describe("storyboard API", () => {
           stale: false,
         },
       })),
+      addScene: vi.fn(async (): Promise<StoryboardSceneListResponse> => ({
+        revision: 0,
+        stale: false,
+        staleReason: null,
+        totalDurationSeconds: 30,
+        targetDurationSeconds: 180,
+        scenes: [],
+      })),
+      duplicateScene: vi.fn(async (): Promise<StoryboardSceneListResponse> => ({
+        revision: 0,
+        stale: false,
+        staleReason: null,
+        totalDurationSeconds: 30,
+        targetDurationSeconds: 180,
+        scenes: [],
+      })),
+      deleteScene: vi.fn(async (): Promise<StoryboardSceneListResponse> => ({
+        revision: 0,
+        stale: false,
+        staleReason: null,
+        totalDurationSeconds: 30,
+        targetDurationSeconds: 180,
+        scenes: [],
+      })),
+      reorderScenes: vi.fn(async (): Promise<StoryboardSceneListResponse> => ({
+        revision: 0,
+        stale: false,
+        staleReason: null,
+        totalDurationSeconds: 30,
+        targetDurationSeconds: 180,
+        scenes: [],
+      })),
       ...service,
     };
     app = await createApp({

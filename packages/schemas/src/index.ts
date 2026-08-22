@@ -1,4 +1,4 @@
-import { identifierSchema } from "@avlp/config/identifiers";
+import { identifierSchema, type Identifier } from "@avlp/config/identifiers";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 
@@ -82,7 +82,7 @@ const sceneBaseShape = {
   onScreenText: z.array(boundedText(300)).max(12),
   transition: z.enum(["cut", "fade", "slide"]),
   assetBindings: z.array(sceneAssetBindingSchema).max(20),
-  sourceRefs: z.array(sourceRefSchema).min(1).max(100),
+  sourceRefs: z.array(sourceRefSchema).max(100),
   generatedAdditions: z.array(generatedAdditionSchema).max(20),
 } as const;
 export const sceneBaseSchema = z.object(sceneBaseShape).strict();
@@ -557,6 +557,12 @@ export const lessonSpecSchema = z
           code: z.ZodIssueCode.custom,
           path: ["scenes", index, "order"],
           message: "Scene order values must be unique.",
+        });
+      if (scene.sourceRefs.length === 0)
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["scenes", index, "sourceRefs"],
+          message: "Every lesson scene must cite at least one source block.",
         });
       seenIds.add(scene.id);
       seenOrders.add(scene.order);
@@ -4985,7 +4991,7 @@ export const lessonStoryboardSceneSchema = z
       .int()
       .min(storyboardSceneMinimumSeconds)
       .max(storyboardSceneMaximumSeconds),
-    narrationBlockIds: z.array(identifierSchema).min(1).max(100),
+    narrationBlockIds: z.array(identifierSchema).max(100),
     assetRequirements: z
       .array(storyboardAssetRequirementSchema)
       .max(storyboardSceneMaximumAssetRequirements),
@@ -5412,7 +5418,7 @@ export const storyboardSceneListEntrySchema = z
     template: sceneTemplateSchema,
     title: boundedText(160).nullable(),
     narrationSummary: boundedText(200),
-    narrationBlockCount: z.number().int().min(1).max(100),
+    narrationBlockCount: z.number().int().min(0).max(100),
     durationSeconds: z
       .number()
       .int()
@@ -5454,3 +5460,149 @@ export const storyboardSceneDetailResponseSchema = z
 export type StoryboardSceneDetailResponse = z.infer<
   typeof storyboardSceneDetailResponseSchema
 >;
+
+// ---------------------------------------------------------------------------
+// ST-055 — Reorder, add, duplicate, and delete storyboard scenes
+// ---------------------------------------------------------------------------
+
+/**
+ * Boundary for reordering the complete scene list. `sceneIds` must contain
+ * every current scene id exactly once; the server rejects any mismatch so a
+ * concurrent add/delete cannot silently reorder a stale view.
+ */
+export const storyboardSceneReorderInputSchema = z
+  .object({
+    expectedRevision: z.number().int().nonnegative(),
+    sceneIds: z.array(identifierSchema).min(1).max(100),
+  })
+  .strict();
+export type StoryboardSceneReorderInput = z.infer<
+  typeof storyboardSceneReorderInputSchema
+>;
+
+/**
+ * Boundary for appending a new scene from a registered template's default
+ * factory. The new scene starts uncited and unassigned so the teacher can
+ * ground it during scene editing (ST-056).
+ */
+export const storyboardSceneCreateInputSchema = z
+  .object({
+    expectedRevision: z.number().int().nonnegative(),
+    template: sceneTemplateSchema,
+  })
+  .strict();
+export type StoryboardSceneCreateInput = z.infer<
+  typeof storyboardSceneCreateInputSchema
+>;
+
+/**
+ * Boundary for duplicating an existing scene. The duplicate keeps the source
+ * scene's content and provenance but receives a new stable id and order.
+ */
+export const storyboardSceneDuplicateInputSchema = z
+  .object({
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type StoryboardSceneDuplicateInput = z.infer<
+  typeof storyboardSceneDuplicateInputSchema
+>;
+
+/** Boundary for deleting one scene. At least one scene must remain. */
+export const storyboardSceneDeleteInputSchema = z
+  .object({
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type StoryboardSceneDeleteInput = z.infer<
+  typeof storyboardSceneDeleteInputSchema
+>;
+
+/** Default duration assigned to a newly added scene, within template bounds. */
+export const storyboardSceneDefaultDurationSeconds = 10 as const;
+
+/** Template-specific default visuals for a newly added storyboard scene. */
+const storyboardSceneDefaultVisuals: Record<
+  SceneTemplate,
+  SceneSpec["visual"]
+> = {
+  hook: { question: "What will you discover?" },
+  definition: {
+    term: "Key term",
+    definition: "A concise explanation.",
+  },
+  process: { steps: ["First step", "Second step"] },
+  "input-process-output": {
+    inputs: [{ label: "Input" }],
+    process: { label: "Process" },
+    outputs: [{ label: "Output" }],
+  },
+  comparison: {
+    leftSubject: { label: "Left subject" },
+    rightSubject: { label: "Right subject" },
+    similarities: ["Shared feature"],
+    differences: ["Key difference"],
+  },
+  "cause-effect": {
+    causes: [{ id: "cause-1", label: "Cause", assetSlot: "cause-1-icon" }],
+    effects: [{ id: "effect-1", label: "Effect", assetSlot: "effect-1-icon" }],
+    connections: [{ from: "cause-1", to: "effect-1" }],
+  },
+  "labelled-diagram": {
+    kind: "shapes",
+    shape: "system",
+    labels: [{ anchor: "top-left", id: "label-1", text: "Label" }],
+  },
+  analogy: {
+    sourceConcept: "Concept",
+    familiarSystem: "Familiar system",
+    mappings: [{ concept: "Concept part", analogy: "Familiar part" }],
+  },
+  "worked-example": {
+    problem: "Example problem",
+    steps: ["First step"],
+    answer: "Answer",
+  },
+  summary: { takeaways: [{ text: "Key takeaway" }] },
+};
+
+const storyboardSceneDefaultNarration: Record<SceneTemplate, string> = {
+  hook: "What will you discover in this lesson?",
+  definition: "Define a key term for this lesson.",
+  process: "Describe the steps of this process.",
+  "input-process-output": "Explain the inputs, process, and outputs.",
+  comparison: "Compare two related subjects.",
+  "cause-effect": "Explain the cause and effect.",
+  "labelled-diagram": "Label the parts of this diagram.",
+  analogy: "Explain this concept with an analogy.",
+  "worked-example": "Work through an example step by step.",
+  summary: "Summarize the key takeaways.",
+};
+
+/**
+ * Builds the `SceneSpec` (inner scene content) for a newly added storyboard
+ * scene. The scene is uncited (`sourceRefs: []`) and uses the template's
+ * default visual so it can be grounded and completed during scene editing.
+ */
+export function createDefaultStoryboardSceneSpec(
+  template: SceneTemplate,
+  input: {
+    id: Identifier;
+    order: number;
+    durationSeconds: number;
+  },
+): SceneSpec {
+  return sceneSpecSchema.parse({
+    id: input.id,
+    order: input.order,
+    narration: storyboardSceneDefaultNarration[template],
+    durationSeconds: input.durationSeconds,
+    onScreenText: [],
+    transition: "cut",
+    assetBindings: [],
+    sourceRefs: [],
+    generatedAdditions: [],
+    template,
+    visual: storyboardSceneDefaultVisuals[template],
+  });
+}

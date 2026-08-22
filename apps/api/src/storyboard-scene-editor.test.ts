@@ -1,0 +1,644 @@
+import { describe, expect, it, vi } from "vitest";
+import { createId } from "@avlp/config";
+import {
+  auditEvents,
+  lessonConfigurations,
+  lessonOutlineItems,
+  lessonOutlineSets,
+  lessonSpecs,
+  narrationBlocks,
+  narrationSets,
+  scenes,
+  type DatabaseClient,
+  type DatabaseExecutor,
+} from "@avlp/database";
+import {
+  lessonStoryboardSchema,
+  type LessonStoryboard,
+  type SourceApprovalStatus,
+} from "@avlp/schemas";
+import { PostgresStoryboardService } from "./storyboard.js";
+
+const projectId = "019ffbf1-ffff-7000-8000-000000000001";
+const ownerUserId = "019ffbf1-aaaa-7000-8000-000000000001";
+const snapshotId = "019ffbf1-eeee-7000-8000-000000000001";
+const outlineSetId = "019ffbf1-eeee-7000-8000-000000000002";
+const narrationSetId = "019ffbf1-eeee-7000-8000-000000000020";
+const outlineItemA = "019ffbf1-eeee-7000-8000-000000000003";
+const outlineItemB = "019ffbf1-eeee-7000-8000-000000000004";
+const blockA = "019ffbf1-eeee-7000-8000-000000000021";
+const blockB = "019ffbf1-eeee-7000-8000-000000000022";
+const objectiveId = "019ffbf1-eeee-7000-8000-000000000009";
+const lessonSpecId = "019ffbf1-eeee-7000-8000-000000000040";
+const sceneA = "019ffbf1-eeee-7000-8000-000000000050";
+const sceneB = "019ffbf1-eeee-7000-8000-000000000051";
+const contentHash = "a".repeat(64);
+
+const approvedStatus: SourceApprovalStatus = {
+  approved: true,
+  parsedDocumentVersion: 1,
+  snapshotId,
+  snapshotVersion: 1,
+  contentHash,
+  approvedAt: "2026-08-16T10:00:00.000Z",
+  stale: false,
+};
+
+function configRow() {
+  return {
+    id: "019ffbf1-eeee-7000-8000-000000000010",
+    projectId,
+    ownerUserId,
+    version: 3,
+    ageBand: "11-13",
+    difficulty: "introductory",
+    subject: "Science",
+    lessonTitle: "The water cycle",
+    targetDurationSeconds: 180,
+    tone: "friendly",
+    visualTheme: "mvp-default",
+    includeRecallQuestions: true,
+    sourceParsedDocumentVersion: 1,
+    createdAt: new Date("2026-08-16T10:00:00.000Z"),
+    updatedAt: new Date("2026-08-16T10:00:00.000Z"),
+  };
+}
+
+function outlineSetRow() {
+  return {
+    id: outlineSetId,
+    projectId,
+    ownerUserId,
+    sourceSnapshotId: snapshotId,
+    sourceSnapshotContentHash: contentHash,
+    objectiveSetId: "019ffbf1-eeee-7000-8000-000000000004",
+    objectiveSetContentHash: "b".repeat(64),
+    configurationVersion: 3,
+    promptId: "outline",
+    promptVersion: "v2",
+    model: "mock-model-1",
+    modelCallId: "019ffbf1-eeee-7000-8000-000000000005",
+    status: "approved",
+    revision: 0,
+    idempotencyKey: "outline:key-1",
+    totalEstimatedSeconds: 60,
+    generatedAt: new Date("2026-08-17T10:00:00.000Z"),
+    createdAt: new Date("2026-08-17T10:00:00.000Z"),
+    updatedAt: new Date("2026-08-17T10:00:00.000Z"),
+  };
+}
+
+function outlineItemRows() {
+  return [
+    {
+      id: outlineItemA,
+      projectId,
+      ownerUserId,
+      setId: outlineSetId,
+      order: 1,
+      kind: "concept",
+      title: "Evaporation",
+      description: "Explain evaporation.",
+      estimatedSeconds: 30,
+      sourceRefs: [],
+      framingNote: null,
+      generated: true,
+      revision: 0,
+      createdAt: new Date("2026-08-17T10:00:00.000Z"),
+      updatedAt: new Date("2026-08-17T10:00:00.000Z"),
+    },
+    {
+      id: outlineItemB,
+      projectId,
+      ownerUserId,
+      setId: outlineSetId,
+      order: 2,
+      kind: "concept",
+      title: "Condensation",
+      description: "Explain condensation.",
+      estimatedSeconds: 30,
+      sourceRefs: [],
+      framingNote: null,
+      generated: true,
+      revision: 0,
+      createdAt: new Date("2026-08-17T10:00:00.000Z"),
+      updatedAt: new Date("2026-08-17T10:00:00.000Z"),
+    },
+  ];
+}
+
+function narrationSetRow() {
+  return {
+    id: narrationSetId,
+    projectId,
+    ownerUserId,
+    sourceSnapshotId: snapshotId,
+    sourceSnapshotContentHash: contentHash,
+    outlineSetId,
+    outlineSetContentHash: "b".repeat(64),
+    configurationVersion: 3,
+    promptId: "narration",
+    promptVersion: "v2",
+    model: "mock-model-1",
+    modelCallId: "019ffbf1-eeee-7000-8000-000000000005",
+    status: "draft",
+    revision: 0,
+    idempotencyKey: "narration:key-1",
+    totalEstimatedSeconds: 60,
+    generatedAt: new Date("2026-08-17T10:00:00.000Z"),
+    createdAt: new Date("2026-08-17T10:00:00.000Z"),
+    updatedAt: new Date("2026-08-17T10:00:00.000Z"),
+  };
+}
+
+function narrationBlockRows() {
+  return [
+    {
+      id: blockA,
+      projectId,
+      ownerUserId,
+      setId: narrationSetId,
+      outlineItemId: outlineItemA,
+      order: 1,
+      text: "Water evaporates when heated and rises as water vapour into the sky.",
+      estimatedWords: 12,
+      targetSeconds: 30,
+      sourceRefs: [
+        {
+          documentId: "019ffbf1-3333-7000-8000-000000000001",
+          parsedDocumentVersion: 1,
+          pageStart: 1,
+          pageEnd: 1,
+          sectionId: "019ffbf1-2222-7000-8000-000000000001",
+          blockIds: [blockA],
+        },
+      ],
+      generatedAdditions: [],
+      generated: true,
+      revision: 0,
+      createdAt: new Date("2026-08-17T10:00:00.000Z"),
+      updatedAt: new Date("2026-08-17T10:00:00.000Z"),
+    },
+    {
+      id: blockB,
+      projectId,
+      ownerUserId,
+      setId: narrationSetId,
+      outlineItemId: outlineItemB,
+      order: 2,
+      text: "Condensation forms clouds when water vapour cools and becomes liquid.",
+      estimatedWords: 12,
+      targetSeconds: 30,
+      sourceRefs: [
+        {
+          documentId: "019ffbf1-3333-7000-8000-000000000001",
+          parsedDocumentVersion: 1,
+          pageStart: 2,
+          pageEnd: 2,
+          sectionId: "019ffbf1-2222-7000-8000-000000000001",
+          blockIds: [blockB],
+        },
+      ],
+      generatedAdditions: [],
+      generated: true,
+      revision: 0,
+      createdAt: new Date("2026-08-17T10:00:00.000Z"),
+      updatedAt: new Date("2026-08-17T10:00:00.000Z"),
+    },
+  ];
+}
+
+function storyboardPayload(): LessonStoryboard {
+  return lessonStoryboardSchema.parse({
+    schemaVersion: 1,
+    id: lessonSpecId,
+    projectId,
+    basedOnNarrationSetId: narrationSetId,
+    narrationSetContentHash: "c".repeat(64),
+    outlineSetId,
+    outlineSetContentHash: "b".repeat(64),
+    configurationVersion: 3,
+    promptId: "storyboard",
+    promptVersion: "v1",
+    model: "mock-model-1",
+    modelCallId: "019ffbf1-eeee-7000-8000-000000000005",
+    status: "draft",
+    revision: 0,
+    title: "The water cycle",
+    subject: "Science",
+    targetDurationSeconds: 180,
+    totalDurationSeconds: 60,
+    objectiveIds: [objectiveId],
+    contentHash: "d".repeat(64),
+    scenes: [
+      {
+        id: sceneA,
+        stableSceneId: sceneA,
+        order: 1,
+        template: "definition",
+        durationSeconds: 30,
+        narrationBlockIds: [blockA],
+        assetRequirements: [],
+        scene: {
+          id: sceneA,
+          order: 1,
+          narration:
+            "Water evaporates when heated and rises as water vapour into the sky.",
+          durationSeconds: 30,
+          onScreenText: ["Key term"],
+          transition: "cut",
+          assetBindings: [],
+          sourceRefs: [
+            {
+              documentId: "019ffbf1-3333-7000-8000-000000000001",
+              parsedDocumentVersion: 1,
+              pageStart: 1,
+              pageEnd: 1,
+              sectionId: "019ffbf1-2222-7000-8000-000000000001",
+              blockIds: [blockA],
+            },
+          ],
+          generatedAdditions: [],
+          template: "definition",
+          visual: { term: "Evaporation", definition: "A liquid becoming a gas." },
+        },
+      },
+      {
+        id: sceneB,
+        stableSceneId: sceneB,
+        order: 2,
+        template: "summary",
+        durationSeconds: 30,
+        narrationBlockIds: [blockB],
+        assetRequirements: [],
+        scene: {
+          id: sceneB,
+          order: 2,
+          narration: "Condensation forms clouds when water vapour cools.",
+          durationSeconds: 30,
+          onScreenText: [],
+          transition: "cut",
+          assetBindings: [],
+          sourceRefs: [
+            {
+              documentId: "019ffbf1-3333-7000-8000-000000000001",
+              parsedDocumentVersion: 1,
+              pageStart: 2,
+              pageEnd: 2,
+              sectionId: "019ffbf1-2222-7000-8000-000000000001",
+              blockIds: [blockB],
+            },
+          ],
+          generatedAdditions: [],
+          template: "summary",
+          visual: { takeaways: [{ text: "The cycle repeats." }] },
+        },
+      },
+    ],
+    generatedAt: "2026-08-18T10:00:00.000Z",
+    createdAt: "2026-08-18T10:00:00.000Z",
+  });
+}
+
+function lessonSpecRow() {
+  const payload = storyboardPayload();
+  return {
+    id: lessonSpecId,
+    projectId,
+    ownerUserId,
+    schemaVersion: "storyboard-v1",
+    basedOnNarrationSetId: payload.basedOnNarrationSetId,
+    narrationSetContentHash: payload.narrationSetContentHash,
+    outlineSetId: payload.outlineSetId,
+    outlineSetContentHash: payload.outlineSetContentHash,
+    configurationVersion: payload.configurationVersion,
+    promptId: payload.promptId,
+    promptVersion: payload.promptVersion,
+    model: payload.model,
+    modelCallId: payload.modelCallId,
+    status: payload.status,
+    revision: 0,
+    idempotencyKey: "storyboard:key-1",
+    title: payload.title,
+    subject: payload.subject,
+    targetDurationSeconds: payload.targetDurationSeconds,
+    totalDurationSeconds: payload.totalDurationSeconds,
+    objectiveIds: payload.objectiveIds,
+    contentHash: payload.contentHash,
+    payload,
+    generatedAt: new Date("2026-08-18T10:00:00.000Z"),
+    createdAt: new Date("2026-08-18T10:00:00.000Z"),
+    updatedAt: new Date("2026-08-18T10:00:00.000Z"),
+  };
+}
+
+type FakeDbOptions = {
+  revision?: number;
+  scenesToTrim?: number;
+};
+
+function fakeDatabase(options: FakeDbOptions = {}) {
+  const inserts: Array<{ table: unknown; value: unknown }> = [];
+  const lessonSpecRows = [lessonSpecRow()];
+  if (options.revision !== undefined)
+    lessonSpecRows[0] = {
+      ...lessonSpecRows[0]!,
+      revision: options.revision,
+      payload: { ...storyboardPayload(), revision: options.revision },
+    };
+  if (options.scenesToTrim !== undefined) {
+    const payload = lessonSpecRows[0]!.payload as LessonStoryboard;
+    const trimmed = payload.scenes.slice(0, options.scenesToTrim);
+    lessonSpecRows[0] = {
+      ...lessonSpecRows[0]!,
+      totalDurationSeconds: trimmed.reduce(
+        (sum, scene) => sum + scene.durationSeconds,
+        0,
+      ),
+      payload: lessonStoryboardSchema.parse({
+        ...payload,
+        totalDurationSeconds: trimmed.reduce(
+          (sum, scene) => sum + scene.durationSeconds,
+          0,
+        ),
+        scenes: trimmed,
+      }),
+    };
+  }
+  const sceneRows = lessonSpecRows[0]!.payload.scenes.map((scene) => ({
+    id: scene.id,
+    projectId,
+    ownerUserId,
+    lessonSpecId,
+    stableSceneId: scene.stableSceneId,
+    order: scene.order,
+    template: scene.template,
+    durationSeconds: scene.durationSeconds,
+    narrationBlockIds: scene.narrationBlockIds,
+    assetRequirements: scene.assetRequirements,
+    sceneJson: scene.scene,
+    revision: 0,
+    createdAt: new Date("2026-08-18T10:00:00.000Z"),
+    updatedAt: new Date("2026-08-18T10:00:00.000Z"),
+  }));
+
+  const rowsFor = (table: unknown): unknown[] => {
+    if (table === lessonConfigurations) return [configRow()];
+    if (table === lessonOutlineSets) return [outlineSetRow()];
+    if (table === lessonOutlineItems) return outlineItemRows();
+    if (table === narrationSets) return [narrationSetRow()];
+    if (table === narrationBlocks) return narrationBlockRows();
+    if (table === lessonSpecs) return lessonSpecRows;
+    if (table === scenes) return sceneRows;
+    return [];
+  };
+  const thenable = (value: unknown) => ({
+    then: (resolve: (value: unknown) => void) =>
+      Promise.resolve(value).then(resolve),
+  });
+  const query = (rows: unknown[]) => {
+    const result = {
+      limit: () => result,
+      orderBy: () => result,
+      for: () => result,
+      then: (resolve: (value: unknown[]) => void) =>
+        Promise.resolve(rows).then(resolve),
+    };
+    return result;
+  };
+  const insert = (table: unknown) => ({
+    values: (value: unknown) => {
+      inserts.push({ table, value });
+      const chain = {
+        onConflictDoNothing: () => chain,
+        returning: async () => [{ id: createId() }],
+        then: (resolve: (value: unknown[]) => void) =>
+          Promise.resolve([]).then(resolve),
+      };
+      return chain;
+    },
+  });
+  const update = (table: unknown) => ({
+    set: (value: unknown) => {
+      if (table === lessonSpecs) {
+        const merged = {
+          ...lessonSpecRows[0]!,
+          ...(value as Record<string, unknown>),
+        };
+        lessonSpecRows[0] = merged as typeof lessonSpecRows[0];
+      }
+      const chain = {
+        where: () => ({
+          returning: async () => [{ id: createId() }],
+          then: (resolve: (value: unknown[]) => void) =>
+            Promise.resolve([{ id: createId() }]).then(resolve),
+        }),
+      };
+      return chain;
+    },
+  });
+  const delete_ = (table: unknown) => {
+    void table;
+    return {
+      where: () => ({
+        returning: async () => [{ id: createId() }],
+        then: (resolve: (value: unknown[]) => void) =>
+          Promise.resolve([{ id: createId() }]).then(resolve),
+      }),
+    };
+  };
+  const select = () => ({
+    from: (table: unknown) => ({
+      where: () => query(rowsFor(table)),
+    }),
+  });
+  const executor: DatabaseExecutor = {
+    insert,
+    update,
+    delete: delete_,
+    select,
+  } as unknown as DatabaseExecutor;
+  const database = {
+    client: {},
+    insert,
+    update,
+    delete: delete_,
+    select,
+    transaction: async (cb: (inner: DatabaseExecutor) => Promise<unknown>) =>
+      cb(executor),
+  } as unknown as DatabaseClient;
+  return {
+    database,
+    inserts,
+    lessonSpecRows,
+    sceneRows,
+    thenable,
+  };
+}
+
+function createService(database: DatabaseClient) {
+  const sourceApprovalStatus = vi.fn(async () => approvedStatus);
+  const service = new PostgresStoryboardService(
+    database,
+    sourceApprovalStatus,
+    () => new Date("2026-08-18T10:00:00.000Z"),
+  );
+  return { service, sourceApprovalStatus };
+}
+
+function auditOperation(inserts: Array<{ table: unknown; value: unknown }>) {
+  return inserts
+    .filter((item) => item.table === auditEvents)
+    .map((item) => item.value as { eventType: string; metadata: unknown });
+}
+
+describe("PostgresStoryboardService scene editor", () => {
+  it("adds a scene from a template default and renumbers the list", async () => {
+    const { database, inserts } = fakeDatabase();
+    const { service } = createService(database);
+    const result = await service.addScene({
+      ownerUserId,
+      projectId,
+      body: { expectedRevision: 0, template: "hook" },
+      correlationId: createId(),
+    });
+    expect(result.revision).toBe(1);
+    expect(result.scenes).toHaveLength(3);
+    expect(result.scenes.map((scene) => scene.order)).toEqual([1, 2, 3]);
+    expect(result.scenes[2]!.template).toBe("hook");
+    const events = auditOperation(inserts);
+    expect(events).toHaveLength(1);
+    expect(events[0]!.eventType).toBe("storyboard.edited");
+    expect((events[0]!.metadata as { operation: string }).operation).toBe(
+      "add",
+    );
+  });
+
+  it("rejects adding a scene against a stale revision", async () => {
+    const { database } = fakeDatabase({ revision: 2 });
+    const { service } = createService(database);
+    await expect(
+      service.addScene({
+        ownerUserId,
+        projectId,
+        body: { expectedRevision: 0, template: "hook" },
+        correlationId: createId(),
+      }),
+    ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
+  });
+
+  it("duplicates a scene with a new id after the source scene", async () => {
+    const { database, inserts } = fakeDatabase();
+    const { service } = createService(database);
+    const result = await service.duplicateScene({
+      ownerUserId,
+      projectId,
+      sceneId: sceneA,
+      body: { expectedRevision: 0 },
+      correlationId: createId(),
+    });
+    expect(result.revision).toBe(1);
+    expect(result.scenes).toHaveLength(3);
+    const duplicate = result.scenes[1]!;
+    expect(duplicate.template).toBe("definition");
+    expect(duplicate.sceneId).not.toBe(sceneA);
+    expect(result.scenes[0]!.sceneId).toBe(sceneA);
+    const events = auditOperation(inserts);
+    expect((events[0]!.metadata as { operation: string }).operation).toBe(
+      "duplicate",
+    );
+  });
+
+  it("rejects duplicating an unknown scene", async () => {
+    const { database } = fakeDatabase();
+    const { service } = createService(database);
+    await expect(
+      service.duplicateScene({
+        ownerUserId,
+        projectId,
+        sceneId: "019ffbf1-eeee-7000-8000-000000000099",
+        body: { expectedRevision: 0 },
+        correlationId: createId(),
+      }),
+    ).rejects.toMatchObject({ code: "not_found", statusCode: 404 });
+  });
+
+  it("deletes a scene and preserves the remaining scene's citations", async () => {
+    const { database, inserts } = fakeDatabase();
+    const { service } = createService(database);
+    const result = await service.deleteScene({
+      ownerUserId,
+      projectId,
+      sceneId: sceneB,
+      body: { expectedRevision: 0 },
+      correlationId: createId(),
+    });
+    expect(result.revision).toBe(1);
+    expect(result.scenes).toHaveLength(1);
+    expect(result.scenes[0]!.sceneId).toBe(sceneA);
+    expect(result.scenes[0]!.narrationBlockCount).toBe(1);
+    const events = auditOperation(inserts);
+    expect((events[0]!.metadata as { operation: string }).operation).toBe(
+      "delete",
+    );
+  });
+
+  it("blocks deleting the final scene", async () => {
+    const { database } = fakeDatabase({ scenesToTrim: 1 });
+    const { service } = createService(database);
+    await expect(
+      service.deleteScene({
+        ownerUserId,
+        projectId,
+        sceneId: sceneA,
+        body: { expectedRevision: 0 },
+        correlationId: createId(),
+      }),
+    ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
+  });
+
+  it("reorders scenes by stable id and keeps citations attached", async () => {
+    const { database, inserts } = fakeDatabase();
+    const { service } = createService(database);
+    const result = await service.reorderScenes({
+      ownerUserId,
+      projectId,
+      body: { expectedRevision: 0, sceneIds: [sceneB, sceneA] },
+      correlationId: createId(),
+    });
+    expect(result.revision).toBe(1);
+    expect(result.scenes.map((scene) => scene.sceneId)).toEqual([sceneB, sceneA]);
+    expect(result.scenes.map((scene) => scene.order)).toEqual([1, 2]);
+    expect(result.scenes[0]!.narrationBlockCount).toBe(1);
+    const events = auditOperation(inserts);
+    expect((events[0]!.metadata as { operation: string }).operation).toBe(
+      "reorder",
+    );
+  });
+
+  it("rejects a reorder that does not list every scene exactly once", async () => {
+    const { database } = fakeDatabase();
+    const { service } = createService(database);
+    await expect(
+      service.reorderScenes({
+        ownerUserId,
+        projectId,
+        body: { expectedRevision: 0, sceneIds: [sceneA] },
+        correlationId: createId(),
+      }),
+    ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
+  });
+
+  it("rejects a malformed scene command body", async () => {
+    const { database } = fakeDatabase();
+    const { service } = createService(database);
+    await expect(
+      service.reorderScenes({
+        ownerUserId,
+        projectId,
+        body: { sceneIds: [sceneA] },
+        correlationId: createId(),
+      }),
+    ).rejects.toMatchObject({ code: "validation_failed", statusCode: 400 });
+  });
+});

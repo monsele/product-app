@@ -322,6 +322,10 @@ type StoryboardApiService = Pick<
   | "rejectSceneCandidate"
   | "scenes"
   | "sceneDetail"
+  | "addScene"
+  | "duplicateScene"
+  | "deleteScene"
+  | "reorderScenes"
 >;
 type CitationApiService = Pick<CitationService, "forScene">;
 type GroundingApiService = Pick<GroundingService, "check" | "current">;
@@ -1221,6 +1225,96 @@ class ProjectsController {
       ownerUserId: access.ownerUserId,
       projectId: access.projectId,
       sceneId: sceneId.data,
+    });
+  }
+
+  @Post(":projectId/scenes")
+  @HttpCode(200)
+  public async addStoryboardScene(
+    @Param("projectId") projectId: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    return this.storyboard.addScene({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/scenes/reorder")
+  @HttpCode(200)
+  public async reorderStoryboardScenes(
+    @Param("projectId") projectId: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    return this.storyboard.reorderScenes({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/scenes/:sceneId/duplicate")
+  @HttpCode(200)
+  public async duplicateStoryboardScene(
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const sceneId = identifierSchema.safeParse(sceneIdInput);
+    if (!sceneId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.storyboard.duplicateScene({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      sceneId: sceneId.data,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Delete(":projectId/scenes/:sceneId")
+  @HttpCode(200)
+  public async deleteStoryboardScene(
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const sceneId = identifierSchema.safeParse(sceneIdInput);
+    if (!sceneId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.storyboard.deleteScene({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      sceneId: sceneId.data,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
     });
   }
 
@@ -2191,6 +2285,42 @@ const unavailableStoryboardService: StoryboardApiService = {
       new PublicError(
         "internal_error",
         "The storyboard scene detail is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  addScene: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Storyboard scene editing is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  duplicateScene: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Storyboard scene editing is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  deleteScene: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Storyboard scene editing is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  reorderScenes: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Storyboard scene editing is unavailable.",
         503,
         true,
       ),

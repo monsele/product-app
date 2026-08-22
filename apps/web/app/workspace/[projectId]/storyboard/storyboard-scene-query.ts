@@ -1,6 +1,7 @@
 import {
   storyboardSceneDetailResponseSchema,
   storyboardSceneListResponseSchema,
+  type SceneTemplate,
   type StoryboardSceneDetailResponse,
   type StoryboardSceneListResponse,
 } from "@avlp/schemas";
@@ -94,4 +95,95 @@ export async function fetchStoryboardSceneDetail(
   const parsed = storyboardSceneDetailResponseSchema.safeParse(payload);
   if (!parsed.success) throw new Error("storyboard-scene-detail");
   return parsed.data;
+}
+
+function parseSceneListPayload(payload: unknown): StoryboardSceneListResponse {
+  const parsed = storyboardSceneListResponseSchema.safeParse(payload);
+  if (!parsed.success) throw new Error("storyboard-scenes");
+  return parsed.data;
+}
+
+function mutationErrorMessage(payload: unknown, fallback: string): string {
+  return typeof payload === "object" &&
+    payload !== null &&
+    "error" in payload &&
+    typeof payload.error === "object" &&
+    payload.error !== null &&
+    "message" in payload.error &&
+    typeof payload.error.message === "string"
+    ? payload.error.message
+    : fallback;
+}
+
+async function postSceneMutation(
+  path: string,
+  body: unknown,
+  method: "POST" | "DELETE" = "POST",
+): Promise<StoryboardSceneListResponse> {
+  const response = await fetch(apiUrl(path), {
+    method,
+    credentials: "include",
+    cache: "no-store",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const payload: unknown = await response.json().catch(() => null);
+  if (!response.ok)
+    throw new Error(
+      mutationErrorMessage(payload, "The storyboard could not be updated."),
+    );
+  return parseSceneListPayload(payload);
+}
+
+export async function addStoryboardScene(
+  projectId: string,
+  template: SceneTemplate,
+  expectedRevision: number,
+): Promise<StoryboardSceneListResponse> {
+  const result = await postSceneMutation(
+    `/projects/${encodeURIComponent(projectId)}/scenes`,
+    { template, expectedRevision },
+  );
+  cacheStoryboardSceneList(projectId, result.revision, result);
+  return result;
+}
+
+export async function duplicateStoryboardScene(
+  projectId: string,
+  sceneId: string,
+  expectedRevision: number,
+): Promise<StoryboardSceneListResponse> {
+  const result = await postSceneMutation(
+    `/projects/${encodeURIComponent(projectId)}/scenes/${encodeURIComponent(sceneId)}/duplicate`,
+    { expectedRevision },
+  );
+  cacheStoryboardSceneList(projectId, result.revision, result);
+  return result;
+}
+
+export async function deleteStoryboardScene(
+  projectId: string,
+  sceneId: string,
+  expectedRevision: number,
+): Promise<StoryboardSceneListResponse> {
+  const result = await postSceneMutation(
+    `/projects/${encodeURIComponent(projectId)}/scenes/${encodeURIComponent(sceneId)}`,
+    { expectedRevision },
+    "DELETE",
+  );
+  cacheStoryboardSceneList(projectId, result.revision, result);
+  return result;
+}
+
+export async function reorderStoryboardScenes(
+  projectId: string,
+  sceneIds: readonly string[],
+  expectedRevision: number,
+): Promise<StoryboardSceneListResponse> {
+  const result = await postSceneMutation(
+    `/projects/${encodeURIComponent(projectId)}/scenes/reorder`,
+    { sceneIds, expectedRevision },
+  );
+  cacheStoryboardSceneList(projectId, result.revision, result);
+  return result;
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  createDefaultStoryboardSceneSpec,
   currentSceneRegenerationCompatibility,
   lessonStoryboardSchema,
   lessonStoryboardSceneSchema,
@@ -17,10 +18,14 @@ import {
   storyboardGenerationResponseSchema,
   storyboardOutputV1Schema,
   storyboardResponseSchema,
+  storyboardSceneCreateInputSchema,
+  storyboardSceneDeleteInputSchema,
   storyboardSceneDetailResponseSchema,
+  storyboardSceneDuplicateInputSchema,
   storyboardSceneListEntrySchema,
   storyboardSceneListResponseSchema,
   storyboardSceneOutputSchema,
+  storyboardSceneReorderInputSchema,
   storyboardTemplateCatalog,
   storyboardTemplateCatalogEntrySchema,
   type LessonStoryboard,
@@ -802,5 +807,89 @@ describe("ST-054 storyboard scene list and detail read model", () => {
         },
       }),
     ).toThrow();
+  });
+});
+
+describe("storyboard scene editing contracts (ST-055)", () => {
+  const sceneId = "019ffbf1-2222-7000-8000-000000000001";
+
+  it("accepts a valid reorder input", () => {
+    expect(() =>
+      storyboardSceneReorderInputSchema.parse({
+        expectedRevision: 2,
+        sceneIds: [sceneId, blockA],
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects a reorder input without a scene list", () => {
+    expect(() =>
+      storyboardSceneReorderInputSchema.parse({
+        expectedRevision: 2,
+        sceneIds: [],
+      }),
+    ).toThrow();
+  });
+
+  it("accepts a valid create input for every registered template", () => {
+    for (const template of sceneTemplateValues)
+      expect(() =>
+        storyboardSceneCreateInputSchema.parse({
+          expectedRevision: 0,
+          template,
+        }),
+      ).not.toThrow();
+  });
+
+  it("rejects a create input with an unknown template", () => {
+    expect(() =>
+      storyboardSceneCreateInputSchema.parse({
+        expectedRevision: 0,
+        template: "freeform",
+      }),
+    ).toThrow();
+  });
+
+  it("accepts duplicate and delete inputs", () => {
+    expect(() =>
+      storyboardSceneDuplicateInputSchema.parse({ expectedRevision: 1 }),
+    ).not.toThrow();
+    expect(() =>
+      storyboardSceneDeleteInputSchema.parse({ expectedRevision: 1 }),
+    ).not.toThrow();
+  });
+
+  it("builds a valid uncited default scene spec for every template", () => {
+    for (const template of sceneTemplateValues) {
+      const spec = createDefaultStoryboardSceneSpec(template, {
+        id: sceneId,
+        order: 1,
+        durationSeconds: 10,
+      });
+      expect(spec.template).toBe(template);
+      expect(spec.sourceRefs).toEqual([]);
+      expect(spec.assetBindings).toEqual([]);
+      expect(() => sceneSpecSchema.parse(spec)).not.toThrow();
+    }
+  });
+
+  it("allows a draft scene with no narration blocks or citations", () => {
+    const spec = createDefaultStoryboardSceneSpec("definition", {
+      id: sceneId,
+      order: 1,
+      durationSeconds: 10,
+    });
+    expect(() =>
+      lessonStoryboardSceneSchema.parse({
+        id: sceneId,
+        stableSceneId: sceneId,
+        order: 1,
+        template: "definition",
+        durationSeconds: 10,
+        narrationBlockIds: [],
+        assetRequirements: [],
+        scene: spec,
+      }),
+    ).not.toThrow();
   });
 });

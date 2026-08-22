@@ -75,3 +75,40 @@ test("mounts a preview only for the selected scene at maximum scene count", asyn
   );
   expect(totalContentHeight).toBeGreaterThan(100 * 60);
 });
+
+const secondSceneId = "019ffbf1-6154-738a-b087-6775ff97568c";
+
+test("reorders scenes by dragging one above another", async ({ page }) => {
+  await setSessionCookie(page);
+  await page.goto(`/workspace/${projectId}/storyboard`);
+  const sourceSelector = `[data-testid="storyboard-scene-${secondSceneId}"]`;
+  const targetSelector = `[data-testid="storyboard-scene-${firstSceneId}"]`;
+  await expect(page.locator(sourceSelector)).toBeVisible();
+  await expect(page.locator(targetSelector)).toBeVisible();
+
+  const reorderRequest = page.waitForRequest(
+    (request) =>
+      request.method() === "POST" &&
+      request.url().includes("/scenes/reorder"),
+  );
+  await page.dragAndDrop(sourceSelector, targetSelector);
+  const request = await reorderRequest;
+  const body = request.postDataJSON();
+  expect(body.sceneIds).toEqual([secondSceneId, firstSceneId]);
+});
+
+test("adds and then deletes a storyboard scene", async ({ page }) => {
+  await setSessionCookie(page);
+  await page.goto(`/workspace/${projectId}/storyboard`);
+  const list = page.getByRole("listbox", { name: "Storyboard scenes" });
+  const rows = list.locator("li[role='option']");
+  await expect(list).toBeVisible();
+  const before = await rows.count();
+  await page.getByRole("button", { name: "Add scene" }).click();
+  await expect(rows).toHaveCount(before + 1);
+
+  await rows.last().click();
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.getByRole("button", { name: "Delete" }).click();
+  await expect(rows).toHaveCount(before);
+});

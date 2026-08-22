@@ -2,7 +2,7 @@
 story_id: ST-055
 title: "Reorder, Add, Duplicate, and Delete Storyboard Scenes"
 phase: "05 \u2014 Storyboard Editing, Assets, and Versions"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E12"]
 prd_user_stories: ["E12-US2", "E12-US3"]
@@ -118,15 +118,54 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
+- **Agent:** Kilo (AI Visual Learning Platform)
+- **Started:** 2026-08-22
+- **Completed:** 2026-08-22
+- **Branch/PR:** story/st-055
 - **Files changed:**
+  - `packages/schemas/src/index.ts` — relaxed draft-scene constraints; added CRUD input schemas + default scene factory
+  - `packages/database/src/schema.ts` — added `storyboard.edited` audit event type
+  - `packages/database/drizzle/0039_cloudy_warbound.sql` — migration for audit enum
+  - `apps/api/src/storyboard.ts` — added `addScene`, `duplicateScene`, `deleteScene`, `reorderScenes` service methods
+  - `apps/api/src/app.ts` — 4 new routes + service pick
+  - `apps/web/app/workspace/[projectId]/storyboard/storyboard-scene-query.ts` — mutation fetch functions
+  - `apps/web/app/workspace/[projectId]/storyboard/scene-list.tsx` — drag-and-drop + `reorderSceneIds` helper
+  - `apps/web/app/workspace/[projectId]/storyboard/storyboard-panel.tsx` — CRUD UI + toolbar
+  - `packages/schemas/src/storyboard.test.ts` — new schema tests
+  - `apps/api/src/storyboard-scene-editor.test.ts` — unit tests for CRUD/reorder
+  - `apps/web/app/workspace/[projectId]/storyboard/scene-list.test.ts` — reorder helper test
+  - `e2e/storyboard-editor.spec.ts` — drag-and-drop + CRUD Playwright tests
+  - `e2e/workspace-mock-api.mjs` — mock API handlers for new endpoints
 - **Migrations:**
+  - `packages/database/drizzle/0039_cloudy_warbound.sql` — `ALTER TYPE audit_event_type ADD VALUE 'storyboard.edited'`
 - **Contracts changed:**
+  - `packages/schemas/src/index.ts`:
+    - `sceneBaseShape.sourceRefs`: `.min(1)` → removed (allow empty for draft scenes)
+    - `lessonSpecSchema`: added superRefine enforcing ≥1 sourceRef per scene (preserves grounding rule at LessonSpec level)
+    - `lessonStoryboardSceneSchema.narrationBlockIds`: `.min(1)` → removed (allow empty for draft scenes)
+    - New: `storyboardSceneCreateInputSchema`, `storyboardSceneReorderInputSchema`, `storyboardSceneDuplicateInputSchema`, `storyboardSceneDeleteInputSchema`, `createDefaultStoryboardSceneSpec`, `storyboardSceneDefaultDurationSeconds`, `mockSceneVisual` (in e2e mock)
+  - `packages/database/src/schema.ts`: `auditEventTypeValues` + `storyboard.edited`
 - **Commands/tests run:**
+  - `pnpm lint` — all packages pass
+  - `pnpm typecheck` — all packages pass
+  - `pnpm test` — schemas (246), api (329), web (89), database (8) pass
+  - `pnpm build` — api, web, schemas, database pass
+  - `npx playwright test e2e/storyboard-editor.spec.ts` — 3/3 pass
+  - `npx playwright test e2e/storyboard.spec.ts` — 10/10 pass
 - **Screenshots or representative output:**
+  - Drag-and-drop reorder test: `page.dragAndDrop()` with string selectors sends POST `/scenes/reorder` with correct `sceneIds` order
+  - Add/delete test: "Add scene" button + template select creates new scene; "Delete" with confirmation removes it
+  - Reorder helper: `reorderSceneIds(["a","b","c","d"], 0, 2) === ["b","c","a","d"]`
 - **Decisions and assumptions:**
+  - Relaxed `sceneBaseShape.sourceRefs` and `narrationBlockIds` for draft storyboard scenes while preserving the grounding rule at the versioned `lessonSpecSchema` level via superRefine — avoids LessonSpec version bump.
+  - Used single `storyboard.edited` audit event type with `metadata.operation` discriminator ("add"|"duplicate"|"delete"|"reorder") rather than four separate enum values — consistent with `outline.edited`/`objectives.edited` pattern; requires one migration.
+  - New scenes start with `narrationBlockIds: []` and `sourceRefs: []` (draft-uncited) so teachers can ground them during editing (ST-056).
+  - Default scene factory uses template-specific visuals matching the scene-registry defaults.
+  - E2E mock `newMockSceneId` generates valid UUIDv7 identifiers to satisfy `identifierSchema`.
 - **Deviations from story/technical guide:**
+  - Technical guide E12 listed `POST /projects/{id}/scenes` for add, but the API base is `/projects/{id}` so the route is `POST /projects/:id/scenes` — matches.
+  - Guide mentions `PATCH /projects/{id}/scenes/{sceneId}` for edit (ST-056); this story only covers CRUD/reorder.
 - **Known risks or follow-up:**
+  - The `lessonSpecSchema` superRefine adds a validation that the final LessonSpec must have ≥1 sourceRef per scene — ST-060 (immutable lesson versions) must enforce this before rendering.
+  - Cross-tenant/concurrency tests covered in unit tests; integration tests require TEST_DATABASE_URL and are skipped in CI.
+  - Scene-library browser tests timeout in this environment (pre-existing) — not related to this story.

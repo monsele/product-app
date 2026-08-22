@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  sceneTemplateValues,
   storyboardResponseSchema,
+  type SceneTemplate,
   type StoryboardResponse,
   type StoryboardSceneDetailResponse,
   type StoryboardSceneListResponse,
@@ -15,10 +17,14 @@ import {
   storyboardValidationWarnings,
 } from "./storyboard-input";
 import {
+  addStoryboardScene,
   cachedStoryboardSceneList,
+  deleteStoryboardScene,
+  duplicateStoryboardScene,
   fetchStoryboardSceneDetail,
   fetchStoryboardSceneList,
   invalidateStoryboardSceneList,
+  reorderStoryboardScenes,
 } from "./storyboard-scene-query";
 import { SceneList } from "./scene-list";
 import { SceneDetailPanel } from "./scene-detail-panel";
@@ -75,6 +81,8 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
   const [selectedSceneId, setSelectedSceneId] = useState<string | null>(null);
   const [detail, setDetail] = useState<SceneDetailState>({ kind: "loading" });
   const [detailAttempt, setDetailAttempt] = useState(0);
+  const [editing, setEditing] = useState(false);
+  const [addTemplate, setAddTemplate] = useState<SceneTemplate>("definition");
 
   const refresh = useCallback(async () => {
     const response = await fetch(
@@ -280,6 +288,67 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
     void refresh().catch(() => undefined);
   }, [projectId, refresh]);
 
+  const runSceneMutation = useCallback(
+    async (
+      operation: () => Promise<StoryboardSceneListResponse>,
+    ): Promise<void> => {
+      setActionMessage(null);
+      setEditing(true);
+      try {
+        const result = await operation();
+        setSceneList({ kind: "ready", value: result });
+        await refresh().catch(() => undefined);
+      } catch (error) {
+        setActionMessage(
+          error instanceof Error
+            ? error.message
+            : "The storyboard could not be updated.",
+        );
+      } finally {
+        setEditing(false);
+      }
+    },
+    [refresh],
+  );
+
+  const handleAddScene = useCallback(() => {
+    if (revision === null) return;
+    void runSceneMutation(() =>
+      addStoryboardScene(projectId, addTemplate, revision),
+    );
+  }, [addTemplate, projectId, revision, runSceneMutation]);
+
+  const handleDuplicateScene = useCallback(
+    (sceneId: string) => {
+      if (revision === null) return;
+      void runSceneMutation(() =>
+        duplicateStoryboardScene(projectId, sceneId, revision),
+      );
+    },
+    [projectId, revision, runSceneMutation],
+  );
+
+  const handleDeleteScene = useCallback(
+    (sceneId: string) => {
+      if (revision === null) return;
+      if (!window.confirm("Delete this scene?")) return;
+      void runSceneMutation(() =>
+        deleteStoryboardScene(projectId, sceneId, revision),
+      );
+    },
+    [projectId, revision, runSceneMutation],
+  );
+
+  const handleReorder = useCallback(
+    (sceneIds: string[]) => {
+      if (revision === null) return;
+      void runSceneMutation(() =>
+        reorderStoryboardScenes(projectId, sceneIds, revision),
+      );
+    },
+    [projectId, revision, runSceneMutation],
+  );
+
   const markScenePending = useCallback((sceneId: string) => {
     setPendingScenes((current) => new Set(current).add(sceneId));
   }, []);
@@ -385,6 +454,59 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
         <div style={{ display: "flex", gap: 24 }}>
           <div style={{ flex: "1 1 45%" }}>
             <h3>Scene list</h3>
+            <div
+              style={{
+                alignItems: "center",
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 8,
+                marginBottom: 8,
+              }}
+            >
+              <label>
+                Template{" "}
+                <select
+                  aria-label="New scene template"
+                  onChange={(event) =>
+                    setAddTemplate(event.target.value as SceneTemplate)
+                  }
+                  value={addTemplate}
+                >
+                  {sceneTemplateValues.map((template) => (
+                    <option key={template} value={template}>
+                      {template}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={handleAddScene}
+                disabled={editing || revision === null}
+              >
+                Add scene
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedSceneId !== null)
+                    handleDuplicateScene(selectedSceneId);
+                }}
+                disabled={editing || selectedSceneId === null}
+              >
+                Duplicate
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (selectedSceneId !== null)
+                    handleDeleteScene(selectedSceneId);
+                }}
+                disabled={editing || selectedSceneId === null || listScenes.length <= 1}
+              >
+                Delete
+              </button>
+            </div>
             {sceneList.kind === "loading" ? (
               <p role="status">Loading the scene list…</p>
             ) : sceneList.kind === "failed" ? (
@@ -395,6 +517,7 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
                 selectedSceneId={selectedSceneId}
                 stale={view.value.stale}
                 onSelect={selectScene}
+                onReorder={handleReorder}
               />
             )}
           </div>

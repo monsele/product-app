@@ -1,5 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { sceneRowHeight, visibleSceneRange } from "./scene-list";
+import { reorderSceneIds, sceneRowHeight, visibleSceneRange } from "./scene-list";
+
+describe("reorderSceneIds", () => {
+  const ids = ["a", "b", "c", "d"];
+
+  it("moves a scene later in the list", () => {
+    expect(reorderSceneIds(ids, 0, 2)).toEqual(["b", "c", "a", "d"]);
+  });
+
+  it("moves a scene earlier in the list", () => {
+    expect(reorderSceneIds(ids, 3, 0)).toEqual(["d", "a", "b", "c"]);
+  });
+
+  it("keeps the original order when indices are equal", () => {
+    expect(reorderSceneIds(ids, 1, 1)).toEqual(ids);
+  });
+
+  it("keeps the original order for out-of-range indices", () => {
+    expect(reorderSceneIds(ids, -1, 2)).toEqual(ids);
+    expect(reorderSceneIds(ids, 0, 99)).toEqual(ids);
+  });
+
+  it("does not mutate the input array", () => {
+    const input = ["a", "b", "c"];
+    reorderSceneIds(input, 0, 2);
+    expect(input).toEqual(["a", "b", "c"]);
+  });
+});
 
 describe("visibleSceneRange", () => {
   it("renders the first window from the top of a large list", () => {
