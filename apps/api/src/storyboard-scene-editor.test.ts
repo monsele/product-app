@@ -307,8 +307,7 @@ function storyboardPayload(): LessonStoryboard {
   });
 }
 
-function lessonSpecRow() {
-  const payload = storyboardPayload();
+function lessonSpecRow(payload = storyboardPayload()) {
   return {
     id: lessonSpecId,
     projectId,
@@ -344,18 +343,19 @@ type FakeDbOptions = {
   revision?: number;
   scenesToTrim?: number;
   sourceFigureIds?: readonly string[];
+  storyboard?: LessonStoryboard;
 };
 
 function fakeDatabase(options: FakeDbOptions = {}) {
   const inserts: Array<{ table: unknown; value: unknown }> = [];
   const updates: Array<{ table: unknown; value: unknown }> = [];
   const operations: string[] = [];
-  const lessonSpecRows = [lessonSpecRow()];
+  const lessonSpecRows = [lessonSpecRow(options.storyboard)];
   if (options.revision !== undefined)
     lessonSpecRows[0] = {
       ...lessonSpecRows[0]!,
       revision: options.revision,
-      payload: { ...storyboardPayload(), revision: options.revision },
+      payload: { ...lessonSpecRows[0]!.payload, revision: options.revision },
     };
   if (options.scenesToTrim !== undefined) {
     const payload = lessonSpecRows[0]!.payload as LessonStoryboard;
@@ -851,6 +851,156 @@ describe("PostgresStoryboardService scene editor", () => {
         correlationId: createId(),
       }),
     ).rejects.toMatchObject({ code: "validation_failed", statusCode: 400 });
+  });
+
+  it("binds a compatible approved catalog asset without invalidating narration audio", async () => {
+    const { database } = fakeDatabase();
+    const { service } = createService(database);
+    const result = await service.bindCatalogAsset({
+      ownerUserId,
+      projectId,
+      sceneId: sceneA,
+      slot: "visual-example",
+      body: {
+        assetId: "019ffbf1-a003-7000-8000-000000000003",
+        expectedRevision: 0,
+      },
+      correlationId: createId(),
+    });
+    expect(result.scene.scene.assetBindings).toEqual([
+      expect.objectContaining({
+        assetId: "019ffbf1-a003-7000-8000-000000000003",
+        role: "illustration",
+        slot: "visual-example",
+      }),
+    ]);
+    expect(result.invalidated).toEqual(
+      expect.arrayContaining(["preview", "render", "validation"]),
+    );
+    expect(result.invalidated).not.toContain("audio");
+  });
+
+  it("rejects an approved asset that is incompatible with a scene slot", async () => {
+    const { database } = fakeDatabase();
+    const { service } = createService(database);
+    await expect(
+      service.bindCatalogAsset({
+        ownerUserId,
+        projectId,
+        sceneId: sceneA,
+        slot: "visual-example",
+        body: {
+          assetId: "019ffbf1-a001-7000-8000-000000000001",
+          expectedRevision: 0,
+        },
+        correlationId: createId(),
+      }),
+    ).rejects.toMatchObject({ code: "validation_failed", statusCode: 400 });
+  });
+
+  it("does not require an asset for a labelled diagram that uses shapes", async () => {
+    const payload = storyboardPayload();
+    const current = payload.scenes[0]!;
+    const storyboard = lessonStoryboardSchema.parse({
+      ...payload,
+      scenes: [
+        {
+          ...current,
+          template: "labelled-diagram",
+          assetRequirements: [],
+          scene: {
+            ...current.scene,
+            template: "labelled-diagram",
+            assetBindings: [],
+            visual: {
+              kind: "shapes",
+              shape: "cycle",
+              labels: [
+                { anchor: "top", id: "evaporation", text: "Evaporation" },
+                {
+                  anchor: "right",
+                  id: "condensation",
+                  text: "Condensation",
+                },
+              ],
+            },
+          },
+        },
+        ...payload.scenes.slice(1),
+      ],
+    });
+    const { database } = fakeDatabase({ storyboard });
+    const { service } = createService(database);
+
+    const detail = await service.sceneDetail({
+      ownerUserId,
+      projectId,
+      sceneId: sceneA,
+    });
+
+    expect(detail.status.assets).toBe("none");
+    expect(detail.status.validation).not.toBe("error");
+  });
+
+  it("keeps planned requirements in a missing state until every slot is bound", async () => {
+    const payload = storyboardPayload();
+    const current = payload.scenes[0]!;
+    const requirements = [
+      { slot: "step-1-icon", purpose: "Show the first step." },
+      { slot: "step-2-icon", purpose: "Show the second step." },
+    ];
+    const createStoryboard = (bindingCount: number) =>
+      lessonStoryboardSchema.parse({
+        ...payload,
+        scenes: [
+          {
+            ...current,
+            template: "process",
+            assetRequirements: requirements,
+            scene: {
+              ...current.scene,
+              template: "process",
+              visual: { steps: ["Warm water", "Water evaporates"] },
+              assetBindings: [
+                {
+                  assetId: "019ffbf1-a001-7000-8000-000000000001",
+                  role: "icon",
+                  slot: "step-1-icon",
+                },
+                ...(
+                  bindingCount === 2
+                    ? [
+                        {
+                          assetId: "019ffbf1-a002-7000-8000-000000000002",
+                          role: "icon" as const,
+                          slot: "step-2-icon",
+                        },
+                      ]
+                    : []
+                ),
+              ],
+            },
+          },
+          ...payload.scenes.slice(1),
+        ],
+      });
+    const partiallyBound = fakeDatabase({ storyboard: createStoryboard(1) });
+    const fullyBound = fakeDatabase({ storyboard: createStoryboard(2) });
+
+    await expect(
+      createService(partiallyBound.database).service.sceneDetail({
+        ownerUserId,
+        projectId,
+        sceneId: sceneA,
+      }),
+    ).resolves.toMatchObject({ status: { assets: "missing_required" } });
+    await expect(
+      createService(fullyBound.database).service.sceneDetail({
+        ownerUserId,
+        projectId,
+        sceneId: sceneA,
+      }),
+    ).resolves.toMatchObject({ status: { assets: "resolved" } });
   });
 
   it("requires confirmation before dropping incompatible template data", async () => {

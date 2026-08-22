@@ -251,6 +251,26 @@ describe("storyboard API", () => {
           resetFields: [],
         }),
       ),
+      bindCatalogAsset: vi.fn(
+        async (): Promise<StoryboardSceneEditResponse> => ({
+          revision: 1,
+          scene: sampleStoryboard().scenes[0]!,
+          invalidated: ["preview", "render", "validation"],
+          warning: null,
+          requiresConfirmation: false,
+          resetFields: [],
+        }),
+      ),
+      unbindCatalogAsset: vi.fn(
+        async (): Promise<StoryboardSceneEditResponse> => ({
+          revision: 1,
+          scene: sampleStoryboard().scenes[0]!,
+          invalidated: ["preview", "render", "validation"],
+          warning: null,
+          requiresConfirmation: false,
+          resetFields: [],
+        }),
+      ),
       ...service,
     };
     app = await createApp({
@@ -283,6 +303,41 @@ describe("storyboard API", () => {
     const payload = response.json();
     expect(payload.state).toBe("draft");
     expect(payload.storyboard.scenes[0].template).toBe("definition");
+  });
+
+  it("returns only compatible approved catalog assets for a slot filter", async () => {
+    const { server } = await api();
+    const response = await server.inject({
+      method: "GET",
+      url: "/assets?template=process&slot=step-1-icon",
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().assets).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "icon", license: "CC0-1.0" }),
+      ]),
+    );
+    expect(
+      response
+        .json()
+        .assets.every(
+          (asset: { kind: string }) =>
+            asset.kind === "icon" || asset.kind === "shape",
+        ),
+    ).toBe(true);
+  });
+
+  it("accepts repeated bounded catalog tag filters", async () => {
+    const { server } = await api();
+    const response = await server.inject({
+      method: "GET",
+      url: "/assets?template=process&slot=step-1-icon&tags=science&tags=water",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().assets).toEqual([
+      expect.objectContaining({ id: "019ffbf1-a001-7000-8000-000000000001" }),
+    ]);
   });
 
   it("hides the storyboard from another tenant", async () => {
@@ -515,5 +570,48 @@ describe("storyboard API", () => {
     });
     expect(response.statusCode).toBe(404);
     expect(storyboardService.sceneDetail).not.toHaveBeenCalled();
+  });
+
+  it("binds an approved catalog asset for the project owner", async () => {
+    const { fixture, server, storyboardService } = await api();
+    const sceneId = "019ffbf1-eeee-7000-8000-000000000050";
+    const response = await server.inject({
+      method: "PUT",
+      url: `/projects/${fixture.projectId}/scenes/${sceneId}/asset-bindings/visual-example`,
+      cookies: { [sessionCookieName]: "owner" },
+      headers: { origin: "https://teacher.example.test" },
+      payload: {
+        assetId: "019ffbf1-a003-7000-8000-000000000003",
+        expectedRevision: 0,
+      },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(storyboardService.bindCatalogAsset).toHaveBeenCalledWith({
+      ownerUserId: fixture.ownerUserId,
+      projectId: fixture.projectId,
+      sceneId,
+      slot: "visual-example",
+      body: {
+        assetId: "019ffbf1-a003-7000-8000-000000000003",
+        expectedRevision: 0,
+      },
+      correlationId: expect.any(String),
+    });
+  });
+
+  it("does not reveal the asset binding endpoint across tenants", async () => {
+    const { fixture, server, storyboardService } = await api();
+    const response = await server.inject({
+      method: "PUT",
+      url: `/projects/${fixture.projectId}/scenes/019ffbf1-eeee-7000-8000-000000000050/asset-bindings/visual-example`,
+      cookies: { [sessionCookieName]: "other" },
+      headers: { origin: "https://teacher.example.test" },
+      payload: {
+        assetId: "019ffbf1-a003-7000-8000-000000000003",
+        expectedRevision: 0,
+      },
+    });
+    expect(response.statusCode).toBe(404);
+    expect(storyboardService.bindCatalogAsset).not.toHaveBeenCalled();
   });
 });

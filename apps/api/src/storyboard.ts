@@ -35,6 +35,9 @@ import {
   migrateStoryboardSceneTemplate,
   sceneEditInvalidation,
   sceneEditorMetadata,
+  sceneAssetSlotRequirement,
+  requiredSceneAssetSlots,
+  isCatalogAssetCompatibleWithSlot,
   lessonStoryboardSceneSchema,
   lessonStoryboardSchema,
   modelCallJobPayloadSchema,
@@ -58,6 +61,8 @@ import {
   storyboardSceneReorderInputSchema,
   storyboardSceneTemplateSwitchInputSchema,
   storyboardSceneUpdateInputSchema,
+  storyboardSceneAssetBindingInputSchema,
+  storyboardSceneAssetUnbindingInputSchema,
   type LessonStoryboard,
   type LessonStoryboardScene,
   type NarrationBudgetStatus,
@@ -77,6 +82,7 @@ import {
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { SourceSnapshotService } from "./source-snapshot.js";
+import { approvedAssetById } from "./approved-assets.js";
 
 function canonicalHash(value: unknown): string {
   const canonical = JSON.stringify(sortCanonical(value));
@@ -177,6 +183,22 @@ export interface StoryboardService {
     ownerUserId: Identifier;
     projectId: Identifier;
     sceneId: Identifier;
+    body: unknown;
+    correlationId: Identifier;
+  }): Promise<StoryboardSceneEditResponse>;
+  bindCatalogAsset(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    sceneId: Identifier;
+    slot: string;
+    body: unknown;
+    correlationId: Identifier;
+  }): Promise<StoryboardSceneEditResponse>;
+  unbindCatalogAsset(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    sceneId: Identifier;
+    slot: string;
     body: unknown;
     correlationId: Identifier;
   }): Promise<StoryboardSceneEditResponse>;
@@ -1113,11 +1135,11 @@ export class PostgresStoryboardService implements StoryboardService {
         JSON.stringify(parsed.scene.assetBindings) !==
         JSON.stringify(current.scene.assetBindings)
       )
-        await this.assertAuthorizedSourceFigureBindings(
+        await this.assertAuthorizedAssetBindings(
           transaction,
           input.ownerUserId,
           input.projectId,
-          parsed.scene.assetBindings.map((binding) => binding.assetId),
+          parsed.scene,
         );
       const edited = lessonStoryboardSceneSchema.parse({
         ...current,
@@ -1168,6 +1190,86 @@ export class PostgresStoryboardService implements StoryboardService {
     });
     if (result === undefined) throw sceneConflict();
     return result;
+  }
+
+  public async bindCatalogAsset(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    sceneId: Identifier;
+    slot: string;
+    body: unknown;
+    correlationId: Identifier;
+  }): Promise<StoryboardSceneEditResponse> {
+    const parsed = parseBoundary(
+      storyboardSceneAssetBindingInputSchema,
+      input.body,
+    );
+    const detail = await this.sceneDetail(input);
+    const requirement = sceneAssetSlotRequirement(
+      detail.scene.scene.template,
+      input.slot,
+    );
+    const asset = approvedAssetById(parsed.assetId);
+    if (
+      requirement === undefined ||
+      asset === undefined ||
+      !isCatalogAssetCompatibleWithSlot(asset, requirement)
+    )
+      throw incompatibleCatalogAsset();
+    const assetBindings = detail.scene.scene.assetBindings.filter(
+      (binding) => binding.slot !== input.slot,
+    );
+    assetBindings.push({
+      assetId: parsed.assetId,
+      role: requirement.bindingRole,
+      slot: input.slot,
+      ...(parsed.altText === undefined ? {} : { altText: parsed.altText }),
+    });
+    return this.updateScene({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+      sceneId: input.sceneId,
+      body: {
+        expectedRevision: parsed.expectedRevision,
+        scene: { ...detail.scene.scene, assetBindings },
+      },
+      correlationId: input.correlationId,
+    });
+  }
+
+  public async unbindCatalogAsset(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    sceneId: Identifier;
+    slot: string;
+    body: unknown;
+    correlationId: Identifier;
+  }): Promise<StoryboardSceneEditResponse> {
+    const parsed = parseBoundary(
+      storyboardSceneAssetUnbindingInputSchema,
+      input.body,
+    );
+    const detail = await this.sceneDetail(input);
+    if (
+      sceneAssetSlotRequirement(detail.scene.scene.template, input.slot) ===
+      undefined
+    )
+      throw incompatibleSceneAssetSlot();
+    return this.updateScene({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+      sceneId: input.sceneId,
+      body: {
+        expectedRevision: parsed.expectedRevision,
+        scene: {
+          ...detail.scene.scene,
+          assetBindings: detail.scene.scene.assetBindings.filter(
+            (binding) => binding.slot !== input.slot,
+          ),
+        },
+      },
+      correlationId: input.correlationId,
+    });
   }
 
   public async switchSceneTemplate(input: {
@@ -1752,16 +1854,39 @@ export class PostgresStoryboardService implements StoryboardService {
   }
 
   /**
-   * ST-056 permits a bounded binding to an included source figure. ST-057
-   * replaces this direct-ID control with the approved catalog and picker.
+   * Catalog bindings are global immutable approved assets. Any non-catalog
+   * binding remains limited to an included source figure in this tenant.
    */
-  private async assertAuthorizedSourceFigureBindings(
+  private async assertAuthorizedAssetBindings(
     executor: DatabaseExecutor,
     ownerUserId: Identifier,
     projectId: Identifier,
-    assetIds: readonly Identifier[],
+    scene: LessonStoryboardScene["scene"],
   ): Promise<void> {
-    const uniqueIds = [...new Set(assetIds)];
+    const catalogBindings = scene.assetBindings.filter(
+      (binding) => approvedAssetById(binding.assetId) !== undefined,
+    );
+    for (const binding of catalogBindings) {
+      const requirement =
+        binding.slot === undefined
+          ? undefined
+          : sceneAssetSlotRequirement(scene.template, binding.slot);
+      const asset = approvedAssetById(binding.assetId);
+      if (
+        requirement === undefined ||
+        asset === undefined ||
+        binding.role !== requirement.bindingRole ||
+        !isCatalogAssetCompatibleWithSlot(asset, requirement)
+      )
+        throw incompatibleCatalogAsset();
+    }
+    const uniqueIds = [
+      ...new Set(
+        scene.assetBindings
+          .filter((binding) => approvedAssetById(binding.assetId) === undefined)
+          .map((binding) => binding.assetId),
+      ),
+    ];
     if (uniqueIds.length === 0) return;
     const [document] = await executor
       .select({ id: parsedDocuments.id })
@@ -2398,7 +2523,18 @@ function truncateNarration(
 
 function projectSceneAssetStatus(
   scene: LessonStoryboardScene,
-): "none" | "planned" | "resolved" {
+): StoryboardSceneStatus["assets"] {
+  const requiredSlots = new Set([
+    ...requiredSceneAssetSlots(scene.scene),
+    ...scene.assetRequirements.map((requirement) => requirement.slot),
+  ]);
+  if (
+    [...requiredSlots].some(
+      (slot) =>
+        !scene.scene.assetBindings.some((binding) => binding.slot === slot),
+    )
+  )
+    return "missing_required";
   if (scene.scene.assetBindings.length > 0) return "resolved";
   if (scene.assetRequirements.length > 0) return "planned";
   return "none";
@@ -2407,16 +2543,17 @@ function projectSceneAssetStatus(
 function projectSceneStatus(
   stale: boolean,
   validation: StoryboardValidation,
-  assets: "none" | "planned" | "resolved",
+  assets: StoryboardSceneStatus["assets"],
 ): StoryboardSceneStatus {
   return {
     assets,
     audio: "not_generated",
-    validation: !validation.structurallyValid
-      ? "error"
-      : validation.durationStatus !== "within"
-        ? "warning"
-        : "ok",
+    validation:
+      assets === "missing_required" || !validation.structurallyValid
+        ? "error"
+        : validation.durationStatus !== "within"
+          ? "warning"
+          : "ok",
     stale,
   };
 }
@@ -2544,6 +2681,18 @@ function incompatibleSceneAssetSlot(): PublicError {
     {
       "scene.assetBindings":
         "Use a named slot declared by the selected template.",
+    },
+  );
+}
+
+function incompatibleCatalogAsset(): PublicError {
+  return new PublicError(
+    "validation_failed",
+    "This approved asset is not compatible with the selected scene slot.",
+    400,
+    false,
+    {
+      assetId: "Choose an approved asset compatible with this scene slot.",
     },
   );
 }

@@ -5,6 +5,7 @@ import {
   clearStoryboardSceneListCache,
   fetchStoryboardSceneDetail,
   fetchStoryboardSceneList,
+  fetchApprovedAssets,
   invalidateStoryboardSceneList,
   switchStoryboardSceneTemplate,
   storyboardSceneListKey,
@@ -210,6 +211,45 @@ describe("storyboard scene-detail fetcher", () => {
     await expect(
       fetchStoryboardSceneDetail(projectId, sceneId),
     ).rejects.toThrow();
+  });
+});
+
+describe("approved asset picker query", () => {
+  it("fetches only assets compatible with the selected scene slot", async () => {
+    const fetch = vi.fn(async (input: RequestInfo | URL) => {
+      void input;
+      return {
+        ok: true,
+        json: async () => ({
+          assets: [
+            {
+              id: "019ffbf1-a001-7000-8000-000000000001",
+              kind: "icon",
+              subject: "science",
+              tags: ["water", "science"],
+              dimensions: { width: 128, height: 128 },
+              aspectRatio: "square",
+              source: "AI Visual Learning Platform original asset",
+              license: "CC0-1.0",
+              usageConstraints: ["Approved for MVP lesson scenes."],
+              staticLocation: "/catalog/water-drop.svg",
+              mediaType: "image/svg+xml",
+            },
+          ],
+        }),
+      };
+    });
+    vi.stubGlobal("fetch", fetch);
+    const result = await fetchApprovedAssets(
+      projectId,
+      "process",
+      "step-1-icon",
+      { tags: ["water", "science"] },
+    );
+    expect(result.assets[0]?.license).toBe("CC0-1.0");
+    expect(String(fetch.mock.calls[0]?.[0])).toContain("template=process");
+    expect(String(fetch.mock.calls[0]?.[0])).toContain("slot=step-1-icon");
+    expect(String(fetch.mock.calls[0]?.[0])).toContain("tags=water%2Cscience");
   });
 });
 

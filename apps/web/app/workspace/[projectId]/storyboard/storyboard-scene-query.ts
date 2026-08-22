@@ -1,8 +1,10 @@
 import {
+  assetCatalogSearchResponseSchema,
   storyboardSceneDetailResponseSchema,
   storyboardSceneEditResponseSchema,
   storyboardSceneListResponseSchema,
   type SceneSpec,
+  type AssetCatalogSearchResponse,
   type SceneTemplate,
   type StoryboardSceneEditResponse,
   type StoryboardSceneDetailResponse,
@@ -97,6 +99,31 @@ export async function fetchStoryboardSceneDetail(
   if (!response.ok) throw new Error("storyboard-scene-detail");
   const parsed = storyboardSceneDetailResponseSchema.safeParse(payload);
   if (!parsed.success) throw new Error("storyboard-scene-detail");
+  return parsed.data;
+}
+
+export async function fetchApprovedAssets(
+  projectId: string,
+  template: SceneTemplate,
+  slot: string,
+  filters: Readonly<{ tags?: readonly string[] }> = {},
+): Promise<AssetCatalogSearchResponse> {
+  const parameters = new URLSearchParams({ slot, template });
+  const tags = filters.tags
+    ?.map((tag) => tag.trim())
+    .filter((tag) => tag.length > 0);
+  if (tags !== undefined && tags.length > 0)
+    parameters.set("tags", tags.join(","));
+  const response = await fetch(
+    apiUrl(
+      `/projects/${encodeURIComponent(projectId)}/assets?${parameters.toString()}`,
+    ),
+    { credentials: "include", cache: "no-store" },
+  );
+  const payload: unknown = await response.json().catch(() => null);
+  if (!response.ok) throw new Error("approved-assets");
+  const parsed = assetCatalogSearchResponseSchema.safeParse(payload);
+  if (!parsed.success) throw new Error("approved-assets");
   return parsed.data;
 }
 

@@ -18,6 +18,8 @@ export function sceneAssetStatusLabel(
       return "No assets planned";
     case "planned":
       return "Assets planned";
+    case "missing_required":
+      return "Required asset missing";
     case "resolved":
       return "Assets resolved";
   }

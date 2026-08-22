@@ -5,6 +5,7 @@ import {
   sceneEditorMetadata,
   sceneSpecSchema,
   sceneTemplateValues,
+  type AssetCatalogEntry,
   type SceneEditorField,
   type SceneSpec,
   type SceneTemplate,
@@ -12,9 +13,11 @@ import {
 } from "@avlp/schemas";
 import {
   SceneMutationError,
+  fetchApprovedAssets,
   switchStoryboardSceneTemplate,
   updateStoryboardScene,
 } from "./storyboard-scene-query";
+import { ApprovedAssetPicker } from "./approved-asset-picker";
 
 type SaveState = "saved" | "saving" | "conflict" | "failed";
 
@@ -247,6 +250,12 @@ export function SceneEditorForm({
   const [fieldErrors, setFieldErrors] = useState<
     Readonly<Record<string, string>>
   >({});
+  const [assetsBySlot, setAssetsBySlot] = useState<
+    Readonly<Record<string, readonly AssetCatalogEntry[]>>
+  >({});
+  const [tagFiltersBySlot, setTagFiltersBySlot] = useState<
+    Readonly<Record<string, string>>
+  >({});
   const metadata = useMemo(
     () => sceneEditorMetadata(draft.template),
     [draft.template],
@@ -258,6 +267,33 @@ export function SceneEditorForm({
     setMessage(null);
     setFieldErrors({});
   }, [detail.scene.scene]);
+
+  useEffect(() => {
+    let active = true;
+    const slots = sceneEditorMetadata(draft.template).assetSlots;
+    void Promise.all(
+      slots.map(
+        async (slot) =>
+          [
+            slot,
+            (
+              await fetchApprovedAssets(projectId, draft.template, slot, {
+                tags: tagFiltersBySlot[slot]?.split(",") ?? [],
+              })
+            ).assets,
+          ] as const,
+      ),
+    )
+      .then((entries) => {
+        if (active) setAssetsBySlot(Object.fromEntries(entries));
+      })
+      .catch(() => {
+        if (active) setAssetsBySlot({});
+      });
+    return () => {
+      active = false;
+    };
+  }, [draft.template, projectId, tagFiltersBySlot]);
 
   const save = async (): Promise<void> => {
     setSaveState("saving");
@@ -436,20 +472,20 @@ export function SceneEditorForm({
         </label>
       ))}
       {metadata.assetSlots.map((slot) => (
-        <label key={slot} style={{ display: "block", marginTop: 8 }}>
-          Source figure ID: {slot}
-          <input
-            aria-label={`Source figure ID: ${slot}`}
-            value={assetIdForSlot(draft, slot)}
-            disabled={disabled || saveState === "saving"}
-            onChange={(event) =>
-              setDraft((current) =>
-                writeAssetSlot(current, slot, event.target.value),
-              )
-            }
-          />
-          <small>Use an included source figure from this project.</small>
-        </label>
+        <ApprovedAssetPicker
+          key={slot}
+          assets={assetsBySlot[slot] ?? []}
+          disabled={disabled || saveState === "saving"}
+          tagFilter={tagFiltersBySlot[slot] ?? ""}
+          selectedId={assetIdForSlot(draft, slot)}
+          slot={slot}
+          onChange={(assetId) =>
+            setDraft((current) => writeAssetSlot(current, slot, assetId))
+          }
+          onTagFilterChange={(tagFilter) =>
+            setTagFiltersBySlot((current) => ({ ...current, [slot]: tagFilter }))
+          }
+        />
       ))}
       {saveState === "conflict" ? (
         <button type="button" onClick={() => onPersisted()}>

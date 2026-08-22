@@ -42,17 +42,21 @@ export const generatedAdditionSchema = z
   })
   .strict();
 export type GeneratedAddition = z.infer<typeof generatedAdditionSchema>;
+export const sceneAssetRoleValues = [
+  "background",
+  "diagram",
+  "icon",
+  "illustration",
+  "photo",
+  "supporting",
+] as const;
+export const sceneAssetRoleSchema = z.enum(sceneAssetRoleValues);
+export type SceneAssetRole = z.infer<typeof sceneAssetRoleSchema>;
+
 export const sceneAssetBindingSchema = z
   .object({
     assetId: identifierSchema,
-    role: z.enum([
-      "background",
-      "diagram",
-      "icon",
-      "illustration",
-      "photo",
-      "supporting",
-    ]),
+    role: sceneAssetRoleSchema,
     altText: boundedText(500).optional(),
     slot: boundedText(64).optional(),
   })
@@ -5367,6 +5371,7 @@ export type StoryboardResponse = z.infer<typeof storyboardResponseSchema>;
 export const storyboardSceneAssetStatusValues = [
   "none",
   "planned",
+  "missing_required",
   "resolved",
 ] as const;
 export const storyboardSceneAssetStatusSchema = z.enum(
@@ -5487,9 +5492,58 @@ export const sceneEditorFieldSchema = z
   .strict();
 export type SceneEditorField = z.infer<typeof sceneEditorFieldSchema>;
 
+// ST-057 keeps catalog eligibility explicit and data-driven. These values are
+// not written to LessonSpec; bindings continue to contain only stable asset IDs.
+export const assetCatalogKindValues = [
+  "icon",
+  "illustration",
+  "shape",
+] as const;
+export const assetCatalogKindSchema = z.enum(assetCatalogKindValues);
+export type AssetCatalogKind = z.infer<typeof assetCatalogKindSchema>;
+export const assetAspectRatioValues = ["square", "landscape", "wide"] as const;
+export const assetAspectRatioSchema = z.enum(assetAspectRatioValues);
+export type AssetAspectRatio = z.infer<typeof assetAspectRatioSchema>;
+
+export const assetCatalogEntrySchema = z
+  .object({
+    aspectRatio: assetAspectRatioSchema,
+    dimensions: z
+      .object({
+        height: z.number().int().positive(),
+        width: z.number().int().positive(),
+      })
+      .strict(),
+    id: identifierSchema,
+    kind: assetCatalogKindSchema,
+    license: boundedText(160),
+    mediaType: z.literal("image/svg+xml"),
+    source: boundedText(200),
+    staticLocation: boundedText(500),
+    subject: boundedText(100),
+    tags: z.array(boundedText(40)).min(1).max(20),
+    usageConstraints: z.array(boundedText(200)).min(1).max(10),
+  })
+  .strict();
+export type AssetCatalogEntry = z.infer<typeof assetCatalogEntrySchema>;
+
+export const sceneAssetSlotRequirementSchema = z
+  .object({
+    acceptedAspectRatios: z.array(assetAspectRatioSchema).min(1).max(3),
+    acceptedKinds: z.array(assetCatalogKindSchema).min(1).max(3),
+    bindingRole: sceneAssetRoleSchema,
+    required: z.boolean(),
+    slot: boundedText(64),
+  })
+  .strict();
+export type SceneAssetSlotRequirement = z.infer<
+  typeof sceneAssetSlotRequirementSchema
+>;
+
 export const sceneEditorTemplateMetadataSchema = z
   .object({
     assetSlots: z.array(boundedText(64)).max(20),
+    assetSlotRequirements: z.array(sceneAssetSlotRequirementSchema).max(20),
     fields: z.array(sceneEditorFieldSchema).min(1).max(30),
     template: sceneTemplateSchema,
   })
@@ -5766,15 +5820,175 @@ const templateAssetSlots: Record<SceneTemplate, readonly string[]> = {
   summary: ["central-visual"],
 };
 
+function slotRequirement(
+  slot: string,
+  bindingRole: SceneAssetRole,
+  acceptedKinds: readonly AssetCatalogKind[],
+  acceptedAspectRatios: readonly AssetAspectRatio[] = ["square"],
+  required = false,
+): SceneAssetSlotRequirement {
+  return sceneAssetSlotRequirementSchema.parse({
+    acceptedAspectRatios,
+    acceptedKinds,
+    bindingRole,
+    required,
+    slot,
+  });
+}
+
+const templateAssetSlotRequirements: Record<
+  SceneTemplate,
+  readonly SceneAssetSlotRequirement[]
+> = {
+  hook: [
+    slotRequirement(
+      "subject",
+      "illustration",
+      ["illustration", "shape"],
+      ["square", "landscape"],
+    ),
+  ],
+  definition: [
+    slotRequirement(
+      "visual-example",
+      "illustration",
+      ["illustration", "shape"],
+      ["square", "landscape"],
+    ),
+  ],
+  process: templateAssetSlots.process.map((slot) =>
+    slotRequirement(slot, "icon", ["icon", "shape"]),
+  ),
+  "input-process-output": templateAssetSlots["input-process-output"].map(
+    (slot) => slotRequirement(slot, "icon", ["icon", "shape"]),
+  ),
+  comparison: templateAssetSlots.comparison.map((slot) =>
+    slotRequirement(
+      slot,
+      "illustration",
+      ["illustration", "shape"],
+      ["square", "landscape"],
+    ),
+  ),
+  "cause-effect": templateAssetSlots["cause-effect"].map((slot) =>
+    slotRequirement(slot, "icon", ["icon", "shape"]),
+  ),
+  "labelled-diagram": [
+    slotRequirement(
+      "diagram",
+      "diagram",
+      ["illustration", "shape"],
+      ["landscape", "wide"],
+      true,
+    ),
+  ],
+  analogy: [
+    slotRequirement(
+      "central-visual",
+      "illustration",
+      ["illustration", "shape"],
+      ["square", "landscape"],
+    ),
+  ],
+  "worked-example": [],
+  summary: [
+    slotRequirement(
+      "central-visual",
+      "illustration",
+      ["illustration", "shape"],
+      ["square", "landscape"],
+    ),
+  ],
+};
+
 export function sceneEditorMetadata(
   template: SceneTemplate,
 ): SceneEditorTemplateMetadata {
   return sceneEditorTemplateMetadataSchema.parse({
     template,
     assetSlots: templateAssetSlots[template],
+    assetSlotRequirements: templateAssetSlotRequirements[template],
     fields: [...commonSceneEditorFields, ...templateEditorFields[template]],
   });
 }
+
+export function sceneAssetSlotRequirement(
+  template: SceneTemplate,
+  slot: string,
+): SceneAssetSlotRequirement | undefined {
+  return templateAssetSlotRequirements[template].find(
+    (requirement) => requirement.slot === slot,
+  );
+}
+
+/**
+ * Returns the template-declared slots that the current scene must bind. A
+ * labelled diagram can be rendered with deterministic shapes, so its diagram
+ * slot becomes required only when the teacher selects the asset visual mode.
+ */
+export function requiredSceneAssetSlots(scene: SceneSpec): readonly string[] {
+  return templateAssetSlotRequirements[scene.template]
+    .filter((requirement) => {
+      if (!requirement.required) return false;
+      return (
+        scene.template !== "labelled-diagram" || scene.visual.kind === "asset"
+      );
+    })
+    .map((requirement) => requirement.slot);
+}
+
+export function isCatalogAssetCompatibleWithSlot(
+  asset: Pick<AssetCatalogEntry, "aspectRatio" | "kind">,
+  requirement: SceneAssetSlotRequirement,
+): boolean {
+  return (
+    requirement.acceptedKinds.includes(asset.kind) &&
+    requirement.acceptedAspectRatios.includes(asset.aspectRatio)
+  );
+}
+
+export const assetCatalogSearchInputSchema = z
+  .object({
+    query: z.string().trim().max(100).optional(),
+    slot: boundedText(64).optional(),
+    tags: z.array(boundedText(40)).max(10).optional(),
+    template: sceneTemplateSchema.optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if ((value.template === undefined) !== (value.slot === undefined))
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "template and slot must be provided together.",
+        path: [value.template === undefined ? "template" : "slot"],
+      });
+  });
+export type AssetCatalogSearchInput = z.infer<
+  typeof assetCatalogSearchInputSchema
+>;
+export const assetCatalogSearchResponseSchema = z
+  .object({ assets: z.array(assetCatalogEntrySchema).max(100) })
+  .strict();
+export type AssetCatalogSearchResponse = z.infer<
+  typeof assetCatalogSearchResponseSchema
+>;
+
+export const storyboardSceneAssetBindingInputSchema = z
+  .object({
+    altText: boundedText(500).optional(),
+    assetId: identifierSchema,
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type StoryboardSceneAssetBindingInput = z.infer<
+  typeof storyboardSceneAssetBindingInputSchema
+>;
+export const storyboardSceneAssetUnbindingInputSchema = z
+  .object({ expectedRevision: z.number().int().nonnegative() })
+  .strict();
+export type StoryboardSceneAssetUnbindingInput = z.infer<
+  typeof storyboardSceneAssetUnbindingInputSchema
+>;
 
 /** The edit command carries a complete typed scene, not an unbounded patch. */
 export const storyboardSceneUpdateInputSchema = z

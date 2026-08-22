@@ -15,6 +15,7 @@ import {
   Patch,
   Post,
   Put,
+  Query,
   Req,
   Res,
   type DynamicModule,
@@ -70,6 +71,7 @@ import type { NarrationService } from "./narration.js";
 import type { StoryboardService } from "./storyboard.js";
 import type { CitationService } from "./citations.js";
 import type { GroundingService } from "./grounding.js";
+import { searchApprovedAssets } from "./approved-assets.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
 const TELEMETRY_SHUTDOWN = Symbol("TELEMETRY_SHUTDOWN");
@@ -328,9 +330,48 @@ type StoryboardApiService = Pick<
   | "reorderScenes"
   | "updateScene"
   | "switchSceneTemplate"
+  | "bindCatalogAsset"
+  | "unbindCatalogAsset"
 >;
 type CitationApiService = Pick<CitationService, "forScene">;
 type GroundingApiService = Pick<GroundingService, "check" | "current">;
+
+function approvedAssetCatalogFilters(input: {
+  query: unknown;
+  slot: unknown;
+  tags: unknown;
+  template: unknown;
+}): unknown {
+  return {
+    ...(input.query === undefined ? {} : { query: input.query }),
+    ...(input.tags === undefined
+      ? {}
+      : {
+          tags:
+            typeof input.tags === "string"
+              ? input.tags.split(",").filter(Boolean)
+              : input.tags,
+        }),
+    ...(input.template === undefined ? {} : { template: input.template }),
+    ...(input.slot === undefined ? {} : { slot: input.slot }),
+  };
+}
+
+/** Immutable, provenance-complete catalog; it contains no tenant data. */
+@Controller("assets")
+class AssetsController {
+  @Get()
+  public list(
+    @Query("query") query: unknown,
+    @Query("tags") tags: unknown,
+    @Query("template") template: unknown,
+    @Query("slot") slot: unknown,
+  ): unknown {
+    return searchApprovedAssets(
+      approvedAssetCatalogFilters({ query, tags, template, slot }),
+    );
+  }
+}
 
 @Controller("projects")
 class ProjectsController {
@@ -1230,6 +1271,78 @@ class ProjectsController {
     });
   }
 
+  @Get(":projectId/assets")
+  public async getApprovedAssets(
+    @Param("projectId") projectId: string,
+    @Query("query") query: unknown,
+    @Query("tags") tags: unknown,
+    @Query("template") template: unknown,
+    @Query("slot") slot: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertAuthorizedProject(request, projectId);
+    return searchApprovedAssets(
+      approvedAssetCatalogFilters({ query, tags, template, slot }),
+    );
+  }
+
+  @Put(":projectId/scenes/:sceneId/asset-bindings/:slot")
+  public async bindStoryboardCatalogAsset(
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneIdInput: string,
+    @Param("slot") slot: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const sceneId = identifierSchema.safeParse(sceneIdInput);
+    if (!sceneId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.storyboard.bindCatalogAsset({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      sceneId: sceneId.data,
+      slot,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Delete(":projectId/scenes/:sceneId/asset-bindings/:slot")
+  @HttpCode(200)
+  public async unbindStoryboardCatalogAsset(
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneIdInput: string,
+    @Param("slot") slot: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const sceneId = identifierSchema.safeParse(sceneIdInput);
+    if (!sceneId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.storyboard.unbindCatalogAsset({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      sceneId: sceneId.data,
+      slot,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
   @Post(":projectId/scenes")
   @HttpCode(200)
   public async addStoryboardScene(
@@ -1680,7 +1793,12 @@ class DatabaseShutdown implements OnApplicationShutdown {
 }
 
 @Module({
-  controllers: [HealthController, AuthController, ProjectsController],
+  controllers: [
+    HealthController,
+    AuthController,
+    AssetsController,
+    ProjectsController,
+  ],
   providers: [HealthService, DatabaseShutdown],
 })
 class AppModule {}
@@ -2394,6 +2512,24 @@ const unavailableStoryboardService: StoryboardApiService = {
       new PublicError(
         "internal_error",
         "Storyboard scene editing is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  bindCatalogAsset: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Storyboard asset selection is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  unbindCatalogAsset: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Storyboard asset selection is unavailable.",
         503,
         true,
       ),
