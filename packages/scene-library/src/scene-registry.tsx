@@ -11,9 +11,11 @@ import {
   summaryVisualSchema,
   workedExampleVisualSchema,
   sceneSpecSchema,
+  sceneEditorMetadata,
   sceneTemplateSchema,
   sceneTemplateValues,
   type SceneSpec,
+  type SceneEditorControl,
   type SceneTemplate,
 } from "@avlp/schemas";
 import { createElement, type CSSProperties, type JSX } from "react";
@@ -59,8 +61,9 @@ export type TemplateFormMetadata = Readonly<{
 }>;
 
 export type TemplateFormField = Readonly<{
-  control: "text" | "text-list";
+  control: SceneEditorControl;
   label: string;
+  options?: readonly string[];
   path: string;
   required: boolean;
 }>;
@@ -422,20 +425,18 @@ const metadataByTemplate: Record<SceneTemplate, TemplateMetadataBase> = {
 
 function metadata(template: SceneTemplate): TemplateFormMetadata {
   const value = metadataByTemplate[template];
+  const editor = sceneEditorMetadata(template);
   return Object.freeze({
     ...value,
-    assetSlots: Object.freeze([...value.assetSlots]),
+    assetSlots: Object.freeze([...editor.assetSlots]),
     fields: Object.freeze(
-      layouts[template].visualTextPaths.map((path) =>
+      editor.fields.map((field) =>
         Object.freeze({
-          control: value.itemLimits[path] === undefined ? "text" : "text-list",
-          label: path.slice("visual.".length),
-          path,
-          required:
-            !path.endsWith("prompt") &&
-            !path.endsWith("callToAction") &&
-            !path.endsWith("exampleLabel") &&
-            !path.endsWith("exampleText"),
+          control: field.control,
+          label: field.label,
+          ...(field.options === undefined ? {} : { options: field.options }),
+          path: field.path,
+          required: field.required,
         }),
       ),
     ),

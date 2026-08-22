@@ -1,7 +1,10 @@
 import {
   storyboardSceneDetailResponseSchema,
+  storyboardSceneEditResponseSchema,
   storyboardSceneListResponseSchema,
+  type SceneSpec,
   type SceneTemplate,
+  type StoryboardSceneEditResponse,
   type StoryboardSceneDetailResponse,
   type StoryboardSceneListResponse,
 } from "@avlp/schemas";
@@ -115,6 +118,15 @@ function mutationErrorMessage(payload: unknown, fallback: string): string {
     : fallback;
 }
 
+export class SceneMutationError extends Error {
+  public constructor(
+    message: string,
+    public readonly fields: Readonly<Record<string, string>> = {},
+  ) {
+    super(message);
+  }
+}
+
 async function postSceneMutation(
   path: string,
   body: unknown,
@@ -129,10 +141,83 @@ async function postSceneMutation(
   });
   const payload: unknown = await response.json().catch(() => null);
   if (!response.ok)
-    throw new Error(
+    throw new SceneMutationError(
       mutationErrorMessage(payload, "The storyboard could not be updated."),
+      extractFieldErrors(payload),
     );
   return parseSceneListPayload(payload);
+}
+
+function extractFieldErrors(
+  payload: unknown,
+): Readonly<Record<string, string>> {
+  if (
+    typeof payload !== "object" ||
+    payload === null ||
+    !("error" in payload) ||
+    typeof payload.error !== "object" ||
+    payload.error === null ||
+    !("fieldErrors" in payload.error) ||
+    typeof payload.error.fieldErrors !== "object" ||
+    payload.error.fieldErrors === null
+  )
+    return {};
+  return Object.fromEntries(
+    Object.entries(payload.error.fieldErrors).filter(
+      (entry): entry is [string, string] => typeof entry[1] === "string",
+    ),
+  );
+}
+
+async function editSceneMutation(
+  path: string,
+  body: unknown,
+  method: "PATCH" | "POST",
+): Promise<StoryboardSceneEditResponse> {
+  const response = await fetch(apiUrl(path), {
+    method,
+    credentials: "include",
+    cache: "no-store",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const payload: unknown = await response.json().catch(() => null);
+  if (!response.ok)
+    throw new SceneMutationError(
+      mutationErrorMessage(payload, "The scene could not be saved."),
+      extractFieldErrors(payload),
+    );
+  const parsed = storyboardSceneEditResponseSchema.safeParse(payload);
+  if (!parsed.success)
+    throw new SceneMutationError("The saved scene response was invalid.");
+  return parsed.data;
+}
+
+export function updateStoryboardScene(
+  projectId: string,
+  sceneId: string,
+  scene: SceneSpec,
+  expectedRevision: number,
+): Promise<StoryboardSceneEditResponse> {
+  return editSceneMutation(
+    `/projects/${encodeURIComponent(projectId)}/scenes/${encodeURIComponent(sceneId)}`,
+    { scene, expectedRevision },
+    "PATCH",
+  );
+}
+
+export function switchStoryboardSceneTemplate(
+  projectId: string,
+  sceneId: string,
+  template: SceneTemplate,
+  expectedRevision: number,
+  confirmReset = false,
+): Promise<StoryboardSceneEditResponse> {
+  return editSceneMutation(
+    `/projects/${encodeURIComponent(projectId)}/scenes/${encodeURIComponent(sceneId)}/change-template`,
+    { template, expectedRevision, confirmReset },
+    "POST",
+  );
 }
 
 export async function addStoryboardScene(

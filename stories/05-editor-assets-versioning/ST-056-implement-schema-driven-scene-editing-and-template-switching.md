@@ -2,7 +2,7 @@
 story_id: ST-056
 title: "Implement Schema-Driven Scene Editing and Template Switching"
 phase: "05 \u2014 Storyboard Editing, Assets, and Versions"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E12"]
 prd_user_stories: ["E12-US4"]
@@ -37,13 +37,13 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Scope
 
-- [ ] Build schema-driven forms from scene registry metadata.
-- [ ] Support common fields and template-specific visual fields.
-- [ ] Validate client-side and server-side against the same domain schemas.
-- [ ] Implement save with optimistic concurrency and explicit saving/saved/conflict states.
-- [ ] Implement template switching with compatible field mapping and confirmation for reset data.
-- [ ] Apply dependency invalidation rules for narration, duration, asset, visual, and transition changes.
-- [ ] Refresh the selected-scene preview after persisted changes.
+- [x] Build schema-driven forms from scene registry metadata.
+- [x] Support common fields and template-specific visual fields.
+- [x] Validate client-side and server-side against the same domain schemas.
+- [x] Implement save with optimistic concurrency and explicit saving/saved/conflict states.
+- [x] Implement template switching with compatible field mapping and confirmation for reset data.
+- [x] Apply dependency invalidation rules for narration, duration, asset, visual, and transition changes.
+- [x] Refresh the selected-scene preview after persisted changes.
 
 ## Technical Implementation Requirements
 
@@ -67,20 +67,20 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Acceptance Criteria
 
-- [ ] All supported template fields are editable through generated forms.
-- [ ] Invalid values return field-level errors and are not saved.
-- [ ] Compatible fields survive a template switch; incompatible fields require confirmation/reset.
-- [ ] Stale/conflict states are explicit.
-- [ ] Dependency invalidation matches the changed field categories.
+- [x] All supported template fields are editable through generated forms.
+- [x] Invalid values return field-level errors and are not saved.
+- [x] Compatible fields survive a template switch; incompatible fields require confirmation/reset.
+- [x] Stale/conflict states are explicit.
+- [x] Dependency invalidation matches the changed field categories.
 
 ## Required Tests
 
-- [ ] Form metadata coverage tests.
-- [ ] API schema validation tests.
-- [ ] Template migration tests.
-- [ ] Invalidation matrix tests.
-- [ ] Concurrency tests.
-- [ ] Editor/preview Playwright tests.
+- [x] Form metadata coverage tests.
+- [x] API schema validation tests.
+- [x] Template migration tests.
+- [x] Invalidation matrix tests.
+- [x] Concurrency tests.
+- [x] Editor/preview Playwright tests.
 
 ## Out of Scope
 
@@ -94,39 +94,42 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Implementation Checklist
 
-- [ ] Inspect the current repository and related completed stories.
-- [ ] Write a short implementation plan listing files, contracts, migrations, tests, and risks.
-- [ ] Implement only this story's scope.
-- [ ] Add or update schemas before changing consumers.
-- [ ] Add authorization, validation, error, retry, concurrency, and idempotency behavior where applicable.
-- [ ] Add structured logs, correlation, audit, and usage records where applicable.
-- [ ] Run the required automated tests and affected workspace quality commands.
-- [ ] Self-review the diff for scope creep, insecure access, stale data races, and unbounded provider calls.
-- [ ] Update documentation and this story's Dev Agent Record.
+- [x] Inspect the current repository and related completed stories.
+- [x] Write a short implementation plan listing files, contracts, migrations, tests, and risks.
+- [x] Implement only this story's scope.
+- [x] Add or update schemas before changing consumers.
+- [x] Add authorization, validation, error, retry, concurrency, and idempotency behavior where applicable.
+- [x] Add structured logs, correlation, audit, and usage records where applicable.
+- [x] Run the required automated tests and affected workspace quality commands.
+- [x] Self-review the diff for scope creep, insecure access, stale data races, and unbounded provider calls.
+- [x] Update documentation and this story's Dev Agent Record.
 
 ## Definition of Done
 
-- [ ] Every acceptance criterion is implemented and verified.
-- [ ] Every required test is implemented and passing.
-- [ ] `lint`, `typecheck`, `test`, and `build` pass for all affected workspaces.
-- [ ] Database migrations and compatibility notes are complete where applicable.
-- [ ] Public schemas, events, and endpoints are documented.
-- [ ] No unresolved tenant-isolation, security, idempotency, concurrency, data-loss, or cost-control defect remains in this scope.
-- [ ] No out-of-scope feature or unrelated refactor was added.
-- [ ] The Dev Agent Record is complete.
-- [ ] This story and `STORY_INDEX.md` are marked **Done**.
+- [x] Every acceptance criterion is implemented and verified.
+- [x] Every required test is implemented and passing.
+- [x] `lint`, `typecheck`, `test`, and `build` pass for all affected workspaces.
+- [x] Database migrations and compatibility notes are complete where applicable.
+- [x] Public schemas, events, and endpoints are documented.
+- [x] No unresolved tenant-isolation, security, idempotency, concurrency, data-loss, or cost-control defect remains in this scope.
+- [x] No out-of-scope feature or unrelated refactor was added.
+- [x] The Dev Agent Record is complete.
+- [x] This story and `STORY_INDEX.md` are marked **Done**.
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-22
+- **Completed:** 2026-08-22
+- **Approved:** 2026-08-22
+- **Branch/PR:** `story/st-056` (no PR created)
+- **Files changed:** Shared scene-editor schemas and migration helpers; shared API error envelope and scene-registry metadata; storyboard service/controllers; storyboard editor form/query/panel; unit and Playwright coverage; `STORY_INDEX.md`.
+- **Migrations:** None. The mutable storyboard JSON and normalized scene rows already persist the required fields.
+- **Contracts changed:** `storyboardSceneUpdateInputSchema`, `storyboardSceneTemplateSwitchInputSchema`, `storyboardSceneEditResponseSchema`, template form metadata, template migration result, selective invalidation scope, and the typed `edit_conflict` API error (including the latest revision/storyboard). Added `PATCH /projects/:projectId/scenes/:sceneId` and `POST /projects/:projectId/scenes/:sceneId/change-template`.
+- **Commands/tests run:** affected config/schemas/scene-library/API/web lint and typecheck; config, schema, scene-library, API, and web unit tests; targeted Playwright scene-save and template-confirmation tests; API production build; web production compilation and type validation; `git diff --check`.
+- **Review conclusion:** Approve. Follow-up review repaired all findings and found no remaining blocking, high, medium, or low findings.
+- **Review findings fixed:** Template migration preserves un-slotted asset bindings; stale edits return a typed conflict with latest persisted state; registry form metadata is sourced from the shared schema metadata; success feedback remains visible while the selected-scene preview reloads; normalized scene rows synchronize changed content and revision; asset-slot edits validate tenant-scoped included source figures, with the broader catalog deferred to ST-057.
+- **Screenshots or representative output:** Playwright passed the selected-scene save flow and confirmation-required template migration flow.
+- **Decisions and assumptions:** A scene update carries a complete, schema-validated `SceneSpec`; identity/order/provenance/template are immutable in that command. Template changes are isolated to the confirmation-aware migration command. Asset-slot edits are limited to included source figures from the current tenant/project; ST-057 adds the broader approved catalog and picker.
+- **Deviations from story/technical guide:** None.
+- **Known risks or follow-up:** Full asset catalog selection remains ST-057 scope. Audio/caption invalidation is recorded as a precise invalidation summary; generation/retry is deferred to the audio stories.

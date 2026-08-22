@@ -15,6 +15,7 @@ import {
 import { buildScenePreviewInput, canPreviewScene } from "./scene-preview-input";
 import { SceneCitations } from "./citation-panel";
 import { SceneGrounding } from "./grounding-panel";
+import { SceneEditorForm } from "./scene-editor-form";
 
 function apiUrl(path: string): string {
   return `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}${path}`;
@@ -53,7 +54,7 @@ export function SceneDetailPanel({
   lessonSpecRevision: number;
   sceneCandidates: readonly SceneCandidate[];
   generating: boolean;
-  onChanged: () => void;
+  onChanged: (message?: string) => void;
   onScenePending: (sceneId: string) => void;
   onSceneDone: (sceneId: string) => void;
 }): JSX.Element {
@@ -189,6 +190,14 @@ export function SceneDetailPanel({
 
       <p>Transition: {scene.scene.transition}</p>
       <p>Visual: {visualSummary(detail)}</p>
+
+      <SceneEditorForm
+        projectId={projectId}
+        detail={detail}
+        revision={lessonSpecRevision}
+        disabled={pending || generating}
+        onPersisted={onChanged}
+      />
 
       {scene.assetRequirements.length > 0 ? (
         <ul aria-label="Planned assets">

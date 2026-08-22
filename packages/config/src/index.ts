@@ -158,6 +158,7 @@ export type CursorPage<T> = { items: T[]; nextCursor?: Identifier };
 export const errorCodeSchema = z.enum([
   "bad_request",
   "configuration_invalid",
+  "edit_conflict",
   "forbidden",
   "internal_error",
   "not_found",
@@ -172,6 +173,7 @@ export const apiErrorEnvelopeSchema = z.object({
     code: errorCodeSchema,
     message: z.string(),
     fieldErrors: z.record(z.string()).optional(),
+    latest: z.unknown().optional(),
     retryable: z.boolean(),
     correlationId: identifierSchema,
   }),
@@ -183,6 +185,7 @@ export class PublicError extends Error {
   public readonly statusCode: number;
   public readonly retryable: boolean;
   public readonly fieldErrors: FieldErrorMap | undefined;
+  public readonly latest: unknown | undefined;
 
   public constructor(
     code: ErrorCode,
@@ -190,6 +193,7 @@ export class PublicError extends Error {
     statusCode: number,
     retryable = false,
     fieldErrors?: FieldErrorMap,
+    latest?: unknown,
   ) {
     super(message);
     this.name = "PublicError";
@@ -197,6 +201,7 @@ export class PublicError extends Error {
     this.statusCode = statusCode;
     this.retryable = retryable;
     this.fieldErrors = fieldErrors;
+    this.latest = latest;
   }
 }
 
@@ -212,6 +217,7 @@ export function toApiErrorEnvelope(
         ...(error.fieldErrors === undefined
           ? {}
           : { fieldErrors: error.fieldErrors }),
+        ...(error.latest === undefined ? {} : { latest: error.latest }),
         retryable: error.retryable,
         correlationId,
       },

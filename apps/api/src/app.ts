@@ -326,6 +326,8 @@ type StoryboardApiService = Pick<
   | "duplicateScene"
   | "deleteScene"
   | "reorderScenes"
+  | "updateScene"
+  | "switchSceneTemplate"
 >;
 type CitationApiService = Pick<CitationService, "forScene">;
 type GroundingApiService = Pick<GroundingService, "check" | "current">;
@@ -1258,6 +1260,59 @@ class ProjectsController {
     return this.storyboard.reorderScenes({
       ownerUserId: access.ownerUserId,
       projectId: access.projectId,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Patch(":projectId/scenes/:sceneId")
+  public async updateStoryboardScene(
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const sceneId = identifierSchema.safeParse(sceneIdInput);
+    if (!sceneId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.storyboard.updateScene({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      sceneId: sceneId.data,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/scenes/:sceneId/change-template")
+  @HttpCode(200)
+  public async switchStoryboardSceneTemplate(
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const sceneId = identifierSchema.safeParse(sceneIdInput);
+    if (!sceneId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.storyboard.switchSceneTemplate({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      sceneId: sceneId.data,
       body: input,
       correlationId:
         request.correlationId ?? "00000000-0000-7000-8000-000000000000",
@@ -2317,6 +2372,24 @@ const unavailableStoryboardService: StoryboardApiService = {
       ),
     ),
   reorderScenes: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Storyboard scene editing is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  updateScene: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Storyboard scene editing is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  switchSceneTemplate: () =>
     Promise.reject(
       new PublicError(
         "internal_error",

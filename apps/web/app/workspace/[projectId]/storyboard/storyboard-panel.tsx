@@ -74,6 +74,7 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
   const [pending, setPending] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [editorMessage, setEditorMessage] = useState<string | null>(null);
   const [pendingScenes, setPendingScenes] = useState<Set<string>>(new Set());
   const [sceneList, setSceneList] = useState<SceneListViewState>({
     kind: "loading",
@@ -283,10 +284,15 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
     };
   }, [projectId, selectedSceneId, revision, detailAttempt]);
 
-  const onStoryboardChanged = useCallback(() => {
-    invalidateStoryboardSceneList(projectId);
-    void refresh().catch(() => undefined);
-  }, [projectId, refresh]);
+  const onStoryboardChanged = useCallback(
+    (message?: string) => {
+      if (message !== undefined) setEditorMessage(message);
+      invalidateStoryboardSceneList(projectId);
+      setDetailAttempt((current) => current + 1);
+      void refresh().catch(() => undefined);
+    },
+    [projectId, refresh],
+  );
 
   const runSceneMutation = useCallback(
     async (
@@ -502,7 +508,9 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
                   if (selectedSceneId !== null)
                     handleDeleteScene(selectedSceneId);
                 }}
-                disabled={editing || selectedSceneId === null || listScenes.length <= 1}
+                disabled={
+                  editing || selectedSceneId === null || listScenes.length <= 1
+                }
               >
                 Delete
               </button>
@@ -522,6 +530,9 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
             )}
           </div>
           <div style={{ flex: "1 1 55%" }}>
+            {editorMessage !== null ? (
+              <p role="status">{editorMessage}</p>
+            ) : null}
             {selectedSceneId === null ? (
               <p role="status">Select a scene to see its detail.</p>
             ) : detail.kind === "loading" ? (

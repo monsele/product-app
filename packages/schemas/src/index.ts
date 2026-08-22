@@ -2832,9 +2832,7 @@ export const resolvedCitationBlockSchema = z
     text: normalizedText(50_000),
   })
   .strict();
-export type ResolvedCitationBlock = z.infer<
-  typeof resolvedCitationBlockSchema
->;
+export type ResolvedCitationBlock = z.infer<typeof resolvedCitationBlockSchema>;
 
 /** Resolved figure label backing a citation (no image payload). */
 export const resolvedCitationFigureSchema = z
@@ -2859,9 +2857,7 @@ export const resolvedCitationTableSchema = z
     columns: z.array(normalizedText(1_000)).min(1).max(500),
   })
   .strict();
-export type ResolvedCitationTable = z.infer<
-  typeof resolvedCitationTableSchema
->;
+export type ResolvedCitationTable = z.infer<typeof resolvedCitationTableSchema>;
 
 /**
  * One scene SourceRef resolved against the approved snapshot into
@@ -2971,7 +2967,7 @@ export const groundingClaimResultSchema = z
           })
           .refine((span) => span.start < span.end, {
             message: "A supported span start must be less than its end.",
-          })
+          }),
       )
       .max(50),
     unsupportedSpans: z
@@ -2984,7 +2980,7 @@ export const groundingClaimResultSchema = z
           })
           .refine((span) => span.start < span.end, {
             message: "An unsupported span start must be less than its end.",
-          })
+          }),
       )
       .max(50),
     modelAssisted: z.boolean(),
@@ -3049,7 +3045,9 @@ export const citationHistorySnapshotSchema = z
     createdAt: z.string().datetime({ offset: true }),
   })
   .strict();
-export type CitationHistorySnapshot = z.infer<typeof citationHistorySnapshotSchema>;
+export type CitationHistorySnapshot = z.infer<
+  typeof citationHistorySnapshotSchema
+>;
 
 /**
  * API request to trigger a grounding check for a scene or lesson.
@@ -3085,7 +3083,9 @@ export const groundingCheckResponseSchema = z
     cached: z.boolean().default(false),
   })
   .strict();
-export type GroundingCheckResponse = z.infer<typeof groundingCheckResponseSchema>;
+export type GroundingCheckResponse = z.infer<
+  typeof groundingCheckResponseSchema
+>;
 
 /**
  * API response for retrieving grounding check results.
@@ -3370,10 +3370,7 @@ export type ObjectiveAssessmentOutputItem = z.infer<
 export const objectiveOutputV1Schema = z
   .object({
     schemaVersion: z.literal("objectives-v1"),
-    objectives: z
-      .array(objectiveOutputItemSchema)
-      .min(3)
-      .max(6),
+    objectives: z.array(objectiveOutputItemSchema).min(3).max(6),
     keyConcepts: z.array(objectivePlanningOutputItemSchema).max(12),
     prerequisiteKnowledge: z.array(objectivePlanningOutputItemSchema).max(8),
     vocabulary: z.array(objectiveVocabularyOutputItemSchema).max(12),
@@ -3396,8 +3393,13 @@ export type LearningObjectiveSetStatus = z.infer<
 >;
 
 /** Whether a persisted objective still cites approved source blocks. */
-export const objectiveGroundingStatusValues = ["supported", "unsupported"] as const;
-export const objectiveGroundingStatusSchema = z.enum(objectiveGroundingStatusValues);
+export const objectiveGroundingStatusValues = [
+  "supported",
+  "unsupported",
+] as const;
+export const objectiveGroundingStatusSchema = z.enum(
+  objectiveGroundingStatusValues,
+);
 export type ObjectiveGroundingStatus = z.infer<
   typeof objectiveGroundingStatusSchema
 >;
@@ -3879,20 +3881,16 @@ export const outlineGenerationStateValues = [
   "failed",
   "approved",
 ] as const;
-export const outlineGenerationStateSchema = z.enum(outlineGenerationStateValues);
+export const outlineGenerationStateSchema = z.enum(
+  outlineGenerationStateValues,
+);
 export type OutlineGenerationState = z.infer<
   typeof outlineGenerationStateSchema
 >;
 
-export const outlineDurationStatusValues = [
-  "under",
-  "over",
-  "within",
-] as const;
+export const outlineDurationStatusValues = ["under", "over", "within"] as const;
 export const outlineDurationStatusSchema = z.enum(outlineDurationStatusValues);
-export type OutlineDurationStatus = z.infer<
-  typeof outlineDurationStatusSchema
->;
+export type OutlineDurationStatus = z.infer<typeof outlineDurationStatusSchema>;
 
 /**
  * ST-047 validation surfaced for the outline review route. `structurallyValid`
@@ -4060,19 +4058,24 @@ export const narrationSentenceOutputSchema = z
   })
   .strict()
   .superRefine((value, context) => {
-    if (value.sourceBlockIds.length === 0 && value.generatedAddition === undefined)
+    if (
+      value.sourceBlockIds.length === 0 &&
+      value.generatedAddition === undefined
+    )
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["root"],
         message:
           "Every narration sentence must cite source blocks or be labelled as a generated addition.",
       });
-    if (value.sourceBlockIds.length > 0 && value.generatedAddition !== undefined)
+    if (
+      value.sourceBlockIds.length > 0 &&
+      value.generatedAddition !== undefined
+    )
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["generatedAddition"],
-        message:
-          "A generated-addition sentence must not cite source blocks.",
+        message: "A generated-addition sentence must not cite source blocks.",
       });
   });
 export type NarrationSentenceOutput = z.infer<
@@ -4265,15 +4268,9 @@ export type NarrationGenerationState = z.infer<
   typeof narrationGenerationStateSchema
 >;
 
-export const narrationBudgetStatusValues = [
-  "under",
-  "over",
-  "within",
-] as const;
+export const narrationBudgetStatusValues = ["under", "over", "within"] as const;
 export const narrationBudgetStatusSchema = z.enum(narrationBudgetStatusValues);
-export type NarrationBudgetStatus = z.infer<
-  typeof narrationBudgetStatusSchema
->;
+export type NarrationBudgetStatus = z.infer<typeof narrationBudgetStatusSchema>;
 
 /**
  * ST-048 validation surfaced for the narration review route. `structurallyValid`
@@ -4550,7 +4547,7 @@ export const groundingClaimOutputSchema = z
           })
           .refine((span) => span.start < span.end, {
             message: "A supported span start must be less than its end.",
-          })
+          }),
       )
       .max(50),
     unsupportedSpans: z
@@ -4563,7 +4560,7 @@ export const groundingClaimOutputSchema = z
           })
           .refine((span) => span.start < span.end, {
             message: "An unsupported span start must be less than its end.",
-          })
+          }),
       )
       .max(50),
   })
@@ -4607,12 +4604,16 @@ export const groundingCompatibilitySchema = z
     model: z.string().trim().min(1).max(200),
   })
   .strict();
-export type GroundingCompatibility = z.infer<typeof groundingCompatibilitySchema>;
-export const currentGroundingCompatibility = groundingCompatibilitySchema.parse({
-  promptId: "grounding",
-  promptVersion: "v2",
-  model: "mock-model-1",
-});
+export type GroundingCompatibility = z.infer<
+  typeof groundingCompatibilitySchema
+>;
+export const currentGroundingCompatibility = groundingCompatibilitySchema.parse(
+  {
+    promptId: "grounding",
+    promptVersion: "v2",
+    model: "mock-model-1",
+  },
+);
 
 // ---------------------------------------------------------------------------
 // ST-050 — Generate a valid LessonSpec storyboard from approved narration
@@ -4694,7 +4695,8 @@ export const storyboardTemplateCatalog: readonly StoryboardTemplateCatalogEntry[
     },
     {
       template: "definition",
-      purpose: "Define one key term with a concise explanation and optional example.",
+      purpose:
+        "Define one key term with a concise explanation and optional example.",
       assetSlots: ["visual-example"],
       itemLimits: {},
       textLimits: {
@@ -4723,7 +4725,8 @@ export const storyboardTemplateCatalog: readonly StoryboardTemplateCatalogEntry[
     },
     {
       template: "input-process-output",
-      purpose: "Illustrate how inputs are transformed into outputs by one process.",
+      purpose:
+        "Illustrate how inputs are transformed into outputs by one process.",
       assetSlots: [
         "input-1-icon",
         "input-2-icon",
@@ -4758,7 +4761,8 @@ export const storyboardTemplateCatalog: readonly StoryboardTemplateCatalogEntry[
     },
     {
       template: "cause-effect",
-      purpose: "Explain why something happens using causes, a mechanism, and effects.",
+      purpose:
+        "Explain why something happens using causes, a mechanism, and effects.",
       assetSlots: [
         "cause-1-icon",
         "cause-2-icon",
@@ -4783,7 +4787,8 @@ export const storyboardTemplateCatalog: readonly StoryboardTemplateCatalogEntry[
     },
     {
       template: "labelled-diagram",
-      purpose: "Label parts of a shape-based diagram (cell, cycle, plant, or system).",
+      purpose:
+        "Label parts of a shape-based diagram (cell, cycle, plant, or system).",
       assetSlots: ["diagram"],
       itemLimits: { "visual.labels": 6 },
       textLimits: { "visual.labels.text": 80 },
@@ -4792,7 +4797,8 @@ export const storyboardTemplateCatalog: readonly StoryboardTemplateCatalogEntry[
     },
     {
       template: "analogy",
-      purpose: "Map a familiar system onto the source concept to aid understanding.",
+      purpose:
+        "Map a familiar system onto the source concept to aid understanding.",
       assetSlots: ["central-visual"],
       itemLimits: { "visual.mappings": 4 },
       textLimits: {
@@ -4801,7 +4807,8 @@ export const storyboardTemplateCatalog: readonly StoryboardTemplateCatalogEntry[
         "visual.mappings.concept": 60,
         "visual.mappings.analogy": 60,
       },
-      guidance: "Each mapping must use distinct concept and familiar-system terms.",
+      guidance:
+        "Each mapping must use distinct concept and familiar-system terms.",
     },
     {
       template: "worked-example",
@@ -4817,7 +4824,8 @@ export const storyboardTemplateCatalog: readonly StoryboardTemplateCatalogEntry[
     },
     {
       template: "summary",
-      purpose: "Close the lesson with key takeaways and an optional call to action.",
+      purpose:
+        "Close the lesson with key takeaways and an optional call to action.",
       assetSlots: [],
       itemLimits: { "visual.takeaways.text": 4 },
       textLimits: {
@@ -4930,9 +4938,7 @@ export const storyboardSceneOutputSchema = z.discriminatedUnion("template", [
     })
     .strict(),
 ]);
-export type StoryboardSceneOutput = z.infer<
-  typeof storyboardSceneOutputSchema
->;
+export type StoryboardSceneOutput = z.infer<typeof storyboardSceneOutputSchema>;
 
 /**
  * The versioned structured output the model must produce for one storyboard
@@ -4956,7 +4962,9 @@ export const storyboardOutputV1Schema = z
       (sum, scene) => sum + scene.estimatedSeconds,
       0,
     );
-    const tolerance = storyboardDurationToleranceSeconds(value.targetDurationSeconds);
+    const tolerance = storyboardDurationToleranceSeconds(
+      value.targetDurationSeconds,
+    );
     if (Math.abs(proposedTotal - value.targetDurationSeconds) > tolerance)
       context.addIssue({
         code: z.ZodIssueCode.custom,
@@ -4998,9 +5006,7 @@ export const lessonStoryboardSceneSchema = z
     scene: sceneSpecSchema,
   })
   .strict();
-export type LessonStoryboardScene = z.infer<
-  typeof lessonStoryboardSceneSchema
->;
+export type LessonStoryboardScene = z.infer<typeof lessonStoryboardSceneSchema>;
 
 /**
  * The persisted storyboard draft produced by one storyboard generation. The
@@ -5090,12 +5096,8 @@ export const sceneRegenerationModeValues = [
   "shorten",
   "regenerate",
 ] as const;
-export const sceneRegenerationModeSchema = z.enum(
-  sceneRegenerationModeValues,
-);
-export type SceneRegenerationMode = z.infer<
-  typeof sceneRegenerationModeSchema
->;
+export const sceneRegenerationModeSchema = z.enum(sceneRegenerationModeValues);
+export type SceneRegenerationMode = z.infer<typeof sceneRegenerationModeSchema>;
 
 /** Maximum pending scene-regeneration candidates retained per scene. */
 export const sceneRegenerationMaximumActiveCandidates = 5 as const;
@@ -5462,6 +5464,370 @@ export type StoryboardSceneDetailResponse = z.infer<
 >;
 
 // ---------------------------------------------------------------------------
+// ST-056 — Schema-driven scene editing and template migration
+// ---------------------------------------------------------------------------
+
+const sceneEditorControlValues = [
+  "text",
+  "textarea",
+  "text-list",
+  "select",
+] as const;
+export const sceneEditorControlSchema = z.enum(sceneEditorControlValues);
+export type SceneEditorControl = z.infer<typeof sceneEditorControlSchema>;
+
+export const sceneEditorFieldSchema = z
+  .object({
+    control: sceneEditorControlSchema,
+    label: boundedText(100),
+    options: z.array(boundedText(100)).max(20).optional(),
+    path: boundedText(100),
+    required: z.boolean(),
+  })
+  .strict();
+export type SceneEditorField = z.infer<typeof sceneEditorFieldSchema>;
+
+export const sceneEditorTemplateMetadataSchema = z
+  .object({
+    assetSlots: z.array(boundedText(64)).max(20),
+    fields: z.array(sceneEditorFieldSchema).min(1).max(30),
+    template: sceneTemplateSchema,
+  })
+  .strict();
+export type SceneEditorTemplateMetadata = z.infer<
+  typeof sceneEditorTemplateMetadataSchema
+>;
+
+const commonSceneEditorFields: readonly SceneEditorField[] = [
+  { path: "title", label: "Title", control: "text", required: false },
+  {
+    path: "narration",
+    label: "Narration",
+    control: "textarea",
+    required: true,
+  },
+  {
+    path: "onScreenText",
+    label: "On-screen text",
+    control: "text-list",
+    required: false,
+  },
+  {
+    path: "durationSeconds",
+    label: "Duration (seconds)",
+    control: "text",
+    required: true,
+  },
+  {
+    path: "transition",
+    label: "Transition",
+    control: "select",
+    options: ["cut", "fade", "slide"],
+    required: true,
+  },
+];
+
+const templateEditorFields: Record<SceneTemplate, readonly SceneEditorField[]> =
+  {
+    hook: [
+      {
+        path: "visual.question",
+        label: "Question",
+        control: "text",
+        required: true,
+      },
+      {
+        path: "visual.prompt",
+        label: "Prompt",
+        control: "text",
+        required: false,
+      },
+      {
+        path: "visual.supportingElements",
+        label: "Supporting elements",
+        control: "text-list",
+        required: false,
+      },
+    ],
+    definition: [
+      { path: "visual.term", label: "Term", control: "text", required: true },
+      {
+        path: "visual.definition",
+        label: "Definition",
+        control: "textarea",
+        required: true,
+      },
+      {
+        path: "visual.exampleLabel",
+        label: "Example label",
+        control: "text",
+        required: false,
+      },
+      {
+        path: "visual.exampleText",
+        label: "Example text",
+        control: "text",
+        required: false,
+      },
+    ],
+    process: [
+      {
+        path: "visual.steps",
+        label: "Steps",
+        control: "text-list",
+        required: true,
+      },
+    ],
+    "input-process-output": [
+      {
+        path: "visual.inputs",
+        label: "Inputs",
+        control: "text-list",
+        required: true,
+      },
+      {
+        path: "visual.process.label",
+        label: "Process",
+        control: "text",
+        required: true,
+      },
+      {
+        path: "visual.outputs",
+        label: "Outputs",
+        control: "text-list",
+        required: true,
+      },
+    ],
+    comparison: [
+      {
+        path: "visual.leftSubject.label",
+        label: "Left subject",
+        control: "text",
+        required: true,
+      },
+      {
+        path: "visual.rightSubject.label",
+        label: "Right subject",
+        control: "text",
+        required: true,
+      },
+      {
+        path: "visual.similarities",
+        label: "Similarities",
+        control: "text-list",
+        required: true,
+      },
+      {
+        path: "visual.differences",
+        label: "Differences",
+        control: "text-list",
+        required: true,
+      },
+    ],
+    "cause-effect": [
+      {
+        path: "visual.causes",
+        label: "Causes",
+        control: "text-list",
+        required: true,
+      },
+      {
+        path: "visual.mechanism.label",
+        label: "Mechanism",
+        control: "text",
+        required: false,
+      },
+      {
+        path: "visual.effects",
+        label: "Effects",
+        control: "text-list",
+        required: true,
+      },
+    ],
+    "labelled-diagram": [
+      {
+        path: "visual.kind",
+        label: "Diagram type",
+        control: "select",
+        options: ["asset", "shapes"],
+        required: true,
+      },
+      {
+        path: "visual.shape",
+        label: "Shape",
+        control: "select",
+        options: ["cell", "cycle", "plant", "system"],
+        required: false,
+      },
+      {
+        path: "visual.labels",
+        label: "Labels",
+        control: "text-list",
+        required: true,
+      },
+    ],
+    analogy: [
+      {
+        path: "visual.sourceConcept",
+        label: "Source concept",
+        control: "text",
+        required: true,
+      },
+      {
+        path: "visual.familiarSystem",
+        label: "Familiar system",
+        control: "text",
+        required: true,
+      },
+      {
+        path: "visual.mappings",
+        label: "Mappings",
+        control: "text-list",
+        required: true,
+      },
+    ],
+    "worked-example": [
+      {
+        path: "visual.problem",
+        label: "Problem",
+        control: "textarea",
+        required: true,
+      },
+      {
+        path: "visual.steps",
+        label: "Steps",
+        control: "text-list",
+        required: true,
+      },
+      {
+        path: "visual.answer",
+        label: "Answer",
+        control: "textarea",
+        required: true,
+      },
+    ],
+    summary: [
+      {
+        path: "visual.takeaways",
+        label: "Takeaways",
+        control: "text-list",
+        required: true,
+      },
+      {
+        path: "visual.centralModel",
+        label: "Central model",
+        control: "text",
+        required: false,
+      },
+      {
+        path: "visual.callToAction",
+        label: "Call to action",
+        control: "text",
+        required: false,
+      },
+    ],
+  };
+
+const templateAssetSlots: Record<SceneTemplate, readonly string[]> = {
+  hook: ["subject"],
+  definition: ["visual-example"],
+  process: [
+    "step-1-icon",
+    "step-2-icon",
+    "step-3-icon",
+    "step-4-icon",
+    "step-5-icon",
+    "step-6-icon",
+  ],
+  "input-process-output": [
+    "input-1-icon",
+    "input-2-icon",
+    "input-3-icon",
+    "input-4-icon",
+    "process-icon",
+    "output-1-icon",
+    "output-2-icon",
+    "output-3-icon",
+    "output-4-icon",
+  ],
+  comparison: ["left-subject-image", "right-subject-image"],
+  "cause-effect": [
+    "cause-1-icon",
+    "cause-2-icon",
+    "cause-3-icon",
+    "mechanism-icon",
+    "effect-1-icon",
+    "effect-2-icon",
+    "effect-3-icon",
+  ],
+  "labelled-diagram": ["diagram"],
+  analogy: ["central-visual"],
+  "worked-example": [],
+  summary: ["central-visual"],
+};
+
+export function sceneEditorMetadata(
+  template: SceneTemplate,
+): SceneEditorTemplateMetadata {
+  return sceneEditorTemplateMetadataSchema.parse({
+    template,
+    assetSlots: templateAssetSlots[template],
+    fields: [...commonSceneEditorFields, ...templateEditorFields[template]],
+  });
+}
+
+/** The edit command carries a complete typed scene, not an unbounded patch. */
+export const storyboardSceneUpdateInputSchema = z
+  .object({
+    expectedRevision: z.number().int().nonnegative(),
+    scene: sceneSpecSchema,
+  })
+  .strict();
+export type StoryboardSceneUpdateInput = z.infer<
+  typeof storyboardSceneUpdateInputSchema
+>;
+
+export const storyboardSceneTemplateSwitchInputSchema = z
+  .object({
+    confirmReset: z.boolean().optional(),
+    expectedRevision: z.number().int().nonnegative(),
+    template: sceneTemplateSchema,
+  })
+  .strict();
+export type StoryboardSceneTemplateSwitchInput = z.infer<
+  typeof storyboardSceneTemplateSwitchInputSchema
+>;
+
+export const sceneEditInvalidationScopeValues = [
+  "audio",
+  "captions",
+  "preview",
+  "render",
+  "validation",
+  "audio-fit-warning",
+] as const;
+export const sceneEditInvalidationScopeSchema = z.enum(
+  sceneEditInvalidationScopeValues,
+);
+export type SceneEditInvalidationScope = z.infer<
+  typeof sceneEditInvalidationScopeSchema
+>;
+
+export const storyboardSceneEditResponseSchema = z
+  .object({
+    invalidated: z.array(sceneEditInvalidationScopeSchema).max(6),
+    requiresConfirmation: z.boolean(),
+    resetFields: z.array(boundedText(100)).max(30),
+    revision: z.number().int().nonnegative(),
+    scene: lessonStoryboardSceneSchema,
+    warning: z.string().max(500).nullable(),
+  })
+  .strict();
+export type StoryboardSceneEditResponse = z.infer<
+  typeof storyboardSceneEditResponseSchema
+>;
+
+// ---------------------------------------------------------------------------
 // ST-055 — Reorder, add, duplicate, and delete storyboard scenes
 // ---------------------------------------------------------------------------
 
@@ -5605,4 +5971,89 @@ export function createDefaultStoryboardSceneSpec(
     template,
     visual: storyboardSceneDefaultVisuals[template],
   });
+}
+
+/**
+ * Builds a safe template-switch preview. Common scene fields always survive;
+ * only visual keys accepted by the target template and compatible asset slots
+ * are retained. The caller must explicitly confirm when data would be reset.
+ */
+export function migrateStoryboardSceneTemplate(
+  current: SceneSpec,
+  template: SceneTemplate,
+): { scene: SceneSpec; resetFields: readonly string[] } {
+  const target = createDefaultStoryboardSceneSpec(template, {
+    id: current.id,
+    order: current.order,
+    durationSeconds: current.durationSeconds,
+  });
+  const currentVisual = current.visual as Record<string, unknown>;
+  const targetVisual = target.visual as Record<string, unknown>;
+  const sharedVisual = Object.fromEntries(
+    Object.entries(currentVisual).filter(([key]) => key in targetVisual),
+  );
+  const candidate = {
+    ...target,
+    title: current.title,
+    narration: current.narration,
+    onScreenText: current.onScreenText,
+    transition: current.transition,
+    assetBindings: current.assetBindings.filter(
+      (binding) =>
+        binding.slot === undefined ||
+        templateAssetSlots[template].includes(binding.slot),
+    ),
+    sourceRefs: current.sourceRefs,
+    generatedAdditions: current.generatedAdditions,
+    visual: { ...targetVisual, ...sharedVisual },
+  };
+  const parsed = sceneSpecSchema.safeParse(candidate);
+  const scene = parsed.success ? parsed.data : target;
+  const resetFields = Object.keys(currentVisual)
+    .filter((key) => !(key in targetVisual) || !parsed.success)
+    .map((key) => `visual.${key}`);
+  for (const binding of current.assetBindings)
+    if (
+      binding.slot !== undefined &&
+      !templateAssetSlots[template].includes(binding.slot)
+    )
+      resetFields.push(`assetBindings.${binding.slot}`);
+  return { scene, resetFields };
+}
+
+/** Returns only the derived artifacts affected by an explicit teacher edit. */
+export function sceneEditInvalidation(
+  before: SceneSpec,
+  after: SceneSpec,
+): {
+  invalidated: readonly SceneEditInvalidationScope[];
+  warning: string | null;
+} {
+  const changed = (key: keyof SceneSpec): boolean =>
+    JSON.stringify(before[key]) !== JSON.stringify(after[key]);
+  const scopes = new Set<SceneEditInvalidationScope>(["validation"]);
+  if (changed("narration")) {
+    scopes.add("audio");
+    scopes.add("captions");
+  }
+  if (changed("durationSeconds")) scopes.add("audio-fit-warning");
+  if (
+    changed("narration") ||
+    changed("durationSeconds") ||
+    changed("transition") ||
+    changed("visual") ||
+    changed("assetBindings") ||
+    changed("onScreenText") ||
+    changed("title") ||
+    before.template !== after.template
+  ) {
+    scopes.add("preview");
+    scopes.add("render");
+  }
+  return {
+    invalidated: [...scopes],
+    warning: changed("durationSeconds")
+      ? "Duration changed. Existing audio is retained and requires an audio-fit check."
+      : null,
+  };
 }

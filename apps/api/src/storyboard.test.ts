@@ -13,6 +13,7 @@ import {
   type StoryboardGenerationResponse,
   type StoryboardResponse,
   type StoryboardSceneDetailResponse,
+  type StoryboardSceneEditResponse,
   type StoryboardSceneListResponse,
 } from "@avlp/schemas";
 import type { StoryboardService } from "./storyboard.js";
@@ -232,6 +233,24 @@ describe("storyboard API", () => {
         targetDurationSeconds: 180,
         scenes: [],
       })),
+      updateScene: vi.fn(async (): Promise<StoryboardSceneEditResponse> => ({
+        revision: 1,
+        scene: sampleStoryboard().scenes[0]!,
+        invalidated: ["validation"],
+        warning: null,
+        requiresConfirmation: false,
+        resetFields: [],
+      })),
+      switchSceneTemplate: vi.fn(
+        async (): Promise<StoryboardSceneEditResponse> => ({
+          revision: 1,
+          scene: sampleStoryboard().scenes[0]!,
+          invalidated: ["validation"],
+          warning: null,
+          requiresConfirmation: false,
+          resetFields: [],
+        }),
+      ),
       ...service,
     };
     app = await createApp({

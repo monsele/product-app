@@ -719,7 +719,10 @@ describe("scene registry runtime", () => {
       "visual.outputs": 4,
     });
     expect(sceneRegistry.definition.metadata.fields).toContainEqual(
-      expect.objectContaining({ path: "visual.definition", control: "text" }),
+      expect.objectContaining({
+        path: "visual.definition",
+        control: "textarea",
+      }),
     );
     expect(sceneRegistry.definition.metadata.fields).toContainEqual(
       expect.objectContaining({
@@ -732,6 +735,9 @@ describe("scene registry runtime", () => {
       maximumSeconds: 60,
     });
     expect(sceneRegistry.hook.metadata.assetSlots).toEqual(["subject"]);
+    expect(sceneRegistry.summary.metadata.assetSlots).toEqual([
+      "central-visual",
+    ]);
     expect(
       sceneRegistry.hook.metadata.itemLimits["visual.supportingElements"],
     ).toBe(3);

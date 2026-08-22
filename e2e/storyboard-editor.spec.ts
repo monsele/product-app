@@ -88,8 +88,7 @@ test("reorders scenes by dragging one above another", async ({ page }) => {
 
   const reorderRequest = page.waitForRequest(
     (request) =>
-      request.method() === "POST" &&
-      request.url().includes("/scenes/reorder"),
+      request.method() === "POST" && request.url().includes("/scenes/reorder"),
   );
   await page.dragAndDrop(sourceSelector, targetSelector);
   const request = await reorderRequest;
@@ -111,4 +110,122 @@ test("adds and then deletes a storyboard scene", async ({ page }) => {
   page.once("dialog", (dialog) => void dialog.accept());
   await page.getByRole("button", { name: "Delete" }).click();
   await expect(rows).toHaveCount(before);
+});
+
+test("edits the selected scene and refreshes preview only after persistence", async ({
+  page,
+}) => {
+  await setSessionCookie(page);
+  await page.goto(`/workspace/${projectId}/storyboard`);
+  await expect(page.getByTestId("scene-editor")).toBeVisible();
+  await page.getByLabel("Narration").fill("Water rises as vapour.");
+  const saveRequest = page.waitForRequest(
+    (request) =>
+      request.method() === "PATCH" &&
+      request.url().includes(`/scenes/${firstSceneId}`),
+  );
+  await page.route(`**/scenes/${firstSceneId}`, async (route) => {
+    if (route.request().method() !== "PATCH") {
+      await route.continue();
+      return;
+    }
+    const body = route.request().postDataJSON() as {
+      expectedRevision: number;
+      scene: Record<string, unknown>;
+    };
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        revision: body.expectedRevision + 1,
+        scene: {
+          id: firstSceneId,
+          stableSceneId: firstSceneId,
+          order: 1,
+          template: body.scene.template,
+          durationSeconds: body.scene.durationSeconds,
+          narrationBlockIds: ["019ffbf1-6111-738a-b087-6775ff97568c"],
+          assetRequirements: [],
+          scene: body.scene,
+        },
+        invalidated: ["audio", "captions", "preview", "render", "validation"],
+        warning: null,
+        requiresConfirmation: false,
+        resetFields: [],
+      }),
+    });
+  });
+  await page.getByRole("button", { name: "Save scene" }).click();
+  const request = await saveRequest;
+  expect(request.postDataJSON().scene.narration).toBe("Water rises as vapour.");
+  await expect(page.getByText(/Saved\. Invalidated:/)).toBeVisible();
+});
+
+test("confirms template migration before resetting incompatible fields", async ({
+  page,
+}) => {
+  await setSessionCookie(page);
+  await page.goto(`/workspace/${projectId}/storyboard`);
+  const commands: Array<{ confirmReset?: boolean }> = [];
+  await page.route(
+    `**/scenes/${firstSceneId}/change-template`,
+    async (route) => {
+      if (route.request().method() !== "POST") {
+        await route.continue();
+        return;
+      }
+      const body = route.request().postDataJSON() as { confirmReset?: boolean };
+      commands.push(body);
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          revision: body.confirmReset ? 1 : 0,
+          scene: {
+            id: firstSceneId,
+            stableSceneId: firstSceneId,
+            order: 1,
+            template: "summary",
+            durationSeconds: 30,
+            narrationBlockIds: ["019ffbf1-6111-738a-b087-6775ff97568c"],
+            assetRequirements: [],
+            scene: {
+              id: firstSceneId,
+              order: 1,
+              narration: "Water moves through the environment.",
+              durationSeconds: 30,
+              onScreenText: [],
+              transition: "cut",
+              assetBindings: [],
+              sourceRefs: [
+                {
+                  documentId: projectId,
+                  parsedDocumentVersion: 1,
+                  pageStart: 1,
+                  blockIds: ["019ffbf1-6111-738a-b087-6775ff97568c"],
+                },
+              ],
+              generatedAdditions: [],
+              template: "summary",
+              visual: { takeaways: [{ text: "The cycle repeats." }] },
+            },
+          },
+          invalidated: ["preview", "render", "validation"],
+          warning: null,
+          requiresConfirmation: !body.confirmReset,
+          resetFields: ["visual.definition"],
+        }),
+      });
+    },
+  );
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page
+    .getByTestId("scene-editor")
+    .getByLabel("Template")
+    .selectOption("summary");
+  await expect(page.getByText(/Template changed\. Invalidated:/)).toBeVisible();
+  expect(commands.map((command) => command.confirmReset)).toEqual([
+    false,
+    true,
+  ]);
 });

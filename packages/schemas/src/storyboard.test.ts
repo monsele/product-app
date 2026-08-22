@@ -4,6 +4,9 @@ import {
   currentSceneRegenerationCompatibility,
   lessonStoryboardSchema,
   lessonStoryboardSceneSchema,
+  migrateStoryboardSceneTemplate,
+  sceneEditInvalidation,
+  sceneEditorMetadata,
   sceneCandidateDecisionInputSchema,
   sceneCandidateSchema,
   sceneRegenerationInputSchema,
@@ -26,6 +29,8 @@ import {
   storyboardSceneListResponseSchema,
   storyboardSceneOutputSchema,
   storyboardSceneReorderInputSchema,
+  storyboardSceneTemplateSwitchInputSchema,
+  storyboardSceneUpdateInputSchema,
   storyboardTemplateCatalog,
   storyboardTemplateCatalogEntrySchema,
   type LessonStoryboard,
@@ -891,5 +896,82 @@ describe("storyboard scene editing contracts (ST-055)", () => {
         scene: spec,
       }),
     ).not.toThrow();
+  });
+
+  it("covers common and template-specific fields for every editor form", () => {
+    for (const template of sceneTemplateValues) {
+      const metadata = sceneEditorMetadata(template);
+      expect(metadata.fields.map((field) => field.path)).toContain("narration");
+      expect(metadata.fields.map((field) => field.path)).toContain(
+        "durationSeconds",
+      );
+      expect(
+        metadata.fields.some((field) => field.path.startsWith("visual.")),
+      ).toBe(true);
+    }
+  });
+
+  it("maps compatible visual fields and reports reset fields on template migration", () => {
+    const source = createDefaultStoryboardSceneSpec("process", {
+      id: sceneId,
+      order: 1,
+      durationSeconds: 10,
+    });
+    const migrated = migrateStoryboardSceneTemplate(source, "worked-example");
+    expect(migrated.scene.template).toBe("worked-example");
+    if (migrated.scene.template !== "worked-example")
+      throw new Error("Expected worked-example migration.");
+    expect(migrated.scene.visual.steps).toEqual(["First step", "Second step"]);
+    expect(migrated.resetFields).toEqual([]);
+  });
+
+  it("preserves an un-slotted scene asset through a template migration", () => {
+    const source = sceneSpecSchema.parse({
+      ...createDefaultStoryboardSceneSpec("definition", {
+        id: sceneId,
+        order: 1,
+        durationSeconds: 10,
+      }),
+      assetBindings: [
+        {
+          assetId: "019ffbf1-2222-7000-8000-000000000099",
+          role: "background",
+        },
+      ],
+    });
+    const migrated = migrateStoryboardSceneTemplate(source, "summary");
+    expect(migrated.scene.assetBindings).toEqual(source.assetBindings);
+    expect(migrated.resetFields).not.toContain("assetBindings.undefined");
+  });
+
+  it("defines bounded update and template switch commands with selective invalidation", () => {
+    const source = createDefaultStoryboardSceneSpec("definition", {
+      id: sceneId,
+      order: 1,
+      durationSeconds: 10,
+    });
+    expect(() =>
+      storyboardSceneUpdateInputSchema.parse({
+        expectedRevision: 0,
+        scene: source,
+      }),
+    ).not.toThrow();
+    expect(() =>
+      storyboardSceneTemplateSwitchInputSchema.parse({
+        expectedRevision: 0,
+        template: "summary",
+      }),
+    ).not.toThrow();
+    const assetOnly = { ...source, assetBindings: [] };
+    expect(sceneEditInvalidation(source, assetOnly).invalidated).not.toContain(
+      "audio",
+    );
+    const narrationEdit = {
+      ...source,
+      narration: "A revised narration sentence.",
+    };
+    expect(sceneEditInvalidation(source, narrationEdit).invalidated).toEqual(
+      expect.arrayContaining(["audio", "captions"]),
+    );
   });
 });

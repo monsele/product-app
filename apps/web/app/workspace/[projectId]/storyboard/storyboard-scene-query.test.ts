@@ -6,10 +6,12 @@ import {
   fetchStoryboardSceneDetail,
   fetchStoryboardSceneList,
   invalidateStoryboardSceneList,
+  switchStoryboardSceneTemplate,
   storyboardSceneListKey,
   storyboardSceneListPrefix,
+  updateStoryboardScene,
 } from "./storyboard-scene-query";
-import type { StoryboardSceneListResponse } from "@avlp/schemas";
+import type { SceneSpec, StoryboardSceneListResponse } from "@avlp/schemas";
 
 const projectId = "019ffbf1-610e-738a-b087-6775ff97568c";
 const sceneId = "019ffbf1-6151-738a-b087-6775ff97568c";
@@ -208,5 +210,59 @@ describe("storyboard scene-detail fetcher", () => {
     await expect(
       fetchStoryboardSceneDetail(projectId, sceneId),
     ).rejects.toThrow();
+  });
+});
+
+describe("scene edit commands", () => {
+  it("sends a revisioned scene update and validates the response", async () => {
+    const detail = sampleDetail();
+    const scene = detail.scene.scene as unknown as SceneSpec;
+    let requestOptions: RequestInit | undefined;
+    const fetch = vi.fn(
+      async (_input: RequestInfo | URL, options?: RequestInit) => {
+        requestOptions = options;
+        return {
+          ok: true,
+          json: async () => ({
+            revision: 1,
+            scene: detail.scene,
+            invalidated: ["preview", "render", "validation"],
+            warning: null,
+            requiresConfirmation: false,
+            resetFields: [],
+          }),
+        };
+      },
+    );
+    vi.stubGlobal("fetch", fetch);
+    const result = await updateStoryboardScene(projectId, sceneId, scene, 0);
+    expect(result.revision).toBe(1);
+    expect(requestOptions).toMatchObject({ method: "PATCH" });
+  });
+
+  it("returns a template-reset confirmation preview without accepting it", async () => {
+    const detail = sampleDetail();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          revision: 0,
+          scene: detail.scene,
+          invalidated: ["preview", "render", "validation"],
+          warning: null,
+          requiresConfirmation: true,
+          resetFields: ["visual.definition"],
+        }),
+      })),
+    );
+    const result = await switchStoryboardSceneTemplate(
+      projectId,
+      sceneId,
+      "summary",
+      0,
+    );
+    expect(result.requiresConfirmation).toBe(true);
+    expect(result.resetFields).toContain("visual.definition");
   });
 });
