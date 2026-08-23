@@ -25,3 +25,11 @@
  ○ Compiling /workspace/[projectId]/upload ...
  ✓ Compiled /workspace/[projectId]/upload in 974ms (777 modules)
  GET /workspace/01a03081-ebfd-767f-94bf-46c0500b6648/upload 200 in 2551ms
+ ✓ Compiled in 1375ms (760 modules)
+ GET / 200 in 392ms
+ GET /workspace/01a03081-ebfd-767f-94bf-46c0500b6648/upload 200 in 401ms
+ GET /workspace/01a03081-ebfd-767f-94bf-46c0500b6648/upload 500 in 315ms
+ ✓ Compiled in 992ms (760 modules)
+ ✓ Compiled in 875ms (760 modules)
+ ✓ Compiled in 2.9s (760 modules)
+ ✓ Compiled in 2.4s (760 modules)

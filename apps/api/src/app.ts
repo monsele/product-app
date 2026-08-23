@@ -73,6 +73,7 @@ import type { NarrationService } from "./narration.js";
 import type { StoryboardService } from "./storyboard.js";
 import type { CitationService } from "./citations.js";
 import type { GroundingService } from "./grounding.js";
+import type { LessonVersionsService } from "./lesson-versions.js";
 import { searchApprovedAssets } from "./approved-assets.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
@@ -103,6 +104,7 @@ const NARRATION_SERVICE = Symbol("NARRATION_SERVICE");
 const STORYBOARD_SERVICE = Symbol("STORYBOARD_SERVICE");
 const CITATION_SERVICE = Symbol("CITATION_SERVICE");
 const GROUNDING_SERVICE = Symbol("GROUNDING_SERVICE");
+const LESSON_VERSIONS_SERVICE = Symbol("LESSON_VERSIONS_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -350,6 +352,7 @@ type StoryboardApiService = Pick<
 >;
 type CitationApiService = Pick<CitationService, "forScene">;
 type GroundingApiService = Pick<GroundingService, "check" | "current">;
+type LessonVersionsApiService = Pick<LessonVersionsService, "create" | "list">;
 
 function approvedAssetCatalogFilters(input: {
   query: unknown;
@@ -426,6 +429,8 @@ class ProjectsController {
     private readonly citations: CitationApiService,
     @Inject(GROUNDING_SERVICE)
     private readonly grounding: GroundingApiService,
+    @Inject(LESSON_VERSIONS_SERVICE)
+    private readonly lessonVersions: LessonVersionsApiService,
   ) {}
 
   @Post()
@@ -1865,6 +1870,30 @@ class ProjectsController {
     );
   }
 
+  @Post(":projectId/versions")
+  public async createLessonVersion(
+    @Param("projectId") projectId: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    return this.lessonVersions.create({
+      ...access,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Get(":projectId/versions")
+  public async listLessonVersions(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    return this.lessonVersions.list(assertAuthorizedProject(request, projectId));
+  }
+
   @Delete(":projectId")
   public async delete(
     @Param("projectId") projectId: string,
@@ -2025,6 +2054,7 @@ function createAppModule(
   storyboardService: StoryboardApiService,
   citationService: CitationApiService,
   groundingService: GroundingApiService,
+  lessonVersionsService: LessonVersionsApiService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -2066,6 +2096,7 @@ function createAppModule(
       { provide: STORYBOARD_SERVICE, useValue: storyboardService },
       { provide: CITATION_SERVICE, useValue: citationService },
       { provide: GROUNDING_SERVICE, useValue: groundingService },
+      { provide: LESSON_VERSIONS_SERVICE, useValue: lessonVersionsService },
     ],
   };
 }
@@ -2095,6 +2126,7 @@ export type CreateAppOptions = {
   storyboardService?: StoryboardApiService;
   citationService?: CitationApiService;
   groundingService?: GroundingApiService;
+  lessonVersionsService?: LessonVersionsApiService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -2860,6 +2892,11 @@ const unavailableGroundingService: GroundingApiService = {
     ),
 };
 
+const unavailableLessonVersionsService: LessonVersionsApiService = {
+  create: () => Promise.reject(new PublicError("internal_error", "Lesson versioning is unavailable.", 503, true)),
+  list: () => Promise.reject(new PublicError("internal_error", "Lesson versioning is unavailable.", 503, true)),
+};
+
 export async function createApp(
   options: CreateAppOptions = {},
 ): Promise<NestFastifyApplication> {
@@ -2894,6 +2931,7 @@ export async function createApp(
       options.storyboardService ?? unavailableStoryboardService,
       options.citationService ?? unavailableCitationService,
       options.groundingService ?? unavailableGroundingService,
+      options.lessonVersionsService ?? unavailableLessonVersionsService,
     ),
     new FastifyAdapter({
       logger: {

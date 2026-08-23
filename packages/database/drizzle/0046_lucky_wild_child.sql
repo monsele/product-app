@@ -1,0 +1,1 @@
+ALTER TABLE "projects" ADD COLUMN "current_lesson_version_id" uuid;

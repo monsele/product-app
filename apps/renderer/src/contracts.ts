@@ -81,6 +81,9 @@ export const renderJobPayloadSchema = z
     assetManifest: renderAssetManifestSchema,
     compositionSha256: sha256ChecksumSchema,
     fixtureId: z.literal(manualLessonFixtureId),
+    /** Present for production renders so the renderer can load one immutable
+     * lesson-version snapshot; ST-024's manual fixture intentionally omits it. */
+    lessonVersionId: identifierSchema.optional(),
     lessonSpecSha256: sha256ChecksumSchema,
     optionsHash: sha256ChecksumSchema,
     profile: renderProfileSchema,

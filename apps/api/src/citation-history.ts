@@ -27,9 +27,12 @@ import type { SourceSnapshotService } from "./source-snapshot.js";
  */
 export interface CitationHistoryService {
   snapshotForVersion(input: {
+    executor?: DatabaseExecutor;
     ownerUserId: Identifier;
     projectId: Identifier;
     lessonVersionId: Identifier;
+    lessonSpecId?: Identifier;
+    lessonSpecRevision?: number;
     groundingCheckId: Identifier | null;
     sourceSnapshotId: Identifier;
     sourceSnapshotContentHash: string;
@@ -59,22 +62,32 @@ export class PostgresCitationHistoryService implements CitationHistoryService {
   ) {}
 
   public async snapshotForVersion(input: {
+    executor?: DatabaseExecutor;
     ownerUserId: Identifier;
     projectId: Identifier;
     lessonVersionId: Identifier;
+    lessonSpecId?: Identifier;
+    lessonSpecRevision?: number;
     groundingCheckId: Identifier | null;
     sourceSnapshotId: Identifier;
     sourceSnapshotContentHash: string;
     now?: Date;
   }): Promise<CitationHistorySnapshot> {
     const timestamp = input.now ?? new Date();
-    const [lessonSpecRow] = await this.database
+    const executor = input.executor ?? this.database;
+    const [lessonSpecRow] = await executor
       .select()
       .from(lessonSpecs)
       .where(
         and(
           eq(lessonSpecs.ownerUserId, input.ownerUserId),
           eq(lessonSpecs.projectId, input.projectId),
+          ...(input.lessonSpecId === undefined
+            ? []
+            : [eq(lessonSpecs.id, input.lessonSpecId)]),
+          ...(input.lessonSpecRevision === undefined
+            ? []
+            : [eq(lessonSpecs.revision, input.lessonSpecRevision)]),
         ),
       )
       .orderBy(desc(lessonSpecs.generatedAt))

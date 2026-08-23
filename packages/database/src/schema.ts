@@ -155,6 +155,11 @@ export const projects = pgTable(
     title: text("title").notNull(),
     stage: projectStage("stage").notNull().default("draft"),
     latestFailedOperation: text("latest_failed_operation"),
+    /** Current immutable version used by downstream render commands. */
+    currentLessonVersionId: uuid("current_lesson_version_id").references(
+      () => lessonVersions.id,
+      { onDelete: "restrict" },
+    ),
     ...auditColumns(),
     revision: revisionColumn(),
     deletedAt: softDeletionColumn(),
@@ -1825,5 +1830,40 @@ export const citationHistorySnapshots = pgTable(
       table.lessonVersionId,
     ),
     index("citation_history_snapshots_lesson_spec_idx").on(table.lessonSpecId),
+  ],
+);
+
+/** Immutable, portable lesson snapshot created at an approval milestone or an
+ * explicit teacher save. The JSON payload contains metadata and references to
+ * immutable media objects only; binaries remain in private object storage. */
+export const lessonVersionReasons = ["approval", "explicit_save", "before_render"] as const;
+export const lessonVersionReason = pgEnum("lesson_version_reason", lessonVersionReasons);
+export const lessonVersions = pgTable(
+  "lesson_versions",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    versionNumber: integer("version_number").notNull(),
+    parentVersionId: uuid("parent_version_id"),
+    reason: lessonVersionReason("reason").notNull(),
+    createdBy: uuid("created_by").notNull().references(() => users.id, { onDelete: "restrict" }),
+    lessonSpecId: uuid("lesson_spec_id").notNull().references(() => lessonSpecs.id, { onDelete: "restrict" }),
+    lessonSpecRevision: integer("lesson_spec_revision").notNull(),
+    sourceSnapshotId: uuid("source_snapshot_id").notNull().references(() => sourceSnapshots.id, { onDelete: "restrict" }),
+    configurationVersion: integer("configuration_version").notNull(),
+    objectiveSetId: uuid("objective_set_id").notNull().references(() => learningObjectiveSets.id, { onDelete: "restrict" }),
+    outlineSetId: uuid("outline_set_id").notNull().references(() => lessonOutlineSets.id, { onDelete: "restrict" }),
+    narrationSetId: uuid("narration_set_id").notNull().references(() => narrationSets.id, { onDelete: "restrict" }),
+    schemaVersion: text("schema_version").notNull(),
+    sceneLibraryVersion: text("scene_library_version").notNull(),
+    promptVersions: jsonb("prompt_versions").notNull(),
+    contentHash: text("content_hash").notNull(),
+    snapshot: jsonb("snapshot").notNull(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("lesson_versions_project_number_unique").on(table.projectId, table.versionNumber),
+    uniqueIndex("lesson_versions_tenant_content_hash_unique").on(table.ownerUserId, table.projectId, table.contentHash),
+    index("lesson_versions_owner_project_created_idx").on(table.ownerUserId, table.projectId, table.createdAt),
   ],
 );

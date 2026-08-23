@@ -1,0 +1,1 @@
+ALTER TABLE "projects" ADD CONSTRAINT "projects_current_lesson_version_id_lesson_versions_id_fk" FOREIGN KEY ("current_lesson_version_id") REFERENCES "public"."lesson_versions"("id") ON DELETE restrict ON UPDATE no action;

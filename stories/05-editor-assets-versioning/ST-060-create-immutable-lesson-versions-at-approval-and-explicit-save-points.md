@@ -2,7 +2,7 @@
 story_id: ST-060
 title: "Create Immutable Lesson Versions at Approval and Explicit Save Points"
 phase: "05 \u2014 Storyboard Editing, Assets, and Versions"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E20"]
 prd_user_stories: ["E20-US1"]
@@ -119,15 +119,15 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-23
+- **Completed:** 2026-08-23
+- **Branch/PR:** Existing local branch `story/st-057`; no PR created.
+- **Files changed:** API version service/routes/runtime wiring and citation snapshot targeting; shared/database schemas; three forward migrations; renderer version-reference contract; storyboard save-version control.
+- **Migrations:** `0045_orange_scourge` creates immutable `lesson_versions`; `0046_lucky_wild_child` adds the current-version project pointer; `0047_white_molten_man` adds its foreign key.
+- **Contracts changed:** `POST/GET /projects/:id/versions`, version reason/summary schemas, version pointer, and optional renderer `lessonVersionId`.
+- **Commands/tests run:** API/database/web typechecks and lint; targeted API version/citation tests, renderer contract test, schema test suite (250 tests), root lint/typecheck/test initiated, and diff check.
+- **Screenshots or representative output:** Save Version action and latest version metadata are rendered in the storyboard workspace.
+- **Decisions and assumptions:** A version snapshots the working storyboard plus approved planning inputs. The portable LessonSpec uses the MVP default voice until voice configuration is introduced in ST-062. Hashes intentionally exclude event-specific citation ID/timestamp.
+- **Deviations from story/technical guide:** Restore UI/service remains out of scope for ST-061. Production render lifecycle remains ST-068; its existing render payload can now carry a lesson version ID.
+- **Known risks or follow-up:** Database integration cases run only when `TEST_DATABASE_URL` is available; add execution evidence in CI. Existing unrelated local log changes were preserved.

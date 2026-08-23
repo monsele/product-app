@@ -3133,6 +3133,31 @@ export type CitationHistorySnapshot = z.infer<
   typeof citationHistorySnapshotSchema
 >;
 
+/** A portable, immutable lesson state. Values are copied as JSON; media is
+ * represented by stable object identifiers/hashes rather than binary data. */
+export const lessonVersionReasonSchema = z.enum(["approval", "explicit_save", "before_render"]);
+export type LessonVersionReason = z.infer<typeof lessonVersionReasonSchema>;
+export const lessonVersionCreateSchema = z.object({
+  reason: lessonVersionReasonSchema.default("explicit_save"),
+}).strict();
+export type LessonVersionCreate = z.infer<typeof lessonVersionCreateSchema>;
+export const lessonVersionSummarySchema = z.object({
+  id: identifierSchema,
+  versionNumber: z.number().int().positive(),
+  reason: lessonVersionReasonSchema,
+  contentHash: z.string().regex(sha256HexPattern),
+  createdBy: identifierSchema,
+  createdAt: z.string().datetime({ offset: true }),
+  lessonSpecId: identifierSchema,
+  lessonSpecRevision: z.number().int().nonnegative(),
+}).strict();
+export type LessonVersionSummary = z.infer<typeof lessonVersionSummarySchema>;
+export const lessonVersionsResponseSchema = z.object({
+  versions: z.array(lessonVersionSummarySchema),
+  latestModifiedAt: z.string().datetime({ offset: true }).nullable(),
+}).strict();
+export type LessonVersionsResponse = z.infer<typeof lessonVersionsResponseSchema>;
+
 /**
  * API request to trigger a grounding check for a scene or lesson.
  */

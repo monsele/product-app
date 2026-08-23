@@ -24,6 +24,12 @@ describe("render job v1 contracts", () => {
       "composition checksum",
     );
     expect(renderJobPayloadSchema.parse(first)).toEqual(first);
+    expect(
+      renderJobPayloadSchema.parse({
+        ...first,
+        lessonVersionId: "019ffbf1-eeee-7000-8000-000000000045",
+      }).lessonVersionId,
+    ).toBe("019ffbf1-eeee-7000-8000-000000000045");
     expect(() =>
       assertFixtureIntegrity(
         { ...first, optionsHash: "0".repeat(64) },

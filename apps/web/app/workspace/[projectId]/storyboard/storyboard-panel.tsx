@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   sceneTemplateValues,
   storyboardResponseSchema,
+  lessonVersionsResponseSchema,
   type SceneTemplate,
   type StoryboardResponse,
   type StoryboardSceneDetailResponse,
@@ -84,6 +85,10 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
   const [detailAttempt, setDetailAttempt] = useState(0);
   const [editing, setEditing] = useState(false);
   const [addTemplate, setAddTemplate] = useState<SceneTemplate>("definition");
+  const [versionMetadata, setVersionMetadata] = useState<
+    { count: number; latestModifiedAt: string | null } | null
+  >(null);
+  const [savingVersion, setSavingVersion] = useState(false);
 
   const refresh = useCallback(async () => {
     const response = await fetch(
@@ -131,6 +136,41 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
       cancelled = true;
     };
   }, [refresh]);
+
+  const refreshVersions = useCallback(async () => {
+    const response = await fetch(
+      apiUrl(`/projects/${encodeURIComponent(projectId)}/versions`),
+      { credentials: "include", cache: "no-store" },
+    );
+    const payload: unknown = await response.json().catch(() => null);
+    const parsed = lessonVersionsResponseSchema.safeParse(payload);
+    if (!response.ok || !parsed.success) throw new Error("versions");
+    setVersionMetadata({
+      count: parsed.data.versions.length,
+      latestModifiedAt: parsed.data.latestModifiedAt,
+    });
+  }, [projectId]);
+
+  useEffect(() => {
+    void refreshVersions().catch(() => undefined);
+  }, [refreshVersions]);
+
+  const saveVersion = useCallback(async () => {
+    setSavingVersion(true);
+    setActionMessage(null);
+    try {
+      const response = await fetch(
+        apiUrl(`/projects/${encodeURIComponent(projectId)}/versions`),
+        { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ reason: "explicit_save" }) },
+      );
+      const payload: unknown = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(extractErrorMessage(payload, "Unable to save this lesson version."));
+      await refreshVersions();
+      setActionMessage("Lesson version saved.");
+    } catch (error) {
+      setActionMessage(error instanceof Error ? error.message : "Unable to save this lesson version.");
+    } finally { setSavingVersion(false); }
+  }, [projectId, refreshVersions]);
 
   const value = view.kind === "ready" ? view.value : null;
   const generating = value !== null && isGenerating(value.state);
@@ -421,6 +461,15 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
       ) : null}
 
       {actionMessage !== null ? <p role="alert">{actionMessage}</p> : null}
+
+      <section aria-label="Lesson versions">
+        <button type="button" onClick={() => void saveVersion()} disabled={savingVersion || storyboard === null}>
+          {savingVersion ? "Saving versionâ€¦" : "Save version"}
+        </button>
+        {versionMetadata !== null && versionMetadata.latestModifiedAt !== null ? (
+          <p role="status">Version {versionMetadata.count} saved {new Date(versionMetadata.latestModifiedAt).toLocaleString()}.</p>
+        ) : <p role="status">No saved lesson versions yet.</p>}
+      </section>
 
       {view.value.canGenerate ? (
         <button
