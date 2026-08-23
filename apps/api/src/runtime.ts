@@ -17,10 +17,9 @@ import {
   SourceUploadService,
 } from "./source-uploads.js";
 import { ProjectAssetService } from "./project-assets.js";
+import { IllustrationGenerationService } from "./illustration-generation.js";
 import { PostgresIngestionStatusService } from "./ingestion-status.js";
-import {
-  PostgresParsedDocumentReviewService,
-} from "./parsed-document-review.js";
+import { PostgresParsedDocumentReviewService } from "./parsed-document-review.js";
 import { ParsedDocumentRepository } from "./parsed-document-repository.js";
 import { PostgresSourceSectionSelectionService } from "./source-section-selection.js";
 import { PostgresContentBlockCorrectionService } from "./content-block-corrections.js";
@@ -74,7 +73,9 @@ export async function runApi(input: {
         ? {}
         : { endpoint: environment.OBJECT_STORAGE_ENDPOINT }),
     });
-    const projectAuthorizer = new ProjectAuthorizationService(projectRepository);
+    const projectAuthorizer = new ProjectAuthorizationService(
+      projectRepository,
+    );
     const parsedDocumentRepository = new ParsedDocumentRepository(
       database.client,
     );
@@ -107,9 +108,11 @@ export async function runApi(input: {
         undefined,
         environment.MAX_UPLOAD_BYTES,
       ),
-      projectAssetService: new ProjectAssetService(
+      projectAssetService: new ProjectAssetService(database.client, storage),
+      illustrationGenerationService: new IllustrationGenerationService(
         database.client,
-        storage,
+        undefined,
+        environment.MAX_REGENERATIONS_PER_HOUR,
       ),
       ingestionStatusService: new PostgresIngestionStatusService(
         database.client,

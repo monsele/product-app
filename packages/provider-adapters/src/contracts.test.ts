@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   providerCompletionRequestSchema,
   providerCompletionResponseSchema,
+  illustrationResponseSchema,
   ProviderCallError,
   type LanguageModelProvider,
 } from "./contracts.js";
@@ -97,5 +98,24 @@ describe("provider contract", () => {
     });
     expect(error.code).toBe("TEMPORARY_INFRASTRUCTURE");
     expect(error.retryable).toBe(true);
+  });
+
+  it("requires bounded PNG illustration output with metered provider fields", () => {
+    expect(
+      illustrationResponseSchema.safeParse({
+        providerId: "image-provider",
+        providerCallId: "call-1",
+        mediaType: "image/png",
+        bytes: new Uint8Array([1]),
+        width: 1024,
+        height: 1024,
+        units: 1,
+        costUsd: 0.02,
+        moderation: { status: "approved", code: "provider_safe" },
+      }).success,
+    ).toBe(true);
+    expect(
+      illustrationResponseSchema.safeParse({ providerId: "x" }).success,
+    ).toBe(false);
   });
 });

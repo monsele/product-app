@@ -781,6 +781,7 @@ describe("ST-054 storyboard scene list and detail read model", () => {
     expect(() =>
       storyboardSceneDetailResponseSchema.parse({
         scene: detailScene(),
+        sceneRevision: 2,
         status: {
           assets: "none",
           audio: "not_generated",

@@ -6,6 +6,11 @@ import {
   type ProviderCompletionRequest,
   type ProviderCompletionResponse,
   type ProviderMessage,
+  illustrationRequestSchema,
+  illustrationResponseSchema,
+  type IllustrationProvider,
+  type IllustrationRequest,
+  type IllustrationResponse,
 } from "./contracts.js";
 
 /** Shared test/local model pricing used when no pricing map is supplied. */
@@ -73,6 +78,26 @@ export class MockLanguageModelProvider implements LanguageModelProvider {
       usage: { inputTokens, outputTokens },
       latencyMs: this.options.latencyMs ?? 10,
       retries: 0,
+    });
+  }
+}
+
+/** Deterministic fixture adapter for illustration-worker tests and local use. */
+export class MockIllustrationProvider implements IllustrationProvider {
+  public readonly providerId = "mock-illustration";
+  public readonly requests: IllustrationRequest[] = [];
+
+  public constructor(
+    private readonly response: Omit<IllustrationResponse, "providerId">,
+  ) {}
+
+  public async generate(
+    request: IllustrationRequest,
+  ): Promise<IllustrationResponse> {
+    this.requests.push(illustrationRequestSchema.parse(request));
+    return illustrationResponseSchema.parse({
+      providerId: this.providerId,
+      ...this.response,
     });
   }
 }

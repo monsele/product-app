@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
 import { ScenePreviewPlayer } from "@avlp/scene-library";
 import {
   sceneRegenerationModeValues,
+  sceneEditorMetadata,
   type SceneCandidate,
   type SceneRegenerationMode,
   type ProjectAsset,
@@ -17,6 +18,7 @@ import { buildScenePreviewInput, canPreviewScene } from "./scene-preview-input";
 import { SceneCitations } from "./citation-panel";
 import { SceneGrounding } from "./grounding-panel";
 import { SceneEditorForm } from "./scene-editor-form";
+import { IllustrationCandidatePanel } from "./illustration-candidate-panel";
 import { fetchTeacherAssets } from "./storyboard-scene-query";
 
 function apiUrl(path: string): string {
@@ -307,6 +309,15 @@ export function SceneDetailPanel({
         onDecide={(candidate, decision) =>
           void decideCandidate(candidate, decision)
         }
+      />
+      <IllustrationCandidatePanel
+        projectId={projectId}
+        sceneId={sceneId}
+        sceneRevision={detail.sceneRevision}
+        storyboardRevision={lessonSpecRevision}
+        slots={sceneEditorMetadata(scene.template).assetSlots}
+        disabled={pending || generating}
+        onChanged={onChanged}
       />
 
       <SceneCitations projectId={projectId} sceneId={sceneId} />

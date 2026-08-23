@@ -401,6 +401,12 @@ export const apiEnvironmentSchema = baseEnvironmentSchema
       )
       .optional(),
     PASSWORD_RESET_EMAIL_WEBHOOK_TOKEN: z.string().min(1).optional(),
+    MAX_REGENERATIONS_PER_HOUR: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .default(10),
   })
   .superRefine((value, context) => {
     validateStorageCredentialPair(value, context);

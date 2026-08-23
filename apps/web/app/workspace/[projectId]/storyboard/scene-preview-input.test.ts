@@ -8,6 +8,7 @@ function detailWithBindings(
   assetBindings: StoryboardSceneDetailResponse["scene"]["scene"]["assetBindings"],
 ): StoryboardSceneDetailResponse {
   return {
+    sceneRevision: 0,
     scene: {
       id: sceneId,
       stableSceneId: sceneId,

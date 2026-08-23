@@ -63,6 +63,73 @@ export const sceneAssetBindingSchema = z
   .strict();
 export type SceneAssetBinding = z.infer<typeof sceneAssetBindingSchema>;
 
+// ---------------------------------------------------------------------------
+// ST-059 — bounded illustration generation
+// ---------------------------------------------------------------------------
+
+export const illustrationGenerationUseCaseValues = [
+  "conceptual-supporting-illustration",
+] as const;
+export const illustrationGenerationUseCaseSchema = z.enum(
+  illustrationGenerationUseCaseValues,
+);
+export const illustrationCandidateStatusSchema = z.enum([
+  "queued",
+  "generating",
+  "pending_review",
+  "accepted",
+  "rejected",
+  "failed",
+]);
+export const illustrationModerationStatusSchema = z.enum([
+  "pending",
+  "approved",
+  "rejected",
+]);
+export const illustrationGenerationInputSchema = z
+  .object({
+    useCase: illustrationGenerationUseCaseSchema,
+    expectedSceneRevision: z.number().int().nonnegative(),
+    idempotencyKey: z.string().trim().min(8).max(200),
+  })
+  .strict();
+export const illustrationCandidateDecisionInputSchema = z
+  .object({
+    expectedSceneRevision: z.number().int().nonnegative(),
+    expectedStoryboardRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export const illustrationGenerationResponseSchema = z
+  .object({
+    candidateId: identifierSchema,
+    jobId: identifierSchema,
+    status: z.literal("queued"),
+  })
+  .strict();
+export type IllustrationGenerationResponse = z.infer<
+  typeof illustrationGenerationResponseSchema
+>;
+export const illustrationGenerationJobPayloadSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    candidateId: identifierSchema,
+  })
+  .strict();
+export type IllustrationGenerationJobPayload = z.infer<
+  typeof illustrationGenerationJobPayloadSchema
+>;
+export const illustrationCandidateSchema = z
+  .object({
+    id: identifierSchema,
+    sceneId: identifierSchema,
+    slot: boundedText(64),
+    assetId: identifierSchema.nullable(),
+    status: illustrationCandidateStatusSchema,
+    moderationStatus: illustrationModerationStatusSchema,
+    provenance: z.literal("ai_generated"),
+  })
+  .strict();
+
 export const sceneTemplateValues = [
   "hook",
   "definition",
@@ -5474,6 +5541,7 @@ export type StoryboardSceneListResponse = z.infer<
 export const storyboardSceneDetailResponseSchema = z
   .object({
     scene: lessonStoryboardSceneSchema,
+    sceneRevision: z.number().int().nonnegative(),
     status: storyboardSceneStatusSchema,
   })
   .strict();
@@ -6009,7 +6077,10 @@ export const createProjectAssetUploadInputSchema = z
   .object({
     fileName: z.string().trim().min(1).max(255),
     mediaType: projectAssetMediaTypeSchema,
-    sha256: z.string().regex(/^[0-9a-f]{64}$/i).transform((value) => value.toLowerCase()),
+    sha256: z
+      .string()
+      .regex(/^[0-9a-f]{64}$/i)
+      .transform((value) => value.toLowerCase()),
     sizeBytes: z.number().int().positive(),
   })
   .strict();

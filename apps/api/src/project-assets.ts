@@ -464,6 +464,20 @@ export class ProjectAssetService {
     return projectAssetListResponseSchema.parse({ assets });
   }
 
+  /** Signs an AI candidate only after tenant-scoped asset lookup. */
+  public async reviewPreview(
+    ownerUserId: Identifier,
+    projectId: Identifier,
+    assetId: Identifier,
+  ): Promise<string> {
+    const [asset] = await this.database.select({ storageKey: projectAssets.storageKey })
+      .from(projectAssets)
+      .where(and(eq(projectAssets.id, assetId), eq(projectAssets.ownerUserId, ownerUserId), eq(projectAssets.projectId, projectId), eq(projectAssets.provenance, "ai_generated"), eq(projectAssets.status, "pending_review"), isNull(projectAssets.deletedAt)))
+      .limit(1);
+    if (asset === undefined) throw new PublicError("not_found", "The requested resource was not found.", 404);
+    return (await this.storage.createSignedDownload({ key: storageKeySchema.parse(asset.storageKey) })).url;
+  }
+
   public async remove(
     ownerUserId: Identifier,
     projectId: Identifier,

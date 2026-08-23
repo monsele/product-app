@@ -168,6 +168,7 @@ describe("storyboard API", () => {
       rejectSceneCandidate: vi.fn(async (): Promise<StoryboardResponse> =>
         sampleResponse(),
       ),
+      acceptIllustrationCandidate: vi.fn(async () => ({}) as never),
       scenes: vi.fn(async (): Promise<StoryboardSceneListResponse> => ({
         revision: 0,
         stale: false,
@@ -194,6 +195,7 @@ describe("storyboard API", () => {
       })),
       sceneDetail: vi.fn(async (): Promise<StoryboardSceneDetailResponse> => ({
         scene: sampleStoryboard().scenes[0]!,
+        sceneRevision: 0,
         status: {
           assets: "none",
           audio: "not_generated",
@@ -273,18 +275,29 @@ describe("storyboard API", () => {
       ),
       ...service,
     };
+    const illustrations = {
+      request: vi.fn(async () => ({
+        candidateId: jobId,
+        jobId,
+        status: "queued" as const,
+      })),
+      list: vi.fn(async () => []),
+      reject: vi.fn(async () => ({ status: "rejected" as const })),
+    };
     app = await createApp({
       authGateway: auth,
       projectAuthorizer: new ProjectAuthorizationService(
         new InMemoryOwnerScopedProjectRepository([fixture.project]),
       ),
       storyboardService,
+      illustrationGenerationService: illustrations,
       trustedOrigin: "https://teacher.example.test",
     });
     return {
       fixture,
       server: app.getHttpAdapter().getInstance(),
       storyboardService,
+      illustrations,
     };
   }
 
@@ -613,5 +626,91 @@ describe("storyboard API", () => {
     });
     expect(response.statusCode).toBe(404);
     expect(storyboardService.bindCatalogAsset).not.toHaveBeenCalled();
+  });
+
+  it("queues a bounded illustration request only for the project owner", async () => {
+    const { fixture, server, illustrations } = await api();
+    const sceneId = "019ffbf1-eeee-7000-8000-000000000050";
+    const response = await server.inject({
+      method: "POST",
+      url: `/projects/${fixture.projectId}/scenes/${sceneId}/assets/visual-example/generate`,
+      cookies: { [sessionCookieName]: "owner" },
+      headers: { origin: "https://teacher.example.test" },
+      payload: {
+        useCase: "conceptual-supporting-illustration",
+        expectedSceneRevision: 0,
+        idempotencyKey: "illustration-request-1",
+      },
+    });
+    expect(response.statusCode).toBe(202);
+    expect(illustrations.request).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ownerUserId: fixture.ownerUserId,
+        projectId: fixture.projectId,
+        sceneId,
+        slot: "visual-example",
+      }),
+    );
+  });
+
+  it("hides illustration generation from another tenant", async () => {
+    const { fixture, server, illustrations } = await api();
+    const response = await server.inject({
+      method: "POST",
+      url: `/projects/${fixture.projectId}/scenes/019ffbf1-eeee-7000-8000-000000000050/assets/visual-example/generate`,
+      cookies: { [sessionCookieName]: "other" },
+      headers: { origin: "https://teacher.example.test" },
+      payload: {
+        useCase: "conceptual-supporting-illustration",
+        expectedSceneRevision: 0,
+        idempotencyKey: "illustration-request-1",
+      },
+    });
+    expect(response.statusCode).toBe(404);
+    expect(illustrations.request).not.toHaveBeenCalled();
+  });
+
+  it("accepts a reviewed illustration through the atomic storyboard command", async () => {
+    const { fixture, server, storyboardService } = await api();
+    const candidateId = "019ffbf1-eeee-7000-8000-000000000060";
+    const response = await server.inject({
+      method: "POST",
+      url: `/projects/${fixture.projectId}/illustration-candidates/${candidateId}/accept`,
+      cookies: { [sessionCookieName]: "owner" },
+      headers: { origin: "https://teacher.example.test" },
+      payload: { expectedSceneRevision: 0, expectedStoryboardRevision: 0 },
+    });
+    expect(response.statusCode).toBe(201);
+    expect(storyboardService.acceptIllustrationCandidate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ownerUserId: fixture.ownerUserId,
+        projectId: fixture.projectId,
+        candidateId,
+        body: { expectedSceneRevision: 0, expectedStoryboardRevision: 0 },
+      }),
+    );
+  });
+
+  it("rejects a reviewed illustration without changing the storyboard", async () => {
+    const { fixture, server, illustrations, storyboardService } = await api();
+    const candidateId = "019ffbf1-eeee-7000-8000-000000000060";
+    const response = await server.inject({
+      method: "POST",
+      url: `/projects/${fixture.projectId}/illustration-candidates/${candidateId}/reject`,
+      cookies: { [sessionCookieName]: "owner" },
+      headers: { origin: "https://teacher.example.test" },
+      payload: { expectedSceneRevision: 0, expectedStoryboardRevision: 0 },
+    });
+    expect(response.statusCode).toBe(201);
+    expect(illustrations.reject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ownerUserId: fixture.ownerUserId,
+        projectId: fixture.projectId,
+        candidateId,
+      }),
+    );
+    expect(
+      storyboardService.acceptIllustrationCandidate,
+    ).not.toHaveBeenCalled();
   });
 });

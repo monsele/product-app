@@ -2,7 +2,7 @@
 story_id: ST-059
 title: "Generate Limited Scene Illustrations with Review and Cost Controls"
 phase: "05 \u2014 Storyboard Editing, Assets, and Versions"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E13", "E21"]
 prd_user_stories: ["E13-US3", "E21-US2"]
@@ -119,15 +119,15 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-23
+- **Completed:** 2026-08-23
+- **Branch/PR:** `story/st-057` (existing worktree branch)
+- **Files changed:** API generation/review endpoints, storyboard acceptance, worker handler, web candidate panel, shared schemas, provider contract/mock, configuration, database schema/migration, and focused tests.
+- **Migrations:** `0044_tidy_skrulls.sql` adds immutable illustration-candidate records; forward-only migration, with no rollback because generated candidates are additive.
+- **Contracts changed:** versioned illustration generation request/job/candidate decision contracts; `sceneRevision` added to storyboard scene detail; private review-preview endpoint use.
+- **Commands/tests run:** API, worker, web, schemas, config, and provider-adapter focused typecheck/lint/test commands; API and worker builds; `git diff --check`.
+- **Screenshots or representative output:** Candidate panel renders explicit Generate, AI-generated provenance, review preview, Accept, and Reject actions.
+- **Decisions and assumptions:** A project-private candidate remains inactive until moderation passes and the teacher accepts it atomically with its storyboard binding. `MAX_REGENERATIONS_PER_HOUR` defaults to 10 and applies per owner/project.
+- **Deviations from story/technical guide:** None.
+- **Known risks or follow-up:** Production image provider adapter credentials remain deployment configuration; the included provider is a bounded mock/test adapter.

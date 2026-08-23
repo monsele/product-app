@@ -59,6 +59,7 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { ProjectService } from "./projects.js";
 import { SourceUploadService } from "./source-uploads.js";
 import { ProjectAssetService } from "./project-assets.js";
+import { IllustrationGenerationService } from "./illustration-generation.js";
 import type { IngestionStatusService } from "./ingestion-status.js";
 import type { ParsedDocumentReviewService } from "./parsed-document-review.js";
 import type { SourceSectionSelectionService } from "./source-section-selection.js";
@@ -81,6 +82,9 @@ const TRUSTED_ORIGIN = Symbol("TRUSTED_ORIGIN");
 const AUTH_RATE_LIMITER = Symbol("AUTH_RATE_LIMITER");
 const SOURCE_UPLOAD_SERVICE = Symbol("SOURCE_UPLOAD_SERVICE");
 const PROJECT_ASSET_SERVICE = Symbol("PROJECT_ASSET_SERVICE");
+const ILLUSTRATION_GENERATION_SERVICE = Symbol(
+  "ILLUSTRATION_GENERATION_SERVICE",
+);
 const PROJECT_SERVICE = Symbol("PROJECT_SERVICE");
 const INGESTION_STATUS_SERVICE = Symbol("INGESTION_STATUS_SERVICE");
 const PARSED_DOCUMENT_REVIEW_SERVICE = Symbol("PARSED_DOCUMENT_REVIEW_SERVICE");
@@ -275,7 +279,11 @@ type SourceUploadApiService = Pick<
 >;
 type ProjectAssetApiService = Pick<
   ProjectAssetService,
-  "create" | "complete" | "list" | "remove"
+  "create" | "complete" | "list" | "remove" | "reviewPreview"
+>;
+type IllustrationGenerationApiService = Pick<
+  IllustrationGenerationService,
+  "request" | "list" | "reject"
 >;
 type IngestionStatusApiService = Pick<
   IngestionStatusService,
@@ -338,6 +346,7 @@ type StoryboardApiService = Pick<
   | "switchSceneTemplate"
   | "bindCatalogAsset"
   | "unbindCatalogAsset"
+  | "acceptIllustrationCandidate"
 >;
 type CitationApiService = Pick<CitationService, "forScene">;
 type GroundingApiService = Pick<GroundingService, "check" | "current">;
@@ -389,6 +398,8 @@ class ProjectsController {
     private readonly sourceUploads: SourceUploadApiService,
     @Inject(PROJECT_ASSET_SERVICE)
     private readonly projectAssets: ProjectAssetApiService,
+    @Inject(ILLUSTRATION_GENERATION_SERVICE)
+    private readonly illustrations: IllustrationGenerationApiService,
     @Inject(INGESTION_STATUS_SERVICE)
     private readonly ingestionStatus: IngestionStatusApiService,
     @Inject(PARSED_DOCUMENT_REVIEW_SERVICE)
@@ -1367,6 +1378,108 @@ class ProjectsController {
     );
   }
 
+  @Post(":projectId/scenes/:sceneId/assets/:slot/generate")
+  @HttpCode(202)
+  public async generateSceneIllustration(
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneIdInput: string,
+    @Param("slot") slot: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const sceneId = identifierSchema.safeParse(sceneIdInput);
+    if (!sceneId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.illustrations.request({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      sceneId: sceneId.data,
+      slot,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Get(":projectId/scenes/:sceneId/illustration-candidates")
+  public async illustrationCandidates(
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneIdInput: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    const sceneId = identifierSchema.safeParse(sceneIdInput);
+    if (!sceneId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    const candidates = await this.illustrations.list({
+      ...access,
+      sceneId: sceneId.data,
+    });
+    return {
+      candidates: await Promise.all(
+        candidates.map(async (candidate) => ({
+          ...candidate,
+          previewUrl:
+            candidate.assetId === null
+              ? null
+              : await this.projectAssets.reviewPreview(
+                  access.ownerUserId,
+                  access.projectId,
+                  candidate.assetId,
+                ),
+        })),
+      ),
+    };
+  }
+
+  @Post(":projectId/illustration-candidates/:candidateId/reject")
+  public async rejectIllustrationCandidate(
+    @Param("projectId") projectId: string,
+    @Param("candidateId") candidateIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const candidateId = identifierSchema.parse(candidateIdInput);
+    return this.illustrations.reject({
+      ...access,
+      candidateId,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/illustration-candidates/:candidateId/accept")
+  public async acceptIllustrationCandidate(
+    @Param("projectId") projectId: string,
+    @Param("candidateId") candidateIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const candidateId = identifierSchema.parse(candidateIdInput);
+    return this.storyboard.acceptIllustrationCandidate({
+      ...access,
+      candidateId,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
   @Put(":projectId/scenes/:sceneId/asset-bindings/:slot")
   public async bindStoryboardCatalogAsset(
     @Param("projectId") projectId: string,
@@ -1898,6 +2011,7 @@ function createAppModule(
   projectService: ProjectApiService,
   sourceUploadService: SourceUploadApiService,
   projectAssetService: ProjectAssetApiService,
+  illustrationGenerationService: IllustrationGenerationApiService,
   ingestionStatusService: IngestionStatusApiService,
   parsedDocumentReviewService: ParsedDocumentReviewApiService,
   sourceSectionSelectionService: SourceSectionSelectionApiService,
@@ -1923,6 +2037,10 @@ function createAppModule(
       { provide: PROJECT_SERVICE, useValue: projectService },
       { provide: SOURCE_UPLOAD_SERVICE, useValue: sourceUploadService },
       { provide: PROJECT_ASSET_SERVICE, useValue: projectAssetService },
+      {
+        provide: ILLUSTRATION_GENERATION_SERVICE,
+        useValue: illustrationGenerationService,
+      },
       { provide: INGESTION_STATUS_SERVICE, useValue: ingestionStatusService },
       {
         provide: PARSED_DOCUMENT_REVIEW_SERVICE,
@@ -1963,6 +2081,7 @@ export type CreateAppOptions = {
   projectService?: ProjectService;
   sourceUploadService?: SourceUploadApiService;
   projectAssetService?: ProjectAssetApiService;
+  illustrationGenerationService?: IllustrationGenerationApiService;
   ingestionStatusService?: IngestionStatusApiService;
   parsedDocumentReviewService?: ParsedDocumentReviewApiService;
   sourceSectionSelectionService?: SourceSectionSelectionApiService;
@@ -2127,6 +2246,15 @@ const unavailableSourceUploadService: SourceUploadApiService = {
 };
 
 const unavailableProjectAssetService: ProjectAssetApiService = {
+  reviewPreview: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Image preview is unavailable.",
+        503,
+        true,
+      ),
+    ),
   create: () =>
     Promise.reject(
       new PublicError(
@@ -2164,6 +2292,37 @@ const unavailableProjectAssetService: ProjectAssetApiService = {
       ),
     ),
 };
+
+const unavailableIllustrationGenerationService: IllustrationGenerationApiService =
+  {
+    list: () =>
+      Promise.reject(
+        new PublicError(
+          "internal_error",
+          "Illustration generation is unavailable.",
+          503,
+          true,
+        ),
+      ),
+    request: () =>
+      Promise.reject(
+        new PublicError(
+          "internal_error",
+          "Illustration generation is unavailable.",
+          503,
+          true,
+        ),
+      ),
+    reject: () =>
+      Promise.reject(
+        new PublicError(
+          "internal_error",
+          "Illustration generation is unavailable.",
+          503,
+          true,
+        ),
+      ),
+  };
 
 const unavailableIngestionStatusService: IngestionStatusApiService = {
   status: () =>
@@ -2657,6 +2816,15 @@ const unavailableStoryboardService: StoryboardApiService = {
         true,
       ),
     ),
+  acceptIllustrationCandidate: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Storyboard editing is unavailable.",
+        503,
+        true,
+      ),
+    ),
 };
 
 const unavailableCitationService: CitationApiService = {
@@ -2707,6 +2875,8 @@ export async function createApp(
       options.projectService ?? unavailableProjectService,
       options.sourceUploadService ?? unavailableSourceUploadService,
       options.projectAssetService ?? unavailableProjectAssetService,
+      options.illustrationGenerationService ??
+        unavailableIllustrationGenerationService,
       options.ingestionStatusService ?? unavailableIngestionStatusService,
       options.parsedDocumentReviewService ??
         unavailableParsedDocumentReviewService,

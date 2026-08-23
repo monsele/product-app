@@ -37,12 +37,11 @@ import { createDocumentIngestionJobHandler } from "./document-ingestion-job.js";
 import {
   mockPricing,
   MockLanguageModelProvider,
+  MockIllustrationProvider,
   repositoryPrompts,
   StaticPromptRegistry,
 } from "@avlp/provider-adapters";
-import {
-  PostgresGenerationQuotaGuard,
-} from "./model-call.js";
+import { PostgresGenerationQuotaGuard } from "./model-call.js";
 import { createObjectivesGenerationJobHandler } from "./objectives-job.js";
 import { createOutlineGenerationJobHandler } from "./outline-job.js";
 import { createNarrationGenerationJobHandler } from "./narration-job.js";
@@ -51,6 +50,7 @@ import { createSceneRegenerationJobHandler } from "./scene-regeneration-job.js";
 import { createStoryboardGenerationJobHandler } from "./storyboard-job.js";
 import { createGroundingCheckJobHandler } from "./grounding-check-job.js";
 import { createProjectAssetValidationJobHandler } from "./project-asset-validation-job.js";
+import { createIllustrationGenerationJobHandler } from "./illustration-generation-job.js";
 
 function processAbortSignal(): { signal: AbortSignal; dispose: () => void } {
   const controller = new AbortController();
@@ -155,6 +155,26 @@ export async function runPipelineWorker(
             workerEnvironment.MALWARE_SCANNER_URL,
             workerEnvironment.MALWARE_SCANNER_TOKEN,
           ),
+        }),
+        createIllustrationGenerationJobHandler({
+          database: database.client,
+          storage,
+          provider: new MockIllustrationProvider({
+            providerCallId: "local-illustration-fixture",
+            mediaType: "image/png",
+            bytes: new Uint8Array([
+              137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0,
+              0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13,
+              73, 68, 65, 84, 8, 215, 99, 248, 207, 192, 240, 31, 0, 5, 0, 1,
+              255, 137, 153, 61, 29, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96,
+              130,
+            ]),
+            width: 1,
+            height: 1,
+            units: 1,
+            costUsd: 0,
+            moderation: { status: "approved", code: "mock_safe" },
+          }),
         }),
         createDocumentIngestionJobHandler({
           database: database.client,

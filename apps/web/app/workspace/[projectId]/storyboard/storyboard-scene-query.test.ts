@@ -50,6 +50,7 @@ function sampleList(revision: number): StoryboardSceneListResponse {
 
 function sampleDetail() {
   return {
+    sceneRevision: 0,
     scene: {
       id: sceneId,
       stableSceneId: sceneId,

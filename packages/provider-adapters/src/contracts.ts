@@ -61,6 +61,33 @@ export interface LanguageModelProvider {
   ): Promise<ProviderCompletionResponse>;
 }
 
+/** Provider-neutral, deliberately narrow raster illustration contract (ST-059). */
+export const illustrationRequestSchema = z.object({
+  prompt: z.string().trim().min(1).max(2_000),
+  size: z.enum(["1024x1024", "1536x1024"]),
+  style: z.literal("flat-educational-vector"),
+});
+export type IllustrationRequest = z.infer<typeof illustrationRequestSchema>;
+export const illustrationResponseSchema = z.object({
+  providerId: z.string().trim().min(1).max(100),
+  providerCallId: z.string().trim().min(1).max(200),
+  mediaType: z.literal("image/png"),
+  bytes: z.instanceof(Uint8Array),
+  width: z.number().int().positive().max(8_000),
+  height: z.number().int().positive().max(8_000),
+  units: z.number().positive(),
+  costUsd: z.number().nonnegative(),
+  moderation: z.object({
+    status: z.enum(["approved", "rejected"]),
+    code: z.string().trim().min(1).max(100),
+  }).strict(),
+});
+export type IllustrationResponse = z.infer<typeof illustrationResponseSchema>;
+export interface IllustrationProvider {
+  readonly providerId: string;
+  generate(request: IllustrationRequest): Promise<IllustrationResponse>;
+}
+
 /**
  * Classified provider failure thrown by adapters for transport-level errors.
  * `retryable` distinguishes temporary infrastructure/rate-limit failures from

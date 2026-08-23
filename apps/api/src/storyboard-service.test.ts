@@ -15,6 +15,7 @@ import {
   narrationBlocks,
   narrationSets,
   outboxEvents,
+  scenes,
   type DatabaseClient,
 } from "@avlp/database";
 import {
@@ -362,6 +363,7 @@ type FakeDbOptions = {
   narrationSetRows?: unknown[];
   narrationBlockRows?: unknown[];
   lessonSpecRows?: unknown[];
+  sceneRows?: unknown[];
   jobRows?: unknown[];
 };
 
@@ -375,6 +377,7 @@ function fakeDatabase(options: FakeDbOptions = {}) {
     if (table === narrationSets) return options.narrationSetRows ?? [];
     if (table === narrationBlocks) return options.narrationBlockRows ?? [];
     if (table === lessonSpecs) return options.lessonSpecRows ?? [];
+    if (table === scenes) return options.sceneRows ?? [];
     if (table === jobs) {
       const rows = options.jobRows ?? [];
       if (rows.length > 0) return rows;
@@ -595,6 +598,13 @@ describe("PostgresStoryboardService.current", () => {
       narrationSetRows: [narrationSetRow()],
       narrationBlockRows: narrationBlockRows(),
       lessonSpecRows: [lessonSpecRow()],
+      sceneRows: [
+        {
+          id: "019ffbf1-eeee-7000-8000-000000000050",
+          stableSceneId: "019ffbf1-eeee-7000-8000-000000000050",
+          revision: 0,
+        },
+      ],
     });
     const { service } = createService(database, approvedStatus);
     const response = await service.current({ ownerUserId, projectId });
@@ -630,6 +640,13 @@ describe("PostgresStoryboardService.current", () => {
       narrationSetRows: [narrationSetRow()],
       narrationBlockRows: narrationBlockRows(),
       lessonSpecRows: [lessonSpecRow()],
+      sceneRows: [
+        {
+          id: "019ffbf1-eeee-7000-8000-000000000050",
+          stableSceneId: "019ffbf1-eeee-7000-8000-000000000050",
+          revision: 0,
+        },
+      ],
     });
     const { service } = createService(database, approvedStatus);
     const response = await service.current({ ownerUserId, projectId });
@@ -868,6 +885,13 @@ describe("PostgresStoryboardService.sceneDetail", () => {
       narrationSetRows: [narrationSetRow()],
       narrationBlockRows: narrationBlockRows(),
       lessonSpecRows: [lessonSpecRow()],
+      sceneRows: [
+        {
+          id: "019ffbf1-eeee-7000-8000-000000000050",
+          stableSceneId: "019ffbf1-eeee-7000-8000-000000000050",
+          revision: 0,
+        },
+      ],
     });
     const { service } = createService(database, approvedStatus);
     const response = await service.sceneDetail({

@@ -849,6 +849,45 @@ export const projectAssetUploadSessions = pgTable(
   ],
 );
 
+/**
+ * Immutable review candidate produced by a bounded, scene-scoped illustration
+ * request. The asset remains inactive until the teacher explicitly accepts it.
+ */
+export const illustrationGenerationCandidates = pgTable(
+  "illustration_generation_candidates",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    sceneId: uuid("scene_id")
+      .notNull()
+      .references(() => scenes.id, { onDelete: "cascade" }),
+    slot: text("slot").notNull(),
+    assetId: uuid("asset_id").references(() => projectAssets.id, {
+      onDelete: "restrict",
+    }),
+    status: text("status").notNull().default("queued"),
+    promptVersion: text("prompt_version").notNull(),
+    provider: text("provider").notNull(),
+    providerCallId: text("provider_call_id"),
+    moderationStatus: text("moderation_status").notNull().default("pending"),
+    idempotencyKey: text("idempotency_key").notNull(),
+    failureCode: text("failure_code"),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("illustration_candidates_tenant_idempotency_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.sceneId,
+      table.idempotencyKey,
+    ),
+    index("illustration_candidates_scene_status_idx").on(
+      table.sceneId,
+      table.status,
+    ),
+  ],
+);
+
 export const jobStateValues = [
   "queued",
   "running",

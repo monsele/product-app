@@ -22,6 +22,7 @@ import {
   outboxEvents,
   parsedDocuments,
   projectAssets,
+  illustrationGenerationCandidates,
   sceneCandidates,
   scenes,
   type DatabaseClient,
@@ -43,6 +44,7 @@ import {
   lessonStoryboardSchema,
   modelCallJobPayloadSchema,
   sceneCandidateDecisionInputSchema,
+  illustrationCandidateDecisionInputSchema,
   sceneCandidateSchema,
   sceneRegenerationInputSchema,
   sceneRegenerationMaximumActiveCandidates,
@@ -200,6 +202,13 @@ export interface StoryboardService {
     projectId: Identifier;
     sceneId: Identifier;
     slot: string;
+    body: unknown;
+    correlationId: Identifier;
+  }): Promise<StoryboardSceneEditResponse>;
+  acceptIllustrationCandidate(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    candidateId: Identifier;
     body: unknown;
     correlationId: Identifier;
   }): Promise<StoryboardSceneEditResponse>;
@@ -1079,8 +1088,17 @@ export class PostgresStoryboardService implements StoryboardService {
         storyboard.basedOnNarrationSetId,
       ),
     });
+    const sceneRow = await this.sceneRow(
+      this.database,
+      input.ownerUserId,
+      input.projectId,
+      workingRow.id,
+      input.sceneId,
+    );
+    if (sceneRow === undefined) throw sceneNotFound();
     return storyboardSceneDetailResponseSchema.parse({
       scene: currentScene,
+      sceneRevision: sceneRow.revision,
       status: projectSceneStatus(
         stale.stale,
         validation,
@@ -1213,8 +1231,8 @@ export class PostgresStoryboardService implements StoryboardService {
     const asset = approvedAssetById(parsed.assetId);
     if (
       requirement === undefined ||
-      asset === undefined ||
-      !isCatalogAssetCompatibleWithSlot(asset, requirement)
+      (asset !== undefined &&
+        !isCatalogAssetCompatibleWithSlot(asset, requirement))
     )
       throw incompatibleCatalogAsset();
     const assetBindings = detail.scene.scene.assetBindings.filter(
@@ -1236,6 +1254,161 @@ export class PostgresStoryboardService implements StoryboardService {
       },
       correlationId: input.correlationId,
     });
+  }
+
+  public async acceptIllustrationCandidate(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    candidateId: Identifier;
+    body: unknown;
+    correlationId: Identifier;
+  }): Promise<StoryboardSceneEditResponse> {
+    const parsed = parseBoundary(
+      illustrationCandidateDecisionInputSchema,
+      input.body,
+    );
+    const timestamp = this.now();
+    let result: StoryboardSceneEditResponse | undefined;
+    await this.database.transaction(async (transaction) => {
+      const [candidate] = await transaction
+        .select()
+        .from(illustrationGenerationCandidates)
+        .where(
+          and(
+            eq(illustrationGenerationCandidates.id, input.candidateId),
+            eq(illustrationGenerationCandidates.ownerUserId, input.ownerUserId),
+            eq(illustrationGenerationCandidates.projectId, input.projectId),
+            eq(illustrationGenerationCandidates.status, "pending_review"),
+            eq(illustrationGenerationCandidates.moderationStatus, "approved"),
+          ),
+        )
+        .limit(1)
+        .for("update");
+      if (candidate === undefined || candidate.assetId === null)
+        throw sceneNotFound();
+      const lessonSpec = await this.mutableDraftLessonSpecRow(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        parsed.expectedStoryboardRevision,
+      );
+      const storyboard = parseStoryboard(lessonSpec);
+      const sceneRow = await transaction
+        .select({
+          id: scenes.id,
+          stableSceneId: scenes.stableSceneId,
+          revision: scenes.revision,
+        })
+        .from(scenes)
+        .where(
+          and(
+            eq(scenes.id, candidate.sceneId),
+            eq(scenes.ownerUserId, input.ownerUserId),
+            eq(scenes.projectId, input.projectId),
+            eq(scenes.lessonSpecId, lessonSpec.id),
+          ),
+        )
+        .limit(1)
+        .for("update");
+      const scene = sceneRow[0];
+      if (scene === undefined) throw sceneNotFound();
+      if (scene.revision !== parsed.expectedSceneRevision)
+        throw sceneConflict();
+      const index = storyboard.scenes.findIndex(
+        (item) => item.stableSceneId === scene.stableSceneId,
+      );
+      if (index < 0) throw sceneNotFound();
+      const current = storyboard.scenes[index]!;
+      const requirement = sceneAssetSlotRequirement(
+        current.scene.template,
+        candidate.slot,
+      );
+      if (requirement === undefined) throw incompatibleSceneAssetSlot();
+      const [asset] = await transaction
+        .update(projectAssets)
+        .set({ status: "active", updatedAt: timestamp })
+        .where(
+          and(
+            eq(projectAssets.id, candidate.assetId),
+            eq(projectAssets.ownerUserId, input.ownerUserId),
+            eq(projectAssets.projectId, input.projectId),
+            eq(projectAssets.status, "pending_review"),
+          ),
+        )
+        .returning({ id: projectAssets.id });
+      if (asset === undefined) throw sceneConflict();
+      const nextScene = {
+        ...current.scene,
+        assetBindings: [
+          ...current.scene.assetBindings.filter(
+            (binding) => binding.slot !== candidate.slot,
+          ),
+          {
+            assetId: candidate.assetId,
+            role: requirement.bindingRole,
+            slot: candidate.slot,
+          },
+        ],
+      };
+      await this.assertAuthorizedAssetBindings(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        nextScene,
+      );
+      const edited = lessonStoryboardSceneSchema.parse({
+        ...current,
+        scene: nextScene,
+      });
+      const nextScenes = [...storyboard.scenes];
+      nextScenes[index] = edited;
+      const updatedStoryboard = this.rebuildStoryboard(storyboard, nextScenes);
+      await this.persistStoryboard(
+        transaction,
+        lessonSpec,
+        updatedStoryboard,
+        timestamp,
+      );
+      await this.syncSceneRows(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        lessonSpec.id,
+        nextScenes,
+        timestamp,
+      );
+      await transaction
+        .update(illustrationGenerationCandidates)
+        .set({ status: "accepted", updatedAt: timestamp })
+        .where(eq(illustrationGenerationCandidates.id, candidate.id));
+      await new PostgresAuditWriter(transaction).write({
+        ownerUserId: input.ownerUserId,
+        projectId: input.projectId,
+        actor: { type: "user", userId: input.ownerUserId },
+        eventType: "storyboard.scene_candidate_accepted",
+        target: { type: "illustration_candidate", id: candidate.id },
+        correlationId: input.correlationId,
+        metadata: {
+          sceneId: scene.stableSceneId,
+          slot: candidate.slot,
+          assetId: candidate.assetId,
+          operation: "accept_ai_illustration",
+          lessonSpecRevision: updatedStoryboard.revision,
+          invalidatedScope: ["preview", "render", "validation"],
+        },
+        occurredAt: timestamp,
+      });
+      result = storyboardSceneEditResponseSchema.parse({
+        revision: updatedStoryboard.revision,
+        scene: edited,
+        invalidated: ["preview", "render", "validation"],
+        warning: null,
+        requiresConfirmation: false,
+        resetFields: [],
+      });
+    });
+    if (result === undefined) throw sceneConflict();
+    return result;
   }
 
   public async unbindCatalogAsset(input: {
