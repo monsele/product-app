@@ -28,6 +28,7 @@ import {
 import { z } from "zod";
 import { health } from "./health.js";
 import { createProjectCleanupJobHandler } from "./project-cleanup.js";
+import { createProjectAssetCleanupJobHandler } from "./project-asset-cleanup-job.js";
 import { HttpMalwareScanner } from "./document-validation.js";
 import { createDocumentValidationCleanupJobHandler } from "./document-validation-cleanup-job.js";
 import { createDocumentValidationJobHandler } from "./document-validation-job.js";
@@ -49,6 +50,7 @@ import { createNarrationBlockTransformJobHandler } from "./narration-transform-j
 import { createSceneRegenerationJobHandler } from "./scene-regeneration-job.js";
 import { createStoryboardGenerationJobHandler } from "./storyboard-job.js";
 import { createGroundingCheckJobHandler } from "./grounding-check-job.js";
+import { createProjectAssetValidationJobHandler } from "./project-asset-validation-job.js";
 
 function processAbortSignal(): { signal: AbortSignal; dispose: () => void } {
   const controller = new AbortController();
@@ -146,6 +148,14 @@ export async function runPipelineWorker(
           maxUploadBytes:
             storageEnvironmentSchema.parse(environmentInput).MAX_UPLOAD_BYTES,
         }),
+        createProjectAssetValidationJobHandler({
+          database: database.client,
+          storage,
+          scanner: new HttpMalwareScanner(
+            workerEnvironment.MALWARE_SCANNER_URL,
+            workerEnvironment.MALWARE_SCANNER_TOKEN,
+          ),
+        }),
         createDocumentIngestionJobHandler({
           database: database.client,
           storage,
@@ -159,6 +169,10 @@ export async function runPipelineWorker(
           storage,
         }),
         createProjectCleanupJobHandler({ database: database.client, storage }),
+        createProjectAssetCleanupJobHandler({
+          database: database.client,
+          storage,
+        }),
         createObjectivesGenerationJobHandler({
           database: database.client,
           provider: new MockLanguageModelProvider(),

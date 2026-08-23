@@ -1785,6 +1785,19 @@ export type ProjectCleanupJobPayload = z.infer<
   typeof projectCleanupJobPayloadSchema
 >;
 
+/** Retained deletion of one project-private teacher asset. */
+export const projectAssetCleanupJobPayloadSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    assetId: identifierSchema,
+    deletedAt: z.string().datetime({ offset: true }),
+    cleanupAfter: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type ProjectAssetCleanupJobPayload = z.infer<
+  typeof projectAssetCleanupJobPayloadSchema
+>;
+
 // ---------------------------------------------------------------------------
 // ST-037 — Ingestion review document DTOs
 // ---------------------------------------------------------------------------
@@ -5971,6 +5984,90 @@ export const assetCatalogSearchResponseSchema = z
   .strict();
 export type AssetCatalogSearchResponse = z.infer<
   typeof assetCatalogSearchResponseSchema
+>;
+
+// ---------------------------------------------------------------------------
+// ST-058 — Project-private teacher replacement assets
+// ---------------------------------------------------------------------------
+
+export const projectAssetMediaTypeSchema = z.enum([
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+]);
+export type ProjectAssetMediaType = z.infer<typeof projectAssetMediaTypeSchema>;
+
+export const assetProvenanceSchema = z.enum([
+  "catalog",
+  "source_figure",
+  "teacher_uploaded",
+  "ai_generated",
+]);
+export type AssetProvenance = z.infer<typeof assetProvenanceSchema>;
+
+export const createProjectAssetUploadInputSchema = z
+  .object({
+    fileName: z.string().trim().min(1).max(255),
+    mediaType: projectAssetMediaTypeSchema,
+    sha256: z.string().regex(/^[0-9a-f]{64}$/i).transform((value) => value.toLowerCase()),
+    sizeBytes: z.number().int().positive(),
+  })
+  .strict();
+export type CreateProjectAssetUploadInput = z.infer<
+  typeof createProjectAssetUploadInputSchema
+>;
+
+export const projectAssetUploadSessionSchema = z
+  .object({
+    assetId: identifierSchema,
+    expiresAt: z.string().datetime({ offset: true }),
+    method: z.literal("PUT"),
+    requiredHeaders: z.record(z.string()),
+    sessionId: identifierSchema,
+    uploadUrl: z.string().url(),
+  })
+  .strict();
+export type ProjectAssetUploadSession = z.infer<
+  typeof projectAssetUploadSessionSchema
+>;
+
+export const projectAssetSchema = z
+  .object({
+    assetId: identifierSchema,
+    createdAt: z.string().datetime({ offset: true }),
+    height: z.number().int().positive(),
+    mediaType: projectAssetMediaTypeSchema,
+    previewUrl: z.string().url(),
+    provenance: z.literal("teacher_uploaded"),
+    width: z.number().int().positive(),
+  })
+  .strict();
+export type ProjectAsset = z.infer<typeof projectAssetSchema>;
+
+export const projectAssetListResponseSchema = z
+  .object({ assets: z.array(projectAssetSchema).max(200) })
+  .strict();
+export type ProjectAssetListResponse = z.infer<
+  typeof projectAssetListResponseSchema
+>;
+
+export const completeProjectAssetUploadInputSchema = z.object({}).strict();
+export const completeProjectAssetUploadResponseSchema = z
+  .object({
+    asset: projectAssetSchema.nullable(),
+    status: z.enum(["pending_validation", "active", "rejected"]),
+  })
+  .strict();
+export type CompleteProjectAssetUploadResponse = z.infer<
+  typeof completeProjectAssetUploadResponseSchema
+>;
+
+/** Idempotent background validation for a teacher-uploaded image. */
+export const projectAssetValidationJobPayloadSchema = z
+  .object({ schemaVersion: z.literal(1), assetId: identifierSchema })
+  .strict();
+export type ProjectAssetValidationJobPayload = z.infer<
+  typeof projectAssetValidationJobPayloadSchema
 >;
 
 export const storyboardSceneAssetBindingInputSchema = z

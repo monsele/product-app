@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useState, type JSX } from "react";
+import { useCallback, useEffect, useMemo, useState, type JSX } from "react";
 import { ScenePreviewPlayer } from "@avlp/scene-library";
 import {
   sceneRegenerationModeValues,
   type SceneCandidate,
   type SceneRegenerationMode,
+  type ProjectAsset,
   type StoryboardSceneDetailResponse,
 } from "@avlp/schemas";
 import {
@@ -16,6 +17,7 @@ import { buildScenePreviewInput, canPreviewScene } from "./scene-preview-input";
 import { SceneCitations } from "./citation-panel";
 import { SceneGrounding } from "./grounding-panel";
 import { SceneEditorForm } from "./scene-editor-form";
+import { fetchTeacherAssets } from "./storyboard-scene-query";
 
 function apiUrl(path: string): string {
   return `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}${path}`;
@@ -35,6 +37,17 @@ function extractErrorMessage(payload: unknown, fallback: string): string {
 
 function visualSummary(detail: StoryboardSceneDetailResponse): string {
   return JSON.stringify(detail.scene.scene.visual).slice(0, 200);
+}
+
+export function teacherReplacementPreviewForScene(
+  detail: StoryboardSceneDetailResponse,
+  assets: readonly ProjectAsset[],
+): ProjectAsset | undefined {
+  return assets.find((asset) =>
+    detail.scene.scene.assetBindings.some(
+      (binding) => binding.assetId === asset.assetId,
+    ),
+  );
 }
 
 export function SceneDetailPanel({
@@ -64,6 +77,26 @@ export function SceneDetailPanel({
     useState<SceneRegenerationMode>("regenerate");
   const [pending, setPending] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [teacherAssets, setTeacherAssets] = useState<readonly ProjectAsset[]>(
+    [],
+  );
+  const assetBindingSignature = scene.scene.assetBindings
+    .map((binding) => binding.assetId)
+    .join(":");
+
+  useEffect(() => {
+    let cancelled = false;
+    void fetchTeacherAssets(projectId)
+      .then((response) => {
+        if (!cancelled) setTeacherAssets(response.assets);
+      })
+      .catch(() => {
+        if (!cancelled) setTeacherAssets([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [assetBindingSignature, projectId]);
 
   const regenerateScene = useCallback(async () => {
     setActionMessage(null);
@@ -167,6 +200,10 @@ export function SceneDetailPanel({
   );
 
   const previewInput = useMemo(() => buildScenePreviewInput(detail), [detail]);
+  const teacherReplacementPreview = teacherReplacementPreviewForScene(
+    detail,
+    teacherAssets,
+  );
 
   return (
     <section
@@ -210,7 +247,16 @@ export function SceneDetailPanel({
       ) : null}
 
       <section aria-label="Selected scene preview">
-        {canPreviewScene(detail) ? (
+        {teacherReplacementPreview !== undefined ? (
+          <figure>
+            <img
+              alt="Selected teacher replacement in scene preview"
+              src={teacherReplacementPreview.previewUrl}
+              style={{ display: "block", maxHeight: 360, maxWidth: "100%" }}
+            />
+            <figcaption>Teacher replacement preview</figcaption>
+          </figure>
+        ) : canPreviewScene(detail) ? (
           <ScenePreviewPlayer input={previewInput} />
         ) : (
           <section

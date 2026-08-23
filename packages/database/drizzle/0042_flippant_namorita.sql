@@ -1,0 +1,1 @@
+DROP INDEX "project_assets_tenant_sha256_unique";

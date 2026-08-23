@@ -21,6 +21,7 @@ type AssetKey = TenantScope & {
   assetId: Identifier;
   extension: "gif" | "jpeg" | "jpg" | "png" | "webp";
 };
+type AssetPrefixKey = TenantScope & { assetId: Identifier };
 type AudioKey = TenantScope & {
   sceneId: Identifier;
   contentHash: string;
@@ -120,6 +121,18 @@ export const storageKeys = {
     return validatedKey(
       `${tenantPrefix(input)}/assets/${assetId}/original.${input.extension}`,
     );
+  },
+
+  assetThumbnail(input: AssetKey): StorageKey {
+    const assetId = identifierSchema.parse(input.assetId);
+    return validatedKey(
+      `${tenantPrefix(input)}/assets/${assetId}/thumbnail-v1.webp`,
+    );
+  },
+
+  assetPrefix(input: AssetPrefixKey): StorageKey {
+    const assetId = identifierSchema.parse(input.assetId);
+    return validatedKey(`${tenantPrefix(input)}/assets/${assetId}`);
   },
 
   sceneAudio(input: AudioKey): StorageKey {

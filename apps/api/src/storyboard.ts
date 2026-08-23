@@ -21,6 +21,7 @@ import {
   narrationSets,
   outboxEvents,
   parsedDocuments,
+  projectAssets,
   sceneCandidates,
   scenes,
   type DatabaseClient,
@@ -79,7 +80,7 @@ import {
   type StoryboardSceneStatus,
   type StoryboardValidation,
 } from "@avlp/schemas";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { SourceSnapshotService } from "./source-snapshot.js";
 import { approvedAssetById } from "./approved-assets.js";
@@ -1855,7 +1856,8 @@ export class PostgresStoryboardService implements StoryboardService {
 
   /**
    * Catalog bindings are global immutable approved assets. Any non-catalog
-   * binding remains limited to an included source figure in this tenant.
+   * binding must be a private teacher asset or an included source figure in
+   * this tenant; IDs are never trusted across project boundaries.
    */
   private async assertAuthorizedAssetBindings(
     executor: DatabaseExecutor,
@@ -1888,6 +1890,30 @@ export class PostgresStoryboardService implements StoryboardService {
       ),
     ];
     if (uniqueIds.length === 0) return;
+    const teacherAssets = await executor
+      .select({ id: projectAssets.id })
+      .from(projectAssets)
+      .where(
+        and(
+          eq(projectAssets.ownerUserId, ownerUserId),
+          eq(projectAssets.projectId, projectId),
+          eq(projectAssets.status, "active"),
+          isNull(projectAssets.deletedAt),
+          inArray(projectAssets.id, uniqueIds),
+        ),
+      );
+    const teacherAssetIds = new Set(teacherAssets.map((asset) => asset.id));
+    for (const binding of scene.assetBindings) {
+      if (!teacherAssetIds.has(binding.assetId)) continue;
+      const requirement =
+        binding.slot === undefined
+          ? undefined
+          : sceneAssetSlotRequirement(scene.template, binding.slot);
+      if (requirement === undefined || binding.role !== requirement.bindingRole)
+        throw incompatibleSceneAssetSlot();
+    }
+    const sourceFigureIds = uniqueIds.filter((id) => !teacherAssetIds.has(id));
+    if (sourceFigureIds.length === 0) return;
     const [document] = await executor
       .select({ id: parsedDocuments.id })
       .from(parsedDocuments)
@@ -1906,10 +1932,10 @@ export class PostgresStoryboardService implements StoryboardService {
       .where(
         and(
           eq(extractedFigures.parsedDocumentId, document.id),
-          inArray(extractedFigures.id, uniqueIds),
+          inArray(extractedFigures.id, sourceFigureIds),
         ),
       );
-    if (figures.length !== uniqueIds.length)
+    if (figures.length !== sourceFigureIds.length)
       throw sourceFigureAssetUnavailable();
     const excluded = await executor
       .select({ figureId: figureInclusionOverlays.figureId })

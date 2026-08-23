@@ -281,6 +281,34 @@
       "when": 1787351508295,
       "tag": "0039_cloudy_warbound",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1787432412385,
+      "tag": "0040_clammy_klaw",
+      "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1787435255922,
+      "tag": "0041_magical_slapstick",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1787435898880,
+      "tag": "0042_flippant_namorita",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1787510174599,
+      "tag": "0043_complete_joseph",
+      "breakpoints": true
     }
   ]
 }

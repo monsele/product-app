@@ -58,6 +58,7 @@ import {
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { ProjectService } from "./projects.js";
 import { SourceUploadService } from "./source-uploads.js";
+import { ProjectAssetService } from "./project-assets.js";
 import type { IngestionStatusService } from "./ingestion-status.js";
 import type { ParsedDocumentReviewService } from "./parsed-document-review.js";
 import type { SourceSectionSelectionService } from "./source-section-selection.js";
@@ -79,6 +80,7 @@ const AUTH_GATEWAY = Symbol("AUTH_GATEWAY");
 const TRUSTED_ORIGIN = Symbol("TRUSTED_ORIGIN");
 const AUTH_RATE_LIMITER = Symbol("AUTH_RATE_LIMITER");
 const SOURCE_UPLOAD_SERVICE = Symbol("SOURCE_UPLOAD_SERVICE");
+const PROJECT_ASSET_SERVICE = Symbol("PROJECT_ASSET_SERVICE");
 const PROJECT_SERVICE = Symbol("PROJECT_SERVICE");
 const INGESTION_STATUS_SERVICE = Symbol("INGESTION_STATUS_SERVICE");
 const PARSED_DOCUMENT_REVIEW_SERVICE = Symbol("PARSED_DOCUMENT_REVIEW_SERVICE");
@@ -271,6 +273,10 @@ type SourceUploadApiService = Pick<
   SourceUploadService,
   "create" | "complete" | "status"
 >;
+type ProjectAssetApiService = Pick<
+  ProjectAssetService,
+  "create" | "complete" | "list" | "remove"
+>;
 type IngestionStatusApiService = Pick<
   IngestionStatusService,
   "status" | "retry"
@@ -381,6 +387,8 @@ class ProjectsController {
     @Inject(PROJECT_SERVICE) private readonly projects: ProjectApiService,
     @Inject(SOURCE_UPLOAD_SERVICE)
     private readonly sourceUploads: SourceUploadApiService,
+    @Inject(PROJECT_ASSET_SERVICE)
+    private readonly projectAssets: ProjectAssetApiService,
     @Inject(INGESTION_STATUS_SERVICE)
     private readonly ingestionStatus: IngestionStatusApiService,
     @Inject(PARSED_DOCUMENT_REVIEW_SERVICE)
@@ -1286,6 +1294,79 @@ class ProjectsController {
     );
   }
 
+  @Get(":projectId/teacher-assets")
+  public async listTeacherAssets(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    return this.projectAssets.list(access.ownerUserId, access.projectId);
+  }
+
+  @Post(":projectId/teacher-assets/uploads")
+  public async createTeacherAssetUpload(
+    @Param("projectId") projectId: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    return this.projectAssets.create(
+      access.ownerUserId,
+      access.projectId,
+      input,
+    );
+  }
+
+  @Post(":projectId/teacher-assets/uploads/:sessionId/complete")
+  public async completeTeacherAssetUpload(
+    @Param("projectId") projectId: string,
+    @Param("sessionId") sessionIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const sessionId = identifierSchema.safeParse(sessionIdInput);
+    if (!sessionId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.projectAssets.complete(
+      access.ownerUserId,
+      access.projectId,
+      sessionId.data,
+      input,
+      request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    );
+  }
+
+  @Delete(":projectId/teacher-assets/:assetId")
+  @HttpCode(204)
+  public async removeTeacherAsset(
+    @Param("projectId") projectId: string,
+    @Param("assetId") assetIdInput: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<void> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const assetId = identifierSchema.safeParse(assetIdInput);
+    if (!assetId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    await this.projectAssets.remove(
+      access.ownerUserId,
+      access.projectId,
+      assetId.data,
+      request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    );
+  }
+
   @Put(":projectId/scenes/:sceneId/asset-bindings/:slot")
   public async bindStoryboardCatalogAsset(
     @Param("projectId") projectId: string,
@@ -1816,6 +1897,7 @@ function createAppModule(
   authRateLimiter: InMemoryAuthRateLimiter,
   projectService: ProjectApiService,
   sourceUploadService: SourceUploadApiService,
+  projectAssetService: ProjectAssetApiService,
   ingestionStatusService: IngestionStatusApiService,
   parsedDocumentReviewService: ParsedDocumentReviewApiService,
   sourceSectionSelectionService: SourceSectionSelectionApiService,
@@ -1840,6 +1922,7 @@ function createAppModule(
       { provide: AUTH_RATE_LIMITER, useValue: authRateLimiter },
       { provide: PROJECT_SERVICE, useValue: projectService },
       { provide: SOURCE_UPLOAD_SERVICE, useValue: sourceUploadService },
+      { provide: PROJECT_ASSET_SERVICE, useValue: projectAssetService },
       { provide: INGESTION_STATUS_SERVICE, useValue: ingestionStatusService },
       {
         provide: PARSED_DOCUMENT_REVIEW_SERVICE,
@@ -1879,6 +1962,7 @@ export type CreateAppOptions = {
   projectAuthorizer?: ProjectRouteAuthorizer;
   projectService?: ProjectService;
   sourceUploadService?: SourceUploadApiService;
+  projectAssetService?: ProjectAssetApiService;
   ingestionStatusService?: IngestionStatusApiService;
   parsedDocumentReviewService?: ParsedDocumentReviewApiService;
   sourceSectionSelectionService?: SourceSectionSelectionApiService;
@@ -2036,6 +2120,45 @@ const unavailableSourceUploadService: SourceUploadApiService = {
       new PublicError(
         "internal_error",
         "Document upload is unavailable.",
+        503,
+        true,
+      ),
+    ),
+};
+
+const unavailableProjectAssetService: ProjectAssetApiService = {
+  create: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Image upload is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  complete: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Image upload is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  list: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Image upload is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  remove: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Image upload is unavailable.",
         503,
         true,
       ),
@@ -2583,6 +2706,7 @@ export async function createApp(
         new InMemoryAuthRateLimiter("development-only-rate-limit-key"),
       options.projectService ?? unavailableProjectService,
       options.sourceUploadService ?? unavailableSourceUploadService,
+      options.projectAssetService ?? unavailableProjectAssetService,
       options.ingestionStatusService ?? unavailableIngestionStatusService,
       options.parsedDocumentReviewService ??
         unavailableParsedDocumentReviewService,

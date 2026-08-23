@@ -18,6 +18,7 @@ import {
   updateStoryboardScene,
 } from "./storyboard-scene-query";
 import { ApprovedAssetPicker } from "./approved-asset-picker";
+import { TeacherAssetPicker } from "./teacher-asset-picker";
 
 type SaveState = "saved" | "saving" | "conflict" | "failed";
 
@@ -216,7 +217,7 @@ function assetIdForSlot(scene: SceneSpec, slot: string): string {
   );
 }
 
-function writeAssetSlot(
+export function writeAssetSlot(
   scene: SceneSpec,
   slot: string,
   assetId: string,
@@ -472,20 +473,33 @@ export function SceneEditorForm({
         </label>
       ))}
       {metadata.assetSlots.map((slot) => (
-        <ApprovedAssetPicker
-          key={slot}
-          assets={assetsBySlot[slot] ?? []}
-          disabled={disabled || saveState === "saving"}
-          tagFilter={tagFiltersBySlot[slot] ?? ""}
-          selectedId={assetIdForSlot(draft, slot)}
-          slot={slot}
-          onChange={(assetId) =>
-            setDraft((current) => writeAssetSlot(current, slot, assetId))
-          }
-          onTagFilterChange={(tagFilter) =>
-            setTagFiltersBySlot((current) => ({ ...current, [slot]: tagFilter }))
-          }
-        />
+        <div key={slot}>
+          <ApprovedAssetPicker
+            assets={assetsBySlot[slot] ?? []}
+            disabled={disabled || saveState === "saving"}
+            tagFilter={tagFiltersBySlot[slot] ?? ""}
+            selectedId={assetIdForSlot(draft, slot)}
+            slot={slot}
+            onChange={(assetId) =>
+              setDraft((current) => writeAssetSlot(current, slot, assetId))
+            }
+            onTagFilterChange={(tagFilter) =>
+              setTagFiltersBySlot((current) => ({
+                ...current,
+                [slot]: tagFilter,
+              }))
+            }
+          />
+          <TeacherAssetPicker
+            projectId={projectId}
+            disabled={disabled || saveState === "saving"}
+            selectedId={assetIdForSlot(draft, slot)}
+            slot={slot}
+            onChange={(assetId) =>
+              setDraft((current) => writeAssetSlot(current, slot, assetId))
+            }
+          />
+        </div>
       ))}
       {saveState === "conflict" ? (
         <button type="button" onClick={() => onPersisted()}>

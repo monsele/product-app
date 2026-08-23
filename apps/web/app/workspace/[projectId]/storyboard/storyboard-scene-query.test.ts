@@ -6,7 +6,11 @@ import {
   fetchStoryboardSceneDetail,
   fetchStoryboardSceneList,
   fetchApprovedAssets,
+  fetchTeacherAssets,
+  completeTeacherAssetUpload,
+  deleteTeacherAsset,
   invalidateStoryboardSceneList,
+  uploadTeacherAsset,
   switchStoryboardSceneTemplate,
   storyboardSceneListKey,
   storyboardSceneListPrefix,
@@ -250,6 +254,108 @@ describe("approved asset picker query", () => {
     expect(String(fetch.mock.calls[0]?.[0])).toContain("template=process");
     expect(String(fetch.mock.calls[0]?.[0])).toContain("slot=step-1-icon");
     expect(String(fetch.mock.calls[0]?.[0])).toContain("tags=water%2Cscience");
+  });
+});
+
+describe("teacher asset query", () => {
+  it("validates project-scoped private asset previews", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({
+          assets: [
+            {
+              assetId: "019ffbf1-a001-7000-8000-000000000001",
+              mediaType: "image/png",
+              width: 20,
+              height: 10,
+              provenance: "teacher_uploaded",
+              previewUrl: "https://storage.example.test/private-preview",
+              createdAt: "2026-08-22T12:00:00.000Z",
+            },
+          ],
+        }),
+      })),
+    );
+    const result = await fetchTeacherAssets(projectId);
+    expect(result.assets[0]?.provenance).toBe("teacher_uploaded");
+  });
+
+  it("uploads an allowed image, then completes its validation session", async () => {
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          sessionId: "019ffbf1-a001-7000-8000-000000000001",
+          assetId: "019ffbf1-a002-7000-8000-000000000001",
+          uploadUrl: "https://storage.example.test/upload",
+          method: "PUT",
+          requiredHeaders: { "content-type": "image/png" },
+          expiresAt: "2026-08-22T12:05:00.000Z",
+        }),
+      })
+      .mockResolvedValueOnce({ ok: true, json: async () => null })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ asset: null, status: "pending_validation" }),
+      });
+    vi.stubGlobal("fetch", fetch);
+    const image = new File([new Uint8Array([137, 80, 78, 71])], "diagram.png", {
+      type: "image/png",
+    });
+
+    await expect(uploadTeacherAsset(projectId, image)).resolves.toEqual({
+      sessionId: "019ffbf1-a001-7000-8000-000000000001",
+      completion: { asset: null, status: "pending_validation" },
+    });
+    expect(String(fetch.mock.calls[0]?.[0])).toContain(
+      `/projects/${projectId}/teacher-assets/uploads`,
+    );
+    expect(fetch.mock.calls[1]?.[0]).toBe(
+      "https://storage.example.test/upload",
+    );
+    expect(String(fetch.mock.calls[2]?.[0])).toContain(
+      "/teacher-assets/uploads/019ffbf1-a001-7000-8000-000000000001/complete",
+    );
+  });
+
+  it("returns a completed rejection state so the picker can offer a retry", async () => {
+    const fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => ({ asset: null, status: "rejected" }),
+    }));
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(
+      completeTeacherAssetUpload(
+        projectId,
+        "019ffbf1-a001-7000-8000-000000000001",
+      ),
+    ).resolves.toEqual({ asset: null, status: "rejected" });
+  });
+
+  it("deletes an unbound teacher asset through the private project route", async () => {
+    let request:
+      | { input: RequestInfo | URL; options: RequestInit | undefined }
+      | undefined;
+    const fetch = vi.fn(async (...args: [RequestInfo | URL, RequestInit?]) => {
+      request = { input: args[0], options: args[1] };
+      return { ok: true };
+    });
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(
+      deleteTeacherAsset(
+        projectId,
+        "019ffbf1-a001-7000-8000-000000000001",
+      ),
+    ).resolves.toBeUndefined();
+    expect(String(request?.input)).toContain(
+      `/projects/${projectId}/teacher-assets/019ffbf1-a001-7000-8000-000000000001`,
+    );
+    expect(request?.options).toMatchObject({ method: "DELETE" });
   });
 });
 

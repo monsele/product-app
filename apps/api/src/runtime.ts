@@ -16,6 +16,7 @@ import {
   PostgresSourceUploadRepository,
   SourceUploadService,
 } from "./source-uploads.js";
+import { ProjectAssetService } from "./project-assets.js";
 import { PostgresIngestionStatusService } from "./ingestion-status.js";
 import {
   PostgresParsedDocumentReviewService,
@@ -55,6 +56,9 @@ export async function runApi(input: {
       allowedUploadContentTypes: [
         "application/pdf",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "image/jpeg",
+        "image/png",
+        "image/webp",
       ],
       maxUploadBytes: environment.MAX_UPLOAD_BYTES,
       defaultSignedUrlTtlSeconds: environment.SIGNED_URL_TTL_SECONDS,
@@ -102,6 +106,10 @@ export async function runApi(input: {
         storage,
         undefined,
         environment.MAX_UPLOAD_BYTES,
+      ),
+      projectAssetService: new ProjectAssetService(
+        database.client,
+        storage,
       ),
       ingestionStatusService: new PostgresIngestionStatusService(
         database.client,

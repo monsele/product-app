@@ -791,6 +791,64 @@ export const uploadSessions = pgTable(
   ],
 );
 
+/** Immutable, project-private teacher image upload (ST-058). */
+export const projectAssets = pgTable(
+  "project_assets",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    mediaType: text("media_type").notNull(),
+    originalName: text("original_name").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    sha256: text("sha256").notNull(),
+    width: integer("width"),
+    height: integer("height"),
+    storageKey: text("storage_key").notNull(),
+    thumbnailStorageKey: text("thumbnail_storage_key"),
+    provenance: text("provenance").notNull().default("teacher_uploaded"),
+    status: text("status").notNull().default("pending_validation"),
+    validationCode: text("validation_code"),
+    deletedAt: utcTimestamp("deleted_at"),
+    cleanupAfter: utcTimestamp("cleanup_after"),
+    cleanupCompletedAt: utcTimestamp("cleanup_completed_at"),
+    ...auditColumns(),
+  },
+  (table) => [
+    index("project_assets_owner_project_created_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.createdAt,
+    ),
+  ],
+);
+
+/** Short-lived, idempotently-completed upload session for a project asset. */
+export const projectAssetUploadSessions = pgTable(
+  "project_asset_upload_sessions",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    assetId: uuid("asset_id").notNull(),
+    originalName: text("original_name").notNull(),
+    expectedMediaType: text("expected_media_type").notNull(),
+    expectedSizeBytes: integer("expected_size_bytes").notNull(),
+    expectedSha256: text("expected_sha256").notNull(),
+    storageKey: text("storage_key").notNull(),
+    expiresAt: utcTimestamp("expires_at").notNull(),
+    completedAt: utcTimestamp("completed_at"),
+    validationJobId: uuid("validation_job_id"),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("project_asset_upload_sessions_asset_unique").on(table.assetId),
+    index("project_asset_upload_sessions_tenant_expiry_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.expiresAt,
+    ),
+  ],
+);
+
 export const jobStateValues = [
   "queued",
   "running",
@@ -1715,7 +1773,10 @@ export const citationHistorySnapshots = pgTable(
       .references(() => sourceSnapshots.id, { onDelete: "restrict" }),
     sourceSnapshotContentHash: text("source_snapshot_content_hash").notNull(),
     sceneCitations: jsonb("scene_citations").notNull(),
-    groundingCheckId: uuid("grounding_check_id").references(() => groundingChecks.id, { onDelete: "set null" }),
+    groundingCheckId: uuid("grounding_check_id").references(
+      () => groundingChecks.id,
+      { onDelete: "set null" },
+    ),
     ...auditColumns(),
   },
   (table) => [

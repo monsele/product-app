@@ -1,5 +1,8 @@
 import {
   assetCatalogSearchResponseSchema,
+  completeProjectAssetUploadResponseSchema,
+  projectAssetListResponseSchema,
+  projectAssetUploadSessionSchema,
   storyboardSceneDetailResponseSchema,
   storyboardSceneEditResponseSchema,
   storyboardSceneListResponseSchema,
@@ -9,6 +12,8 @@ import {
   type StoryboardSceneEditResponse,
   type StoryboardSceneDetailResponse,
   type StoryboardSceneListResponse,
+  type ProjectAssetListResponse,
+  type CompleteProjectAssetUploadResponse,
 } from "@avlp/schemas";
 
 /**
@@ -125,6 +130,73 @@ export async function fetchApprovedAssets(
   const parsed = assetCatalogSearchResponseSchema.safeParse(payload);
   if (!parsed.success) throw new Error("approved-assets");
   return parsed.data;
+}
+
+export async function fetchTeacherAssets(projectId: string): Promise<ProjectAssetListResponse> {
+  const response = await fetch(apiUrl(`/projects/${encodeURIComponent(projectId)}/teacher-assets`), { credentials: "include", cache: "no-store" });
+  const parsed = projectAssetListResponseSchema.safeParse(await response.json().catch(() => null));
+  if (!response.ok || !parsed.success) throw new Error("teacher-assets");
+  return parsed.data;
+}
+
+export async function completeTeacherAssetUpload(
+  projectId: string,
+  sessionId: string,
+): Promise<CompleteProjectAssetUploadResponse> {
+  const completedResponse = await fetch(apiUrl(`/projects/${encodeURIComponent(projectId)}/teacher-assets/uploads/${encodeURIComponent(sessionId)}/complete`), { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: "{}" });
+  const completed = completeProjectAssetUploadResponseSchema.safeParse(await completedResponse.json().catch(() => null));
+  if (!completedResponse.ok || !completed.success)
+    throw new Error("The image could not be validated. Please retry it.");
+  return completed.data;
+}
+
+export async function uploadTeacherAsset(
+  projectId: string,
+  file: File,
+): Promise<{ sessionId: string; completion: CompleteProjectAssetUploadResponse }> {
+  const mediaType = file.type === "image/png" || file.type === "image/jpeg" || file.type === "image/webp" ? file.type : undefined;
+  if (mediaType === undefined) throw new Error("Choose a PNG, JPEG, or WebP image.");
+  const { calculateSha256 } = await import("../upload/source-upload-checksum");
+  const sessionResponse = await fetch(apiUrl(`/projects/${encodeURIComponent(projectId)}/teacher-assets/uploads`), { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ fileName: file.name, mediaType, sizeBytes: file.size, sha256: await calculateSha256(await file.arrayBuffer()) }) });
+  const session = projectAssetUploadSessionSchema.safeParse(await sessionResponse.json().catch(() => null));
+  if (!sessionResponse.ok || !session.success) throw new Error("Unable to start the image upload.");
+  const upload = await fetch(session.data.uploadUrl, { method: "PUT", headers: session.data.requiredHeaders, body: file });
+  if (!upload.ok) throw new Error("The image upload failed.");
+  return {
+    sessionId: session.data.sessionId,
+    completion: await completeTeacherAssetUpload(projectId, session.data.sessionId),
+  };
+}
+
+function teacherAssetErrorMessage(payload: unknown): string | undefined {
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    "error" in payload &&
+    typeof payload.error === "object" &&
+    payload.error !== null &&
+    "message" in payload.error &&
+    typeof payload.error.message === "string"
+  )
+    return payload.error.message;
+  return undefined;
+}
+
+export async function deleteTeacherAsset(
+  projectId: string,
+  assetId: string,
+): Promise<void> {
+  const response = await fetch(
+    apiUrl(
+      `/projects/${encodeURIComponent(projectId)}/teacher-assets/${encodeURIComponent(assetId)}`,
+    ),
+    { method: "DELETE", credentials: "include", cache: "no-store" },
+  );
+  if (response.ok) return;
+  const message = teacherAssetErrorMessage(
+    await response.json().catch(() => null),
+  );
+  throw new Error(message ?? "The uploaded image could not be removed.");
 }
 
 function parseSceneListPayload(payload: unknown): StoryboardSceneListResponse {

@@ -730,7 +730,7 @@ describe("PostgresStoryboardService.scenes", () => {
     });
   });
 
-  it("projects planned and resolved asset statuses from scene bindings", async () => {
+  it("projects missing and resolved asset statuses from scene bindings", async () => {
     const payload = storyboardPayload({
       scenes: [
         {
@@ -761,7 +761,7 @@ describe("PostgresStoryboardService.scenes", () => {
     });
     const { service } = createService(database, approvedStatus);
     const response = await service.scenes({ ownerUserId, projectId });
-    expect(response.scenes[0]!.status.assets).toBe("planned");
+    expect(response.scenes[0]!.status.assets).toBe("missing_required");
     expect(response.scenes[1]!.status.assets).toBe("resolved");
   });
 

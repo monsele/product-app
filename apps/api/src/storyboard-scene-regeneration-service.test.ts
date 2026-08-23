@@ -448,7 +448,7 @@ describe("PostgresStoryboardService.regenerateScene", () => {
         idempotencyKey: "key-1",
         correlationId: createId(),
       }),
-    ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
+    ).rejects.toMatchObject({ code: "edit_conflict", statusCode: 409 });
   });
 
   it("rejects regeneration for a missing scene", async () => {
@@ -595,7 +595,7 @@ describe("PostgresStoryboardService.applySceneCandidate", () => {
         body: { expectedRevision: 0, expectedSceneRevision: 0 },
         correlationId: createId(),
       }),
-    ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
+    ).rejects.toMatchObject({ code: "edit_conflict", statusCode: 409 });
   });
 
   it("rejects a stale scene revision", async () => {
@@ -614,7 +614,7 @@ describe("PostgresStoryboardService.applySceneCandidate", () => {
         body: { expectedRevision: 0, expectedSceneRevision: 2 },
         correlationId: createId(),
       }),
-    ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
+    ).rejects.toMatchObject({ code: "edit_conflict", statusCode: 409 });
   });
 
   it("rejects a missing or non-pending candidate", async () => {
@@ -652,7 +652,7 @@ describe("PostgresStoryboardService.applySceneCandidate", () => {
         body: { expectedRevision: 0, expectedSceneRevision: 0 },
         correlationId: createId(),
       }),
-    ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
+    ).rejects.toMatchObject({ code: "edit_conflict", statusCode: 409 });
   });
 });
 
