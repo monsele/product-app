@@ -3135,12 +3135,17 @@ export type CitationHistorySnapshot = z.infer<
 
 /** A portable, immutable lesson state. Values are copied as JSON; media is
  * represented by stable object identifiers/hashes rather than binary data. */
-export const lessonVersionReasonSchema = z.enum(["approval", "explicit_save", "before_render"]);
+export const lessonVersionReasonSchema = z.enum(["approval", "explicit_save", "before_render", "restore"]);
 export type LessonVersionReason = z.infer<typeof lessonVersionReasonSchema>;
 export const lessonVersionCreateSchema = z.object({
   reason: lessonVersionReasonSchema.default("explicit_save"),
 }).strict();
 export type LessonVersionCreate = z.infer<typeof lessonVersionCreateSchema>;
+export const lessonVersionRestoreSchema = z.object({
+  expectedCurrentVersionId: identifierSchema.nullable(),
+  confirmReplace: z.literal(true),
+}).strict();
+export type LessonVersionRestore = z.infer<typeof lessonVersionRestoreSchema>;
 export const lessonVersionSummarySchema = z.object({
   id: identifierSchema,
   versionNumber: z.number().int().positive(),
@@ -3152,9 +3157,19 @@ export const lessonVersionSummarySchema = z.object({
   lessonSpecRevision: z.number().int().nonnegative(),
 }).strict();
 export type LessonVersionSummary = z.infer<typeof lessonVersionSummarySchema>;
+export const lessonVersionDetailSchema = lessonVersionSummarySchema.extend({
+  parentVersionId: identifierSchema.nullable(),
+  schemaVersion: z.string().min(1).max(100),
+  sceneLibraryVersion: z.string().min(1).max(100),
+  durationSeconds: z.number().int().positive(),
+  sceneCount: z.number().int().nonnegative(),
+  renderAssociationCount: z.number().int().nonnegative(),
+}).strict();
+export type LessonVersionDetail = z.infer<typeof lessonVersionDetailSchema>;
 export const lessonVersionsResponseSchema = z.object({
   versions: z.array(lessonVersionSummarySchema),
   latestModifiedAt: z.string().datetime({ offset: true }).nullable(),
+  currentVersionId: identifierSchema.nullable(),
 }).strict();
 export type LessonVersionsResponse = z.infer<typeof lessonVersionsResponseSchema>;
 

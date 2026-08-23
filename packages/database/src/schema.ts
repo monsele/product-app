@@ -1836,7 +1836,7 @@ export const citationHistorySnapshots = pgTable(
 /** Immutable, portable lesson snapshot created at an approval milestone or an
  * explicit teacher save. The JSON payload contains metadata and references to
  * immutable media objects only; binaries remain in private object storage. */
-export const lessonVersionReasons = ["approval", "explicit_save", "before_render"] as const;
+export const lessonVersionReasons = ["approval", "explicit_save", "before_render", "restore"] as const;
 export const lessonVersionReason = pgEnum("lesson_version_reason", lessonVersionReasons);
 export const lessonVersions = pgTable(
   "lesson_versions",

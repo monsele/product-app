@@ -352,7 +352,7 @@ type StoryboardApiService = Pick<
 >;
 type CitationApiService = Pick<CitationService, "forScene">;
 type GroundingApiService = Pick<GroundingService, "check" | "current">;
-type LessonVersionsApiService = Pick<LessonVersionsService, "create" | "list">;
+type LessonVersionsApiService = Pick<LessonVersionsService, "create" | "list" | "detail" | "restore">;
 
 function approvedAssetCatalogFilters(input: {
   query: unknown;
@@ -1894,6 +1894,30 @@ class ProjectsController {
     return this.lessonVersions.list(assertAuthorizedProject(request, projectId));
   }
 
+  @Get(":projectId/versions/:versionId")
+  public async lessonVersionDetail(
+    @Param("projectId") projectId: string,
+    @Param("versionId") versionIdInput: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const versionId = identifierSchema.safeParse(versionIdInput);
+    if (!versionId.success) throw new PublicError("not_found", "The requested lesson version was not found.", 404);
+    return this.lessonVersions.detail({ ...assertAuthorizedProject(request, projectId), versionId: versionId.data });
+  }
+
+  @Post(":projectId/versions/:versionId/restore")
+  public async restoreLessonVersion(
+    @Param("projectId") projectId: string,
+    @Param("versionId") versionIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const versionId = identifierSchema.safeParse(versionIdInput);
+    if (!versionId.success) throw new PublicError("not_found", "The requested lesson version was not found.", 404);
+    return this.lessonVersions.restore({ ...assertAuthorizedProject(request, projectId), versionId: versionId.data, body: input, correlationId: request.correlationId ?? "00000000-0000-7000-8000-000000000000" });
+  }
+
   @Delete(":projectId")
   public async delete(
     @Param("projectId") projectId: string,
@@ -2895,6 +2919,8 @@ const unavailableGroundingService: GroundingApiService = {
 const unavailableLessonVersionsService: LessonVersionsApiService = {
   create: () => Promise.reject(new PublicError("internal_error", "Lesson versioning is unavailable.", 503, true)),
   list: () => Promise.reject(new PublicError("internal_error", "Lesson versioning is unavailable.", 503, true)),
+  detail: () => Promise.reject(new PublicError("internal_error", "Lesson versioning is unavailable.", 503, true)),
+  restore: () => Promise.reject(new PublicError("internal_error", "Lesson versioning is unavailable.", 503, true)),
 };
 
 export async function createApp(

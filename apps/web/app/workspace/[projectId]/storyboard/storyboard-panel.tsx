@@ -5,6 +5,7 @@ import {
   sceneTemplateValues,
   storyboardResponseSchema,
   lessonVersionsResponseSchema,
+  lessonVersionDetailSchema,
   type SceneTemplate,
   type StoryboardResponse,
   type StoryboardSceneDetailResponse,
@@ -29,6 +30,7 @@ import {
 } from "./storyboard-scene-query";
 import { SceneList } from "./scene-list";
 import { SceneDetailPanel } from "./scene-detail-panel";
+import { VersionBrowser, type VersionBrowserMetadata } from "./version-browser";
 
 type ViewState =
   | { kind: "loading" }
@@ -85,9 +87,9 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
   const [detailAttempt, setDetailAttempt] = useState(0);
   const [editing, setEditing] = useState(false);
   const [addTemplate, setAddTemplate] = useState<SceneTemplate>("definition");
-  const [versionMetadata, setVersionMetadata] = useState<
-    { count: number; latestModifiedAt: string | null } | null
-  >(null);
+  const [versionMetadata, setVersionMetadata] = useState<VersionBrowserMetadata | null>(null);
+  const [versionPreview, setVersionPreview] = useState<{ id: string; durationSeconds: number; sceneCount: number; schemaVersion: string } | null>(null);
+  const [restoringVersionId, setRestoringVersionId] = useState<string | null>(null);
   const [savingVersion, setSavingVersion] = useState(false);
 
   const refresh = useCallback(async () => {
@@ -148,6 +150,8 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
     setVersionMetadata({
       count: parsed.data.versions.length,
       latestModifiedAt: parsed.data.latestModifiedAt,
+      currentVersionId: parsed.data.currentVersionId,
+      versions: parsed.data.versions.map((version) => ({ id: version.id, versionNumber: version.versionNumber, reason: version.reason, createdAt: version.createdAt })),
     });
   }, [projectId]);
 
@@ -171,6 +175,26 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
       setActionMessage(error instanceof Error ? error.message : "Unable to save this lesson version.");
     } finally { setSavingVersion(false); }
   }, [projectId, refreshVersions]);
+
+  const previewVersion = useCallback(async (versionId: string) => {
+    const response = await fetch(apiUrl(`/projects/${encodeURIComponent(projectId)}/versions/${encodeURIComponent(versionId)}`), { credentials: "include", cache: "no-store" });
+    const payload: unknown = await response.json().catch(() => null);
+    const parsed = lessonVersionDetailSchema.safeParse(payload);
+    if (!response.ok || !parsed.success) throw new Error(extractErrorMessage(payload, "Unable to load this version."));
+    setVersionPreview({ id: parsed.data.id, durationSeconds: parsed.data.durationSeconds, sceneCount: parsed.data.sceneCount, schemaVersion: parsed.data.schemaVersion });
+  }, [projectId]);
+
+  const restoreVersion = useCallback(async (versionId: string) => {
+    if (!window.confirm("Restore this saved version? Your current version will be replaced by a new restored version.")) return;
+    setRestoringVersionId(versionId); setActionMessage(null);
+    try {
+      const response = await fetch(apiUrl(`/projects/${encodeURIComponent(projectId)}/versions/${encodeURIComponent(versionId)}/restore`), { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ expectedCurrentVersionId: versionMetadata?.currentVersionId ?? null, confirmReplace: true }) });
+      const payload: unknown = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(extractErrorMessage(payload, "Unable to restore this lesson version."));
+      await refreshVersions(); await refresh(); setActionMessage("A new current version was restored; earlier history and renders were preserved.");
+    } catch (error) { setActionMessage(error instanceof Error ? error.message : "Unable to restore this lesson version.");
+    } finally { setRestoringVersionId(null); }
+  }, [projectId, refresh, refreshVersions, versionMetadata?.currentVersionId]);
 
   const value = view.kind === "ready" ? view.value : null;
   const generating = value !== null && isGenerating(value.state);
@@ -462,14 +486,25 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
 
       {actionMessage !== null ? <p role="alert">{actionMessage}</p> : null}
 
-      <section aria-label="Lesson versions">
+      <VersionBrowser metadata={versionMetadata} preview={versionPreview} restoringVersionId={restoringVersionId} saving={savingVersion} storyboardAvailable={storyboard !== null} onPreview={(versionId) => void previewVersion(versionId)} onRestore={(versionId) => void restoreVersion(versionId)} onSave={() => void saveVersion()} />
+      {/*
         <button type="button" onClick={() => void saveVersion()} disabled={savingVersion || storyboard === null}>
           {savingVersion ? "Saving versionâ€¦" : "Save version"}
         </button>
         {versionMetadata !== null && versionMetadata.latestModifiedAt !== null ? (
           <p role="status">Version {versionMetadata.count} saved {new Date(versionMetadata.latestModifiedAt).toLocaleString()}.</p>
         ) : <p role="status">No saved lesson versions yet.</p>}
-      </section>
+        {versionMetadata?.versions.map((version) => (
+          <div key={version.id}>
+            <span>Version {version.versionNumber} ({version.reason}) saved {new Date(version.createdAt).toLocaleString()}.</span>{" "}
+            <button type="button" onClick={() => void previewVersion(version.id)}>Preview metadata</button>{" "}
+            <button type="button" disabled={restoringVersionId !== null || version.id === versionMetadata.currentVersionId} onClick={() => void restoreVersion(version.id)}>
+              {restoringVersionId === version.id ? "Restoring…" : "Restore"}
+            </button>
+          </div>
+        ))}
+        {versionPreview !== null ? <p role="status">Version metadata: {versionPreview.sceneCount} scenes, {versionPreview.durationSeconds} seconds, schema {versionPreview.schemaVersion}.</p> : null}
+      */}
 
       {view.value.canGenerate ? (
         <button

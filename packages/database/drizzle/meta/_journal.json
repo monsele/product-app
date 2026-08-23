@@ -337,6 +337,13 @@
       "when": 1787523395258,
       "tag": "0047_white_molten_man",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1787524985475,
+      "tag": "0048_hesitant_alex_wilder",
+      "breakpoints": true
     }
   ]
 }

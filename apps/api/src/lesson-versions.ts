@@ -1,13 +1,19 @@
 import { createHash } from "node:crypto";
 import { createId, PublicError, serializeUtcTimestamp, type Identifier } from "@avlp/config";
-import { groundingChecks, learningObjectiveSets, learningObjectives, lessonConfigurations, lessonOutlineItems, lessonOutlineSets, lessonSpecs, lessonVersions, narrationBlocks, narrationSets, projects, sourceSnapshots, type DatabaseClient, type DatabaseExecutor } from "@avlp/database";
-import { lessonSpecSchema, lessonVersionCreateSchema, lessonVersionsResponseSchema, type LessonVersionsResponse } from "@avlp/schemas";
+import { groundingChecks, learningObjectiveSets, learningObjectives, lessonConfigurations, lessonOutlineItems, lessonOutlineSets, lessonSpecs, lessonVersions, narrationBlocks, narrationSets, projects, scenes, sourceSnapshots, type DatabaseClient, type DatabaseExecutor } from "@avlp/database";
+import { lessonSpecSchema, lessonStoryboardSchema, lessonVersionCreateSchema, lessonVersionDetailSchema, lessonVersionRestoreSchema, lessonVersionsResponseSchema, type LessonVersionDetail, type LessonVersionsResponse } from "@avlp/schemas";
+import { PostgresAuditWriter } from "@avlp/observability";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { CitationHistoryService } from "./citation-history.js";
 
 type Scope = { ownerUserId: Identifier; projectId: Identifier };
-export interface LessonVersionsService { create(input: Scope & { body: unknown; correlationId: Identifier }): Promise<LessonVersionsResponse>; list(input: Scope): Promise<LessonVersionsResponse>; }
+export interface LessonVersionsService {
+  create(input: Scope & { body: unknown; correlationId: Identifier }): Promise<LessonVersionsResponse>;
+  list(input: Scope): Promise<LessonVersionsResponse>;
+  detail(input: Scope & { versionId: Identifier }): Promise<LessonVersionDetail>;
+  restore(input: Scope & { versionId: Identifier; body: unknown; correlationId: Identifier }): Promise<LessonVersionsResponse>;
+}
 export function canonicalJson(value: unknown): string { return JSON.stringify(canonical(value)); }
 function canonical(value: unknown): unknown { if (Array.isArray(value)) return value.map(canonical); if (value && typeof value === "object") return Object.fromEntries(Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)).map(([key, nested]) => [key, canonical(nested)])); return value; }
 export function lessonVersionContentHash(value: unknown): string { return createHash("sha256").update(canonicalJson(value)).digest("hex"); }
@@ -40,7 +46,65 @@ export class PostgresLessonVersionsService implements LessonVersionsService {
       await tx.update(projects).set({ currentLessonVersionId: versionId, updatedAt: now }).where(and(eq(projects.id, input.projectId), eq(projects.ownerUserId, input.ownerUserId)));
     }); return this.list(input);
   }
-  public async list(input: Scope): Promise<LessonVersionsResponse> { const rows = await this.database.select().from(lessonVersions).where(and(eq(lessonVersions.ownerUserId, input.ownerUserId), eq(lessonVersions.projectId, input.projectId))).orderBy(desc(lessonVersions.versionNumber)); return lessonVersionsResponseSchema.parse({ versions: rows.map((row) => ({ id: row.id, versionNumber: row.versionNumber, reason: row.reason, contentHash: row.contentHash, createdBy: row.createdBy, createdAt: serializeUtcTimestamp(row.createdAt), lessonSpecId: row.lessonSpecId, lessonSpecRevision: row.lessonSpecRevision })), latestModifiedAt: rows[0] ? serializeUtcTimestamp(rows[0].createdAt) : null }); }
+  public async list(input: Scope): Promise<LessonVersionsResponse> {
+    const [rows, projectRows] = await Promise.all([
+      this.database.select().from(lessonVersions).where(and(eq(lessonVersions.ownerUserId, input.ownerUserId), eq(lessonVersions.projectId, input.projectId))).orderBy(desc(lessonVersions.versionNumber)),
+      this.database.select({ currentVersionId: projects.currentLessonVersionId }).from(projects).where(and(eq(projects.ownerUserId, input.ownerUserId), eq(projects.id, input.projectId))).limit(1),
+    ]);
+    return lessonVersionsResponseSchema.parse({ versions: rows.map(summary), latestModifiedAt: rows[0] ? serializeUtcTimestamp(rows[0].createdAt) : null, currentVersionId: projectRows[0]?.currentVersionId ?? null });
+  }
+  public async detail(input: Scope & { versionId: Identifier }): Promise<LessonVersionDetail> {
+    const [row] = await this.database.select().from(lessonVersions).where(and(eq(lessonVersions.id, input.versionId), eq(lessonVersions.ownerUserId, input.ownerUserId), eq(lessonVersions.projectId, input.projectId))).limit(1);
+    if (row === undefined) throw new PublicError("not_found", "The requested lesson version was not found.", 404);
+    return detail(row);
+  }
+  public async restore(input: Scope & { versionId: Identifier; body: unknown; correlationId: Identifier }): Promise<LessonVersionsResponse> {
+    const command = parse(lessonVersionRestoreSchema, input.body); const now = this.now();
+    await this.database.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${input.projectId}))`);
+      const [project] = await tx.select({ currentVersionId: projects.currentLessonVersionId }).from(projects).where(and(eq(projects.id, input.projectId), eq(projects.ownerUserId, input.ownerUserId))).limit(1);
+      if (project === undefined) throw new PublicError("not_found", "The requested project was not found.", 404);
+      assertCurrentVersion(project.currentVersionId as Identifier | null, command.expectedCurrentVersionId);
+      const [source] = await tx.select().from(lessonVersions).where(and(eq(lessonVersions.id, input.versionId), eq(lessonVersions.ownerUserId, input.ownerUserId), eq(lessonVersions.projectId, input.projectId))).limit(1);
+      if (source === undefined) throw new PublicError("not_found", "The requested lesson version was not found.", 404);
+      assertRestorable(source.snapshot);
+      const id = createId(now);
+      const draftId = createId(now);
+      const [sourceStoryboard] = await tx.select().from(lessonSpecs).where(and(eq(lessonSpecs.id, source.lessonSpecId), eq(lessonSpecs.ownerUserId, input.ownerUserId), eq(lessonSpecs.projectId, input.projectId))).limit(1);
+      if (sourceStoryboard === undefined) throw new PublicError("bad_request", "This lesson version is missing its source storyboard and cannot be restored.", 409);
+      const restoredDraft = restoredStoryboardDraft(source.snapshot, draftId, now);
+      await tx.insert(lessonSpecs).values({ id: draftId, ownerUserId: input.ownerUserId, projectId: input.projectId, schemaVersion: sourceStoryboard.schemaVersion, basedOnNarrationSetId: source.narrationSetId, narrationSetContentHash: sourceStoryboard.narrationSetContentHash, outlineSetId: source.outlineSetId, outlineSetContentHash: sourceStoryboard.outlineSetContentHash, configurationVersion: source.configurationVersion, promptId: sourceStoryboard.promptId, promptVersion: sourceStoryboard.promptVersion, model: sourceStoryboard.model, modelCallId: sourceStoryboard.modelCallId, status: "draft", revision: 0, idempotencyKey: `restore:${source.id}:${draftId}`, title: restoredDraft.lessonSpec.title, subject: restoredDraft.lessonSpec.subject, targetDurationSeconds: restoredDraft.lessonSpec.targetDurationSeconds, totalDurationSeconds: restoredDraft.totalDurationSeconds, objectiveIds: restoredDraft.lessonSpec.objectiveIds, contentHash: lessonVersionContentHash(restoredDraft.payload), payload: restoredDraft.payload, generatedAt: now, createdAt: now, updatedAt: now });
+      await tx.insert(scenes).values(restoredDraft.scenes.map((scene) => ({ id: scene.id, ownerUserId: input.ownerUserId, projectId: input.projectId, lessonSpecId: draftId, stableSceneId: scene.stableSceneId, order: scene.order, template: scene.template, durationSeconds: scene.durationSeconds, narrationBlockIds: scene.narrationBlockIds, assetRequirements: scene.assetRequirements, sceneJson: scene.scene, revision: 0, createdAt: now, updatedAt: now })));
+      const snapshot = prepareRestoredSnapshot(source.snapshot, source.id, draftId, restoredDraft.payload, restoredDraft.lessonSpec);
+      const contentHash = lessonVersionContentHash({ snapshot: hashableSnapshot(snapshot), restoredFromVersionId: source.id });
+      await tx.insert(lessonVersions).values({ id, ownerUserId: input.ownerUserId, projectId: input.projectId, versionNumber: await nextNumber(tx, input), parentVersionId: source.id, reason: "restore", createdBy: input.ownerUserId, lessonSpecId: draftId, lessonSpecRevision: 0, sourceSnapshotId: source.sourceSnapshotId, configurationVersion: source.configurationVersion, objectiveSetId: source.objectiveSetId, outlineSetId: source.outlineSetId, narrationSetId: source.narrationSetId, schemaVersion: source.schemaVersion, sceneLibraryVersion: source.sceneLibraryVersion, promptVersions: source.promptVersions, contentHash, snapshot, createdAt: now });
+      const [updated] = await tx.update(projects).set({ currentLessonVersionId: id, updatedAt: now }).where(and(eq(projects.id, input.projectId), eq(projects.ownerUserId, input.ownerUserId), command.expectedCurrentVersionId === null ? sql`${projects.currentLessonVersionId} is null` : eq(projects.currentLessonVersionId, command.expectedCurrentVersionId))).returning({ id: projects.id });
+      if (updated === undefined) throw new PublicError("edit_conflict", "This lesson changed while the restore was being applied. Refresh and confirm the restore again.", 409);
+      await new PostgresAuditWriter(tx).write({ ownerUserId: input.ownerUserId, projectId: input.projectId, actor: { type: "user", userId: input.ownerUserId }, eventType: "version.restored", target: { type: "lesson_version", id }, correlationId: input.correlationId, metadata: { restoredFromVersionId: source.id, sourceContentHash: source.contentHash }, occurredAt: now });
+    });
+    return this.list(input);
+  }
+}
+
+function summary(row: typeof lessonVersions.$inferSelect) { return { id: row.id, versionNumber: row.versionNumber, reason: row.reason, contentHash: row.contentHash, createdBy: row.createdBy, createdAt: serializeUtcTimestamp(row.createdAt), lessonSpecId: row.lessonSpecId, lessonSpecRevision: row.lessonSpecRevision }; }
+function detail(row: typeof lessonVersions.$inferSelect): LessonVersionDetail { const snapshot = row.snapshot as { lessonSpec?: { targetDurationSeconds?: unknown; scenes?: unknown[] } }; return lessonVersionDetailSchema.parse({ ...summary(row), parentVersionId: row.parentVersionId, schemaVersion: row.schemaVersion, sceneLibraryVersion: row.sceneLibraryVersion, durationSeconds: snapshot.lessonSpec?.targetDurationSeconds, sceneCount: snapshot.lessonSpec?.scenes?.length ?? 0, renderAssociationCount: 0 }); }
+function assertRestorable(snapshot: unknown): void { const value = snapshot as { schemaVersion?: unknown; lessonSpec?: unknown; versions?: { lessonSpec?: unknown; sceneLibrary?: unknown } }; if (value?.schemaVersion !== "lesson-version-v1" || value.versions?.lessonSpec !== "1.8" || value.versions.sceneLibrary !== "mvp-v1" || !lessonSpecSchema.safeParse(value.lessonSpec).success) throw new PublicError("bad_request", "This lesson version uses an incompatible or corrupt schema and cannot be restored.", 409); }
+export function assertCurrentVersion(currentVersionId: Identifier | null, expectedCurrentVersionId: Identifier | null): void { if (currentVersionId !== expectedCurrentVersionId) throw new PublicError("edit_conflict", "This lesson changed while you were reviewing versions. Refresh and confirm the restore again.", 409); }
+export function prepareRestoredSnapshot(snapshot: unknown, restoredFromVersionId: Identifier, lessonId: Identifier, storyboard: unknown, lessonSpec: unknown): unknown { assertRestorable(snapshot); return JSON.parse(JSON.stringify({ ...(snapshot as Record<string, unknown>), restoredFromVersionId, storyboard, lessonSpec })) as unknown; }
+export function restoredStoryboardDraft(snapshot: unknown, lessonId: Identifier, now: Date) {
+  const value = snapshot as { storyboard: unknown; lessonSpec: unknown };
+  const storyboardResult = lessonStoryboardSchema.safeParse(value.storyboard);
+  const lessonSpecResult = lessonSpecSchema.safeParse(value.lessonSpec);
+  if (!storyboardResult.success || !lessonSpecResult.success) throw new PublicError("bad_request", "This lesson version contains an incompatible storyboard snapshot and cannot be restored.", 409);
+  const parsedStoryboard = storyboardResult.data;
+  const parsedLessonSpec = lessonSpecResult.data;
+  const restoredScenes = parsedStoryboard.scenes.map((scene, index) => {
+    const id = createId(new Date(now.getTime() + index + 1));
+    return { ...scene, id, stableSceneId: id, scene: { ...scene.scene, id } };
+  });
+  const payload = { ...parsedStoryboard, scenes: restoredScenes };
+  const lessonSpec = { ...parsedLessonSpec, lessonId, scenes: restoredScenes.map((scene) => scene.scene) };
+  return { payload, lessonSpec, scenes: restoredScenes, totalDurationSeconds: restoredScenes.reduce((total, scene) => total + scene.durationSeconds, 0) };
 }
 
 async function loadState(db: DatabaseExecutor, scope: Scope) {
