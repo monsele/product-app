@@ -1,0 +1,8 @@
+
+> @avlp/pipeline-worker@0.0.0 dev C:\Users\eoaikhina\Desktop\product-app\apps\pipeline-worker
+> tsx watch src/main.ts
+
+{"timestamp":"2026-08-23T21:18:54.728Z","level":"info","event":"worker.started","fields":{"status":"ok","service":"pipeline-worker"}}
+{"timestamp":"2026-08-23T21:24:21.343Z","level":"info","event":"queue.job_dispatched","fields":{"outboxEventId":"01a03082-9a16-7149-8837-9faced9572fc","jobId":"01a03082-9a16-74bb-8c40-7e469484b007","projectId":"01a03081-ebfd-767f-94bf-46c0500b6648","correlationId":"01a03082-99fd-74b1-a658-797f094010cb","queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-08-23T21:24:21.367Z","level":"info","event":"job.started","fields":{"jobId":"01a03082-9a16-74bb-8c40-7e469484b007","jobType":"document.validation","projectId":"01a03081-ebfd-767f-94bf-46c0500b6648","correlationId":"01a03082-99fd-74b1-a658-797f094010cb","attempt":1,"service":"pipeline-worker"}}
+{"timestamp":"2026-08-23T21:24:22.014Z","level":"info","event":"job.completed","fields":{"jobId":"01a03082-9a16-74bb-8c40-7e469484b007","jobType":"document.validation","projectId":"01a03081-ebfd-767f-94bf-46c0500b6648","correlationId":"01a03082-99fd-74b1-a658-797f094010cb","attempt":1,"status":"retry_wait","errorClassification":"retryable","durationMs":648,"service":"pipeline-worker"}}
