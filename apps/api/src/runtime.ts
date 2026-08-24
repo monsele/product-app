@@ -36,6 +36,7 @@ import { PostgresCitationHistoryService } from "./citation-history.js";
 import { PostgresLessonVersionsService } from "./lesson-versions.js";
 import { PostgresVoiceConfigurationService } from "./voice-configuration.js";
 import { SceneAudioService } from "./scene-audio.js";
+import { PreviewManifestService } from "./preview-manifest.js";
 
 export async function runApi(input: {
   telemetryShutdown: () => Promise<void>;
@@ -173,6 +174,10 @@ export async function runApi(input: {
         database.client,
       ),
       sceneAudioService: new SceneAudioService(database.client),
+      previewManifestService: new PreviewManifestService(
+        database.client,
+        storage,
+      ),
       projectAuthorizer,
       ...(environment.WEB_ORIGIN === undefined
         ? {}

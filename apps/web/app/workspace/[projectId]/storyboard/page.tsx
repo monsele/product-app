@@ -40,6 +40,9 @@ export default async function StoryboardPage({
       <h1>Storyboard</h1>
       <p>{payload.project.title}</p>
       <StoryboardPanel projectId={projectId} />
+      <a href={`/workspace/${encodeURIComponent(projectId)}/preview`}>
+        Preview full lesson
+      </a>
       <a href="/workspace">Back to workspace</a>
     </main>
   );

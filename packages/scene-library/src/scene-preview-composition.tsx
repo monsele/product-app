@@ -3,6 +3,7 @@ import type { JSX } from "react";
 import { getSceneFrameTiming } from "./timing.js";
 import {
   FullLessonComposition,
+  type FullLessonCompositionProps,
   getLessonDurationInFrames,
 } from "./full-lesson.js";
 import { photosynthesisThreeMinutePreview } from "./full-lesson.fixture.js";
@@ -14,7 +15,8 @@ import {
 import { videoTheme } from "@avlp/design-system/video-theme";
 
 export const sceneRuntimeCompositionId = "SceneRuntimePreview";
-export const fullLessonRuntimeCompositionId = "FullLessonRuntimePreview";
+export const fullLessonPreviewCompositionId = "FullLessonRuntimePreview";
+export const fullLessonRuntimeCompositionId = "FullLessonRuntimeRender";
 export const sceneRuntimeComposition = Object.freeze({
   id: sceneRuntimeCompositionId,
   durationInFrames: getSceneFrameTiming(
@@ -37,6 +39,18 @@ export function SceneRuntimeComposition({
   );
 }
 
+export function FullLessonPreviewComposition(
+  props: FullLessonCompositionProps,
+): JSX.Element {
+  return <FullLessonComposition {...props} runtimeMode="preview" />;
+}
+
+export function FullLessonRenderComposition(
+  props: FullLessonCompositionProps,
+): JSX.Element {
+  return <FullLessonComposition {...props} runtimeMode="render" />;
+}
+
 export function SceneRuntimeRoot(): JSX.Element {
   return (
     <>
@@ -46,7 +60,18 @@ export function SceneRuntimeRoot(): JSX.Element {
         defaultProps={{ scene: sceneRegistryPreviewFixture }}
       />
       <Composition
-        component={FullLessonComposition}
+        component={FullLessonPreviewComposition}
+        defaultProps={photosynthesisThreeMinutePreview}
+        durationInFrames={getLessonDurationInFrames(
+          photosynthesisThreeMinutePreview.lesson,
+        )}
+        fps={videoTheme.canvas.fps}
+        height={videoTheme.canvas.height}
+        id={fullLessonPreviewCompositionId}
+        width={videoTheme.canvas.width}
+      />
+      <Composition
+        component={FullLessonRenderComposition}
         defaultProps={photosynthesisThreeMinutePreview}
         durationInFrames={getLessonDurationInFrames(
           photosynthesisThreeMinutePreview.lesson,

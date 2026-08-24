@@ -5621,6 +5621,73 @@ export const storyboardResponseSchema = z
   .strict();
 export type StoryboardResponse = z.infer<typeof storyboardResponseSchema>;
 
+/** `GET /projects/:id/preview-manifest` response. URLs are short-lived and
+ * intentionally excluded from every persisted lesson contract. */
+export const previewManifestSchema = z
+  .object({
+    assets: z
+      .record(
+        z
+          .object({
+            altText: boundedText(2_000),
+            assetId: identifierSchema,
+            source: z.enum(["library", "source"]),
+            src: z.string().min(1).max(4_096),
+          })
+          .strict(),
+      )
+      .default({}),
+    canvas: z
+      .object({
+        fps: z.number().int().positive().max(120),
+        height: z.number().int().positive().max(8_640),
+        width: z.number().int().positive().max(8_640),
+      })
+      .strict(),
+    storyboard: lessonStoryboardSchema,
+    generatedAt: z.string().datetime({ offset: true }),
+    scenes: z
+      .array(
+        z
+          .object({
+            sceneId: identifierSchema,
+            audio: z
+              .object({
+                status: z.string().min(1).max(50),
+                url: z.string().url().nullable(),
+                expiresAt: z.string().datetime({ offset: true }).nullable(),
+              })
+              .strict(),
+            captions: z
+              .array(
+                z
+                  .object({
+                    startMs: z.number().int().nonnegative(),
+                    endMs: z.number().int().positive(),
+                    text: boundedText(1_000),
+                  })
+                  .strict()
+                  .superRefine((cue, context) => {
+                    if (cue.endMs <= cue.startMs)
+                      context.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: ["endMs"],
+                        message:
+                          "Caption end time must be after its start time.",
+                      });
+                  }),
+              )
+              .max(1_000),
+            missingAssetIds: z.array(identifierSchema).max(100),
+            stale: z.boolean(),
+          })
+          .strict(),
+      )
+      .max(100),
+  })
+  .strict();
+export type PreviewManifest = z.infer<typeof previewManifestSchema>;
+
 // ---------------------------------------------------------------------------
 // ST-054 — Storyboard scene list, selection, and navigation read model
 // ---------------------------------------------------------------------------

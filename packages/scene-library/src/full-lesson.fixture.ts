@@ -175,6 +175,7 @@ export const photosynthesisThreeMinuteLesson = lessonSpecSchema.parse({
 
 const timeline = calculateLessonTimeline(photosynthesisThreeMinuteLesson);
 export const photosynthesisThreeMinutePreview = Object.freeze({
+  assets: {},
   captions: timeline.map((segment, index) => ({
     endFrame: segment.endFrameExclusive,
     sceneId: segment.sceneId,

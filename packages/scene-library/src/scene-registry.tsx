@@ -501,6 +501,7 @@ export function createDefaultScene<TTemplate extends SceneTemplate>(
 function isSafeDiagramImageSource(src: string): boolean {
   return (
     /^\/assets\/[a-z0-9/_-]+\.(png|jpe?g|webp)$/i.test(src) ||
+    /^\/catalog\/[a-z0-9/_-]+\.svg$/i.test(src) ||
     /^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(src) ||
     /^https:\/\/[^\s]+$/i.test(src)
   );

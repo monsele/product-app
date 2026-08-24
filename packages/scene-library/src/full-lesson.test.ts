@@ -5,6 +5,7 @@ import {
   fullLessonCompositionPropsSchema,
   getLessonDurationInFrames,
   getTimelineSegmentAtFrame,
+  getPreviewCompositionSettings,
 } from "./full-lesson.js";
 import {
   fivePagePhotosynthesisSourceFixture,
@@ -76,7 +77,7 @@ describe("three-minute photosynthesis full lesson", () => {
       captions: [
         {
           ...photosynthesisThreeMinutePreview.captions[0]!,
-          endFrame: 899,
+          endFrame: 901,
         },
         ...photosynthesisThreeMinutePreview.captions.slice(1),
       ],
@@ -84,5 +85,48 @@ describe("three-minute photosynthesis full lesson", () => {
     expect(fullLessonCompositionPropsSchema.safeParse(unsafe).success).toBe(
       false,
     );
+  });
+
+  it("accepts a signed browser-audio track and sentence-level caption cues", () => {
+    const preview = {
+      ...photosynthesisThreeMinutePreview,
+      narrationTracks: photosynthesisThreeMinutePreview.narrationTracks.map(
+        (track, index) =>
+          index === 0
+            ? {
+                kind: "browser-audio" as const,
+                sceneId: track.sceneId,
+                src: "https://storage.example.test/signed-audio.wav",
+              }
+            : track,
+      ),
+      captions: [
+        {
+          ...photosynthesisThreeMinutePreview.captions[0]!,
+          endFrame: 450,
+        },
+        {
+          ...photosynthesisThreeMinutePreview.captions[0]!,
+          startFrame: 450,
+        },
+        ...photosynthesisThreeMinutePreview.captions.slice(1),
+      ],
+    };
+    expect(fullLessonCompositionPropsSchema.safeParse(preview).success).toBe(
+      true,
+    );
+  });
+
+  it("uses a half-resolution composition in lower-quality mode", () => {
+    expect(getPreviewCompositionSettings("standard")).toMatchObject({
+      height: 1080,
+      scale: 1,
+      width: 1920,
+    });
+    expect(getPreviewCompositionSettings("low")).toMatchObject({
+      height: 540,
+      scale: 0.5,
+      width: 960,
+    });
   });
 });

@@ -81,6 +81,7 @@ import {
   type VoiceConfigurationService,
 } from "./voice-configuration.js";
 import { SceneAudioService } from "./scene-audio.js";
+import type { PreviewManifestService } from "./preview-manifest.js";
 import { searchApprovedAssets } from "./approved-assets.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
@@ -114,6 +115,7 @@ const GROUNDING_SERVICE = Symbol("GROUNDING_SERVICE");
 const LESSON_VERSIONS_SERVICE = Symbol("LESSON_VERSIONS_SERVICE");
 const VOICE_CONFIGURATION_SERVICE = Symbol("VOICE_CONFIGURATION_SERVICE");
 const SCENE_AUDIO_SERVICE = Symbol("SCENE_AUDIO_SERVICE");
+const PREVIEW_MANIFEST_SERVICE = Symbol("PREVIEW_MANIFEST_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -370,6 +372,7 @@ type VoiceConfigurationApiService = Pick<
   "get" | "save"
 >;
 type SceneAudioApiService = Pick<SceneAudioService, "generate" | "status">;
+type PreviewManifestApiService = Pick<PreviewManifestService, "get">;
 
 function approvedAssetCatalogFilters(input: {
   query: unknown;
@@ -490,6 +493,8 @@ class ProjectsController {
     private readonly voiceConfiguration: VoiceConfigurationApiService,
     @Inject(SCENE_AUDIO_SERVICE)
     private readonly sceneAudio: SceneAudioApiService,
+    @Inject(PREVIEW_MANIFEST_SERVICE)
+    private readonly previewManifests: PreviewManifestApiService,
   ) {}
 
   @Post()
@@ -841,6 +846,24 @@ class ProjectsController {
     return this.sceneAudio.status({
       ...assertAuthorizedProject(request, projectId),
       sceneId: identifierSchema.parse(sceneId),
+    });
+  }
+
+  @Get(":projectId/preview-manifest")
+  public async previewManifest(
+    @Param("projectId") projectId: string,
+    @Query("quality") quality: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    if (quality !== undefined && quality !== "standard" && quality !== "low")
+      throw new PublicError(
+        "validation_failed",
+        "Preview quality must be standard or low.",
+        400,
+      );
+    return this.previewManifests.get({
+      ...assertAuthorizedProject(request, projectId),
+      ...(quality === undefined ? {} : { quality }),
     });
   }
 
@@ -2217,6 +2240,7 @@ function createAppModule(
   lessonVersionsService: LessonVersionsApiService,
   voiceConfigurationService: VoiceConfigurationApiService,
   sceneAudioService: SceneAudioApiService,
+  previewManifestService: PreviewManifestApiService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -2264,6 +2288,7 @@ function createAppModule(
         useValue: voiceConfigurationService,
       },
       { provide: SCENE_AUDIO_SERVICE, useValue: sceneAudioService },
+      { provide: PREVIEW_MANIFEST_SERVICE, useValue: previewManifestService },
     ],
   };
 }
@@ -2296,6 +2321,7 @@ export type CreateAppOptions = {
   lessonVersionsService?: LessonVersionsApiService;
   voiceConfigurationService?: VoiceConfigurationApiService;
   sceneAudioService?: SceneAudioApiService;
+  previewManifestService?: PreviewManifestApiService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -3139,6 +3165,12 @@ const unavailableSceneAudioService: SceneAudioApiService = {
       ),
     ),
 };
+const unavailablePreviewManifestService: PreviewManifestApiService = {
+  get: () =>
+    Promise.reject(
+      new PublicError("internal_error", "Preview is unavailable.", 503, true),
+    ),
+};
 
 export async function createApp(
   options: CreateAppOptions = {},
@@ -3177,6 +3209,7 @@ export async function createApp(
       options.lessonVersionsService ?? unavailableLessonVersionsService,
       options.voiceConfigurationService ?? unavailableVoiceConfigurationService,
       options.sceneAudioService ?? unavailableSceneAudioService,
+      options.previewManifestService ?? unavailablePreviewManifestService,
     ),
     new FastifyAdapter({
       logger: {

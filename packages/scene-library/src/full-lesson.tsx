@@ -1,20 +1,33 @@
 "use client";
 
 import { Player, type PlayerRef } from "@remotion/player";
-import { interpolate, Sequence, useCurrentFrame } from "remotion";
+import { Audio, interpolate, Sequence, useCurrentFrame } from "remotion";
 import { useEffect, useRef, useState, type JSX } from "react";
 import { z } from "zod";
-import { lessonSpecSchema, type LessonSpec } from "@avlp/schemas";
+import { sceneSpecSchema, type LessonSpec } from "@avlp/schemas";
 import { videoTheme } from "@avlp/design-system/video-theme";
-import { SceneRenderRuntime } from "./scene-registry.js";
+import {
+  ScenePreviewRuntime,
+  SceneRenderRuntime,
+  type ResolvedSceneAsset,
+} from "./scene-registry.js";
 import { secondsToFrames } from "./timing.js";
 
-export const narrationTrackSchema = z
-  .object({
-    kind: z.literal("deterministic-silence"),
-    sceneId: z.string().uuid(),
-  })
-  .strict();
+export const narrationTrackSchema = z.discriminatedUnion("kind", [
+  z
+    .object({
+      kind: z.literal("deterministic-silence"),
+      sceneId: z.string().uuid(),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("browser-audio"),
+      sceneId: z.string().uuid(),
+      src: z.string().url(),
+    })
+    .strict(),
+]);
 export type NarrationTrack = z.infer<typeof narrationTrackSchema>;
 
 export const fullLessonCaptionCueSchema = z
@@ -37,8 +50,29 @@ export type FullLessonCaptionCue = z.infer<typeof fullLessonCaptionCueSchema>;
 
 export const fullLessonCompositionPropsSchema = z
   .object({
-    captions: z.array(fullLessonCaptionCueSchema).min(1),
-    lesson: lessonSpecSchema,
+    assets: z
+      .record(
+        z
+          .object({
+            altText: z.string().min(1).max(2_000),
+            assetId: z.string().uuid(),
+            source: z.enum(["library", "source"]),
+            src: z
+              .string()
+              .refine(
+                (value) =>
+                  /^https:\/\/[^\s]+$/i.test(value) ||
+                  /^\/catalog\/[a-z0-9/_-]+\.svg$/i.test(value),
+                "Assets must be signed HTTPS URLs or approved catalog paths.",
+              ),
+          })
+          .strict(),
+      )
+      .default({}),
+    captions: z.array(fullLessonCaptionCueSchema),
+    lesson: z
+      .object({ scenes: z.array(sceneSpecSchema).min(1).max(100) })
+      .passthrough(),
     narrationTracks: z.array(narrationTrackSchema).min(1),
   })
   .strict()
@@ -47,7 +81,6 @@ export const fullLessonCompositionPropsSchema = z
     const segmentsBySceneId = new Map(
       timeline.map((segment) => [segment.sceneId, segment]),
     );
-    const captionedSceneIds = new Set<string>();
     const trackedSceneIds = new Set<string>();
     for (const [index, track] of value.narrationTracks.entries())
       if (!segmentsBySceneId.has(track.sceneId))
@@ -72,22 +105,14 @@ export const fullLessonCompositionPropsSchema = z
           message: "Caption cue must belong to a lesson scene.",
         });
       else if (
-        cue.startFrame !== segment.startFrame ||
-        cue.endFrame !== segment.endFrameExclusive
+        cue.startFrame < segment.startFrame ||
+        cue.endFrame > segment.endFrameExclusive
       )
         context.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["captions", index],
-          message:
-            "Fixture caption timing must match its scene timeline exactly.",
+          message: "Caption timing must remain within its scene timeline.",
         });
-      else if (captionedSceneIds.has(cue.sceneId))
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["captions", index, "sceneId"],
-          message: "Each lesson scene has exactly one caption cue.",
-        });
-      else captionedSceneIds.add(cue.sceneId);
     }
     for (const segment of timeline)
       if (!trackedSceneIds.has(segment.sceneId))
@@ -97,16 +122,23 @@ export const fullLessonCompositionPropsSchema = z
           message:
             "Every lesson scene requires a deterministic narration track.",
         });
-      else if (!captionedSceneIds.has(segment.sceneId))
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: ["captions"],
-          message: "Every lesson scene requires a continuous caption cue.",
-        });
   });
 export type FullLessonCompositionProps = z.infer<
   typeof fullLessonCompositionPropsSchema
 >;
+
+export type PreviewQuality = "low" | "standard";
+
+export function getPreviewCompositionSettings(
+  quality: PreviewQuality,
+): Readonly<{ height: number; scale: number; width: number }> {
+  const scale = quality === "low" ? 0.5 : 1;
+  return Object.freeze({
+    height: Math.round(videoTheme.canvas.height * scale),
+    scale,
+    width: Math.round(videoTheme.canvas.width * scale),
+  });
+}
 
 export type TimelineSegment = Readonly<{
   durationInFrames: number;
@@ -187,9 +219,13 @@ function FullLessonCaptionOverlay({
 }
 
 function TransitionedScene({
+  resolvedAssets,
+  runtimeMode,
   scene,
   durationInFrames,
 }: Readonly<{
+  resolvedAssets: Readonly<Record<string, ResolvedSceneAsset>>;
+  runtimeMode: "preview" | "render";
   scene: LessonSpec["scenes"][number];
   durationInFrames: number;
 }>): JSX.Element {
@@ -226,29 +262,49 @@ function TransitionedScene({
         width: "100%",
       }}
     >
-      <SceneRenderRuntime scene={scene} />
+      {runtimeMode === "render" ? (
+        <SceneRenderRuntime resolvedAssets={resolvedAssets} scene={scene} />
+      ) : (
+        <ScenePreviewRuntime resolvedAssets={resolvedAssets} scene={scene} />
+      )}
     </div>
   );
 }
 
 export function FullLessonComposition({
+  assets,
   captions,
   lesson,
-}: FullLessonCompositionProps): JSX.Element {
+  narrationTracks,
+  onAudioError,
+  runtimeMode = "preview",
+  viewportScale = 1,
+}: FullLessonCompositionProps &
+  Readonly<{
+    onAudioError?: () => void;
+    runtimeMode?: "preview" | "render";
+    viewportScale?: number;
+  }>): JSX.Element {
   const timeline = calculateLessonTimeline(lesson);
+  const narrationBySceneId = new Map(
+    narrationTracks.map((track) => [track.sceneId, track]),
+  );
   return (
     <main
       data-testid="full-lesson-composition"
       style={{
         background: videoTheme.colors.background,
-        height: "100%",
+        height: `${100 / viewportScale}%`,
         overflow: "hidden",
         position: "relative",
-        width: "100%",
+        transform: `scale(${viewportScale})`,
+        transformOrigin: "top left",
+        width: `${100 / viewportScale}%`,
       }}
     >
       {timeline.map((segment) => {
         const scene = lesson.scenes.find((item) => item.id === segment.sceneId);
+        const narration = narrationBySceneId.get(segment.sceneId);
         if (scene === undefined) return null;
         return (
           <Sequence
@@ -258,8 +314,13 @@ export function FullLessonComposition({
           >
             <TransitionedScene
               durationInFrames={segment.durationInFrames}
+              resolvedAssets={assets}
+              runtimeMode={runtimeMode}
               scene={scene}
             />
+            {narration?.kind === "browser-audio" ? (
+              <Audio onError={onAudioError} src={narration.src} />
+            ) : null}
           </Sequence>
         );
       })}
@@ -270,11 +331,29 @@ export function FullLessonComposition({
 
 export function FullLessonPreviewPlayer({
   input,
-}: Readonly<{ input: unknown }>): JSX.Element {
+  onMediaError,
+  quality = "standard",
+}: Readonly<{
+  input: unknown;
+  onMediaError?: () => void;
+  quality?: PreviewQuality;
+}>): JSX.Element {
   const parsed = fullLessonCompositionPropsSchema.safeParse(input);
   const playerRef = useRef<PlayerRef>(null);
   const [frame, setFrame] = useState(0);
-  useEffect(() => setFrame(0), [input]);
+  const [playbackError, setPlaybackError] = useState<string>();
+  useEffect(() => {
+    setFrame(0);
+    setPlaybackError(undefined);
+  }, [input]);
+  useEffect(() => {
+    const player = playerRef.current;
+    if (player === null) return;
+    const updateFrame = (event: { detail: { frame: number } }): void =>
+      setFrame(event.detail.frame);
+    player.addEventListener("frameupdate", updateFrame);
+    return () => player.removeEventListener("frameupdate", updateFrame);
+  }, [parsed.success]);
   if (!parsed.success)
     return (
       <section role="alert">
@@ -284,6 +363,7 @@ export function FullLessonPreviewPlayer({
     );
   const timeline = calculateLessonTimeline(parsed.data.lesson);
   const durationInFrames = getLessonDurationInFrames(parsed.data.lesson);
+  const previewSettings = getPreviewCompositionSettings(quality);
   const active = getTimelineSegmentAtFrame(timeline, frame);
   const seek = (nextFrame: number): void => {
     const safeFrame = Math.min(
@@ -299,6 +379,9 @@ export function FullLessonPreviewPlayer({
         Full lesson frame: {frame}; scene:{" "}
         {active === undefined ? "complete" : active.sceneId}
       </p>
+      {playbackError === undefined ? null : (
+        <p role="alert">{playbackError}</p>
+      )}
       <div aria-label="Full lesson controls">
         <button onClick={() => playerRef.current?.play()} type="button">
           Play lesson
@@ -332,12 +415,31 @@ export function FullLessonPreviewPlayer({
       <Player
         acknowledgeRemotionLicense
         component={FullLessonComposition}
-        compositionHeight={videoTheme.canvas.height}
-        compositionWidth={videoTheme.canvas.width}
+        compositionHeight={previewSettings.height}
+        compositionWidth={previewSettings.width}
         controls
         durationInFrames={durationInFrames}
+        errorFallback={({ error }) => (
+          <section role="alert">
+            <h1>Full lesson preview unavailable</h1>
+            <p>{error.message}</p>
+            <p>
+              Refresh preview media or return to the storyboard to correct the
+              affected scene.
+            </p>
+          </section>
+        )}
         fps={videoTheme.canvas.fps}
-        inputProps={parsed.data}
+        inputProps={{
+          ...parsed.data,
+          onAudioError: () => {
+            setPlaybackError(
+              "Preview audio could not be played. Renewing preview media.",
+            );
+            onMediaError?.();
+          },
+          viewportScale: previewSettings.scale,
+        }}
         ref={playerRef}
         style={{ width: "100%" }}
       />
