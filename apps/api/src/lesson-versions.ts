@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { createId, PublicError, serializeUtcTimestamp, type Identifier } from "@avlp/config";
-import { groundingChecks, learningObjectiveSets, learningObjectives, lessonConfigurations, lessonOutlineItems, lessonOutlineSets, lessonSpecs, lessonVersions, narrationBlocks, narrationSets, projects, scenes, sourceSnapshots, type DatabaseClient, type DatabaseExecutor } from "@avlp/database";
+import { groundingChecks, learningObjectiveSets, learningObjectives, lessonConfigurations, lessonOutlineItems, lessonOutlineSets, lessonSpecs, lessonVersions, narrationBlocks, narrationSets, projects, scenes, sourceSnapshots, voiceConfigurations, type DatabaseClient, type DatabaseExecutor } from "@avlp/database";
 import { lessonSpecSchema, lessonStoryboardSchema, lessonVersionCreateSchema, lessonVersionDetailSchema, lessonVersionRestoreSchema, lessonVersionsResponseSchema, type LessonVersionDetail, type LessonVersionsResponse } from "@avlp/schemas";
 import { PostgresAuditWriter } from "@avlp/observability";
 import { and, desc, eq, sql } from "drizzle-orm";
@@ -109,14 +109,15 @@ export function restoredStoryboardDraft(snapshot: unknown, lessonId: Identifier,
 
 async function loadState(db: DatabaseExecutor, scope: Scope) {
   const [configuration] = await db.select().from(lessonConfigurations).where(and(eq(lessonConfigurations.ownerUserId, scope.ownerUserId), eq(lessonConfigurations.projectId, scope.projectId))).limit(1);
+  const [voiceConfiguration] = await db.select().from(voiceConfigurations).where(and(eq(voiceConfigurations.ownerUserId, scope.ownerUserId), eq(voiceConfigurations.projectId, scope.projectId))).limit(1);
   const objectives = await approvedObjectives(db, scope); const outline = await approvedOutline(db, scope); const narration = await approvedNarration(db, scope); const storyboard = await workingStoryboard(db, scope);
-  if (!configuration || !objectives || !outline || !narration || !storyboard) return { configuration, objectives, outline, narration, storyboard, source: undefined, objectiveItems: [], outlineItems: [], blocks: [], groundingCheckId: null };
+  if (!configuration || !objectives || !outline || !narration || !storyboard) return { configuration, voiceConfiguration, objectives, outline, narration, storyboard, source: undefined, objectiveItems: [], outlineItems: [], blocks: [], groundingCheckId: null };
   const [source] = await db.select().from(sourceSnapshots).where(and(eq(sourceSnapshots.id, objectives.sourceSnapshotId), eq(sourceSnapshots.ownerUserId, scope.ownerUserId), eq(sourceSnapshots.projectId, scope.projectId))).limit(1);
   const objectiveItems = await db.select().from(learningObjectives).where(and(eq(learningObjectives.setId, objectives.id), eq(learningObjectives.ownerUserId, scope.ownerUserId), eq(learningObjectives.projectId, scope.projectId))).orderBy(learningObjectives.order);
   const outlineItems = await db.select().from(lessonOutlineItems).where(and(eq(lessonOutlineItems.setId, outline.id), eq(lessonOutlineItems.ownerUserId, scope.ownerUserId), eq(lessonOutlineItems.projectId, scope.projectId))).orderBy(lessonOutlineItems.order);
   const blocks = await db.select().from(narrationBlocks).where(and(eq(narrationBlocks.setId, narration.id), eq(narrationBlocks.ownerUserId, scope.ownerUserId), eq(narrationBlocks.projectId, scope.projectId))).orderBy(narrationBlocks.order);
   const [check] = await db.select({ id: groundingChecks.id }).from(groundingChecks).where(and(eq(groundingChecks.ownerUserId, scope.ownerUserId), eq(groundingChecks.projectId, scope.projectId), eq(groundingChecks.lessonSpecId, storyboard.id), eq(groundingChecks.lessonSpecContentHash, storyboard.contentHash))).orderBy(desc(groundingChecks.createdAt)).limit(1);
-  return { configuration, objectives, outline, narration, storyboard, source, objectiveItems, outlineItems, blocks, groundingCheckId: (check?.id as Identifier | undefined) ?? null };
+  return { configuration, voiceConfiguration, objectives, outline, narration, storyboard, source, objectiveItems, outlineItems, blocks, groundingCheckId: (check?.id as Identifier | undefined) ?? null };
 }
 async function approvedObjectives(db: DatabaseExecutor, scope: Scope) { return (await db.select().from(learningObjectiveSets).where(and(eq(learningObjectiveSets.ownerUserId, scope.ownerUserId), eq(learningObjectiveSets.projectId, scope.projectId), eq(learningObjectiveSets.status, "approved"))).orderBy(desc(learningObjectiveSets.generatedAt)).limit(1))[0]; }
 async function approvedOutline(db: DatabaseExecutor, scope: Scope) { return (await db.select().from(lessonOutlineSets).where(and(eq(lessonOutlineSets.ownerUserId, scope.ownerUserId), eq(lessonOutlineSets.projectId, scope.projectId), eq(lessonOutlineSets.status, "approved"))).orderBy(desc(lessonOutlineSets.generatedAt)).limit(1))[0]; }
@@ -133,6 +134,7 @@ export function buildLessonVersionSnapshot(
   return JSON.parse(JSON.stringify({
     schemaVersion: "lesson-version-v1",
     configuration: state.configuration,
+    voiceConfiguration: state.voiceConfiguration,
     objectives: { set: state.objectives, items: state.objectiveItems },
     outline: { set: state.outline, items: state.outlineItems },
     narration: { set: state.narration, blocks: state.blocks },
@@ -144,6 +146,6 @@ export function buildLessonVersionSnapshot(
     versions: { lessonSpec: "1.8", sceneLibrary: "mvp-v1", prompts: { storyboard: state.storyboard.promptVersion, narration: state.narration.promptVersion } },
   })) as unknown;
 }
-function portableLessonSpec(state: Awaited<ReturnType<typeof loadState>>) { const value = state as typeof state & { configuration: NonNullable<typeof state.configuration>; storyboard: NonNullable<typeof state.storyboard> }; const parsed = lessonSpecSchema.safeParse({ schemaVersion: "1.8", lessonId: value.storyboard.id, projectId: value.storyboard.projectId, title: value.storyboard.title, subject: value.storyboard.subject, audience: { ageBand: value.configuration.ageBand, difficulty: value.configuration.difficulty, priorKnowledge: [] }, targetDurationSeconds: value.configuration.targetDurationSeconds, tone: value.configuration.tone, themeId: value.configuration.visualTheme, objectiveIds: value.storyboard.objectiveIds, voice: { providerVoiceId: "mvp-default", speakingRate: 1 }, scenes: (value.storyboard.payload as { scenes: Array<{ scene: unknown }> }).scenes.map((scene) => scene.scene) }); if (!parsed.success) throw new PublicError("bad_request", "The storyboard must be complete and grounded before saving a version.", 409); return parsed.data; }
+function portableLessonSpec(state: Awaited<ReturnType<typeof loadState>>) { const value = state as typeof state & { configuration: NonNullable<typeof state.configuration>; storyboard: NonNullable<typeof state.storyboard> }; const parsed = lessonSpecSchema.safeParse({ schemaVersion: "1.8", lessonId: value.storyboard.id, projectId: value.storyboard.projectId, title: value.storyboard.title, subject: value.storyboard.subject, audience: { ageBand: value.configuration.ageBand, difficulty: value.configuration.difficulty, priorKnowledge: [] }, targetDurationSeconds: value.configuration.targetDurationSeconds, tone: value.configuration.tone, themeId: value.configuration.visualTheme, objectiveIds: value.storyboard.objectiveIds, voice: { providerVoiceId: state.voiceConfiguration?.voiceId ?? "mvp-default", speakingRate: state.voiceConfiguration?.speakingRate ?? 1 }, scenes: (value.storyboard.payload as { scenes: Array<{ scene: unknown }> }).scenes.map((scene) => scene.scene) }); if (!parsed.success) throw new PublicError("bad_request", "The storyboard must be complete and grounded before saving a version.", 409); return parsed.data; }
 function hashableSnapshot(snapshot: unknown): unknown { const value = snapshot as { citations: { lessonVersionId: unknown; createdAt: unknown } }; return { ...value, citations: { ...value.citations, lessonVersionId: undefined, createdAt: undefined } }; }
 function parse<T>(schema: z.ZodType<T>, input: unknown): T { const parsed = schema.safeParse(input); if (!parsed.success) throw new PublicError("validation_failed", "Request validation failed.", 400); return parsed.data; }

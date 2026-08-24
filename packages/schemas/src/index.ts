@@ -3166,6 +3166,66 @@ export const lessonVersionDetailSchema = lessonVersionSummarySchema.extend({
   renderAssociationCount: z.number().int().nonnegative(),
 }).strict();
 export type LessonVersionDetail = z.infer<typeof lessonVersionDetailSchema>;
+
+/** A deliberately small, application-owned allowlist. Provider identifiers never
+ * cross the API boundary; the adapter resolves them only when synthesis begins. */
+export const voiceCatalogEntrySchema = z
+  .object({
+    id: z.enum(["english-aria", "english-james", "english-luna"]),
+    displayName: z.string().min(1).max(80),
+    description: z.string().min(1).max(200),
+    language: z.literal("en-US"),
+    previewUrl: z.string().url(),
+  })
+  .strict();
+export type VoiceCatalogEntry = z.infer<typeof voiceCatalogEntrySchema>;
+
+export const pronunciationOverrideSchema = z
+  .object({
+    phrase: z.string().trim().min(1).max(80),
+    replacement: z.string().trim().min(1).max(120),
+  })
+  .strict();
+export type PronunciationOverride = z.infer<typeof pronunciationOverrideSchema>;
+
+export const voiceConfigurationSchema = z
+  .object({
+    version: z.number().int().min(1),
+    voiceId: voiceCatalogEntrySchema.shape.id,
+    speakingRate: z.number().min(0.75).max(1.25),
+    pronunciationOverrides: z.array(pronunciationOverrideSchema).max(20),
+    updatedAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type VoiceConfiguration = z.infer<typeof voiceConfigurationSchema>;
+
+export const voiceConfigurationInputSchema = z
+  .object({
+    expectedVersion: z.number().int().min(0),
+    voiceId: voiceCatalogEntrySchema.shape.id,
+    speakingRate: z.number().min(0.75).max(1.25),
+    pronunciationOverrides: z.array(pronunciationOverrideSchema).max(20),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const normalized = new Set<string>();
+    value.pronunciationOverrides.forEach((entry, index) => {
+      const key = entry.phrase.toLocaleLowerCase("en-US");
+      if (normalized.has(key))
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["pronunciationOverrides", index, "phrase"],
+          message: "Each pronunciation phrase may be configured only once.",
+        });
+      normalized.add(key);
+    });
+  });
+export type VoiceConfigurationInput = z.infer<typeof voiceConfigurationInputSchema>;
+
+export const voiceConfigurationResponseSchema = z
+  .object({ configuration: voiceConfigurationSchema.nullable() })
+  .strict();
+export type VoiceConfigurationResponse = z.infer<typeof voiceConfigurationResponseSchema>;
 export const lessonVersionsResponseSchema = z.object({
   versions: z.array(lessonVersionSummarySchema),
   latestModifiedAt: z.string().datetime({ offset: true }).nullable(),

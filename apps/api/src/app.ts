@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import { Buffer } from "node:buffer";
 import fastifyCookie from "@fastify/cookie";
 import fastifyCors from "@fastify/cors";
 import {
@@ -74,6 +75,7 @@ import type { StoryboardService } from "./storyboard.js";
 import type { CitationService } from "./citations.js";
 import type { GroundingService } from "./grounding.js";
 import type { LessonVersionsService } from "./lesson-versions.js";
+import { approvedVoiceCatalog, approvedVoicePreview, type VoiceConfigurationService } from "./voice-configuration.js";
 import { searchApprovedAssets } from "./approved-assets.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
@@ -105,6 +107,7 @@ const STORYBOARD_SERVICE = Symbol("STORYBOARD_SERVICE");
 const CITATION_SERVICE = Symbol("CITATION_SERVICE");
 const GROUNDING_SERVICE = Symbol("GROUNDING_SERVICE");
 const LESSON_VERSIONS_SERVICE = Symbol("LESSON_VERSIONS_SERVICE");
+const VOICE_CONFIGURATION_SERVICE = Symbol("VOICE_CONFIGURATION_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -353,6 +356,7 @@ type StoryboardApiService = Pick<
 type CitationApiService = Pick<CitationService, "forScene">;
 type GroundingApiService = Pick<GroundingService, "check" | "current">;
 type LessonVersionsApiService = Pick<LessonVersionsService, "create" | "list" | "detail" | "restore">;
+type VoiceConfigurationApiService = Pick<VoiceConfigurationService, "get" | "save">;
 
 function approvedAssetCatalogFilters(input: {
   query: unknown;
@@ -388,6 +392,27 @@ class AssetsController {
     return searchApprovedAssets(
       approvedAssetCatalogFilters({ query, tags, template, slot }),
     );
+  }
+}
+
+@Controller("voices")
+class VoicesController {
+  public constructor(@Inject(AUTH_GATEWAY) private readonly auth: AuthGateway) {}
+  @Get()
+  public async list(@Req() request: RequestWithAuth): Promise<unknown> {
+    await this.requireUser(request);
+    return { voices: approvedVoiceCatalog(`${request.protocol}://${request.hostname}`) };
+  }
+  @Get(":voiceId/preview")
+  public async preview(@Param("voiceId") voiceId: string, @Req() request: RequestWithAuth, @Res() reply: FastifyReply): Promise<void> {
+    await this.requireUser(request);
+    const audio = approvedVoicePreview(voiceId);
+    if (audio === undefined) throw new PublicError("not_found", "The requested voice was not found.", 404);
+    reply.header("cache-control", "private, max-age=86400").header("content-type", audio.contentType).send(Buffer.from(audio.bytes));
+  }
+  private async requireUser(request: RequestWithAuth): Promise<void> {
+    const token = request.cookies[sessionCookieName];
+    if (token === undefined || (await this.auth.currentSession(token)) === null) throw new PublicError("unauthorized", "Authentication is required.", 401);
   }
 }
 
@@ -431,6 +456,8 @@ class ProjectsController {
     private readonly grounding: GroundingApiService,
     @Inject(LESSON_VERSIONS_SERVICE)
     private readonly lessonVersions: LessonVersionsApiService,
+    @Inject(VOICE_CONFIGURATION_SERVICE)
+    private readonly voiceConfiguration: VoiceConfigurationApiService,
   ) {}
 
   @Post()
@@ -727,6 +754,27 @@ class ProjectsController {
       body: input,
       correlationId:
         request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Get(":projectId/voice-configuration")
+  public async getVoiceConfiguration(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    return this.voiceConfiguration.get(assertAuthorizedProject(request, projectId));
+  }
+
+  @Put(":projectId/voice-configuration")
+  public async saveVoiceConfiguration(
+    @Param("projectId") projectId: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.voiceConfiguration.save({
+      ...assertAuthorizedProject(request, projectId), body: input,
+      correlationId: request.correlationId ?? "00000000-0000-7000-8000-000000000000",
     });
   }
 
@@ -2044,6 +2092,7 @@ class DatabaseShutdown implements OnApplicationShutdown {
     HealthController,
     AuthController,
     AssetsController,
+    VoicesController,
     ProjectsController,
   ],
   providers: [HealthService, DatabaseShutdown],
@@ -2079,6 +2128,7 @@ function createAppModule(
   citationService: CitationApiService,
   groundingService: GroundingApiService,
   lessonVersionsService: LessonVersionsApiService,
+  voiceConfigurationService: VoiceConfigurationApiService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -2121,6 +2171,7 @@ function createAppModule(
       { provide: CITATION_SERVICE, useValue: citationService },
       { provide: GROUNDING_SERVICE, useValue: groundingService },
       { provide: LESSON_VERSIONS_SERVICE, useValue: lessonVersionsService },
+      { provide: VOICE_CONFIGURATION_SERVICE, useValue: voiceConfigurationService },
     ],
   };
 }
@@ -2151,6 +2202,7 @@ export type CreateAppOptions = {
   citationService?: CitationApiService;
   groundingService?: GroundingApiService;
   lessonVersionsService?: LessonVersionsApiService;
+  voiceConfigurationService?: VoiceConfigurationApiService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -2922,6 +2974,10 @@ const unavailableLessonVersionsService: LessonVersionsApiService = {
   detail: () => Promise.reject(new PublicError("internal_error", "Lesson versioning is unavailable.", 503, true)),
   restore: () => Promise.reject(new PublicError("internal_error", "Lesson versioning is unavailable.", 503, true)),
 };
+const unavailableVoiceConfigurationService: VoiceConfigurationApiService = {
+  get: () => Promise.reject(new PublicError("internal_error", "Voice configuration is unavailable.", 503, true)),
+  save: () => Promise.reject(new PublicError("internal_error", "Voice configuration is unavailable.", 503, true)),
+};
 
 export async function createApp(
   options: CreateAppOptions = {},
@@ -2958,6 +3014,7 @@ export async function createApp(
       options.citationService ?? unavailableCitationService,
       options.groundingService ?? unavailableGroundingService,
       options.lessonVersionsService ?? unavailableLessonVersionsService,
+      options.voiceConfigurationService ?? unavailableVoiceConfigurationService,
     ),
     new FastifyAdapter({
       logger: {

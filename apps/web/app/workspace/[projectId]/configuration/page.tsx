@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { LessonConfigurationForm } from "./lesson-configuration-form";
+import { VoiceConfigurationForm } from "./voice-configuration-form";
 
 type ProjectPayload = { project: { id: string; title: string } };
 
@@ -40,6 +41,7 @@ export default async function LessonConfigurationPage({
       <h1>Configure the lesson</h1>
       <p>{payload.project.title}</p>
       <LessonConfigurationForm projectId={projectId} />
+      <VoiceConfigurationForm projectId={projectId} />
       <a href="/workspace">Back to workspace</a>
     </main>
   );

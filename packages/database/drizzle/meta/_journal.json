@@ -344,6 +344,13 @@
       "when": 1787524985475,
       "tag": "0048_hesitant_alex_wilder",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1787526000000,
+      "tag": "0049_voice_configuration",
+      "breakpoints": true
     }
   ]
 }
