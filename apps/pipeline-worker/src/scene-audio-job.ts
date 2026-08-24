@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { createId, type Identifier } from "@avlp/config";
 import {
+  captionCues,
+  captionTracks,
   pronunciationEntries,
   sceneAudio,
   scenes,
@@ -16,6 +18,11 @@ import {
 import { sceneAudioGenerationJobPayloadSchema } from "@avlp/schemas";
 import { storageKeys, type ObjectStorage } from "@avlp/storage";
 import { and, eq, or } from "drizzle-orm";
+import {
+  alignSentences,
+  captionContentHash,
+  segmentCaptions,
+} from "./captions.js";
 
 export const sceneAudioGenerationJobType = "tts.generate";
 export type SceneAudioSynthesis = {
@@ -30,6 +37,11 @@ export interface SceneAudioTtsProvider {
   readonly outputFormat: "mp3" | "wav";
   readonly contentType: "audio/mpeg" | "audio/wav";
   synthesize(input: { narration: string; speakingRate: number }): SceneAudioSynthesis;
+}
+/** Forced alignment is isolated behind an application-owned boundary so
+ * production providers can align narration against the generated waveform. */
+export interface SceneAudioAlignmentProvider {
+  align(input: { audio: Uint8Array; narration: string; durationMs: number }): Array<{ startMs: number; endMs: number; text: string }>;
 }
 const digest = (value: unknown) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -110,10 +122,12 @@ export function createSceneAudioGenerationJobHandler(input: {
   database: DatabaseClient;
   storage: Pick<ObjectStorage, "putBytes">;
   provider?: SceneAudioTtsProvider;
+  alignmentProvider?: SceneAudioAlignmentProvider;
   now?: () => Date;
 }): RegisteredJobHandler {
   const now = input.now ?? (() => new Date());
   const provider = input.provider ?? fixtureSceneAudioTtsProvider;
+  const alignmentProvider = input.alignmentProvider;
   return defineJobHandler(
     sceneAudioGenerationJobType,
     1,
@@ -300,6 +314,19 @@ export function createSceneAudioGenerationJobHandler(input: {
           .where(eq(sceneAudio.id, audio.id))
           .limit(1);
         if (current?.status !== "ready") return { status: "stale" };
+        await persistCaptions({
+          database: input.database,
+          ownerUserId: context.ownerUserId,
+          projectId: context.projectId,
+          sceneAudioId: audio.id,
+          narrationHash: payload.narrationHash,
+          audioContentHash: audio.contentHash!,
+          timing: output.timing.length > 0
+            ? alignSentences({ narration, durationMs: output.durationMs, timing: output.timing })
+            : alignWithoutProvider(alignmentProvider, output.bytes, narration, output.durationMs),
+          durationMs: output.durationMs,
+          now,
+        });
         return {
           status: "ready",
           durationMs: output.durationMs,
@@ -350,6 +377,90 @@ export function createSceneAudioGenerationJobHandler(input: {
       }
     },
   );
+}
+
+function alignWithoutProvider(
+  provider: SceneAudioAlignmentProvider | undefined,
+  audio: Uint8Array,
+  narration: string,
+  durationMs: number,
+): Array<{ startMs: number; endMs: number; text: string }> {
+  if (provider === undefined)
+    throw new JobExecutionError(
+      "terminal",
+      "FORCED_ALIGNMENT_UNAVAILABLE",
+      "The TTS provider returned no timestamps and no forced-alignment provider is configured.",
+    );
+  return alignSentences({ narration, durationMs, timing: provider.align({ audio, narration, durationMs }) });
+}
+
+async function persistCaptions(input: {
+  database: DatabaseClient;
+  ownerUserId: string;
+  projectId: string;
+  sceneAudioId: string;
+  narrationHash: string;
+  audioContentHash: string;
+  timing: readonly { startMs: number; endMs: number; text: string }[];
+  durationMs: number;
+  now: () => Date;
+}): Promise<void> {
+  const contentHash = captionContentHash({
+    narrationHash: input.narrationHash,
+    audioContentHash: input.audioContentHash,
+  });
+  await input.database.transaction(async (tx) => {
+    await tx
+      .insert(captionTracks)
+      .values({
+        id: createId(input.now()),
+        ownerUserId: input.ownerUserId,
+        projectId: input.projectId,
+        sceneAudioId: input.sceneAudioId,
+        contentHash,
+        language: "en",
+        status: "ready",
+        createdAt: input.now(),
+        updatedAt: input.now(),
+      })
+      .onConflictDoNothing();
+    const [track] = await tx
+      .select({ id: captionTracks.id })
+      .from(captionTracks)
+      .where(
+        and(
+          eq(captionTracks.sceneAudioId, input.sceneAudioId),
+          eq(captionTracks.contentHash, contentHash),
+          eq(captionTracks.ownerUserId, input.ownerUserId),
+          eq(captionTracks.projectId, input.projectId),
+        ),
+      )
+      .limit(1);
+    if (track === undefined) return;
+    await tx
+      .update(captionTracks)
+      .set({ status: "ready", updatedAt: input.now() })
+      .where(eq(captionTracks.id, track.id));
+    const cues = segmentCaptions(input.timing, input.durationMs);
+    if (cues.length === 0) return;
+    await tx
+      .insert(captionCues)
+      .values(
+        cues.map((cue, position) => ({
+          id: createId(new Date(input.now().getTime() + position + 1)),
+          ownerUserId: input.ownerUserId,
+          projectId: input.projectId,
+          trackId: track.id,
+          position,
+          startMs: cue.startMs,
+          endMs: cue.endMs,
+          text: cue.text,
+          words: null,
+          createdAt: input.now(),
+        })),
+      )
+      .onConflictDoNothing();
+  });
 }
 function sceneAudioId(id: string): Identifier {
   return id as Identifier;

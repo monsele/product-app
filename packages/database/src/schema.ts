@@ -2009,15 +2009,50 @@ export const captionTracks = pgTable(
       .notNull()
       .references(() => sceneAudio.id, { onDelete: "cascade" }),
     status: sceneAudioStatus("status").notNull().default("stale"),
+    contentHash: text("content_hash").notNull(),
+    language: text("language").notNull().default("en"),
     createdAt: utcTimestamp("created_at").notNull(),
     updatedAt: utcTimestamp("updated_at").notNull(),
   },
   (table) => [
+    uniqueIndex("caption_tracks_audio_content_hash_unique").on(
+      table.sceneAudioId,
+      table.contentHash,
+    ),
     index("caption_tracks_owner_project_status_idx").on(
       table.ownerUserId,
       table.projectId,
       table.status,
     ),
     index("caption_tracks_audio_idx").on(table.sceneAudioId),
+  ],
+);
+
+/** Immutable, ordered timed text derived only from the scene's approved narration. */
+export const captionCues = pgTable(
+  "caption_cues",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    trackId: uuid("track_id")
+      .notNull()
+      .references(() => captionTracks.id, { onDelete: "cascade" }),
+    position: integer("position").notNull(),
+    startMs: integer("start_ms").notNull(),
+    endMs: integer("end_ms").notNull(),
+    text: text("text").notNull(),
+    words: jsonb("words"),
+    createdAt: utcTimestamp("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("caption_cues_track_position_unique").on(
+      table.trackId,
+      table.position,
+    ),
+    index("caption_cues_owner_project_track_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.trackId,
+    ),
   ],
 );

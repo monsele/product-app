@@ -53,10 +53,12 @@ export function SceneAudioPanel({
   projectId,
   sceneId,
   disabled,
+  onStatusChange,
 }: {
   projectId: string;
   sceneId: string;
   disabled: boolean;
+  onStatusChange?: (audio: SceneAudioStatusResponse) => void;
 }): JSX.Element {
   const [audio, setAudio] = useState<SceneAudioStatusResponse | null>(null);
   const [busy, setBusy] = useState(false);
@@ -70,7 +72,8 @@ export function SceneAudioPanel({
     const payload: unknown = await response.json().catch(() => null);
     if (!response.ok) throw new Error(errorMessage(payload));
     setAudio(payload as SceneAudioStatusResponse);
-  }, [base]);
+    onStatusChange?.(payload as SceneAudioStatusResponse);
+  }, [base, onStatusChange]);
   useEffect(() => {
     void refresh().catch((error: unknown) =>
       setMessage(
@@ -104,6 +107,7 @@ export function SceneAudioPanel({
       const payload: unknown = await response.json().catch(() => null);
       if (!response.ok) throw new Error(errorMessage(payload));
       setAudio(payload as SceneAudioStatusResponse);
+      onStatusChange?.(payload as SceneAudioStatusResponse);
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -113,7 +117,7 @@ export function SceneAudioPanel({
     } finally {
       setBusy(false);
     }
-  }, [base]);
+  }, [base, onStatusChange]);
   const retry = audio?.retryable === true;
   return (
     <section

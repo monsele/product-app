@@ -57,11 +57,15 @@ describe("canPreviewScene", () => {
 
 describe("buildScenePreviewInput", () => {
   it("uses the authoritative scene spec with an empty manifest", () => {
-    const input = buildScenePreviewInput(detailWithBindings([]));
+    const input = buildScenePreviewInput(detailWithBindings([]), [
+      { startMs: 1_000, endMs: 2_500, text: "Water evaporates." },
+    ]);
     expect(input.scene.narration).toBe("Water evaporates when heated.");
     expect(input.manifest.assets).toEqual({});
     expect(input.manifest.audio).toBeUndefined();
-    expect(input.captions).toEqual([]);
+    expect(input.captions).toEqual([
+      { startFrame: 30, endFrame: 75, text: "Water evaporates." },
+    ]);
     expect(input.transitionContext).toBeUndefined();
   });
 });

@@ -3280,6 +3280,20 @@ export const sceneAudioStatusResponseSchema = z
     jobId: identifierSchema.nullable(),
     durationMs: z.number().int().positive().nullable(),
     fitWarning: z.string().nullable(),
+    captions: z
+      .array(
+        z
+          .object({
+            startMs: z.number().int().nonnegative(),
+            endMs: z.number().int().positive(),
+            text: boundedText(1_000),
+          })
+          .strict()
+          .refine((cue) => cue.endMs > cue.startMs, {
+            message: "Caption endMs must be after startMs.",
+          }),
+      )
+      .max(1_000),
     retryable: z.boolean(),
   })
   .strict();

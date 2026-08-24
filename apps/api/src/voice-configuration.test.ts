@@ -107,6 +107,7 @@ describe("voice configuration API", () => {
         jobId: fixture.projectId,
         durationMs: null,
         fitWarning: null,
+        captions: [],
         retryable: false,
       }),
       status: async (input) => ({
@@ -115,6 +116,7 @@ describe("voice configuration API", () => {
         jobId: null,
         durationMs: null,
         fitWarning: null,
+        captions: [],
         retryable: true,
       }),
     };

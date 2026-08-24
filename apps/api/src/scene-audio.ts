@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { createId, PublicError, type Identifier } from "@avlp/config";
 import {
+  captionCues,
+  captionTracks,
   jobs,
   outboxEvents,
   pronunciationEntries,
@@ -339,21 +341,42 @@ export class SceneAudioService {
         "The requested resource was not found.",
         404,
       );
-    return row.audio
-      ? response(row.stableSceneId as Identifier, row.audio)
-      : sceneAudioStatusResponseSchema.parse({
-          sceneId: row.stableSceneId,
-          status: "stale",
-          jobId: null,
-          durationMs: null,
-          fitWarning: null,
-          retryable: false,
-        });
+    if (!row.audio)
+      return sceneAudioStatusResponseSchema.parse({
+        sceneId: row.stableSceneId,
+        status: "stale",
+        jobId: null,
+        durationMs: null,
+        fitWarning: null,
+        captions: [],
+        retryable: false,
+      });
+    const cues = await this.database
+      .select({
+        startMs: captionCues.startMs,
+        endMs: captionCues.endMs,
+        text: captionCues.text,
+      })
+      .from(captionTracks)
+      .innerJoin(captionCues, eq(captionCues.trackId, captionTracks.id))
+      .where(
+        and(
+          eq(captionTracks.sceneAudioId, row.audio.id),
+          eq(captionTracks.ownerUserId, input.ownerUserId),
+          eq(captionTracks.projectId, input.projectId),
+          eq(captionTracks.status, "ready"),
+          eq(captionCues.ownerUserId, input.ownerUserId),
+          eq(captionCues.projectId, input.projectId),
+        ),
+      )
+      .orderBy(captionCues.position);
+    return response(row.stableSceneId as Identifier, row.audio, cues);
   }
 }
 function response(
   sceneId: Identifier,
   row: typeof sceneAudio.$inferSelect,
+  captions: readonly { startMs: number; endMs: number; text: string }[] = [],
 ): SceneAudioStatusResponse {
   return sceneAudioStatusResponseSchema.parse({
     sceneId,
@@ -361,6 +384,7 @@ function response(
     jobId: row.jobId as Identifier | null,
     durationMs: row.durationMs,
     fitWarning: row.fitWarning,
+    captions,
     retryable: row.status === "failed" || row.status === "stale",
   });
 }

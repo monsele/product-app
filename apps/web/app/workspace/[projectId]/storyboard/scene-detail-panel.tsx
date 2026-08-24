@@ -9,6 +9,7 @@ import {
   type SceneRegenerationMode,
   type ProjectAsset,
   type StoryboardSceneDetailResponse,
+  type SceneAudioStatusResponse,
 } from "@avlp/schemas";
 import {
   sceneCandidateStatusLabel,
@@ -83,6 +84,7 @@ export function SceneDetailPanel({
   const [teacherAssets, setTeacherAssets] = useState<readonly ProjectAsset[]>(
     [],
   );
+  const [audio, setAudio] = useState<SceneAudioStatusResponse | null>(null);
   const assetBindingSignature = scene.scene.assetBindings
     .map((binding) => binding.assetId)
     .join(":");
@@ -202,7 +204,10 @@ export function SceneDetailPanel({
     [sceneCandidates, sceneId],
   );
 
-  const previewInput = useMemo(() => buildScenePreviewInput(detail), [detail]);
+  const previewInput = useMemo(
+    () => buildScenePreviewInput(detail, audio?.captions),
+    [audio?.captions, detail],
+  );
   const teacherReplacementPreview = teacherReplacementPreviewForScene(
     detail,
     teacherAssets,
@@ -242,6 +247,7 @@ export function SceneDetailPanel({
         projectId={projectId}
         sceneId={sceneId}
         disabled={pending || generating}
+        onStatusChange={setAudio}
       />
 
       {scene.assetRequirements.length > 0 ? (

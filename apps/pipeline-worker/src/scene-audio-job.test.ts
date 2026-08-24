@@ -82,8 +82,8 @@ function databaseFor(
       }),
     }),
     insert: () => ({
-      values: (value: Record<string, unknown>) => {
-        inserts.push(value);
+      values: (value: Record<string, unknown> | Array<Record<string, unknown>>) => {
+        inserts.push(...(Array.isArray(value) ? value : [value]));
         return { onConflictDoNothing: async () => undefined };
       },
     }),
@@ -164,7 +164,7 @@ describe("scene audio generation job", () => {
       synthesizeFixtureAudio(narration, speakingRate),
     );
     const handler = createSceneAudioGenerationJobHandler({
-      database: databaseFor([[queuedAudio], [scene], [voice], [], [{ status: "ready" }]], updates, inserts),
+      database: databaseFor([[queuedAudio], [scene], [voice], [], [{ status: "ready" }], [{ id: sceneId }]], updates, inserts),
       storage: { putBytes },
       provider: {
         providerId: "fixture-v1",
@@ -181,6 +181,31 @@ describe("scene audio generation job", () => {
     expect(updates).toContainEqual(expect.objectContaining({ status: "generating" }));
     expect(updates).toContainEqual(expect.objectContaining({ status: "ready", contentType: "audio/wav" }));
     expect(inserts).toContainEqual(expect.objectContaining({ operationType: "tts.generation", status: "succeeded" }));
+    expect(inserts).toContainEqual(expect.objectContaining({
+      sceneAudioId: audioId,
+      status: "ready",
+      language: "en",
+    }));
+    expect(inserts).toContainEqual(expect.objectContaining({
+      trackId: sceneId,
+      startMs: 0,
+      text: "Water enters through roots.",
+    }));
+  });
+
+  it("uses the forced-alignment boundary when a provider omits timestamps", async () => {
+    const updates: Array<Record<string, unknown>> = [];
+    const inserts: Array<Record<string, unknown>> = [];
+    const align = vi.fn(() => [{ startMs: 0, endMs: 1_000, text: "Water enters through roots." }]);
+    const handler = createSceneAudioGenerationJobHandler({
+      database: databaseFor([[queuedAudio], [scene], [voice], [], [{ status: "ready" }], [{ id: sceneId }]], updates, inserts),
+      storage: { putBytes: vi.fn() },
+      provider: { providerId: "fixture-v1", outputFormat: "wav", contentType: "audio/wav", synthesize: () => ({ ...synthesizeFixtureAudio("Water enters through roots.", 1), timing: [] }) },
+      alignmentProvider: { align },
+      now,
+    });
+    await expect(execute(handler)).resolves.toMatchObject({ status: "ready" });
+    expect(align).toHaveBeenCalledWith(expect.objectContaining({ narration: "Water enters through roots." }));
   });
 
   it("marks a provider or storage failure retryable and meters the failed attempt", async () => {

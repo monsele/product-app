@@ -10,6 +10,7 @@ import {
   type Identifier,
 } from "@avlp/config";
 import {
+  captionTracks,
   extractedFigures,
   figureInclusionOverlays,
   jobs,
@@ -24,6 +25,7 @@ import {
   projectAssets,
   illustrationGenerationCandidates,
   sceneCandidates,
+  sceneAudio,
   scenes,
   type DatabaseClient,
   type DatabaseExecutor,
@@ -1184,6 +1186,40 @@ export class PostgresStoryboardService implements StoryboardService {
         timestamp,
       );
       const impact = sceneEditInvalidation(current.scene, edited.scene);
+      if (impact.invalidated.includes("captions")) {
+        await transaction
+          .update(sceneAudio)
+          .set({ status: "stale", updatedAt: timestamp })
+          .where(
+            and(
+              eq(sceneAudio.ownerUserId, input.ownerUserId),
+              eq(sceneAudio.projectId, input.projectId),
+              eq(sceneAudio.sceneId, current.id),
+            ),
+          );
+        await transaction
+          .update(captionTracks)
+          .set({ status: "stale", updatedAt: timestamp })
+          .where(
+            and(
+              eq(captionTracks.ownerUserId, input.ownerUserId),
+              eq(captionTracks.projectId, input.projectId),
+              inArray(
+                captionTracks.sceneAudioId,
+                transaction
+                  .select({ id: sceneAudio.id })
+                  .from(sceneAudio)
+                  .where(
+                    and(
+                      eq(sceneAudio.ownerUserId, input.ownerUserId),
+                      eq(sceneAudio.projectId, input.projectId),
+                      eq(sceneAudio.sceneId, current.id),
+                    ),
+                  ),
+              ),
+            ),
+          );
+      }
       await new PostgresAuditWriter(transaction).write({
         ownerUserId: input.ownerUserId,
         projectId: input.projectId,

@@ -1,5 +1,6 @@
 import type { StoryboardSceneDetailResponse } from "@avlp/schemas";
 import type { ScenePreviewInput } from "@avlp/scene-library";
+import { videoTheme } from "@avlp/design-system/video-theme";
 
 /**
  * A scene can only be truthfully previewed when every one of its asset
@@ -22,10 +23,15 @@ export function canPreviewScene(
  */
 export function buildScenePreviewInput(
   detail: StoryboardSceneDetailResponse,
+  captions: readonly { startMs: number; endMs: number; text: string }[] = [],
 ): ScenePreviewInput {
   return {
     scene: detail.scene.scene,
     manifest: { assets: {} },
-    captions: [],
+    captions: captions.map((cue) => ({
+      startFrame: Math.round((cue.startMs / 1_000) * videoTheme.canvas.fps),
+      endFrame: Math.round((cue.endMs / 1_000) * videoTheme.canvas.fps),
+      text: cue.text,
+    })),
   };
 }
