@@ -2,7 +2,7 @@
 story_id: ST-062
 title: "Provide Voice Catalog, Preview, Pronunciation, and Speaking-Rate Configuration"
 phase: "06 \u2014 Audio, Validation, Rendering, and Delivery"
-status: In Review
+status: Done
 priority: must-have
 epics: ["E14"]
 prd_user_stories: ["E14-US1"]
@@ -128,3 +128,4 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 - **Decisions and assumptions:** The three public application IDs are provider-neutral. Preview URLs are authenticated cached API endpoints and do not expose provider IDs, credentials, or storage keys. A voice/rate/pronunciation update marks persisted audio and captions stale but initiates no TTS work or paid-provider call.
 - **Deviations from story/technical guide:** None. The fixture provider is an approved E14 sequencing step; it does not invoke a paid provider or generate scene audio.
 - **Known risks or follow-up:** ST-063 will replace the fixture provider with the configured production TTS adapter and populate the lifecycle tables during scene audio/caption generation.
+- **Review approval:** Approved after the ST-062 code-review remediation pass on 2026-08-24.
