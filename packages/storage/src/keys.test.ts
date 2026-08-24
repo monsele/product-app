@@ -51,6 +51,14 @@ describe("storageKeys", () => {
         contentHash: "a".repeat(64),
       }),
     ).toBe(`${prefix}/audio/${entityId}/${"a".repeat(64)}.mp3`);
+    expect(
+      storageKeys.sceneAudio({
+        ...scope,
+        sceneId: entityId,
+        contentHash: "a".repeat(64),
+        extension: "wav",
+      }),
+    ).toBe(`${prefix}/audio/${entityId}/${"a".repeat(64)}.wav`);
     expect(storageKeys.renderVideo({ ...scope, renderJobId: entityId })).toBe(
       `${prefix}/renders/${entityId}/lesson.mp4`,
     );

@@ -1030,6 +1030,7 @@ export const auditEventTypeValues = [
   "storyboard.scene_candidate_accepted",
   "storyboard.scene_candidate_rejected",
   "storyboard.edited",
+  "audio.generation_requested",
 ] as const;
 export const auditEventType = pgEnum("audit_event_type", auditEventTypeValues);
 
@@ -1836,8 +1837,16 @@ export const citationHistorySnapshots = pgTable(
 /** Immutable, portable lesson snapshot created at an approval milestone or an
  * explicit teacher save. The JSON payload contains metadata and references to
  * immutable media objects only; binaries remain in private object storage. */
-export const lessonVersionReasons = ["approval", "explicit_save", "before_render", "restore"] as const;
-export const lessonVersionReason = pgEnum("lesson_version_reason", lessonVersionReasons);
+export const lessonVersionReasons = [
+  "approval",
+  "explicit_save",
+  "before_render",
+  "restore",
+] as const;
+export const lessonVersionReason = pgEnum(
+  "lesson_version_reason",
+  lessonVersionReasons,
+);
 export const lessonVersions = pgTable(
   "lesson_versions",
   {
@@ -1846,14 +1855,26 @@ export const lessonVersions = pgTable(
     versionNumber: integer("version_number").notNull(),
     parentVersionId: uuid("parent_version_id"),
     reason: lessonVersionReason("reason").notNull(),
-    createdBy: uuid("created_by").notNull().references(() => users.id, { onDelete: "restrict" }),
-    lessonSpecId: uuid("lesson_spec_id").notNull().references(() => lessonSpecs.id, { onDelete: "restrict" }),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    lessonSpecId: uuid("lesson_spec_id")
+      .notNull()
+      .references(() => lessonSpecs.id, { onDelete: "restrict" }),
     lessonSpecRevision: integer("lesson_spec_revision").notNull(),
-    sourceSnapshotId: uuid("source_snapshot_id").notNull().references(() => sourceSnapshots.id, { onDelete: "restrict" }),
+    sourceSnapshotId: uuid("source_snapshot_id")
+      .notNull()
+      .references(() => sourceSnapshots.id, { onDelete: "restrict" }),
     configurationVersion: integer("configuration_version").notNull(),
-    objectiveSetId: uuid("objective_set_id").notNull().references(() => learningObjectiveSets.id, { onDelete: "restrict" }),
-    outlineSetId: uuid("outline_set_id").notNull().references(() => lessonOutlineSets.id, { onDelete: "restrict" }),
-    narrationSetId: uuid("narration_set_id").notNull().references(() => narrationSets.id, { onDelete: "restrict" }),
+    objectiveSetId: uuid("objective_set_id")
+      .notNull()
+      .references(() => learningObjectiveSets.id, { onDelete: "restrict" }),
+    outlineSetId: uuid("outline_set_id")
+      .notNull()
+      .references(() => lessonOutlineSets.id, { onDelete: "restrict" }),
+    narrationSetId: uuid("narration_set_id")
+      .notNull()
+      .references(() => narrationSets.id, { onDelete: "restrict" }),
     schemaVersion: text("schema_version").notNull(),
     sceneLibraryVersion: text("scene_library_version").notNull(),
     promptVersions: jsonb("prompt_versions").notNull(),
@@ -1862,9 +1883,20 @@ export const lessonVersions = pgTable(
     createdAt: utcTimestamp("created_at").notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("lesson_versions_project_number_unique").on(table.projectId, table.versionNumber),
-    uniqueIndex("lesson_versions_tenant_content_hash_unique").on(table.ownerUserId, table.projectId, table.contentHash),
-    index("lesson_versions_owner_project_created_idx").on(table.ownerUserId, table.projectId, table.createdAt),
+    uniqueIndex("lesson_versions_project_number_unique").on(
+      table.projectId,
+      table.versionNumber,
+    ),
+    uniqueIndex("lesson_versions_tenant_content_hash_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.contentHash,
+    ),
+    index("lesson_versions_owner_project_created_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.createdAt,
+    ),
   ],
 );
 
@@ -1883,7 +1915,10 @@ export const voiceConfigurations = pgTable(
   },
   (table) => [
     uniqueIndex("voice_configurations_project_unique").on(table.projectId),
-    index("voice_configurations_owner_project_idx").on(table.ownerUserId, table.projectId),
+    index("voice_configurations_owner_project_idx").on(
+      table.ownerUserId,
+      table.projectId,
+    ),
   ],
 );
 
@@ -1892,25 +1927,97 @@ export const pronunciationEntries = pgTable(
   {
     id: primaryId(),
     ...projectOwnershipColumns(),
-    voiceConfigurationId: uuid("voice_configuration_id").notNull().references(() => voiceConfigurations.id, { onDelete: "cascade" }),
+    voiceConfigurationId: uuid("voice_configuration_id")
+      .notNull()
+      .references(() => voiceConfigurations.id, { onDelete: "cascade" }),
     phrase: text("phrase").notNull(),
     replacement: text("replacement").notNull(),
     createdAt: utcTimestamp("created_at").notNull(),
   },
   (table) => [
-    uniqueIndex("pronunciation_entries_configuration_phrase_unique").on(table.voiceConfigurationId, table.phrase),
-    index("pronunciation_entries_owner_project_config_idx").on(table.ownerUserId, table.projectId, table.voiceConfigurationId),
+    uniqueIndex("pronunciation_entries_configuration_phrase_unique").on(
+      table.voiceConfigurationId,
+      table.phrase,
+    ),
+    index("pronunciation_entries_owner_project_config_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.voiceConfigurationId,
+    ),
   ],
 );
 
-export const sceneAudioStatuses = ["ready", "stale", "failed"] as const;
-export const sceneAudioStatus = pgEnum("scene_audio_status", sceneAudioStatuses);
+export const sceneAudioStatuses = [
+  "queued",
+  "generating",
+  "ready",
+  "stale",
+  "failed",
+] as const;
+export const sceneAudioStatus = pgEnum(
+  "scene_audio_status",
+  sceneAudioStatuses,
+);
 /** Placeholder lifecycle records are created by ST-063. They exist now so a
  * voice-config update can deterministically invalidate prior derived media. */
-export const sceneAudio = pgTable("scene_audio", {
-  id: primaryId(), ...projectOwnershipColumns(), sceneId: uuid("scene_id").notNull().references(() => scenes.id, { onDelete: "cascade" }), status: sceneAudioStatus("status").notNull().default("stale"), voiceConfigurationVersion: integer("voice_configuration_version").notNull(), createdAt: utcTimestamp("created_at").notNull(), updatedAt: utcTimestamp("updated_at").notNull(),
-}, (table) => [index("scene_audio_owner_project_status_idx").on(table.ownerUserId, table.projectId, table.status), index("scene_audio_scene_idx").on(table.sceneId)]);
+export const sceneAudio = pgTable(
+  "scene_audio",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    sceneId: uuid("scene_id")
+      .notNull()
+      .references(() => scenes.id, { onDelete: "cascade" }),
+    status: sceneAudioStatus("status").notNull().default("stale"),
+    voiceConfigurationVersion: integer("voice_configuration_version").notNull(),
+    narrationHash: text("narration_hash"),
+    voiceConfigurationHash: text("voice_configuration_hash"),
+    contentHash: text("content_hash"),
+    storageKey: text("storage_key"),
+    contentType: text("content_type"),
+    durationMs: integer("duration_ms"),
+    timing: jsonb("timing"),
+    plannedDurationMs: integer("planned_duration_ms"),
+    fitWarning: text("fit_warning"),
+    jobId: uuid("job_id"),
+    failureCode: text("failure_code"),
+    createdAt: utcTimestamp("created_at").notNull(),
+    updatedAt: utcTimestamp("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("scene_audio_tenant_content_hash_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.sceneId,
+      table.contentHash,
+    ),
+    index("scene_audio_owner_project_status_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.status,
+    ),
+    index("scene_audio_scene_idx").on(table.sceneId),
+  ],
+);
 
-export const captionTracks = pgTable("caption_tracks", {
-  id: primaryId(), ...projectOwnershipColumns(), sceneAudioId: uuid("scene_audio_id").notNull().references(() => sceneAudio.id, { onDelete: "cascade" }), status: sceneAudioStatus("status").notNull().default("stale"), createdAt: utcTimestamp("created_at").notNull(), updatedAt: utcTimestamp("updated_at").notNull(),
-}, (table) => [index("caption_tracks_owner_project_status_idx").on(table.ownerUserId, table.projectId, table.status), index("caption_tracks_audio_idx").on(table.sceneAudioId)]);
+export const captionTracks = pgTable(
+  "caption_tracks",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    sceneAudioId: uuid("scene_audio_id")
+      .notNull()
+      .references(() => sceneAudio.id, { onDelete: "cascade" }),
+    status: sceneAudioStatus("status").notNull().default("stale"),
+    createdAt: utcTimestamp("created_at").notNull(),
+    updatedAt: utcTimestamp("updated_at").notNull(),
+  },
+  (table) => [
+    index("caption_tracks_owner_project_status_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.status,
+    ),
+    index("caption_tracks_audio_idx").on(table.sceneAudioId),
+  ],
+);

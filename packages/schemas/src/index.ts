@@ -3135,36 +3135,49 @@ export type CitationHistorySnapshot = z.infer<
 
 /** A portable, immutable lesson state. Values are copied as JSON; media is
  * represented by stable object identifiers/hashes rather than binary data. */
-export const lessonVersionReasonSchema = z.enum(["approval", "explicit_save", "before_render", "restore"]);
+export const lessonVersionReasonSchema = z.enum([
+  "approval",
+  "explicit_save",
+  "before_render",
+  "restore",
+]);
 export type LessonVersionReason = z.infer<typeof lessonVersionReasonSchema>;
-export const lessonVersionCreateSchema = z.object({
-  reason: lessonVersionReasonSchema.default("explicit_save"),
-}).strict();
+export const lessonVersionCreateSchema = z
+  .object({
+    reason: lessonVersionReasonSchema.default("explicit_save"),
+  })
+  .strict();
 export type LessonVersionCreate = z.infer<typeof lessonVersionCreateSchema>;
-export const lessonVersionRestoreSchema = z.object({
-  expectedCurrentVersionId: identifierSchema.nullable(),
-  confirmReplace: z.literal(true),
-}).strict();
+export const lessonVersionRestoreSchema = z
+  .object({
+    expectedCurrentVersionId: identifierSchema.nullable(),
+    confirmReplace: z.literal(true),
+  })
+  .strict();
 export type LessonVersionRestore = z.infer<typeof lessonVersionRestoreSchema>;
-export const lessonVersionSummarySchema = z.object({
-  id: identifierSchema,
-  versionNumber: z.number().int().positive(),
-  reason: lessonVersionReasonSchema,
-  contentHash: z.string().regex(sha256HexPattern),
-  createdBy: identifierSchema,
-  createdAt: z.string().datetime({ offset: true }),
-  lessonSpecId: identifierSchema,
-  lessonSpecRevision: z.number().int().nonnegative(),
-}).strict();
+export const lessonVersionSummarySchema = z
+  .object({
+    id: identifierSchema,
+    versionNumber: z.number().int().positive(),
+    reason: lessonVersionReasonSchema,
+    contentHash: z.string().regex(sha256HexPattern),
+    createdBy: identifierSchema,
+    createdAt: z.string().datetime({ offset: true }),
+    lessonSpecId: identifierSchema,
+    lessonSpecRevision: z.number().int().nonnegative(),
+  })
+  .strict();
 export type LessonVersionSummary = z.infer<typeof lessonVersionSummarySchema>;
-export const lessonVersionDetailSchema = lessonVersionSummarySchema.extend({
-  parentVersionId: identifierSchema.nullable(),
-  schemaVersion: z.string().min(1).max(100),
-  sceneLibraryVersion: z.string().min(1).max(100),
-  durationSeconds: z.number().int().positive(),
-  sceneCount: z.number().int().nonnegative(),
-  renderAssociationCount: z.number().int().nonnegative(),
-}).strict();
+export const lessonVersionDetailSchema = lessonVersionSummarySchema
+  .extend({
+    parentVersionId: identifierSchema.nullable(),
+    schemaVersion: z.string().min(1).max(100),
+    sceneLibraryVersion: z.string().min(1).max(100),
+    durationSeconds: z.number().int().positive(),
+    sceneCount: z.number().int().nonnegative(),
+    renderAssociationCount: z.number().int().nonnegative(),
+  })
+  .strict();
 export type LessonVersionDetail = z.infer<typeof lessonVersionDetailSchema>;
 
 /** A deliberately small, application-owned allowlist. Provider identifiers never
@@ -3220,18 +3233,69 @@ export const voiceConfigurationInputSchema = z
       normalized.add(key);
     });
   });
-export type VoiceConfigurationInput = z.infer<typeof voiceConfigurationInputSchema>;
+export type VoiceConfigurationInput = z.infer<
+  typeof voiceConfigurationInputSchema
+>;
 
 export const voiceConfigurationResponseSchema = z
   .object({ configuration: voiceConfigurationSchema.nullable() })
   .strict();
-export type VoiceConfigurationResponse = z.infer<typeof voiceConfigurationResponseSchema>;
-export const lessonVersionsResponseSchema = z.object({
-  versions: z.array(lessonVersionSummarySchema),
-  latestModifiedAt: z.string().datetime({ offset: true }).nullable(),
-  currentVersionId: identifierSchema.nullable(),
-}).strict();
-export type LessonVersionsResponse = z.infer<typeof lessonVersionsResponseSchema>;
+export type VoiceConfigurationResponse = z.infer<
+  typeof voiceConfigurationResponseSchema
+>;
+
+// ST-063 â€” scene-level TTS commands never carry narration text: the worker
+// re-loads the tenant-owned scene and validates the hashes before completion.
+export const sceneAudioGenerationInputSchema = z
+  .object({ idempotencyKey: z.string().trim().min(8).max(200) })
+  .strict();
+export type SceneAudioGenerationInput = z.infer<
+  typeof sceneAudioGenerationInputSchema
+>;
+export const sceneAudioProviderOptionsSchema = z
+  .object({
+    providerId: z.string().regex(/^[a-z0-9][a-z0-9-]{0,63}$/),
+    outputFormat: z.enum(["mp3", "wav"]),
+  })
+  .strict();
+export type SceneAudioProviderOptions = z.infer<
+  typeof sceneAudioProviderOptionsSchema
+>;
+export const sceneAudioGenerationJobPayloadSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    sceneAudioId: identifierSchema,
+    narrationHash: z.string().regex(/^[a-f0-9]{64}$/),
+    voiceConfigurationHash: z.string().regex(/^[a-f0-9]{64}$/),
+    provider: sceneAudioProviderOptionsSchema,
+  })
+  .strict();
+export type SceneAudioGenerationJobPayload = z.infer<
+  typeof sceneAudioGenerationJobPayloadSchema
+>;
+export const sceneAudioStatusResponseSchema = z
+  .object({
+    sceneId: identifierSchema,
+    status: z.enum(["queued", "generating", "ready", "stale", "failed"]),
+    jobId: identifierSchema.nullable(),
+    durationMs: z.number().int().positive().nullable(),
+    fitWarning: z.string().nullable(),
+    retryable: z.boolean(),
+  })
+  .strict();
+export type SceneAudioStatusResponse = z.infer<
+  typeof sceneAudioStatusResponseSchema
+>;
+export const lessonVersionsResponseSchema = z
+  .object({
+    versions: z.array(lessonVersionSummarySchema),
+    latestModifiedAt: z.string().datetime({ offset: true }).nullable(),
+    currentVersionId: identifierSchema.nullable(),
+  })
+  .strict();
+export type LessonVersionsResponse = z.infer<
+  typeof lessonVersionsResponseSchema
+>;
 
 /**
  * API request to trigger a grounding check for a scene or lesson.

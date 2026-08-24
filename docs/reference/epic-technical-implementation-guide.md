@@ -424,9 +424,14 @@ users/{userId}/projects/{projectId}/source/{documentId}/original.pdf
 users/{userId}/projects/{projectId}/parsed/{version}/docling.json
 users/{userId}/projects/{projectId}/parsed/{version}/normalized.json
 users/{userId}/projects/{projectId}/assets/{assetId}/original.png
-users/{userId}/projects/{projectId}/audio/{sceneId}/{contentHash}.mp3
+users/{userId}/projects/{projectId}/audio/{sceneId}/{contentHash}.{extension}
 users/{userId}/projects/{projectId}/renders/{renderJobId}/lesson.mp4
 ```
+
+The extension and content type must match the selected TTS provider output. The
+deterministic MVP fixture emits `audio/wav`; a production provider may emit
+`audio/mpeg` when MP3 is selected. In either case the key remains content
+addressed and the stored object immutable.
 
 Buckets remain private. The API generates short-lived signed URLs after authorization.
 

@@ -35,6 +35,7 @@ import { PostgresGroundingService } from "./grounding.js";
 import { PostgresCitationHistoryService } from "./citation-history.js";
 import { PostgresLessonVersionsService } from "./lesson-versions.js";
 import { PostgresVoiceConfigurationService } from "./voice-configuration.js";
+import { SceneAudioService } from "./scene-audio.js";
 
 export async function runApi(input: {
   telemetryShutdown: () => Promise<void>;
@@ -168,7 +169,10 @@ export async function runApi(input: {
           new PostgresSourceSnapshotService(database.client).resolveSourceRefs,
         ),
       ),
-      voiceConfigurationService: new PostgresVoiceConfigurationService(database.client),
+      voiceConfigurationService: new PostgresVoiceConfigurationService(
+        database.client,
+      ),
+      sceneAudioService: new SceneAudioService(database.client),
       projectAuthorizer,
       ...(environment.WEB_ORIGIN === undefined
         ? {}

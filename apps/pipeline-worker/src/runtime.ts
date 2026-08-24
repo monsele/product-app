@@ -51,6 +51,7 @@ import { createStoryboardGenerationJobHandler } from "./storyboard-job.js";
 import { createGroundingCheckJobHandler } from "./grounding-check-job.js";
 import { createProjectAssetValidationJobHandler } from "./project-asset-validation-job.js";
 import { createIllustrationGenerationJobHandler } from "./illustration-generation-job.js";
+import { createSceneAudioGenerationJobHandler } from "./scene-audio-job.js";
 
 function processAbortSignal(): { signal: AbortSignal; dispose: () => void } {
   const controller = new AbortController();
@@ -255,6 +256,10 @@ export async function runPipelineWorker(
             "ai.grounding": { maxCallsPerHour: 20 },
           }),
           pricing: mockPricing,
+        }),
+        createSceneAudioGenerationJobHandler({
+          database: database.client,
+          storage,
         }),
       ];
     }

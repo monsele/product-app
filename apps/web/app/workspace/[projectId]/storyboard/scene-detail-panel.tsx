@@ -19,6 +19,7 @@ import { SceneCitations } from "./citation-panel";
 import { SceneGrounding } from "./grounding-panel";
 import { SceneEditorForm } from "./scene-editor-form";
 import { IllustrationCandidatePanel } from "./illustration-candidate-panel";
+import { SceneAudioPanel } from "./scene-audio-panel";
 import { fetchTeacherAssets } from "./storyboard-scene-query";
 
 function apiUrl(path: string): string {
@@ -236,6 +237,11 @@ export function SceneDetailPanel({
         revision={lessonSpecRevision}
         disabled={pending || generating}
         onPersisted={onChanged}
+      />
+      <SceneAudioPanel
+        projectId={projectId}
+        sceneId={sceneId}
+        disabled={pending || generating}
       />
 
       {scene.assetRequirements.length > 0 ? (

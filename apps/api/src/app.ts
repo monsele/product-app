@@ -75,7 +75,12 @@ import type { StoryboardService } from "./storyboard.js";
 import type { CitationService } from "./citations.js";
 import type { GroundingService } from "./grounding.js";
 import type { LessonVersionsService } from "./lesson-versions.js";
-import { approvedVoiceCatalog, approvedVoicePreview, type VoiceConfigurationService } from "./voice-configuration.js";
+import {
+  approvedVoiceCatalog,
+  approvedVoicePreview,
+  type VoiceConfigurationService,
+} from "./voice-configuration.js";
+import { SceneAudioService } from "./scene-audio.js";
 import { searchApprovedAssets } from "./approved-assets.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
@@ -108,6 +113,7 @@ const CITATION_SERVICE = Symbol("CITATION_SERVICE");
 const GROUNDING_SERVICE = Symbol("GROUNDING_SERVICE");
 const LESSON_VERSIONS_SERVICE = Symbol("LESSON_VERSIONS_SERVICE");
 const VOICE_CONFIGURATION_SERVICE = Symbol("VOICE_CONFIGURATION_SERVICE");
+const SCENE_AUDIO_SERVICE = Symbol("SCENE_AUDIO_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -355,8 +361,15 @@ type StoryboardApiService = Pick<
 >;
 type CitationApiService = Pick<CitationService, "forScene">;
 type GroundingApiService = Pick<GroundingService, "check" | "current">;
-type LessonVersionsApiService = Pick<LessonVersionsService, "create" | "list" | "detail" | "restore">;
-type VoiceConfigurationApiService = Pick<VoiceConfigurationService, "get" | "save">;
+type LessonVersionsApiService = Pick<
+  LessonVersionsService,
+  "create" | "list" | "detail" | "restore"
+>;
+type VoiceConfigurationApiService = Pick<
+  VoiceConfigurationService,
+  "get" | "save"
+>;
+type SceneAudioApiService = Pick<SceneAudioService, "generate" | "status">;
 
 function approvedAssetCatalogFilters(input: {
   query: unknown;
@@ -397,22 +410,39 @@ class AssetsController {
 
 @Controller("voices")
 class VoicesController {
-  public constructor(@Inject(AUTH_GATEWAY) private readonly auth: AuthGateway) {}
+  public constructor(
+    @Inject(AUTH_GATEWAY) private readonly auth: AuthGateway,
+  ) {}
   @Get()
   public async list(@Req() request: RequestWithAuth): Promise<unknown> {
     await this.requireUser(request);
-    return { voices: approvedVoiceCatalog(`${request.protocol}://${request.hostname}`) };
+    return {
+      voices: approvedVoiceCatalog(`${request.protocol}://${request.hostname}`),
+    };
   }
   @Get(":voiceId/preview")
-  public async preview(@Param("voiceId") voiceId: string, @Req() request: RequestWithAuth, @Res() reply: FastifyReply): Promise<void> {
+  public async preview(
+    @Param("voiceId") voiceId: string,
+    @Req() request: RequestWithAuth,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
     await this.requireUser(request);
     const audio = approvedVoicePreview(voiceId);
-    if (audio === undefined) throw new PublicError("not_found", "The requested voice was not found.", 404);
-    reply.header("cache-control", "private, max-age=86400").header("content-type", audio.contentType).send(Buffer.from(audio.bytes));
+    if (audio === undefined)
+      throw new PublicError(
+        "not_found",
+        "The requested voice was not found.",
+        404,
+      );
+    reply
+      .header("cache-control", "private, max-age=86400")
+      .header("content-type", audio.contentType)
+      .send(Buffer.from(audio.bytes));
   }
   private async requireUser(request: RequestWithAuth): Promise<void> {
     const token = request.cookies[sessionCookieName];
-    if (token === undefined || (await this.auth.currentSession(token)) === null) throw new PublicError("unauthorized", "Authentication is required.", 401);
+    if (token === undefined || (await this.auth.currentSession(token)) === null)
+      throw new PublicError("unauthorized", "Authentication is required.", 401);
   }
 }
 
@@ -458,6 +488,8 @@ class ProjectsController {
     private readonly lessonVersions: LessonVersionsApiService,
     @Inject(VOICE_CONFIGURATION_SERVICE)
     private readonly voiceConfiguration: VoiceConfigurationApiService,
+    @Inject(SCENE_AUDIO_SERVICE)
+    private readonly sceneAudio: SceneAudioApiService,
   ) {}
 
   @Post()
@@ -762,7 +794,9 @@ class ProjectsController {
     @Param("projectId") projectId: string,
     @Req() request: RequestWithAuth & AuthorizedProjectRequest,
   ): Promise<unknown> {
-    return this.voiceConfiguration.get(assertAuthorizedProject(request, projectId));
+    return this.voiceConfiguration.get(
+      assertAuthorizedProject(request, projectId),
+    );
   }
 
   @Put(":projectId/voice-configuration")
@@ -773,8 +807,40 @@ class ProjectsController {
   ): Promise<unknown> {
     assertTrustedOrigin(request, this.trustedOrigin);
     return this.voiceConfiguration.save({
-      ...assertAuthorizedProject(request, projectId), body: input,
-      correlationId: request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+      ...assertAuthorizedProject(request, projectId),
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/scenes/:sceneId/audio/generate")
+  @HttpCode(202)
+  public async generateSceneAudio(
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneId: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.sceneAudio.generate({
+      ...assertAuthorizedProject(request, projectId),
+      sceneId: identifierSchema.parse(sceneId),
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Get(":projectId/scenes/:sceneId/audio-status")
+  public async sceneAudioStatus(
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    return this.sceneAudio.status({
+      ...assertAuthorizedProject(request, projectId),
+      sceneId: identifierSchema.parse(sceneId),
     });
   }
 
@@ -1939,7 +2005,9 @@ class ProjectsController {
     @Param("projectId") projectId: string,
     @Req() request: RequestWithAuth & AuthorizedProjectRequest,
   ): Promise<unknown> {
-    return this.lessonVersions.list(assertAuthorizedProject(request, projectId));
+    return this.lessonVersions.list(
+      assertAuthorizedProject(request, projectId),
+    );
   }
 
   @Get(":projectId/versions/:versionId")
@@ -1949,8 +2017,16 @@ class ProjectsController {
     @Req() request: RequestWithAuth & AuthorizedProjectRequest,
   ): Promise<unknown> {
     const versionId = identifierSchema.safeParse(versionIdInput);
-    if (!versionId.success) throw new PublicError("not_found", "The requested lesson version was not found.", 404);
-    return this.lessonVersions.detail({ ...assertAuthorizedProject(request, projectId), versionId: versionId.data });
+    if (!versionId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested lesson version was not found.",
+        404,
+      );
+    return this.lessonVersions.detail({
+      ...assertAuthorizedProject(request, projectId),
+      versionId: versionId.data,
+    });
   }
 
   @Post(":projectId/versions/:versionId/restore")
@@ -1962,8 +2038,19 @@ class ProjectsController {
   ): Promise<unknown> {
     assertTrustedOrigin(request, this.trustedOrigin);
     const versionId = identifierSchema.safeParse(versionIdInput);
-    if (!versionId.success) throw new PublicError("not_found", "The requested lesson version was not found.", 404);
-    return this.lessonVersions.restore({ ...assertAuthorizedProject(request, projectId), versionId: versionId.data, body: input, correlationId: request.correlationId ?? "00000000-0000-7000-8000-000000000000" });
+    if (!versionId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested lesson version was not found.",
+        404,
+      );
+    return this.lessonVersions.restore({
+      ...assertAuthorizedProject(request, projectId),
+      versionId: versionId.data,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
   }
 
   @Delete(":projectId")
@@ -2129,6 +2216,7 @@ function createAppModule(
   groundingService: GroundingApiService,
   lessonVersionsService: LessonVersionsApiService,
   voiceConfigurationService: VoiceConfigurationApiService,
+  sceneAudioService: SceneAudioApiService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -2171,7 +2259,11 @@ function createAppModule(
       { provide: CITATION_SERVICE, useValue: citationService },
       { provide: GROUNDING_SERVICE, useValue: groundingService },
       { provide: LESSON_VERSIONS_SERVICE, useValue: lessonVersionsService },
-      { provide: VOICE_CONFIGURATION_SERVICE, useValue: voiceConfigurationService },
+      {
+        provide: VOICE_CONFIGURATION_SERVICE,
+        useValue: voiceConfigurationService,
+      },
+      { provide: SCENE_AUDIO_SERVICE, useValue: sceneAudioService },
     ],
   };
 }
@@ -2203,6 +2295,7 @@ export type CreateAppOptions = {
   groundingService?: GroundingApiService;
   lessonVersionsService?: LessonVersionsApiService;
   voiceConfigurationService?: VoiceConfigurationApiService;
+  sceneAudioService?: SceneAudioApiService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -2969,14 +3062,82 @@ const unavailableGroundingService: GroundingApiService = {
 };
 
 const unavailableLessonVersionsService: LessonVersionsApiService = {
-  create: () => Promise.reject(new PublicError("internal_error", "Lesson versioning is unavailable.", 503, true)),
-  list: () => Promise.reject(new PublicError("internal_error", "Lesson versioning is unavailable.", 503, true)),
-  detail: () => Promise.reject(new PublicError("internal_error", "Lesson versioning is unavailable.", 503, true)),
-  restore: () => Promise.reject(new PublicError("internal_error", "Lesson versioning is unavailable.", 503, true)),
+  create: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Lesson versioning is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  list: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Lesson versioning is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  detail: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Lesson versioning is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  restore: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Lesson versioning is unavailable.",
+        503,
+        true,
+      ),
+    ),
 };
 const unavailableVoiceConfigurationService: VoiceConfigurationApiService = {
-  get: () => Promise.reject(new PublicError("internal_error", "Voice configuration is unavailable.", 503, true)),
-  save: () => Promise.reject(new PublicError("internal_error", "Voice configuration is unavailable.", 503, true)),
+  get: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Voice configuration is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  save: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Voice configuration is unavailable.",
+        503,
+        true,
+      ),
+    ),
+};
+const unavailableSceneAudioService: SceneAudioApiService = {
+  generate: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Audio generation is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  status: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Audio generation is unavailable.",
+        503,
+        true,
+      ),
+    ),
 };
 
 export async function createApp(
@@ -3015,6 +3176,7 @@ export async function createApp(
       options.groundingService ?? unavailableGroundingService,
       options.lessonVersionsService ?? unavailableLessonVersionsService,
       options.voiceConfigurationService ?? unavailableVoiceConfigurationService,
+      options.sceneAudioService ?? unavailableSceneAudioService,
     ),
     new FastifyAdapter({
       logger: {

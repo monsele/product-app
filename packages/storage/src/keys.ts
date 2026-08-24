@@ -25,6 +25,7 @@ type AssetPrefixKey = TenantScope & { assetId: Identifier };
 type AudioKey = TenantScope & {
   sceneId: Identifier;
   contentHash: string;
+  extension?: "mp3" | "wav";
 };
 type RenderKey = TenantScope & { renderJobId: Identifier };
 
@@ -143,7 +144,7 @@ export const storageKeys = {
     if (contentHash === undefined)
       throw new Error("Audio contentHash must be a hexadecimal SHA-256 hash.");
     return validatedKey(
-      `${tenantPrefix(input)}/audio/${sceneId}/${contentHash}.mp3`,
+      `${tenantPrefix(input)}/audio/${sceneId}/${contentHash}.${input.extension ?? "mp3"}`,
     );
   },
 

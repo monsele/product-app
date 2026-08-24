@@ -28,3 +28,53 @@ SyntaxError: The requested module '@avlp/schemas' does not provide an export nam
     at async bootstrap (C:\Users\eoaikhina\Desktop\product-app\apps\api\src\main.ts:11:24)
 
 Node.js v24.14.0
+C:\Users\eoaikhina\Desktop\product-app\apps\api\src\voice-configuration.ts:2
+import { captionTracks, pronunciationEntries, sceneAudio, voiceConfigurations, type DatabaseClient } from "@avlp/database";
+         ^
+SyntaxError: The requested module '@avlp/database' does not provide an export named 'captionTracks'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:319:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:422:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async bootstrap (C:\Users\eoaikhina\Desktop\product-app\apps\api\src\main.ts:11:24)
+
+Node.js v24.14.0
+C:\Users\eoaikhina\Desktop\product-app\apps\api\src\voice-configuration.ts:2
+import { captionTracks, pronunciationEntries, sceneAudio, voiceConfigurations, type DatabaseClient } from "@avlp/database";
+         ^
+SyntaxError: The requested module '@avlp/database' does not provide an export named 'captionTracks'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:319:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:422:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async bootstrap (C:\Users\eoaikhina\Desktop\product-app\apps\api\src\main.ts:11:24)
+
+Node.js v24.14.0
+C:\Users\eoaikhina\Desktop\product-app\apps\api\src\voice-configuration.ts:2
+import { captionTracks, pronunciationEntries, sceneAudio, voiceConfigurations, type DatabaseClient } from "@avlp/database";
+         ^
+SyntaxError: The requested module '@avlp/database' does not provide an export named 'captionTracks'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:319:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:422:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async bootstrap (C:\Users\eoaikhina\Desktop\product-app\apps\api\src\main.ts:11:24)
+
+Node.js v24.14.0
+C:\Users\eoaikhina\Desktop\product-app\apps\api\src\voice-configuration.ts:2
+import { captionTracks, pronunciationEntries, sceneAudio, voiceConfigurations, type DatabaseClient } from "@avlp/database";
+         ^
+SyntaxError: The requested module '@avlp/database' does not provide an export named 'captionTracks'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:319:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:422:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async bootstrap (C:\Users\eoaikhina\Desktop\product-app\apps\api\src\main.ts:11:24)
+
+Node.js v24.14.0
+C:\Users\eoaikhina\Desktop\product-app\apps\api\src\voice-configuration.ts:2
+import { captionTracks, pronunciationEntries, sceneAudio, voiceConfigurations, type DatabaseClient } from "@avlp/database";
+         ^
+SyntaxError: The requested module '@avlp/database' does not provide an export named 'captionTracks'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:319:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:422:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async bootstrap (C:\Users\eoaikhina\Desktop\product-app\apps\api\src\main.ts:11:24)
+
+Node.js v24.14.0
