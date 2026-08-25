@@ -1,17 +1,17 @@
-import { parseEnvironment } from "@avlp/config";
-import { createDatabaseConnection } from "@avlp/database";
-import { createApp } from "./app.js";
+import { startTelemetry } from "@avlp/observability/telemetry";
 
 async function bootstrap(): Promise<void> {
-  const environment = parseEnvironment(process.env);
-  const database = createDatabaseConnection(environment.DATABASE_URL);
+  const telemetry = await startTelemetry({
+    serviceName: "avlp-api",
+    ...(process.env.OTEL_EXPORTER_OTLP_ENDPOINT === undefined
+      ? {}
+      : { otlpEndpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT }),
+  });
   try {
-    await database.healthCheck();
-    const app = await createApp({ database });
-    app.enableShutdownHooks();
-    await app.listen({ port: environment.PORT, host: "0.0.0.0" });
+    const { runApi } = await import("./runtime.js");
+    await runApi({ telemetryShutdown: telemetry.shutdown });
   } catch (error) {
-    await database.close();
+    await telemetry.shutdown();
     throw error;
   }
 }

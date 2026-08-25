@@ -2,7 +2,7 @@
 story_id: ST-017
 title: "Implement the Cause-and-Effect Scene Template"
 phase: "01 \u2014 Visual Runtime Proof"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E11"]
 prd_user_stories: ["E11-US1", "E11-US2"]
@@ -108,15 +108,15 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-11
+- **Completed:** 2026-08-11
+- **Branch/PR:** Existing local branch `story/st-005-job-platform`; no branch or PR was created because the worktree already contained unrelated in-progress scene-template work.
+- **Files changed:** `packages/schemas/src/index.ts`, `packages/schemas/src/lesson-spec.test.ts`, `packages/schemas/lesson-spec-v1.schema.json`, `packages/schemas/LESSONSPEC_COMPATIBILITY.md`, `packages/scene-library/src/cause-effect-scene.tsx`, `packages/scene-library/src/cause-effect-scene.fixtures.ts`, `packages/scene-library/src/scene-registry.tsx`, `packages/scene-library/src/index.ts`, `packages/scene-library/src/index.test.ts`, `packages/scene-library/src/scene-preview-render-smoke.test.ts`, this story, and `STORY_INDEX.md`.
+- **Migrations:** None. LessonSpec migration `1.4` to `1.5` adapts prior cause/effect label arrays into bounded node IDs and explicit directed connections without persistence changes.
+- **Contracts changed:** Added `CauseEffectVisual`, causal-node, and connection schemas; LessonSpec `1.5`; registry metadata, default scene, and asset slots for the `cause-effect` template.
+- **Commands/tests run:** `pnpm --filter @avlp/schemas generate:lesson-spec-json-schema`; focused schema and scene-library tests; final `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm build`, and `git diff --check` all passed.
+- **Screenshots or representative output:** Deterministic Remotion 1080p smoke render passed for the branching fixture, with a SHA-256 frame snapshot. Playwright confirms the maximum-density fixture stays above the caption-safe area.
+- **Decisions and assumptions:** Causal diagrams allow 1–3 causes and 1–3 effects, one optional mechanism, and only complete directed chain connections. The renderer never supplies a mechanism or infers extra relationships.
+- **Deviations from story/technical guide:** None.
+- **Known risks or follow-up:** No known in-scope risks. Existing unrelated worktree changes remain unmodified.

@@ -1,10 +1,13 @@
 import { Buffer } from "node:buffer";
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand,
   GetBucketAclCommand,
   GetBucketPolicyStatusCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutBucketLifecycleConfigurationCommand,
   PutObjectCommand,
   S3Client,
@@ -14,6 +17,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { z } from "zod";
 import {
   lifecycleRuleSchema,
+  copyObjectRequestSchema,
   sha256ChecksumSchema,
   signedDownloadRequestSchema,
   signedUploadRequestSchema,
@@ -26,6 +30,10 @@ import {
   type StorageKey,
   type StorageLifecycleRule,
   type StorageObjectMetadata,
+  type StorageObjectBytes,
+  StorageObjectNotFoundError,
+  writeObjectRequestSchema,
+  type WriteObjectRequest,
 } from "./contracts.js";
 
 type SignableCommand = PutObjectCommand | GetObjectCommand;
@@ -249,13 +257,19 @@ export class S3CompatibleObjectStorage implements ObjectStorage {
     keyInput: StorageKey,
   ): Promise<StorageObjectMetadata> {
     const key = this.#authorizeKey(keyInput);
-    const result = await this.#client.send(
-      new HeadObjectCommand({
-        Bucket: this.#bucket,
-        Key: key,
-        ChecksumMode: "ENABLED",
-      }),
-    );
+    let result;
+    try {
+      result = await this.#client.send(
+        new HeadObjectCommand({
+          Bucket: this.#bucket,
+          Key: key,
+          ChecksumMode: "ENABLED",
+        }),
+      );
+    } catch (error) {
+      if (isNotFoundError(error)) throw new StorageObjectNotFoundError(key);
+      throw error;
+    }
     const metadataChecksum = result.Metadata?.["sha256"];
     const checksumSha256 =
       (result.ChecksumSHA256 === undefined
@@ -281,6 +295,73 @@ export class S3CompatibleObjectStorage implements ObjectStorage {
     };
   }
 
+  public async getBytes(
+    keyInput: StorageKey,
+    maxBytes: number,
+  ): Promise<StorageObjectBytes> {
+    if (!Number.isInteger(maxBytes) || maxBytes < 1)
+      throw new Error("Maximum object size must be a positive integer.");
+    const key = this.#authorizeKey(keyInput);
+    const metadata = await this.getMetadata(key);
+    if (metadata.sizeBytes > maxBytes)
+      throw new Error("Storage object exceeds the permitted read size.");
+    let result;
+    try {
+      result = await this.#client.send(
+        new GetObjectCommand({ Bucket: this.#bucket, Key: key }),
+      );
+    } catch (error) {
+      if (isNotFoundError(error)) throw new StorageObjectNotFoundError(key);
+      throw error;
+    }
+    if (result.Body === undefined)
+      throw new Error("Storage object body was not returned.");
+    const body = await result.Body.transformToByteArray();
+    if (body.byteLength > maxBytes)
+      throw new Error("Storage object exceeds the permitted read size.");
+    return { body, metadata };
+  }
+
+  public async putBytes(
+    input: WriteObjectRequest,
+  ): Promise<StorageObjectMetadata> {
+    const request = writeObjectRequestSchema.parse(input);
+    const key = this.#authorizeKey(request.key);
+    await this.#ensurePrivateBucket();
+    await this.#client.send(
+      new PutObjectCommand({
+        Bucket: this.#bucket,
+        Key: key,
+        Body: request.body,
+        ContentLength: request.body.byteLength,
+        ContentType: request.contentType,
+        Metadata: request.metadata,
+        ACL: "private",
+      }),
+    );
+    return this.getMetadata(key);
+  }
+
+  public async copy(input: { sourceKey: StorageKey; destinationKey: StorageKey }): Promise<StorageObjectMetadata> {
+    const request = copyObjectRequestSchema.parse(input);
+    const sourceKey = this.#authorizeKey(request.sourceKey);
+    const destinationKey = this.#authorizeKey(request.destinationKey);
+    await this.#ensurePrivateBucket();
+    const encodedSource = sourceKey
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
+    await this.#client.send(
+      new CopyObjectCommand({
+        Bucket: this.#bucket,
+        Key: destinationKey,
+        CopySource: `${encodeURIComponent(this.#bucket)}/${encodedSource}`,
+        ACL: "private",
+      }),
+    );
+    return this.getMetadata(destinationKey);
+  }
+
   public async exists(keyInput: StorageKey): Promise<boolean> {
     const key = this.#authorizeKey(keyInput);
     try {
@@ -299,6 +380,51 @@ export class S3CompatibleObjectStorage implements ObjectStorage {
     await this.#client.send(
       new DeleteObjectCommand({ Bucket: this.#bucket, Key: key }),
     );
+  }
+
+  public async deletePrefix(prefixInput: StorageKey): Promise<number> {
+    const prefix = this.#authorizeKey(prefixInput);
+    const objectPrefix = `${prefix}/`;
+    let continuationToken: string | undefined;
+    let deletedCount = 0;
+    do {
+      const listed = await this.#client.send(
+        new ListObjectsV2Command({
+          Bucket: this.#bucket,
+          MaxKeys: 1_000,
+          Prefix: objectPrefix,
+          ...(continuationToken === undefined
+            ? {}
+            : { ContinuationToken: continuationToken }),
+        }),
+      );
+      const objects = (listed.Contents ?? []).flatMap((entry) =>
+        entry.Key === undefined ? [] : [{ Key: entry.Key }],
+      );
+      if (objects.length > 0) {
+        const deleted = await this.#client.send(
+          new DeleteObjectsCommand({
+            Bucket: this.#bucket,
+            Delete: { Objects: objects, Quiet: true },
+          }),
+        );
+        if ((deleted.Errors?.length ?? 0) > 0)
+          throw new Error(
+            "Storage prefix cleanup did not delete every object.",
+          );
+        deletedCount += objects.length;
+      }
+      if (
+        listed.IsTruncated === true &&
+        listed.NextContinuationToken === undefined
+      )
+        throw new Error(
+          "Storage prefix listing did not provide a continuation token.",
+        );
+      continuationToken =
+        listed.IsTruncated === true ? listed.NextContinuationToken : undefined;
+    } while (continuationToken !== undefined);
+    return deletedCount;
   }
 
   public async replaceLifecycleConfiguration(

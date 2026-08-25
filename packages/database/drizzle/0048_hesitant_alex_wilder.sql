@@ -1,0 +1,1 @@
+ALTER TYPE "public"."lesson_version_reason" ADD VALUE 'restore';

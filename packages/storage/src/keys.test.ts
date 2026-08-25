@@ -22,9 +22,21 @@ describe("storageKeys", () => {
     expect(storageKeys.parsedDocling({ ...scope, versionId: entityId })).toBe(
       `${prefix}/parsed/${entityId}/docling.json`,
     );
+    expect(storageKeys.parsedMarkdown({ ...scope, versionId: entityId })).toBe(
+      `${prefix}/parsed/${entityId}/document.md`,
+    );
+    expect(
+      storageKeys.parsedStagingDocling({ ...scope, versionId: entityId }),
+    ).toBe(`${prefix}/parsed-staging/${entityId}/docling.json`);
+    expect(
+      storageKeys.parsedStagingMarkdown({ ...scope, versionId: entityId }),
+    ).toBe(`${prefix}/parsed-staging/${entityId}/document.md`);
     expect(
       storageKeys.parsedNormalized({ ...scope, versionId: entityId }),
     ).toBe(`${prefix}/parsed/${entityId}/normalized.json`);
+    expect(
+      storageKeys.parsedStagingNormalized({ ...scope, versionId: entityId }),
+    ).toBe(`${prefix}/parsed-staging/${entityId}/normalized.json`);
     expect(
       storageKeys.assetOriginal({
         ...scope,
@@ -39,9 +51,20 @@ describe("storageKeys", () => {
         contentHash: "a".repeat(64),
       }),
     ).toBe(`${prefix}/audio/${entityId}/${"a".repeat(64)}.mp3`);
+    expect(
+      storageKeys.sceneAudio({
+        ...scope,
+        sceneId: entityId,
+        contentHash: "a".repeat(64),
+        extension: "wav",
+      }),
+    ).toBe(`${prefix}/audio/${entityId}/${"a".repeat(64)}.wav`);
     expect(storageKeys.renderVideo({ ...scope, renderJobId: entityId })).toBe(
       `${prefix}/renders/${entityId}/lesson.mp4`,
     );
+    expect(
+      storageKeys.renderThumbnail({ ...scope, renderJobId: entityId }),
+    ).toBe(`${prefix}/renders/${entityId}/thumbnail.png`);
   });
 
   it("rejects invalid identifiers instead of interpolating path input", () => {

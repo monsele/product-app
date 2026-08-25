@@ -1,0 +1,2 @@
+DROP INDEX "source_documents_project_active_unique";--> statement-breakpoint
+CREATE UNIQUE INDEX "source_documents_project_active_unique" ON "source_documents" USING btree ("project_id") WHERE "source_documents"."status" = 'active';

@@ -1,0 +1,36 @@
+{
+  "schemaVersion": "1.0",
+  "id": "018f0000-0000-7000-8000-000000000021",
+  "sourceDocumentId": "018f0000-0000-7000-8000-000000000022",
+  "parsedDocumentVersion": 1,
+  "language": "en",
+  "pageCount": 1,
+  "sections": [
+    {
+      "id": "018f0000-0000-7000-8000-000000000023",
+      "order": 1,
+      "level": 1,
+      "heading": "Properties",
+      "pageStart": 1,
+      "blockIds": [],
+      "figureIds": [],
+      "tableIds": ["018f0000-0000-7000-8000-000000000024"]
+    }
+  ],
+  "blocks": [],
+  "figures": [],
+  "tables": [
+    {
+      "id": "018f0000-0000-7000-8000-000000000024",
+      "sectionId": "018f0000-0000-7000-8000-000000000023",
+      "pageStart": 1,
+      "order": 1,
+      "columns": ["State", "Shape"],
+      "rows": [
+        ["Solid", "Fixed"],
+        ["Liquid", "Variable"]
+      ]
+    }
+  ],
+  "warnings": []
+}

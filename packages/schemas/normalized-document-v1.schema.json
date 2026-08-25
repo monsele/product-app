@@ -1,0 +1,519 @@
+{
+  "$ref": "#/definitions/NormalizedDocument",
+  "definitions": {
+    "NormalizedDocument": {
+      "type": "object",
+      "properties": {
+        "schemaVersion": {
+          "type": "string",
+          "const": "1.0"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        },
+        "sourceDocumentId": {
+          "$ref": "#/definitions/NormalizedDocument/properties/id"
+        },
+        "parsedDocumentVersion": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "language": {
+          "type": "string",
+          "const": "en"
+        },
+        "pageCount": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "maximum": 20
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1000
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/definitions/NormalizedDocument/properties/id"
+              },
+              "parentSectionId": {
+                "$ref": "#/definitions/NormalizedDocument/properties/id"
+              },
+              "order": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "level": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10
+              },
+              "heading": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 1000
+              },
+              "pageStart": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "pageEnd": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "blockIds": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/NormalizedDocument/properties/id"
+                },
+                "maxItems": 10000
+              },
+              "figureIds": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/NormalizedDocument/properties/id"
+                },
+                "maxItems": 1000
+              },
+              "tableIds": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/NormalizedDocument/properties/id"
+                },
+                "maxItems": 1000
+              }
+            },
+            "required": [
+              "id",
+              "order",
+              "level",
+              "heading",
+              "pageStart",
+              "blockIds",
+              "figureIds",
+              "tableIds"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 10000
+        },
+        "blocks": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/id"
+                  },
+                  "sectionId": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/id"
+                  },
+                  "order": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  },
+                  "pageStart": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/sections/items/properties/pageStart"
+                  },
+                  "pageEnd": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/sections/items/properties/pageEnd"
+                  },
+                  "boundingBox": {
+                    "type": "object",
+                    "properties": {
+                      "x": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "y": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "width": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 1
+                      },
+                      "height": {
+                        "type": "number",
+                        "exclusiveMinimum": 0,
+                        "maximum": 1
+                      }
+                    },
+                    "required": ["x", "y", "width", "height"],
+                    "additionalProperties": false
+                  },
+                  "kind": {
+                    "type": "string",
+                    "const": "paragraph"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 50000
+                  }
+                },
+                "required": [
+                  "id",
+                  "sectionId",
+                  "order",
+                  "pageStart",
+                  "kind",
+                  "text"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/id"
+                  },
+                  "sectionId": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/id"
+                  },
+                  "order": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/blocks/items/anyOf/0/properties/order"
+                  },
+                  "pageStart": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/sections/items/properties/pageStart"
+                  },
+                  "pageEnd": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/sections/items/properties/pageEnd"
+                  },
+                  "boundingBox": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/blocks/items/anyOf/0/properties/boundingBox"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "const": "list"
+                  },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 10000
+                    },
+                    "minItems": 1,
+                    "maxItems": 1000
+                  }
+                },
+                "required": [
+                  "id",
+                  "sectionId",
+                  "order",
+                  "pageStart",
+                  "kind",
+                  "items"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/id"
+                  },
+                  "sectionId": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/id"
+                  },
+                  "order": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/blocks/items/anyOf/0/properties/order"
+                  },
+                  "pageStart": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/sections/items/properties/pageStart"
+                  },
+                  "pageEnd": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/sections/items/properties/pageEnd"
+                  },
+                  "boundingBox": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/blocks/items/anyOf/0/properties/boundingBox"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "const": "equation"
+                  },
+                  "latex": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20000
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20000
+                  }
+                },
+                "required": [
+                  "id",
+                  "sectionId",
+                  "order",
+                  "pageStart",
+                  "kind",
+                  "latex"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/id"
+                  },
+                  "sectionId": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/id"
+                  },
+                  "order": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/blocks/items/anyOf/0/properties/order"
+                  },
+                  "pageStart": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/sections/items/properties/pageStart"
+                  },
+                  "pageEnd": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/sections/items/properties/pageEnd"
+                  },
+                  "boundingBox": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/blocks/items/anyOf/0/properties/boundingBox"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "const": "caption"
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 10000
+                  }
+                },
+                "required": [
+                  "id",
+                  "sectionId",
+                  "order",
+                  "pageStart",
+                  "kind",
+                  "text"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/id"
+                  },
+                  "sectionId": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/id"
+                  },
+                  "order": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/blocks/items/anyOf/0/properties/order"
+                  },
+                  "pageStart": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/sections/items/properties/pageStart"
+                  },
+                  "pageEnd": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/sections/items/properties/pageEnd"
+                  },
+                  "boundingBox": {
+                    "$ref": "#/definitions/NormalizedDocument/properties/blocks/items/anyOf/0/properties/boundingBox"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "const": "unsupported"
+                  },
+                  "parserKind": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "rawRepresentation": {}
+                },
+                "required": [
+                  "id",
+                  "sectionId",
+                  "order",
+                  "pageStart",
+                  "kind",
+                  "parserKind"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "maxItems": 100000
+        },
+        "figures": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/definitions/NormalizedDocument/properties/id"
+              },
+              "sectionId": {
+                "$ref": "#/definitions/NormalizedDocument/properties/id"
+              },
+              "pageStart": {
+                "$ref": "#/definitions/NormalizedDocument/properties/sections/items/properties/pageStart"
+              },
+              "pageEnd": {
+                "$ref": "#/definitions/NormalizedDocument/properties/sections/items/properties/pageEnd"
+              },
+              "order": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "captionBlockId": {
+                "$ref": "#/definitions/NormalizedDocument/properties/id"
+              },
+              "altText": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 10000
+              },
+              "sourceLocator": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              }
+            },
+            "required": ["id", "sectionId", "pageStart", "order"],
+            "additionalProperties": false
+          },
+          "maxItems": 10000
+        },
+        "tables": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/definitions/NormalizedDocument/properties/id"
+              },
+              "sectionId": {
+                "$ref": "#/definitions/NormalizedDocument/properties/id"
+              },
+              "pageStart": {
+                "$ref": "#/definitions/NormalizedDocument/properties/sections/items/properties/pageStart"
+              },
+              "pageEnd": {
+                "$ref": "#/definitions/NormalizedDocument/properties/sections/items/properties/pageEnd"
+              },
+              "order": {
+                "type": "integer",
+                "exclusiveMinimum": 0
+              },
+              "captionBlockId": {
+                "$ref": "#/definitions/NormalizedDocument/properties/id"
+              },
+              "columns": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
+                },
+                "minItems": 1,
+                "maxItems": 500
+              },
+              "rows": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 10000
+                  }
+                },
+                "maxItems": 10000
+              }
+            },
+            "required": [
+              "id",
+              "sectionId",
+              "pageStart",
+              "order",
+              "columns",
+              "rows"
+            ],
+            "additionalProperties": false
+          },
+          "maxItems": 10000
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "unknown_block",
+                  "low_ocr_quality",
+                  "missing_caption",
+                  "malformed_table",
+                  "uncertain_reading_order",
+                  "duplicate_reading_order"
+                ]
+              },
+              "severity": {
+                "type": "string",
+                "enum": ["info", "warning", "error"]
+              },
+              "message": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              },
+              "pageStart": {
+                "$ref": "#/definitions/NormalizedDocument/properties/sections/items/properties/pageStart"
+              },
+              "pageEnd": {
+                "$ref": "#/definitions/NormalizedDocument/properties/sections/items/properties/pageEnd"
+              },
+              "sectionId": {
+                "$ref": "#/definitions/NormalizedDocument/properties/id"
+              },
+              "blockId": {
+                "$ref": "#/definitions/NormalizedDocument/properties/id"
+              },
+              "figureId": {
+                "$ref": "#/definitions/NormalizedDocument/properties/id"
+              },
+              "tableId": {
+                "$ref": "#/definitions/NormalizedDocument/properties/id"
+              }
+            },
+            "required": ["code", "severity", "message", "pageStart"],
+            "additionalProperties": false
+          },
+          "maxItems": 10000
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "id",
+        "sourceDocumentId",
+        "parsedDocumentVersion",
+        "language",
+        "pageCount",
+        "sections",
+        "blocks",
+        "figures",
+        "tables",
+        "warnings"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "$schema": "http://json-schema.org/draft-07/schema#"
+}

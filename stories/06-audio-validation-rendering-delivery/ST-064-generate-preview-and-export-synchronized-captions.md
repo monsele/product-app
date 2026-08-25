@@ -2,7 +2,7 @@
 story_id: ST-064
 title: "Generate, Preview, and Export Synchronized Captions"
 phase: "06 \u2014 Audio, Validation, Rendering, and Delivery"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E14", "E18"]
 prd_user_stories: ["E14-US3", "E18-US3"]
@@ -116,15 +116,15 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-24
+- **Completed:** 2026-08-24
+- **Branch/PR:** `story/st-064` (not published)
+- **Files changed:** Caption segmentation/serializers and tests; scene-audio worker and API status service; storyboard invalidation; shared API schema; scene preview input/panel; database schema and migration; story index/record.
+- **Migrations:** `0051_caption_tracks.sql` adds content-addressed caption tracks and tenant-owned ordered cues; compatibility note included.
+- **Contracts changed:** Internal caption track/cue persistence contract, including `content_hash`, `language`, cue order/timing/text, and deterministic SRT/VTT serializers. Existing shared preview caption overlay continues to render bounded caption cues in its safe area.
+- **Commands/tests run:** `pnpm --filter @avlp/schemas build`; `pnpm --filter @avlp/database build`; `pnpm --filter @avlp/pipeline-worker build`; `pnpm --filter @avlp/api build`; `pnpm --filter @avlp/web build`; affected API, pipeline-worker, web, and scene-library tests; affected API, pipeline-worker, and web typechecks/lint; `git diff --check`.
+- **Screenshots or representative output:** Caption test verifies `00:00:01,250 --> 00:00:02,500` SRT and the equivalent VTT timestamp; existing scene-preview safe-area test passes.
+- **Decisions and assumptions:** Provider sentence timestamps are used whenever valid and monotonic; proportional sentence alignment is the fallback. Captions derive exclusively from approved scene narration stored with the audio job. Caption writes occur only after the audio completion hash remains current and use a unique audio/content hash for retry idempotency. The tenant-scoped audio-status response supplies cues to the shared safe-area preview overlay.
+- **Deviations from story/technical guide:** SRT/VTT are implemented as internal serializers; authenticated download endpoints are intentionally deferred to ST-069 as this story specifies.
+- **Known risks or follow-up:** ST-065 extends this selected-scene integration to full-lesson timeline seeking. Final validation/export-download endpoint integration remains ST-066/ST-069.

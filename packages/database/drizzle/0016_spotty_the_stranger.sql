@@ -1,0 +1,2 @@
+ALTER TYPE "public"."audit_event_type" ADD VALUE 'document.validation_requested' BEFORE 'share.created';--> statement-breakpoint
+ALTER TYPE "public"."audit_event_type" ADD VALUE 'document.validation_rejected' BEFORE 'share.created';

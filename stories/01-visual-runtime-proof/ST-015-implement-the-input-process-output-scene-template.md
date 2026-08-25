@@ -2,7 +2,7 @@
 story_id: ST-015
 title: "Implement the Input\u2013Process\u2013Output Scene Template"
 phase: "01 \u2014 Visual Runtime Proof"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E11"]
 prd_user_stories: ["E11-US1", "E11-US2"]
@@ -108,15 +108,15 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-11
+- **Completed:** 2026-08-11
+- **Branch/PR:** `story/st-005-job-platform` (existing dirty worktree preserved; no branch or PR created)
+- **Files changed:** `packages/schemas/src/index.ts`, `packages/schemas/lesson-spec-v1.schema.json`, `packages/schemas/LESSONSPEC_COMPATIBILITY.md`, `packages/schemas/src/lesson-spec.test.ts`, `packages/scene-library/src/ipo-scene.tsx`, `packages/scene-library/src/ipo-scene.fixtures.ts`, scene registry/exports, and scene-library render/layout tests.
+- **Migrations:** No database migration. `LessonSpec` advances from `1.2` to `1.3`; compatible scalar IPO data migrates losslessly to one-item input/output collections.
+- **Contracts changed:** Adds `IpoVisual`, bounded `IpoItem` collections (one through four inputs and outputs), approved optional asset slots, IPO registry metadata, and the `input-process-output` Remotion component.
+- **Commands/tests run:** `pnpm --filter @avlp/schemas test`; `pnpm --filter @avlp/schemas generate:lesson-spec-json-schema`; `pnpm --filter @avlp/scene-library test -- --update`; targeted schemas and scene-library typechecks; `pnpm lint`; `git diff --check`.
+- **Screenshots or representative output:** 1920×1080 Playwright safe-area checks pass for maximum-density and asymmetric IPO fixtures. Remotion renders pass and an IPO frame-90 SHA-256 inline snapshot verifies deterministic visual output.
+- **Decisions and assumptions:** Inputs use filled rounded cards; outputs use unfilled double-bordered cards; a central circular process and directional arrows make flow clear without relying only on colour. Optional visual assets bind only through approved named slots.
+- **Deviations from story/technical guide:** None. The required compatibility migration accompanies the explicit `LessonSpec` contract change.
+- **Known risks or follow-up:** Full monorepo `typecheck` and `build` remain blocked outside this story by `packages/test-fixtures/src/index.ts` importing missing `packageBoundary` from `@avlp/schemas`; affected workspace checks pass.

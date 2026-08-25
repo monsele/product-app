@@ -2,7 +2,7 @@
 story_id: ST-011
 title: "Implement the Scene Registry, Runtime Contract, and Layout Validation"
 phase: "01 \u2014 Visual Runtime Proof"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E11", "E15", "E16"]
 prd_user_stories: ["E11-US1", "E15-US1", "E16-US1"]
@@ -117,15 +117,15 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-11
+- **Completed:** 2026-08-11
+- **Branch/PR:** `story/st-005-job-platform` (existing dirty worktree preserved; no PR created)
+- **Files changed:** `packages/config/src/{index.ts,identifiers.ts}`, `packages/config/package.json`, `packages/schemas/src/index.ts`, `packages/design-system/package.json`, `packages/scene-library/src/{index.ts,index.test.ts,layout.ts,remotion-root.tsx,scene-preview-composition.tsx,scene-preview-render-smoke.test.ts,scene-registry.tsx,timing.ts}`, `packages/scene-library/{package.json,tsconfig.json}`, `pnpm-lock.yaml`, this story, and `STORY_INDEX.md`.
+- **Migrations:** None.
+- **Contracts changed:** Added the public scene registry contracts: `SceneDefinition`, `SceneRegistry` (`sceneRegistry`), `SceneValidationIssue`, form-field metadata, `LayoutMeasurement`, aggregate scene-content measurement, deterministic frame-timing helpers, resolution/validation/default-factory functions, `SceneRuntime`, browser-preview/server-render wrappers, a Remotion composition/root, and the shared preview fixture. Split browser-safe identifier validation into `@avlp/config/identifiers` so the renderer does not bundle Node crypto.
+- **Commands/tests run:** `pnpm --filter @avlp/config build`; `pnpm --filter @avlp/schemas build`; `pnpm --filter @avlp/design-system build`; `pnpm --filter @avlp/scene-library test` (10 passed); `pnpm --filter @avlp/scene-library lint`; `pnpm --filter @avlp/scene-library typecheck`; `pnpm --filter @avlp/scene-library build`; `git diff --check`.
+- **Screenshots or representative output:** The registry test verifies all ten LessonSpec templates resolve; a valid long definition and aggregate multi-item scene produce field-specific overflow issues; Chromium mounts the preview wrapper; and Remotion renders the shared composition to a valid PNG still.
+- **Decisions and assumptions:** The ten components are controlled shared placeholders until their dedicated template stories replace them. Layout checks use deterministic conservative character-width measurement at the shared 1920x1080 body safe area; no font-size reduction is applied.
+- **Deviations from story/technical guide:** No migrations, API, authorization, job, audit, or usage work applies to this isolated scene-library foundation. Visual snapshots/render smoke frames remain with the individual template stories.
+- **Known risks or follow-up:** The heuristic measurement is a preflight primitive; later template stories should add template-specific final-font/layout measurement and visual regression frames. `pnpm-lock.yaml` already contained concurrent workspace dependency changes; the package install retained them while adding this package's resolved dependencies.

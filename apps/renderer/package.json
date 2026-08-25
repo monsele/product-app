@@ -5,16 +5,29 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/main.ts",
-    "health": "tsx src/main.ts",
+    "health": "tsx src/main.ts --health",
+    "enqueue:fixture": "tsx src/enqueue-fixture.ts",
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --exclude '**/*.smoke.test.ts'",
+    "test:smoke": "vitest run src/render-worker.smoke.test.ts"
   },
   "dependencies": {
-    "@avlp/config": "workspace:*"
+    "@avlp/config": "workspace:*",
+    "@avlp/database": "workspace:*",
+    "@avlp/jobs": "workspace:*",
+    "@avlp/observability": "workspace:*",
+    "@avlp/scene-library": "workspace:*",
+    "@avlp/schemas": "workspace:*",
+    "@avlp/storage": "workspace:*",
+    "@remotion/bundler": "4.0.507",
+    "@remotion/renderer": "4.0.507",
+    "ffprobe-static": "^3.1.0",
+    "zod": "^3.25.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "tsx": "^4.20.0"
   }
 }

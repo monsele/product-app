@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "1.0",
+  "id": "018f0000-0000-7000-8000-000000000031",
+  "sourceDocumentId": "018f0000-0000-7000-8000-000000000032",
+  "parsedDocumentVersion": 1,
+  "language": "en",
+  "pageCount": 1,
+  "sections": [
+    {
+      "id": "018f0000-0000-7000-8000-000000000033",
+      "order": 1,
+      "level": 1,
+      "heading": "Uncertain material",
+      "pageStart": 1,
+      "blockIds": ["018f0000-0000-7000-8000-000000000034"],
+      "figureIds": [],
+      "tableIds": []
+    }
+  ],
+  "blocks": [
+    {
+      "id": "018f0000-0000-7000-8000-000000000034",
+      "sectionId": "018f0000-0000-7000-8000-000000000033",
+      "order": 1,
+      "pageStart": 1,
+      "kind": "unsupported",
+      "parserKind": "formula_blob",
+      "rawRepresentation": { "tokens": 4 }
+    }
+  ],
+  "figures": [],
+  "tables": [],
+  "warnings": [
+    {
+      "code": "unknown_block",
+      "severity": "warning",
+      "message": "Unsupported parser block retained for review.",
+      "pageStart": 1,
+      "sectionId": "018f0000-0000-7000-8000-000000000033",
+      "blockId": "018f0000-0000-7000-8000-000000000034"
+    }
+  ]
+}

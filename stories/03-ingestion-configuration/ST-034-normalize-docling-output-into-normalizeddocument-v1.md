@@ -2,7 +2,7 @@
 story_id: ST-034
 title: "Normalize Docling Output into NormalizedDocument v1"
 phase: "03 \u2014 Ingestion and Lesson Configuration"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E4"]
 prd_user_stories: ["E4-US1", "E4-US2"]
@@ -117,15 +117,15 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-15
+- **Completed:** 2026-08-15
+- **Branch/PR:** Existing working branch; no publish requested.
+- **Files changed:** `apps/pipeline-worker/src/docling-normalizer.ts`, ingestion handler and tests, tenant-scoped parsed-document repository, database schema/migration, normalized staging key and test.
+- **Migrations:** `0021_living_maddog` creates `parsed_documents`, `parsed_sections`, and `content_blocks`; compatibility note added.
+- **Contracts changed:** Internal `NormalizedDocument` persistence now records parser, adapter, and schema versions and uses immutable normalized storage keys; no new public HTTP endpoint.
+- **Commands/tests run:** Focused adapter tests; pipeline-worker tests/lint/typecheck/build; API/database/storage/schema builds and checks; root lint/typecheck/build. The complete pipeline-worker suite passes with a local Compose PostgreSQL `TEST_DATABASE_URL` (32 tests), including transactional-import, normalization-failure, idempotency, and concurrency coverage. Root test remains red only for the pre-existing `@avlp/evals` baseline-fixture failure.
+- **Screenshots or representative output:** Golden Docling fixture produces heading hierarchy `Water cycle > Condensation` with ordered paragraph/list blocks and page provenance.
+- **Decisions and assumptions:** Stable UUIDv7-shaped IDs are deterministically derived from artifact, page, kind, order, and content. Canonical, Markdown, and normalized JSON are written to staging, promoted, then their metadata is imported in one transaction.
+- **Deviations from story/technical guide:** None.
+- **Known risks or follow-up:** Ensure CI supplies `TEST_DATABASE_URL`; existing historical ready artifacts are not backfilled by this story.

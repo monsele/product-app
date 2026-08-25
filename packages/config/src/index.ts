@@ -1,15 +1,11 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { z, ZodError } from "zod";
+import { identifierSchema, type Identifier } from "./identifiers.js";
 
-const uuidV7Pattern =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const utcTimestampPattern =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
 
-export const identifierSchema = z
-  .string()
-  .regex(uuidV7Pattern, "Expected a UUIDv7.");
-export type Identifier = z.infer<typeof identifierSchema>;
+export { identifierSchema, type Identifier } from "./identifiers.js";
 
 export function createId(now = new Date()): Identifier {
   const milliseconds = BigInt(now.getTime());
@@ -33,6 +29,125 @@ export type UtcTimestamp = z.infer<typeof utcTimestampSchema>;
 export const serializeUtcTimestamp = (date: Date): UtcTimestamp =>
   date.toISOString();
 
+function sortCanonicalShape(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortCanonicalShape);
+  if (typeof value === "object" && value !== null) {
+    const record = value as Record<string, unknown>;
+    return Object.fromEntries(
+      Object.entries(record)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, nested]) => [key, sortCanonicalShape(nested)]),
+    );
+  }
+  return value;
+}
+
+/**
+ * Deterministic SHA-256 of one narration block's content. Derived artifacts
+ * (audio, captions, preview cache, validation, renders) store the narration
+ * content hashes they were built from; when a block changes its hash changes
+ * and only the affected derived artifacts are stale. Server-only: the web app
+ * never computes hashes and must not bundle this function.
+ */
+export function computeNarrationBlockContentHash(input: {
+  text: string;
+  sourceRefs: readonly unknown[];
+  generatedAdditions: readonly unknown[];
+  generated: boolean;
+}): string {
+  const canonical = JSON.stringify(
+    sortCanonicalShape({
+      text: input.text,
+      sourceRefs: input.sourceRefs,
+      generatedAdditions: input.generatedAdditions,
+      generated: input.generated,
+    }),
+  );
+  return createHash("sha256").update(canonical).digest("hex");
+}
+
+/**
+ * Deterministic SHA-256 of an ordered narration set: the ordered block content
+ * hashes plus the total estimated seconds. Two sets with the same hash narrate
+ * identical content.
+ */
+export function computeNarrationSetContentHash(
+  blocks: readonly { contentHash: string }[],
+  totalEstimatedSeconds: number,
+): string {
+  const canonical = JSON.stringify(
+    sortCanonicalShape({
+      totalEstimatedSeconds,
+      blocks: blocks.map((block) => ({ contentHash: block.contentHash })),
+    }),
+  );
+  return createHash("sha256").update(canonical).digest("hex");
+}
+
+/**
+ * Deterministic SHA-256 of one storyboard scene's content. The scene content
+ * hash excludes the app-assigned identity (id/order) so identical semantic
+ * content always hashes identically; derived artifacts (previews, renders,
+ * asset bindings) can detect scene-level changes without a full diff.
+ */
+export function computeLessonStoryboardSceneContentHash(input: {
+  template: string;
+  title: string | undefined;
+  narration: string;
+  durationSeconds: number;
+  onScreenText: readonly unknown[];
+  transition: string;
+  visual: unknown;
+  sourceRefs: readonly unknown[];
+  generatedAdditions: readonly unknown[];
+  assetBindings: readonly unknown[];
+}): string {
+  const canonical = JSON.stringify(
+    sortCanonicalShape({
+      template: input.template,
+      title: input.title,
+      narration: input.narration,
+      durationSeconds: input.durationSeconds,
+      onScreenText: input.onScreenText,
+      transition: input.transition,
+      visual: input.visual,
+      sourceRefs: input.sourceRefs,
+      generatedAdditions: input.generatedAdditions,
+      assetBindings: input.assetBindings,
+    }),
+  );
+  return createHash("sha256").update(canonical).digest("hex");
+}
+
+/**
+ * Deterministic SHA-256 of an ordered storyboard: the ordered scene content
+ * hashes, each scene's narration-block assignment and planned asset
+ * requirements, the total allocated duration, and the covered objective IDs.
+ * Two storyboards with the same hash are visually and structurally identical.
+ */
+export function computeLessonStoryboardContentHash(input: {
+  totalDurationSeconds: number;
+  objectiveIds: readonly unknown[];
+  scenes: readonly {
+    contentHash: string;
+    narrationBlockIds: readonly unknown[];
+    assetRequirements: readonly unknown[];
+  }[];
+}): string {
+  const canonical = JSON.stringify(
+    sortCanonicalShape({
+      totalDurationSeconds: input.totalDurationSeconds,
+      objectiveIds: input.objectiveIds,
+      scenes: input.scenes.map((scene) => ({
+        contentHash: scene.contentHash,
+        narrationBlockIds: scene.narrationBlockIds,
+        assetRequirements: scene.assetRequirements,
+      })),
+    }),
+  );
+  return createHash("sha256").update(canonical).digest("hex");
+}
+
 export const paginationSchema = z.object({
   cursor: identifierSchema.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(25),
@@ -43,6 +158,7 @@ export type CursorPage<T> = { items: T[]; nextCursor?: Identifier };
 export const errorCodeSchema = z.enum([
   "bad_request",
   "configuration_invalid",
+  "edit_conflict",
   "forbidden",
   "internal_error",
   "not_found",
@@ -57,6 +173,7 @@ export const apiErrorEnvelopeSchema = z.object({
     code: errorCodeSchema,
     message: z.string(),
     fieldErrors: z.record(z.string()).optional(),
+    latest: z.unknown().optional(),
     retryable: z.boolean(),
     correlationId: identifierSchema,
   }),
@@ -68,6 +185,7 @@ export class PublicError extends Error {
   public readonly statusCode: number;
   public readonly retryable: boolean;
   public readonly fieldErrors: FieldErrorMap | undefined;
+  public readonly latest: unknown | undefined;
 
   public constructor(
     code: ErrorCode,
@@ -75,6 +193,7 @@ export class PublicError extends Error {
     statusCode: number,
     retryable = false,
     fieldErrors?: FieldErrorMap,
+    latest?: unknown,
   ) {
     super(message);
     this.name = "PublicError";
@@ -82,6 +201,7 @@ export class PublicError extends Error {
     this.statusCode = statusCode;
     this.retryable = retryable;
     this.fieldErrors = fieldErrors;
+    this.latest = latest;
   }
 }
 
@@ -97,6 +217,7 @@ export function toApiErrorEnvelope(
         ...(error.fieldErrors === undefined
           ? {}
           : { fieldErrors: error.fieldErrors }),
+        ...(error.latest === undefined ? {} : { latest: error.latest }),
         retryable: error.retryable,
         correlationId,
       },
@@ -158,7 +279,7 @@ const baseEnvironmentSchema = z.object({
     .enum(["development", "test", "production"])
     .default("development"),
 });
-const storageEnvironmentObjectSchema = z.object({
+export const storageEnvironmentObjectSchema = z.object({
   OBJECT_STORAGE_ENDPOINT: z.string().url().optional(),
   OBJECT_STORAGE_BUCKET: z.string().min(1).optional(),
   OBJECT_STORAGE_ACCESS_KEY: z.string().min(1).optional(),
@@ -179,6 +300,12 @@ function isLocalStorageEndpoint(endpoint: URL): boolean {
     endpoint.hostname === "localhost" ||
     endpoint.hostname === "127.0.0.1" ||
     endpoint.hostname === "[::1]"
+  );
+}
+
+function isLoopbackHost(hostname: string): boolean {
+  return (
+    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]"
   );
 }
 function validateStorageCredentialPair(
@@ -242,17 +369,161 @@ export const storageEnvironmentSchema = baseEnvironmentSchema
   .merge(storageEnvironmentObjectSchema)
   .superRefine(validateStorageCredentialPair);
 export type StorageEnvironment = z.infer<typeof storageEnvironmentSchema>;
+export const malwareScannerEnvironmentSchema = z.object({
+  MALWARE_SCANNER_URL: z
+    .string()
+    .url()
+    .refine(
+      (value) => new URL(value).protocol === "https:",
+      "Malware scanner URLs must use HTTPS.",
+    )
+    .optional(),
+  MALWARE_SCANNER_TOKEN: z.string().min(1).optional(),
+});
+export const ingestionServiceEnvironmentSchema = z.object({
+  INGESTION_SERVICE_URL: z.string().url().optional(),
+  INGESTION_SERVICE_TOKEN: z.string().min(32).optional(),
+});
 export const apiEnvironmentSchema = baseEnvironmentSchema
   .merge(databaseEnvironmentSchema)
   .merge(redisEnvironmentSchema)
+  .merge(storageEnvironmentObjectSchema)
   .extend({
     PORT: z.coerce.number().int().positive().max(65535).default(3001),
+    AUTH_SESSION_SECRET: z.string().min(32),
+    WEB_ORIGIN: z.string().url().optional(),
+    PASSWORD_RESET_TTL_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(60)
+      .max(3600)
+      .default(900),
+    PASSWORD_RESET_RESPONSE_FLOOR_MS: z.coerce
+      .number()
+      .int()
+      .min(100)
+      .max(2_000)
+      .default(250),
+    PASSWORD_RESET_EMAIL_WEBHOOK_URL: z
+      .string()
+      .url()
+      .refine(
+        (value) => new URL(value).protocol === "https:",
+        "Password-reset email webhook URLs must use HTTPS.",
+      )
+      .optional(),
+    PASSWORD_RESET_EMAIL_WEBHOOK_TOKEN: z.string().min(1).optional(),
+    MAX_REGENERATIONS_PER_HOUR: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .default(10),
+    MAX_PROVIDER_CALLS_PER_HOUR: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(1_000)
+      .default(60),
+    RENDER_CONCURRENCY: z.coerce.number().int().min(1).max(10).default(1),
+    MAX_RENDERS_PER_HOUR: z.coerce.number().int().min(1).max(100).default(12),
+    AUTH_RATE_LIMIT_MODE: z.enum(["local", "shared-edge"]).default("local"),
+  })
+  .superRefine((value, context) => {
+    validateStorageCredentialPair(value, context);
+    if (value.NODE_ENV === "production" && value.WEB_ORIGIN === undefined)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["WEB_ORIGIN"],
+        message:
+          "WEB_ORIGIN is required in production for CORS and CSRF protection.",
+      });
+    if (value.WEB_ORIGIN !== undefined) {
+      const origin = new URL(value.WEB_ORIGIN);
+      if (
+        origin.protocol !== "https:" &&
+        !(value.NODE_ENV !== "production" && isLoopbackHost(origin.hostname))
+      )
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["WEB_ORIGIN"],
+          message:
+            "WEB_ORIGIN must use HTTPS; HTTP is allowed only for a non-production loopback origin.",
+        });
+    }
+    if (
+      value.NODE_ENV === "production" &&
+      value.AUTH_RATE_LIMIT_MODE !== "shared-edge"
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["AUTH_RATE_LIMIT_MODE"],
+        message:
+          "AUTH_RATE_LIMIT_MODE must be shared-edge in production so authentication limits are enforced across replicas.",
+      });
+    if (
+      value.NODE_ENV === "production" &&
+      value.PASSWORD_RESET_EMAIL_WEBHOOK_URL === undefined
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["PASSWORD_RESET_EMAIL_WEBHOOK_URL"],
+        message:
+          "PASSWORD_RESET_EMAIL_WEBHOOK_URL is required in production for password-reset delivery.",
+      });
   });
 export const workerEnvironmentSchema = baseEnvironmentSchema
   .merge(databaseEnvironmentSchema.partial())
   .merge(redisEnvironmentSchema.partial())
   .merge(storageEnvironmentObjectSchema)
-  .superRefine(validateStorageCredentialPair);
+  .merge(malwareScannerEnvironmentSchema)
+  .merge(ingestionServiceEnvironmentSchema)
+  .merge(
+    z.object({
+      MAX_REGENERATIONS_PER_HOUR: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .default(10),
+      MAX_PROVIDER_CALLS_PER_HOUR: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(1_000)
+        .default(60),
+    }),
+  )
+  .superRefine((value, context) => {
+    validateStorageCredentialPair(value, context);
+    if (
+      value.NODE_ENV === "production" &&
+      value.MALWARE_SCANNER_URL === undefined
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["MALWARE_SCANNER_URL"],
+        message: "MALWARE_SCANNER_URL is required in production.",
+      });
+    if (
+      value.NODE_ENV === "production" &&
+      value.INGESTION_SERVICE_URL === undefined
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["INGESTION_SERVICE_URL"],
+        message: "INGESTION_SERVICE_URL is required in production.",
+      });
+    if (
+      value.NODE_ENV === "production" &&
+      value.INGESTION_SERVICE_TOKEN === undefined
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["INGESTION_SERVICE_TOKEN"],
+        message: "INGESTION_SERVICE_TOKEN is required in production.",
+      });
+  });
 export const webEnvironmentSchema = baseEnvironmentSchema.extend({
   NEXT_PUBLIC_API_URL: z.string().url().optional(),
 });

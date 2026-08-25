@@ -11,6 +11,7 @@ These rules apply to every AI coding agent working on the MVP.
 3. The assigned story file defines the bounded implementation increment.
 4. `docs/reference/epic-technical-implementation-guide.md` defines the shared technical approach.
 5. `docs/reference/mvp-features.md` and `mvp-plan.md` provide supporting product context.
+6. `docs/design.md` defines the approved brand and interface direction for user-facing screens.
 
 A story may refine implementation detail but may not silently remove PRD acceptance criteria. Record a conflict or architecture change through an ADR.
 
@@ -19,6 +20,7 @@ A story may refine implementation detail but may not silently remove PRD accepta
 1. Work on one story at a time.
 2. Do not start until every `depends_on` story is Done.
 3. Read the assigned story, its cited epics, the relevant technical-guide section, and current ADRs.
+   For user-facing work, also read `docs/design.md` before proposing or implementing UI changes.
 4. Inspect existing code before proposing changes.
 5. Write a short implementation plan before modifying files.
 6. Do not implement work listed as out of scope.

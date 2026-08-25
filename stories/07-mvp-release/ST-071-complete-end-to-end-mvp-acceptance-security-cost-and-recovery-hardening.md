@@ -2,7 +2,7 @@
 story_id: ST-071
 title: "Complete End-to-End MVP Acceptance, Security, Cost, and Recovery Hardening"
 phase: "07 \u2014 MVP Release"
-status: Ready
+status: In Progress
 priority: must-have
 epics:
   [
@@ -162,6 +162,12 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 ## Story-Specific Notes
 
 - Technical guide references: sections 15 and 16 plus the PRD Definition of Done.
+- Inherited ST-026 approval follow-ups:
+  - Require `WEB_ORIGIN` to use HTTPS in production so reset tokens cannot be emitted in insecure links; retain an explicit loopback-only development exception.
+  - Remove the account-existence timing distinction between known and unknown password-reset requests, including synchronous email-adapter latency, and add regression coverage.
+  - Enforce or operationally verify shared production password-reset rate limiting by account and network signal rather than relying only on process-local state.
+  - Update forgot-password and reset-password screens to the approved Studio Daylight authentication design, including visible password requirements, loading/error/success behavior, responsive layout, and browser coverage.
+  - Execute the PostgreSQL-backed password-reset expiry, reuse, and concurrency tests with `TEST_DATABASE_URL` and retain the results in the release acceptance evidence.
 
 ## Implementation Checklist
 

@@ -2,7 +2,7 @@
 story_id: ST-014
 title: "Implement the Process or Sequence Scene Template"
 phase: "01 \u2014 Visual Runtime Proof"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E11"]
 prd_user_stories: ["E11-US1", "E11-US2"]
@@ -109,14 +109,14 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 ## Dev Agent Record
 
 - **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Started:** 2026-08-11
+- **Completed:** 2026-08-11 (approved)
+- **Branch/PR:** `story/st-005-job-platform` (pre-existing working branch; no branch or PR published)
+- **Files changed:** `packages/schemas/src/index.ts`, `packages/schemas/src/lesson-spec.test.ts`, `packages/schemas/lesson-spec-v1.schema.json`, `packages/schemas/LESSONSPEC_COMPATIBILITY.md`, `packages/scene-library/src/process-scene.tsx`, `packages/scene-library/src/process-scene.fixtures.ts`, `packages/scene-library/src/scene-registry.tsx`, `packages/scene-library/src/index.ts`, `packages/scene-library/src/index.test.ts`, and `packages/scene-library/src/scene-preview-render-smoke.test.ts`.
+- **Migrations:** `LessonSpec` is now v1.2. Compatible v1.1 process scenes migrate automatically; legacy process content outside the new 2–6 step/80-character limits requires an explicit teacher migration and is never truncated.
+- **Contracts changed:** Added `ProcessVisual`, `SceneAssetBinding.slot`, six named process icon slots, and the v1.2 generated JSON Schema.
+- **Commands/tests run:** `pnpm --filter @avlp/schemas test` (26 passing); `pnpm --filter @avlp/schemas generate:lesson-spec-json-schema`; `pnpm --filter @avlp/schemas lint`; `pnpm --filter @avlp/scene-library typecheck`; `pnpm --filter @avlp/scene-library lint`; `pnpm --filter @avlp/scene-library test` (19 passing, including Remotion smoke); repository `pnpm lint` (passing); repository `pnpm typecheck` (unrelated pre-existing failure in `@avlp/test-fixtures`: missing `packageBoundary` export from `@avlp/schemas`).
+- **Screenshots or representative output:** Playwright 1920×1080 visual-boundary checks for the maximum process fixture pass; the Remotion smoke test rendered the maximum process fixture successfully.
+- **Decisions and assumptions:** Process scenes support two through six steps. Up to four short labels use the horizontal layout; longer labels or five/six steps use the vertical layout. Icon bindings use explicit `step-N-icon` slots to preserve semantic binding independent of source-array order.
+- **Deviations from story/technical guide:** None.
+- **Known risks or follow-up:** Repository-wide typecheck remains blocked by the unrelated `@avlp/test-fixtures` `packageBoundary` import; this story's changed workspaces typecheck cleanly.

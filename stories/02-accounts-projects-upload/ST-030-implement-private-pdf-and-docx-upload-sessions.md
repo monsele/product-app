@@ -2,7 +2,7 @@
 story_id: ST-030
 title: "Implement Private PDF and DOCX Upload Sessions"
 phase: "02 \u2014 Accounts, Projects, and Upload"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E3"]
 prd_user_stories: ["E3-US1"]
@@ -118,15 +118,16 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-13
+- **Completed:** 2026-08-13
+- **Branch/PR:** `story/st-030` (not published)
+- **Files changed:** API source-upload service, project routes/runtime, source-upload contracts and persistence schema, upload UI, API/browser tests, migration metadata, and this story/index.
+- **Migrations:** `0013_soft_nick_fury` adds `source_documents`, `upload_sessions`, the `source_document_status` enum, tenant/checksum indexes, and a one-active-source constraint. Compatibility notes accompany the migration.
+- **Contracts changed:** Added version-1 source-upload create/complete DTOs, source-document media/status enums, `POST /projects/:id/source-upload`, and `POST /projects/:id/source-upload/:sessionId/complete` (202 when ingestion is queued).
+- **Commands/tests run:** `pnpm lint`, `pnpm typecheck`, and `pnpm build` passed. `pnpm --filter @avlp/storage test` passed (27 tests; 3 storage integration tests skipped without storage integration configuration); `pnpm --filter @avlp/api test` passed (29 tests; 9 PostgreSQL-backed tests skipped without `TEST_DATABASE_URL`); `pnpm exec playwright test e2e/workspace.spec.ts` passed (5 tests); `git diff --check` passed. Full `pnpm test` is blocked only by the unrelated `@avlp/evals` deterministic-baseline fixture failure described below.
+- **Screenshots or representative output:** Browser upload flow test verified selection of a PDF, direct signed PUT, visible progress/completion state, and completion response.
+- **Decisions and assumptions:** The browser supplies a SHA-256 only to constrain the signed PUT; completion trusts only the storage HEAD size, MIME type, and checksum. Keys are generated from authenticated owner/project/document IDs and never accepted from the browser. Completion locks the active owner-scoped project and upload session before writing the immutable document, job, outbox event, project stage, and audit event.
+- **Code review:** Round 1 found and fixed a high-severity delete/completion race by locking and rechecking the active owner-scoped project during completion. Round 3 fixed two further findings: confirmed storage-object absence is now distinguished from retryable provider failures, and the browser test observes the intermediate upload-progress state. The final review found no remaining scoped findings and concluded **Approve**.
+- **Deviations from story/technical guide:** None. Validation of magic bytes, page count, and malware remains deliberately deferred to ST-031.
+- **Known risks or follow-up:** The PostgreSQL integration tests are present but could not run because `TEST_DATABASE_URL` is unset and the local Docker daemon is unavailable. The unrelated `@avlp/evals/src/runner.test.ts` deterministic-baseline assertion currently fails in the full workspace suite.

@@ -2,7 +2,7 @@
 story_id: ST-008
 title: "Define NormalizedDocument v1 and Provenance Contracts"
 phase: "00 \u2014 Foundation"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E4", "E5", "E19"]
 prd_user_stories: ["E4-US2", "E4-US3", "E5-US1", "E19-US1"]
@@ -36,12 +36,12 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Scope
 
-- [ ] Create NormalizedDocument v1 and JSON Schema.
-- [ ] Define hierarchical sections with stable IDs, order, level, page range, block IDs, figure IDs, and table IDs.
-- [ ] Define paragraph, list, equation, caption, and extensible unsupported block handling.
-- [ ] Define figure, table, ingestion warning, and source-reference schemas.
-- [ ] Define canonical source-package schema used by AI prompts.
-- [ ] Create representative clean, figure-heavy, table-heavy, and poor-quality fixtures.
+- [x] Create NormalizedDocument v1 and JSON Schema.
+- [x] Define hierarchical sections with stable IDs, order, level, page range, block IDs, figure IDs, and table IDs.
+- [x] Define paragraph, list, equation, caption, and extensible unsupported block handling.
+- [x] Define figure, table, ingestion warning, and source-reference schemas.
+- [x] Define canonical source-package schema used by AI prompts.
+- [x] Create representative clean, figure-heavy, table-heavy, and poor-quality fixtures.
 
 ## Technical Implementation Requirements
 
@@ -68,17 +68,17 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Acceptance Criteria
 
-- [ ] All fixtures validate or fail for the intended reason.
-- [ ] Every content item resolves to a document and page.
-- [ ] Section hierarchy can be reconstructed deterministically.
-- [ ] Docling-specific response types do not leak into the contract.
+- [x] All fixtures validate or fail for the intended reason.
+- [x] Every content item resolves to a document and page.
+- [x] Section hierarchy can be reconstructed deterministically.
+- [x] Docling-specific response types do not leak into the contract.
 
 ## Required Tests
 
-- [ ] Schema unit tests.
-- [ ] Hierarchy validation tests.
-- [ ] Duplicate/stale ID tests.
-- [ ] Provenance completeness tests.
+- [x] Schema unit tests.
+- [x] Hierarchy validation tests.
+- [x] Duplicate/stale ID tests.
+- [x] Provenance completeness tests.
 
 ## Out of Scope
 
@@ -92,39 +92,39 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Implementation Checklist
 
-- [ ] Inspect the current repository and related completed stories.
-- [ ] Write a short implementation plan listing files, contracts, migrations, tests, and risks.
-- [ ] Implement only this story's scope.
-- [ ] Add or update schemas before changing consumers.
-- [ ] Add authorization, validation, error, retry, concurrency, and idempotency behavior where applicable.
-- [ ] Add structured logs, correlation, audit, and usage records where applicable.
-- [ ] Run the required automated tests and affected workspace quality commands.
-- [ ] Self-review the diff for scope creep, insecure access, stale data races, and unbounded provider calls.
-- [ ] Update documentation and this story's Dev Agent Record.
+- [x] Inspect the current repository and related completed stories.
+- [x] Write a short implementation plan listing files, contracts, migrations, tests, and risks.
+- [x] Implement only this story's scope.
+- [x] Add or update schemas before changing consumers.
+- [x] Add authorization, validation, error, retry, concurrency, and idempotency behavior where applicable.
+- [x] Add structured logs, correlation, audit, and usage records where applicable.
+- [x] Run the required automated tests and affected workspace quality commands.
+- [x] Self-review the diff for scope creep, insecure access, stale data races, and unbounded provider calls.
+- [x] Update documentation and this story's Dev Agent Record.
 
 ## Definition of Done
 
-- [ ] Every acceptance criterion is implemented and verified.
-- [ ] Every required test is implemented and passing.
-- [ ] `lint`, `typecheck`, `test`, and `build` pass for all affected workspaces.
-- [ ] Database migrations and compatibility notes are complete where applicable.
-- [ ] Public schemas, events, and endpoints are documented.
-- [ ] No unresolved tenant-isolation, security, idempotency, concurrency, data-loss, or cost-control defect remains in this scope.
-- [ ] No out-of-scope feature or unrelated refactor was added.
-- [ ] The Dev Agent Record is complete.
-- [ ] This story and `STORY_INDEX.md` are marked **Done**.
+- [x] Every acceptance criterion is implemented and verified.
+- [x] Every required test is implemented and passing.
+- [x] `lint`, `typecheck`, `test`, and `build` pass for all affected workspaces.
+- [x] Database migrations and compatibility notes are complete where applicable.
+- [x] Public schemas, events, and endpoints are documented.
+- [x] No unresolved tenant-isolation, security, idempotency, concurrency, data-loss, or cost-control defect remains in this scope.
+- [x] No out-of-scope feature or unrelated refactor was added.
+- [x] The Dev Agent Record is complete.
+- [x] This story and `STORY_INDEX.md` are marked **Done**.
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-08
+- **Completed:** 2026-08-08
+- **Branch/PR:** `story/st-005-job-platform` / not published; retained because the worktree already contained unrelated changes.
+- **Files changed:** `packages/schemas/src/index.ts`, `packages/schemas/src/normalized-document.test.ts`, `packages/schemas/fixtures/normalized-document/*`, `packages/schemas/normalized-document-v1.schema.json`, `packages/schemas/NORMALIZED_DOCUMENT_COMPATIBILITY.md`, generator script and package script, plus this story and `STORY_INDEX.md`.
+- **Migrations:** None; this story defines portable contracts only.
+- **Contracts changed:** Strict `NormalizedDocument` v1, section/block/figure/table/warning contracts, `SourcePackage`, parsers, types, and named JSON Schema.
+- **Commands/tests run:** `pnpm --filter @avlp/schemas generate:normalized-document-json-schema`; package `test` (20 passing), `typecheck`, `lint`, and `build`; focused `prettier --check`; `git diff --check`; repository `lint` passed. Repository `typecheck`, `test`, and `build` are blocked by pre-existing uncommitted ST-007 work removing `packageBoundary`, which `@avlp/test-fixtures` still imports. Repository `format:check` is blocked by the unrelated `pnpm-lock.yaml`; all ST-008 files pass focused formatting.
+- **Screenshots or representative output:** Four schema fixtures cover clean, figure-heavy, table-heavy, and poor-quality parser output.
+- **Decisions and assumptions:** Keep raw parser data outside this contract; unknown blocks retain minimal raw data and require a warning. Blocks carry optional normalized page-relative bounding boxes when available. Stable IDs are validated at the boundary; deterministic ID creation remains the future ingestion adapter's responsibility.
+- **Deviations from story/technical guide:** None. Asset storage/authorized previews are explicitly deferred to ST-035. Immutable snapshotting and bounded source-package selection are explicitly deferred to ST-042; this story provides only the portable package shape.
+- **Known risks or follow-up:** The future normalizer must deterministically derive UUIDv7-compatible stable IDs and preserve its mapping across harmless reruns. ST-035 must associate figures with private asset metadata, and ST-042 must bound selected prompt content. Resolve the unrelated `packageBoundary` transition before expecting repository-wide typecheck, test, or build to pass.

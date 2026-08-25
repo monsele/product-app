@@ -1,0 +1,5 @@
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ⨯ [TypeError: fetch failed] {
+  digest: '3227098399',
+  [cause]: [AggregateError: ] { code: 'ECONNREFUSED' }
+}

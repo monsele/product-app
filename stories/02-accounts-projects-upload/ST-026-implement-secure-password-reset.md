@@ -2,7 +2,7 @@
 story_id: ST-026
 title: "Implement Secure Password Reset"
 phase: "02 \u2014 Accounts, Projects, and Upload"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E1"]
 prd_user_stories: ["E1-US3"]
@@ -109,15 +109,23 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-10
+- **Completed:** 2026-08-10
+- **Branch/PR:** Current worktree; no branch or PR created.
+- **Files changed:** `packages/auth`, `packages/config`, `packages/database`, `apps/api`, and `apps/web` password-reset contracts, persistence, API, email adapter, and UI; `STORY_INDEX.md`.
+- **Migrations:** Added `0007_steep_preak` to create `password_reset_tokens`, plus compatibility notes and Drizzle metadata.
+- **Contracts changed:** Added password-reset request/confirm inputs and `AuthGateway` operations; added `PasswordResetEmailSender` and an HTTPS webhook adapter; added reset email configuration.
+- **Commands/tests run:** Generated migration with `pnpm --filter @avlp/database db:generate`; affected package builds, lint, typechecks, and tests passed. `pnpm typecheck`, `pnpm test`, and `pnpm build` remain blocked by unrelated `@avlp/test-fixtures` imports of a missing `@avlp/schemas` `packageBoundary` export. `git diff --check` passed.
+- **Screenshots or representative output:** API tests verify generic reset-request responses, 429 rate limiting, and invalid-token rejection; the UI supplies `/forgot-password` and `/reset-password` pages.
+- **Decisions and assumptions:** Reset tokens are 32-byte random values stored only as HMAC hashes, expire after 15 minutes by default, are consumed atomically, and revoke all active sessions. Production requires an HTTPS transactional-email webhook and uses `WEB_ORIGIN` for reset links.
+- **Deviations from story/technical guide:** Human review accepted the current implementation with follow-ups. Production configuration does not yet require an HTTPS `WEB_ORIGIN`; synchronous account-dependent email delivery creates a potential enumeration timing signal; rate limiting is process-local unless a shared edge control is deployed; and the password-recovery pages predate the current `docs/design.md` authentication-screen direction. No ADR waives these requirements; corrective work is carried into ST-071.
+- **Known risks or follow-up:** ST-071 must require HTTPS reset-link origins in production, remove the account-existence timing distinction, enforce or verify shared production rate limiting, and bring password-recovery screens into the approved Studio Daylight design with browser coverage. Database integration tests, including expiry/reuse/concurrency coverage, still require `TEST_DATABASE_URL`. Configure `PASSWORD_RESET_EMAIL_WEBHOOK_URL` (and optional bearer token) before production startup.
+
+## Approval Review
+
+- **Reviewed:** 2026-08-25
+- **Conclusion:** Approved with accepted follow-ups.
+- **Risk acceptance:** The repository owner explicitly approved ST-026 without requiring the documented review findings to be fixed in this story.
+- **Follow-up owner:** ST-071 release hardening.
+- **Review evidence:** Affected lint, typecheck, and build commands passed. Auth tests passed 8 with 5 PostgreSQL cases skipped; the targeted API auth suite passed 4; web passed 110; config passed 13; database passed 8 with 3 skipped; observability passed 7 with 2 skipped. `git diff --check` passed. The skipped database suites require `TEST_DATABASE_URL` and are configured to run in CI.

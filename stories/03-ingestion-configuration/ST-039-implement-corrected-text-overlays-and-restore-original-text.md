@@ -2,7 +2,7 @@
 story_id: ST-039
 title: "Implement Corrected-Text Overlays and Restore Original Text"
 phase: "03 \u2014 Ingestion and Lesson Configuration"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E5", "E19"]
 prd_user_stories: ["E5-US3", "E19-US2"]
@@ -115,15 +115,26 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
+- **Agent:** Kilo (deepseek/deepseek-v4-flash)
+- **Started:** 2026-08-15
+- **Completed:** 2026-08-15
+- **Branch/PR:** `story/st-039` (created locally; not committed/pushed pending owner authorization)
 - **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+  - `packages/schemas/src/index.ts` — ST-039 block-correction DTOs (`contentBlockCorrectionInputSchema`, `contentBlockRestoreInputSchema`, `contentBlockCorrectionSchema`, `contentBlockCorrectionStateSchema`, `contentBlockUpdateResponseSchema`) and `correction` fields on `reviewContentBlockSchema` editable variants
+  - `packages/database/src/schema.ts` — `content_block_corrections` + `source_content_invalidations` tables, audit event types `source.block_corrected` / `source.block_restored`
+  - `packages/database/drizzle/0025_mean_devos.sql` (+ meta `0025_snapshot.json`, `_journal.json`) — generated migration
+  - `apps/api/src/content-block-corrections.ts` — service + `projectEffectiveContentBlocks`
+  - `apps/api/src/content-block-corrections.test.ts` / `.integration.test.ts` — tests
+  - `apps/api/src/parsed-document-repository.ts` — `findBlockCorrections`
+  - `apps/api/src/parsed-document-review.ts` — attach correction state to section blocks
+  - `apps/api/src/app.ts` — `PATCH /projects/:id/source-blocks/:blockId` + `POST .../restore` routes, DI
+  - `apps/api/src/runtime.ts` — service wiring
+  - `apps/web/app/workspace/[projectId]/review/source-block-controls.ts` (+ test) — pure action→patch mapper
+  - `apps/web/app/workspace/[projectId]/review/ingestion-review-viewer.tsx` — inline block editor with edit/save/restore and original-vs-corrected display
+- **Migrations:** `0025_mean_devos.sql` — `ALTER TYPE audit_event_type ADD VALUE` for `source.block_corrected`/`source.block_restored`; create `content_block_corrections` and `source_content_invalidations` with FKs, unique `(project_id, block_id)` and `(project_id, block_id, block_revision)`.
+- **Contracts changed:** New schemas `contentBlockCorrectionInputSchema` (discriminated union by `kind`), `contentBlockRestoreInputSchema`, `contentBlockCorrectionSchema`, `contentBlockCorrectionStateSchema`, `contentBlockUpdateResponseSchema`; optional `correction` on `reviewContentBlockSchema` paragraph/list/equation/caption variants; new endpoints `PATCH /projects/:id/source-blocks/:blockId` and `POST /projects/:id/source-blocks/:blockId/restore`; audit event types `source.block_corrected`/`source.block_restored`; invalidation contract `source_content_invalidations` (scope `unapproved_drafts`).
+- **Commands/tests run:** `pnpm db:generate`; `lint`, `typecheck`, `test`, `build` for `@avlp/schemas`, `@avlp/database`, `@avlp/api`, `@avlp/web` — all pass (api 58 passed / 25 skipped-integration, web 13 passed, database 8 passed, schemas 36 passed).
+- **Screenshots or representative output:** API contract test `content-block-corrections.test.ts` (9 pass) including 409 conflict and 404 cross-tenant; `source-block-controls.test.ts` (6 pass); integration tests cover persistence, restore, projection, concurrency, kind-mismatch, and invalidation.
+- **Decisions and assumptions:** One overlay row per (project, block) created lazily on first edit; `revision: 0` means "create" and positive values are matched for optimistic concurrency; restore deletes the overlay (revision must match or 409). Corrected content is bounded per block kind and validated against the immutable block kind. Dependency invalidation is recorded as an idempotent `source_content_invalidations` row per block revision (no queue handler yet, since no downstream AI drafts exist). Audit events carry block/section/revision metadata only, never the corrected text.
+- **Deviations from story/technical guide:** Followed the story's `source-blocks` endpoints (guide suggested `PUT/DELETE /blocks/:blockId/override`); implemented a durable invalidation table rather than an outbox event because no downstream draft consumers exist yet. `contentBlockCorrectionSchema` mirrors persisted shape but is not consumed by the response path (response reuses `reviewContentBlockSchema`).
+- **Known risks or follow-up:** DB-backed integration tests skip unless `TEST_DATABASE_URL` is set. `restore` on a block with no overlay and `revision: 0` returns the uncorrected block without recording an audit event (idempotent no-op). Invalidation rows are not yet consumed; ST-042+ snapshot materializers should honor them. Concurrent cross-block edits are each revision-checked per block.

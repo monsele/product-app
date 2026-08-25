@@ -1,16 +1,19 @@
 import { Buffer } from "node:buffer";
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand,
   GetBucketAclCommand,
   GetBucketPolicyStatusCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   PutBucketLifecycleConfigurationCommand,
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { describe, expect, it, vi } from "vitest";
-import type { StorageKey } from "./contracts.js";
+import { StorageObjectNotFoundError, type StorageKey } from "./contracts.js";
 import {
   createS3CompatibleObjectStorage,
   S3CompatibleObjectStorage,
@@ -234,6 +237,63 @@ describe("S3CompatibleObjectStorage", () => {
     ).toBe("ENABLED");
   });
 
+  it("writes private worker artifacts only under the authorized prefix", async () => {
+    const commands: unknown[] = [];
+    const { storage } = createHarness(async (command) => {
+      commands.push(command);
+      if (command instanceof HeadObjectCommand)
+        return { ContentLength: 2, ContentType: "application/json" };
+      return {};
+    });
+    await storage.putBytes({
+      key,
+      body: new Uint8Array([1, 2]),
+      contentType: "application/json",
+      metadata: { "parser-version": "docling-v1" },
+    });
+    const put = commands.find(
+      (command) => command instanceof PutObjectCommand,
+    ) as PutObjectCommand;
+    expect(put).toBeInstanceOf(PutObjectCommand);
+    expect(put.input).toMatchObject({
+      Bucket: "private-bucket",
+      Key: key,
+      ContentLength: 2,
+      ContentType: "application/json",
+      ACL: "private",
+    });
+  });
+
+  it("copies staged artifacts only within the authorized private prefix", async () => {
+    const commands: unknown[] = [];
+    const { storage } = createHarness(async (command) => {
+      commands.push(command);
+      if (command instanceof HeadObjectCommand)
+        return { ContentLength: 2, ContentType: "application/json" };
+      return {};
+    });
+    const destination = key.replace("original.pdf", "docling.json") as StorageKey;
+    await storage.copy({ sourceKey: key, destinationKey: destination });
+    const copy = commands.find(
+      (command) => command instanceof CopyObjectCommand,
+    ) as CopyObjectCommand;
+    expect(copy.input).toMatchObject({
+      Bucket: "private-bucket",
+      Key: destination,
+      CopySource: `private-bucket/${key}`,
+      ACL: "private",
+    });
+  });
+
+  it("maps only confirmed provider not-found responses while reading metadata", async () => {
+    const { storage } = createHarness(async () => {
+      throw { name: "NotFound", $metadata: { httpStatusCode: 404 } };
+    });
+    await expect(storage.getMetadata(key)).rejects.toBeInstanceOf(
+      StorageObjectNotFoundError,
+    );
+  });
+
   it("supports existence checks, deletion, and scoped lifecycle hooks", async () => {
     const commands: unknown[] = [];
     const { storage } = createHarness(async (command) => {
@@ -257,6 +317,43 @@ describe("S3CompatibleObjectStorage", () => {
     expect(lifecycle.input.LifecycleConfiguration?.Rules).toEqual([
       expect.objectContaining({ ID: "abandoned-sources" }),
     ]);
+  });
+
+  it("deletes every authorized object below a prefix and fails on partial deletion", async () => {
+    const prefix =
+      "users/018f3c2d-4a00-7000-8000-000000000001/projects/018f3c2d-4a00-7000-8000-000000000002" as StorageKey;
+    const commands: unknown[] = [];
+    const { storage } = createHarness(async (command) => {
+      commands.push(command);
+      if (command instanceof ListObjectsV2Command)
+        return {
+          Contents: [
+            { Key: `${prefix}/renders/one/lesson.mp4` },
+            { Key: `${prefix}/renders/one/thumbnail.png` },
+          ],
+        };
+      return {};
+    });
+    await expect(storage.deletePrefix(prefix)).resolves.toBe(2);
+    expect(commands[0]).toBeInstanceOf(ListObjectsV2Command);
+    expect((commands[0] as ListObjectsV2Command).input.Prefix).toBe(
+      `${prefix}/`,
+    );
+    expect(commands[1]).toBeInstanceOf(DeleteObjectsCommand);
+    expect(
+      (commands[1] as DeleteObjectsCommand).input.Delete?.Objects,
+    ).toHaveLength(2);
+
+    const failed = createHarness(async (command) => {
+      if (command instanceof ListObjectsV2Command)
+        return { Contents: [{ Key: `${prefix}/renders/one/lesson.mp4` }] };
+      if (command instanceof DeleteObjectsCommand)
+        return { Errors: [{ Code: "AccessDenied" }] };
+      return {};
+    });
+    await expect(failed.storage.deletePrefix(prefix)).rejects.toThrow(
+      "did not delete every object",
+    );
   });
 
   it("returns false only for provider not-found responses", async () => {

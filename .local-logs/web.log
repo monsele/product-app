@@ -1,0 +1,42 @@
+
+> @avlp/web@0.0.0 dev C:\Users\eoaikhina\Desktop\product-app\apps\web
+> next dev
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.115:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 2.9s
+ ○ Compiling / ...
+ ✓ Compiled / in 971ms (563 modules)
+ GET / 200 in 1392ms
+ GET / 200 in 150ms
+ ○ Compiling /register ...
+ ✓ Compiled /register in 915ms (575 modules)
+ GET /register 200 in 1290ms
+ ✓ Compiled /middleware in 208ms (158 modules)
+ ○ Compiling /workspace ...
+ ✓ Compiled /workspace in 955ms (643 modules)
+ GET /workspace 200 in 1537ms
+ ✓ Compiled /api/projects in 402ms (660 modules)
+ POST /api/projects 303 in 660ms
+ ○ Compiling /workspace/[projectId]/upload ...
+ ✓ Compiled /workspace/[projectId]/upload in 974ms (777 modules)
+ GET /workspace/01a03081-ebfd-767f-94bf-46c0500b6648/upload 200 in 2551ms
+ ✓ Compiled in 1375ms (760 modules)
+ GET / 200 in 392ms
+ GET /workspace/01a03081-ebfd-767f-94bf-46c0500b6648/upload 200 in 401ms
+ GET /workspace/01a03081-ebfd-767f-94bf-46c0500b6648/upload 500 in 315ms
+ ✓ Compiled in 992ms (760 modules)
+ ✓ Compiled in 875ms (760 modules)
+ ✓ Compiled in 2.9s (760 modules)
+ ✓ Compiled in 2.4s (760 modules)
+ ✓ Compiled in 2.3s (760 modules)
+ ✓ Compiled in 1801ms (760 modules)
+ ✓ Compiled in 709ms (760 modules)
+ ✓ Compiled in 848ms (760 modules)
+ ✓ Compiled in 1646ms (760 modules)
+ ✓ Compiled in 1007ms (760 modules)
+ ✓ Compiled in 884ms (760 modules)

@@ -13,6 +13,8 @@ export default [
         console: "readonly",
         process: "readonly",
         Response: "readonly",
+        fetch: "readonly",
+        window: "readonly",
       },
     },
     plugins: { "@typescript-eslint": tseslint },

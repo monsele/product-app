@@ -12,7 +12,17 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@avlp/config": "workspace:*"
+    "@avlp/config": "workspace:*",
+    "@avlp/database": "workspace:*",
+    "@avlp/jobs": "workspace:*",
+    "@avlp/observability": "workspace:*",
+    "@avlp/provider-adapters": "workspace:*",
+    "@avlp/schemas": "workspace:*",
+    "@avlp/storage": "workspace:*",
+    "drizzle-orm": "^0.45.2",
+    "pdf-lib": "^1.17.1",
+    "sharp": "^0.34.5",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
     "tsx": "^4.20.0"

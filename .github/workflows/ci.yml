@@ -35,7 +35,9 @@ jobs:
       - run: docker compose up -d --wait minio
       - run: docker compose run --rm minio-init
       - run: pnpm run ci
+      - run: pnpm --filter @avlp/evals eval
       - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm --filter @avlp/renderer test:smoke
       - run: pnpm exec playwright test
       - if: always()
         run: docker compose down -v

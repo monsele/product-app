@@ -2,7 +2,7 @@
 story_id: ST-061
 title: "Browse and Restore a Previous Lesson Version as a New Current Version"
 phase: "05 \u2014 Storyboard Editing, Assets, and Versions"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E20"]
 prd_user_stories: ["E20-US2"]
@@ -115,15 +115,15 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-23
+- **Completed:** 2026-08-23
+- **Branch/PR:** Local branch `story/st-061`; no PR created.
+- **Files changed:** Version API service/routes and tests; shared/database schemas; generated database migration; storyboard version-browser component and Playwright test; `STORY_INDEX.md`.
+- **Migrations:** `0048_hesitant_alex_wilder.sql` adds the `restore` lesson-version reason and is registered in Drizzle metadata.
+- **Contracts changed:** Version list now includes `currentVersionId`; added version-detail and restore-command DTOs plus `GET /projects/:id/versions/:versionId` and `POST /projects/:id/versions/:versionId/restore`.
+- **Commands/tests run:** Schema test suite (250 tests); database/API/web typechecks; database/API/web lint; API lesson-version tests (7 tests); version-browser Playwright test; database/API builds; web production build; `git diff --check`; Drizzle migration generation and application against local PostgreSQL.
+- **Screenshots or representative output:** Storyboard browser lists saved versions, previews duration/scene/schema metadata, and requires a confirmation before restore.
+- **Decisions and assumptions:** Restore creates a new immutable child version plus a cloned storyboard draft/scenes, updates the current-version pointer transactionally, retains referenced artifacts/renders, validates portable LessonSpec/storyboard schemas, and writes a `version.restored` audit event. The current-version ID is the optimistic-concurrency guard.
+- **Deviations from story/technical guide:** No render table exists before ST-068, so detail reports zero render associations while restore deliberately leaves all existing version references unchanged.
+- **Known risks or follow-up:** Database-backed migration/restore integration coverage requires `TEST_DATABASE_URL`; the existing running development-process log changes were preserved and are unrelated.
