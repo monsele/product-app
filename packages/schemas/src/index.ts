@@ -5421,6 +5421,67 @@ export const renderStatusResponseSchema = z
 export type RenderStatusResponse = z.infer<typeof renderStatusResponseSchema>;
 
 // ---------------------------------------------------------------------------
+// ST-069 — version-bound downloads and supporting-file exports
+// ---------------------------------------------------------------------------
+
+export const exportTypeSchema = z.enum(["captions", "narration", "storyboard"]);
+export type ExportType = z.infer<typeof exportTypeSchema>;
+export const exportFormatSchema = z.enum([
+  "srt",
+  "vtt",
+  "text",
+  "markdown",
+  "json",
+]);
+export type ExportFormat = z.infer<typeof exportFormatSchema>;
+export const captionExportFormatSchema = z.enum(["srt", "vtt"]);
+export const narrationExportFormatSchema = z.enum(["text", "markdown"]);
+export const storyboardExportFormatSchema = z.enum(["markdown", "json"]);
+/** Safe export projection; deliberately excludes source, storage, and editor data. */
+export const versionExportManifestSchema = z
+  .object({
+    lessonVersionId: identifierSchema,
+    title: boundedText(200),
+    subject: boundedText(200),
+    narration: z
+      .array(
+        z
+          .object({
+            order: z.number().int().positive(),
+            text: boundedText(10_000),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(1_000),
+    scenes: z
+      .array(
+        z
+          .object({
+            number: z.number().int().positive(),
+            template: sceneTemplateSchema,
+            durationSeconds: z.number().int().positive(),
+            narration: boundedText(10_000),
+            onScreenText: z.array(boundedText(10_000)).max(50),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(100),
+  })
+  .strict();
+export type VersionExportManifest = z.infer<typeof versionExportManifestSchema>;
+export const signedDownloadResponseSchema = z
+  .object({
+    url: z.string().url(),
+    expiresAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type SignedDownloadResponse = z.infer<
+  typeof signedDownloadResponseSchema
+>;
+
+// ---------------------------------------------------------------------------
 // ST-051 — Regenerate one storyboard scene without altering neighboring
 // teacher edits
 // ---------------------------------------------------------------------------

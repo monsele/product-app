@@ -106,6 +106,43 @@ export function RenderPanel({
                     height={108}
                   />
                 ) : null}
+                <span aria-label="Download and export lesson files">
+                  <a
+                    href={api(
+                      `${base}/${encodeURIComponent(render.id)}/download`,
+                    )}
+                  >
+                    Download MP4
+                  </a>{" "}
+                  <a
+                    href={api(
+                      `/projects/${encodeURIComponent(projectId)}/exports/${encodeURIComponent(render.lessonVersionId)}/captions?format=srt`,
+                    )}
+                  >
+                    SRT
+                  </a>{" "}
+                  <a
+                    href={api(
+                      `/projects/${encodeURIComponent(projectId)}/exports/${encodeURIComponent(render.lessonVersionId)}/captions?format=vtt`,
+                    )}
+                  >
+                    VTT
+                  </a>{" "}
+                  <a
+                    href={api(
+                      `/projects/${encodeURIComponent(projectId)}/exports/${encodeURIComponent(render.lessonVersionId)}/narration?format=markdown`,
+                    )}
+                  >
+                    Narration
+                  </a>{" "}
+                  <a
+                    href={api(
+                      `/projects/${encodeURIComponent(projectId)}/exports/${encodeURIComponent(render.lessonVersionId)}/storyboard?format=markdown`,
+                    )}
+                  >
+                    Storyboard
+                  </a>
+                </span>
               </span>
             ) : null}
             {render.retryable ? (

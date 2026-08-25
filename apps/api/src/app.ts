@@ -84,6 +84,7 @@ import { SceneAudioService } from "./scene-audio.js";
 import type { PreviewManifestService } from "./preview-manifest.js";
 import type { LessonValidationService } from "./lesson-validation.js";
 import type { RenderService } from "./renders.js";
+import type { ExportService } from "./exports.js";
 import { searchApprovedAssets } from "./approved-assets.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
@@ -120,6 +121,7 @@ const SCENE_AUDIO_SERVICE = Symbol("SCENE_AUDIO_SERVICE");
 const PREVIEW_MANIFEST_SERVICE = Symbol("PREVIEW_MANIFEST_SERVICE");
 const LESSON_VALIDATION_SERVICE = Symbol("LESSON_VALIDATION_SERVICE");
 const RENDER_SERVICE = Symbol("RENDER_SERVICE");
+const EXPORT_SERVICE = Symbol("EXPORT_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -385,6 +387,7 @@ type RenderApiService = Pick<
   RenderService,
   "start" | "list" | "detail" | "retry"
 >;
+type ExportApiService = Pick<ExportService, "build" | "signedVideoDownload">;
 
 function approvedAssetCatalogFilters(input: {
   query: unknown;
@@ -511,6 +514,8 @@ class ProjectsController {
     private readonly validations: LessonValidationApiService,
     @Inject(RENDER_SERVICE)
     private readonly renders: RenderApiService,
+    @Inject(EXPORT_SERVICE)
+    private readonly exports: ExportApiService,
   ) {}
 
   @Post()
@@ -1003,6 +1008,53 @@ class ProjectsController {
       correlationId:
         request.correlationId ?? "00000000-0000-7000-8000-000000000000",
     });
+  }
+
+  @Get(":projectId/renders/:renderId/download")
+  public async downloadRender(
+    @Param("projectId") projectId: string,
+    @Param("renderId") renderId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const download = await this.exports.signedVideoDownload({
+      ...assertAuthorizedProject(request, projectId),
+      renderId: identifierSchema.parse(renderId),
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+    reply.code(302).redirect(download.url);
+  }
+
+  @Get(":projectId/exports/:lessonVersionId/:type")
+  public async downloadExport(
+    @Param("projectId") projectId: string,
+    @Param("lessonVersionId") lessonVersionId: string,
+    @Param("type") type: string,
+    @Query("format") format: string | undefined,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+    @Res() reply: FastifyReply,
+  ): Promise<void> {
+    const defaults: Record<string, string> = {
+      captions: "srt",
+      narration: "markdown",
+      storyboard: "markdown",
+    };
+    const exported = await this.exports.build({
+      ...assertAuthorizedProject(request, projectId),
+      lessonVersionId: identifierSchema.parse(lessonVersionId),
+      type,
+      format: format ?? defaults[type] ?? "",
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+    reply
+      .type(exported.contentType)
+      .header(
+        "content-disposition",
+        `attachment; filename="${exported.fileName}"`,
+      )
+      .send(exported.body);
   }
 
   @Get(":projectId/source-review")
@@ -2381,6 +2433,7 @@ function createAppModule(
   previewManifestService: PreviewManifestApiService,
   lessonValidationService: LessonValidationApiService,
   renderService: RenderApiService,
+  exportService: ExportApiService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -2431,6 +2484,7 @@ function createAppModule(
       { provide: PREVIEW_MANIFEST_SERVICE, useValue: previewManifestService },
       { provide: LESSON_VALIDATION_SERVICE, useValue: lessonValidationService },
       { provide: RENDER_SERVICE, useValue: renderService },
+      { provide: EXPORT_SERVICE, useValue: exportService },
     ],
   };
 }
@@ -2466,6 +2520,7 @@ export type CreateAppOptions = {
   previewManifestService?: PreviewManifestApiService;
   lessonValidationService?: LessonValidationApiService;
   renderService?: RenderApiService;
+  exportService?: ExportApiService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -3362,6 +3417,16 @@ const unavailableRenderService: RenderApiService = {
       new PublicError("internal_error", "Rendering is unavailable.", 503, true),
     ),
 };
+const unavailableExportService: ExportApiService = {
+  build: () =>
+    Promise.reject(
+      new PublicError("internal_error", "Exports are unavailable.", 503, true),
+    ),
+  signedVideoDownload: () =>
+    Promise.reject(
+      new PublicError("internal_error", "Exports are unavailable.", 503, true),
+    ),
+};
 
 export async function createApp(
   options: CreateAppOptions = {},
@@ -3403,6 +3468,7 @@ export async function createApp(
       options.previewManifestService ?? unavailablePreviewManifestService,
       options.lessonValidationService ?? unavailableLessonValidationService,
       options.renderService ?? unavailableRenderService,
+      options.exportService ?? unavailableExportService,
     ),
     new FastifyAdapter({
       logger: {

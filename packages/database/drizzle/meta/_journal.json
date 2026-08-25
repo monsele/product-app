@@ -379,6 +379,13 @@
       "when": 1787643200000,
       "tag": "0053_render_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1787650000000,
+      "tag": "0054_exports",
+      "breakpoints": true
     }
   ]
 }

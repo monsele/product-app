@@ -1031,6 +1031,7 @@ export const auditEventTypeValues = [
   "storyboard.scene_candidate_rejected",
   "storyboard.edited",
   "audio.generation_requested",
+  "export.downloaded",
 ] as const;
 export const auditEventType = pgEnum("audit_event_type", auditEventTypeValues);
 
