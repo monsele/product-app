@@ -29,6 +29,7 @@ import {
   sourceSnapshotSchema,
   lessonValidationRulesetVersion,
   lessonValidationRunInputSchema,
+  validationIssueAcknowledgementInputSchema,
   lessonValidationRunSchema,
   validationIssueSchema,
   type LessonStoryboard,
@@ -45,6 +46,9 @@ import { resolveSourceRefsAgainstSnapshot } from "./source-snapshot.js";
 
 const sceneLibraryVersion = "mvp-v1";
 const durationToleranceMs = 1_500;
+const acknowledgeableWarningCodes = new Set<ValidationIssueCode>([
+  "grounding_recheck_required",
+]);
 
 type IssueDraft = Readonly<{
   severity: ValidationSeverity;
@@ -609,6 +613,12 @@ export interface LessonValidationService {
     ownerUserId: Identifier;
     projectId: Identifier;
   }): Promise<LessonValidationRun | null>;
+  acknowledge(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    issueId: Identifier;
+    body: unknown;
+  }): Promise<LessonValidationRun>;
 }
 
 function parseRunBoundary(input: unknown): void {
@@ -747,6 +757,85 @@ export class PostgresLessonValidationService implements LessonValidationService 
       latest,
       isValidationRunStale(latest.inputHash, currentHash),
     );
+  }
+
+  public async acknowledge(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    issueId: Identifier;
+    body: unknown;
+  }): Promise<LessonValidationRun> {
+    const parsed = validationIssueAcknowledgementInputSchema.safeParse(
+      input.body,
+    );
+    if (!parsed.success)
+      throw new PublicError(
+        "validation_failed",
+        "The acknowledgement request is invalid.",
+        400,
+      );
+    const [issueRow] = await this.database
+      .select()
+      .from(validationIssues)
+      .where(
+        and(
+          eq(validationIssues.id, input.issueId),
+          eq(validationIssues.ownerUserId, input.ownerUserId),
+          eq(validationIssues.projectId, input.projectId),
+        ),
+      )
+      .limit(1);
+    if (issueRow === undefined)
+      throw new PublicError("not_found", "Validation issue not found.", 404);
+    const [run] = await this.database
+      .select()
+      .from(validationRuns)
+      .where(
+        and(
+          eq(validationRuns.id, issueRow.runId),
+          eq(validationRuns.ownerUserId, input.ownerUserId),
+          eq(validationRuns.projectId, input.projectId),
+        ),
+      )
+      .limit(1);
+    if (run === undefined || run.inputHash !== parsed.data.inputHash)
+      throw new PublicError(
+        "edit_conflict",
+        "This validation report is no longer current. Run validation again.",
+        409,
+      );
+    const latest = await this.latest({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+    });
+    if (latest === null || latest.id !== run.id || latest.stale)
+      throw new PublicError(
+        "edit_conflict",
+        "This validation report is stale. Run validation again.",
+        409,
+      );
+    if (
+      issueRow.severity !== "warning" ||
+      !issueRow.acknowledgeable ||
+      !acknowledgeableWarningCodes.has(issueRow.code as ValidationIssueCode)
+    )
+      throw new PublicError(
+        "validation_failed",
+        "This issue must be fixed before rendering.",
+        400,
+      );
+    const now = this.now();
+    await this.database
+      .update(validationIssues)
+      .set({ acknowledgedAt: now, acknowledgedBy: input.ownerUserId })
+      .where(
+        and(
+          eq(validationIssues.id, issueRow.id),
+          eq(validationIssues.ownerUserId, input.ownerUserId),
+          eq(validationIssues.projectId, input.projectId),
+        ),
+      );
+    return this.readRun(run, false);
   }
 
   private async readRun(

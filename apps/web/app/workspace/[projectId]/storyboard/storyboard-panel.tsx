@@ -6,6 +6,8 @@ import {
   storyboardResponseSchema,
   lessonVersionsResponseSchema,
   lessonVersionDetailSchema,
+  lessonValidationRunSchema,
+  type LessonValidationRun,
   type SceneTemplate,
   type StoryboardResponse,
   type StoryboardSceneDetailResponse,
@@ -31,6 +33,7 @@ import {
 import { SceneList } from "./scene-list";
 import { SceneDetailPanel } from "./scene-detail-panel";
 import { VersionBrowser, type VersionBrowserMetadata } from "./version-browser";
+import { ValidationPanel } from "./validation-panel";
 
 type ViewState =
   | { kind: "loading" }
@@ -87,10 +90,106 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
   const [detailAttempt, setDetailAttempt] = useState(0);
   const [editing, setEditing] = useState(false);
   const [addTemplate, setAddTemplate] = useState<SceneTemplate>("definition");
-  const [versionMetadata, setVersionMetadata] = useState<VersionBrowserMetadata | null>(null);
-  const [versionPreview, setVersionPreview] = useState<{ id: string; durationSeconds: number; sceneCount: number; schemaVersion: string } | null>(null);
-  const [restoringVersionId, setRestoringVersionId] = useState<string | null>(null);
+  const [versionMetadata, setVersionMetadata] =
+    useState<VersionBrowserMetadata | null>(null);
+  const [versionPreview, setVersionPreview] = useState<{
+    id: string;
+    durationSeconds: number;
+    sceneCount: number;
+    schemaVersion: string;
+  } | null>(null);
+  const [restoringVersionId, setRestoringVersionId] = useState<string | null>(
+    null,
+  );
   const [savingVersion, setSavingVersion] = useState(false);
+  const [validation, setValidation] = useState<LessonValidationRun | null>(
+    null,
+  );
+  const [validationBusy, setValidationBusy] = useState(false);
+
+  const loadValidation = useCallback(async () => {
+    const response = await fetch(
+      apiUrl(`/projects/${encodeURIComponent(projectId)}/validation`),
+      { credentials: "include", cache: "no-store" },
+    );
+    const payload: unknown = await response.json().catch(() => null);
+    const candidate =
+      typeof payload === "object" && payload !== null && "run" in payload
+        ? payload.run
+        : null;
+    if (
+      !response.ok ||
+      (candidate !== null &&
+        !lessonValidationRunSchema.safeParse(candidate).success)
+    )
+      throw new Error("validation");
+    setValidation(
+      candidate === null ? null : lessonValidationRunSchema.parse(candidate),
+    );
+  }, [projectId]);
+  const runValidation = useCallback(async () => {
+    setValidationBusy(true);
+    try {
+      const response = await fetch(
+        apiUrl(`/projects/${encodeURIComponent(projectId)}/validation/run`),
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "content-type": "application/json" },
+          body: "{}",
+        },
+      );
+      const payload: unknown = await response.json().catch(() => null);
+      const parsed = lessonValidationRunSchema.safeParse(payload);
+      if (!response.ok || !parsed.success)
+        throw new Error("Unable to run lesson checks.");
+      setValidation(parsed.data);
+    } catch (error) {
+      setActionMessage(
+        error instanceof Error ? error.message : "Unable to run lesson checks.",
+      );
+    } finally {
+      setValidationBusy(false);
+    }
+  }, [projectId]);
+  const acknowledgeValidation = useCallback(
+    async (issueId: string, inputHash: string) => {
+      setValidationBusy(true);
+      try {
+        const response = await fetch(
+          apiUrl(
+            `/projects/${encodeURIComponent(projectId)}/validation/issues/${encodeURIComponent(issueId)}/acknowledge`,
+          ),
+          {
+            method: "POST",
+            credentials: "include",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ inputHash }),
+          },
+        );
+        const payload: unknown = await response.json().catch(() => null);
+        const parsed = lessonValidationRunSchema.safeParse(payload);
+        if (!response.ok || !parsed.success)
+          throw new Error(
+            extractErrorMessage(payload, "Unable to acknowledge this warning."),
+          );
+        setValidation(parsed.data);
+      } catch (error) {
+        setActionMessage(
+          error instanceof Error
+            ? error.message
+            : "Unable to acknowledge this warning.",
+        );
+      } finally {
+        setValidationBusy(false);
+      }
+    },
+    [projectId],
+  );
+
+  useEffect(() => {
+    void loadValidation().catch(() => undefined);
+  }, [loadValidation]);
 
   const refresh = useCallback(async () => {
     const response = await fetch(
@@ -151,7 +250,12 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
       count: parsed.data.versions.length,
       latestModifiedAt: parsed.data.latestModifiedAt,
       currentVersionId: parsed.data.currentVersionId,
-      versions: parsed.data.versions.map((version) => ({ id: version.id, versionNumber: version.versionNumber, reason: version.reason, createdAt: version.createdAt })),
+      versions: parsed.data.versions.map((version) => ({
+        id: version.id,
+        versionNumber: version.versionNumber,
+        reason: version.reason,
+        createdAt: version.createdAt,
+      })),
     });
   }, [projectId]);
 
@@ -165,36 +269,106 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
     try {
       const response = await fetch(
         apiUrl(`/projects/${encodeURIComponent(projectId)}/versions`),
-        { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ reason: "explicit_save" }) },
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ reason: "explicit_save" }),
+        },
       );
       const payload: unknown = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(extractErrorMessage(payload, "Unable to save this lesson version."));
+      if (!response.ok)
+        throw new Error(
+          extractErrorMessage(payload, "Unable to save this lesson version."),
+        );
       await refreshVersions();
       setActionMessage("Lesson version saved.");
     } catch (error) {
-      setActionMessage(error instanceof Error ? error.message : "Unable to save this lesson version.");
-    } finally { setSavingVersion(false); }
+      setActionMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to save this lesson version.",
+      );
+    } finally {
+      setSavingVersion(false);
+    }
   }, [projectId, refreshVersions]);
 
-  const previewVersion = useCallback(async (versionId: string) => {
-    const response = await fetch(apiUrl(`/projects/${encodeURIComponent(projectId)}/versions/${encodeURIComponent(versionId)}`), { credentials: "include", cache: "no-store" });
-    const payload: unknown = await response.json().catch(() => null);
-    const parsed = lessonVersionDetailSchema.safeParse(payload);
-    if (!response.ok || !parsed.success) throw new Error(extractErrorMessage(payload, "Unable to load this version."));
-    setVersionPreview({ id: parsed.data.id, durationSeconds: parsed.data.durationSeconds, sceneCount: parsed.data.sceneCount, schemaVersion: parsed.data.schemaVersion });
-  }, [projectId]);
-
-  const restoreVersion = useCallback(async (versionId: string) => {
-    if (!window.confirm("Restore this saved version? Your current version will be replaced by a new restored version.")) return;
-    setRestoringVersionId(versionId); setActionMessage(null);
-    try {
-      const response = await fetch(apiUrl(`/projects/${encodeURIComponent(projectId)}/versions/${encodeURIComponent(versionId)}/restore`), { method: "POST", credentials: "include", headers: { "content-type": "application/json" }, body: JSON.stringify({ expectedCurrentVersionId: versionMetadata?.currentVersionId ?? null, confirmReplace: true }) });
+  const previewVersion = useCallback(
+    async (versionId: string) => {
+      const response = await fetch(
+        apiUrl(
+          `/projects/${encodeURIComponent(projectId)}/versions/${encodeURIComponent(versionId)}`,
+        ),
+        { credentials: "include", cache: "no-store" },
+      );
       const payload: unknown = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(extractErrorMessage(payload, "Unable to restore this lesson version."));
-      await refreshVersions(); await refresh(); setActionMessage("A new current version was restored; earlier history and renders were preserved.");
-    } catch (error) { setActionMessage(error instanceof Error ? error.message : "Unable to restore this lesson version.");
-    } finally { setRestoringVersionId(null); }
-  }, [projectId, refresh, refreshVersions, versionMetadata?.currentVersionId]);
+      const parsed = lessonVersionDetailSchema.safeParse(payload);
+      if (!response.ok || !parsed.success)
+        throw new Error(
+          extractErrorMessage(payload, "Unable to load this version."),
+        );
+      setVersionPreview({
+        id: parsed.data.id,
+        durationSeconds: parsed.data.durationSeconds,
+        sceneCount: parsed.data.sceneCount,
+        schemaVersion: parsed.data.schemaVersion,
+      });
+    },
+    [projectId],
+  );
+
+  const restoreVersion = useCallback(
+    async (versionId: string) => {
+      if (
+        !window.confirm(
+          "Restore this saved version? Your current version will be replaced by a new restored version.",
+        )
+      )
+        return;
+      setRestoringVersionId(versionId);
+      setActionMessage(null);
+      try {
+        const response = await fetch(
+          apiUrl(
+            `/projects/${encodeURIComponent(projectId)}/versions/${encodeURIComponent(versionId)}/restore`,
+          ),
+          {
+            method: "POST",
+            credentials: "include",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({
+              expectedCurrentVersionId:
+                versionMetadata?.currentVersionId ?? null,
+              confirmReplace: true,
+            }),
+          },
+        );
+        const payload: unknown = await response.json().catch(() => null);
+        if (!response.ok)
+          throw new Error(
+            extractErrorMessage(
+              payload,
+              "Unable to restore this lesson version.",
+            ),
+          );
+        await refreshVersions();
+        await refresh();
+        setActionMessage(
+          "A new current version was restored; earlier history and renders were preserved.",
+        );
+      } catch (error) {
+        setActionMessage(
+          error instanceof Error
+            ? error.message
+            : "Unable to restore this lesson version.",
+        );
+      } finally {
+        setRestoringVersionId(null);
+      }
+    },
+    [projectId, refresh, refreshVersions, versionMetadata?.currentVersionId],
+  );
 
   const value = view.kind === "ready" ? view.value : null;
   const generating = value !== null && isGenerating(value.state);
@@ -354,8 +528,10 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
       invalidateStoryboardSceneList(projectId);
       setDetailAttempt((current) => current + 1);
       void refresh().catch(() => undefined);
+      void loadValidation().catch(() => undefined);
+      void runValidation();
     },
-    [projectId, refresh],
+    [projectId, refresh, loadValidation, runValidation],
   );
 
   const runSceneMutation = useCallback(
@@ -486,7 +662,29 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
 
       {actionMessage !== null ? <p role="alert">{actionMessage}</p> : null}
 
-      <VersionBrowser metadata={versionMetadata} preview={versionPreview} restoringVersionId={restoringVersionId} saving={savingVersion} storyboardAvailable={storyboard !== null} onPreview={(versionId) => void previewVersion(versionId)} onRestore={(versionId) => void restoreVersion(versionId)} onSave={() => void saveVersion()} />
+      <ValidationPanel
+        projectId={projectId}
+        run={validation}
+        busy={validationBusy}
+        onRun={() => void runValidation()}
+        onAcknowledge={(issueId, inputHash) =>
+          void acknowledgeValidation(issueId, inputHash)
+        }
+        onNavigate={(sceneId) => {
+          if (sceneId !== null) selectScene(sceneId);
+        }}
+      />
+
+      <VersionBrowser
+        metadata={versionMetadata}
+        preview={versionPreview}
+        restoringVersionId={restoringVersionId}
+        saving={savingVersion}
+        storyboardAvailable={storyboard !== null}
+        onPreview={(versionId) => void previewVersion(versionId)}
+        onRestore={(versionId) => void restoreVersion(versionId)}
+        onSave={() => void saveVersion()}
+      />
       {/*
         <button type="button" onClick={() => void saveVersion()} disabled={savingVersion || storyboard === null}>
           {savingVersion ? "Saving versionâ€¦" : "Save version"}
@@ -543,7 +741,7 @@ export function StoryboardPanel({ projectId }: { projectId: string }) {
       ) : (
         <div style={{ display: "flex", gap: 24 }}>
           <div style={{ flex: "1 1 45%" }}>
-            <h3>Scene list</h3>
+            <h3 id="scenes">Scene list</h3>
             <div
               style={{
                 alignItems: "center",

@@ -2,7 +2,7 @@
 story_id: ST-067
 title: "Build Validation Issue Resolution UI and Warning Acknowledgment"
 phase: "06 \u2014 Audio, Validation, Rendering, and Delivery"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E16"]
 prd_user_stories: ["E16-US2"]
@@ -116,15 +116,15 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-25
+- **Completed:** 2026-08-25
+- **Branch/PR:** `story/st-067` (local branch; no PR published)
+- **Files changed:** Validation API/service, shared acknowledgement boundary schema, storyboard validation panel, API/unit/Playwright tests, and story index.
+- **Migrations:** None; ST-066 already created acknowledgement persistence fields.
+- **Contracts changed:** Added `GET /projects/:id/validation`, `POST /projects/:id/validation/run`, `POST /projects/:id/validation/issues/:issueId/acknowledge`, and an exact-input-hash acknowledgement payload.
+- **Commands/tests run:** `pnpm --filter @avlp/schemas build`; API and web typechecks; API validation tests (13 passing); validation-panel unit test (1 passing); API and web lint; focused Playwright validation-panel test (1 passing).
+- **Screenshots or representative output:** Accessible panel reports readiness/staleness, groups issues, and exposes scene navigation and warning acknowledgement controls.
+- **Decisions and assumptions:** Existing validation issue rows are the acknowledgement record; acknowledgement is allowed only for persisted advisory warnings and is rejected when the report hash is stale.
+- **Deviations from story/technical guide:** Existing ST-066 routes remain supported alongside story-specified aliases.
+- **Known risks or follow-up:** Render execution is introduced by ST-068; this story supplies the readiness/error projection that ST-068 must enforce at render initiation.

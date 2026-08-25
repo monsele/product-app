@@ -375,7 +375,10 @@ type VoiceConfigurationApiService = Pick<
 >;
 type SceneAudioApiService = Pick<SceneAudioService, "generate" | "status">;
 type PreviewManifestApiService = Pick<PreviewManifestService, "get">;
-type LessonValidationApiService = Pick<LessonValidationService, "run" | "latest">;
+type LessonValidationApiService = Pick<
+  LessonValidationService,
+  "run" | "latest" | "acknowledge"
+>;
 
 function approvedAssetCatalogFilters(input: {
   query: unknown;
@@ -896,6 +899,48 @@ class ProjectsController {
         assertAuthorizedProject(request, projectId),
       ),
     };
+  }
+
+  @Get(":projectId/validation")
+  public async validation(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<{ run: unknown | null }> {
+    return {
+      run: await this.validations.latest(
+        assertAuthorizedProject(request, projectId),
+      ),
+    };
+  }
+
+  @Post(":projectId/validation/run")
+  @HttpCode(200)
+  public async runValidationAlias(
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.validations.run({
+      ...assertAuthorizedProject(request, projectId),
+      body,
+    });
+  }
+
+  @Post(":projectId/validation/issues/:issueId/acknowledge")
+  @HttpCode(200)
+  public async acknowledgeValidationIssue(
+    @Param("projectId") projectId: string,
+    @Param("issueId") issueId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.validations.acknowledge({
+      ...assertAuthorizedProject(request, projectId),
+      issueId: identifierSchema.parse(issueId),
+      body,
+    });
   }
 
   @Get(":projectId/source-review")
@@ -3208,11 +3253,30 @@ const unavailablePreviewManifestService: PreviewManifestApiService = {
 const unavailableLessonValidationService: LessonValidationApiService = {
   latest: () =>
     Promise.reject(
-      new PublicError("internal_error", "Validation is unavailable.", 503, true),
+      new PublicError(
+        "internal_error",
+        "Validation is unavailable.",
+        503,
+        true,
+      ),
     ),
   run: () =>
     Promise.reject(
-      new PublicError("internal_error", "Validation is unavailable.", 503, true),
+      new PublicError(
+        "internal_error",
+        "Validation is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  acknowledge: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Validation is unavailable.",
+        503,
+        true,
+      ),
     ),
 };
 

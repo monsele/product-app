@@ -30,6 +30,20 @@ test("storyboard page shows the generated scene draft", async ({ page }) => {
   ).toBeVisible();
 });
 
+test("validation panel is keyboard-accessible and explains render readiness", async ({
+  page,
+}) => {
+  await setSessionCookie(page);
+  await page.goto(`/workspace/${projectId}/storyboard`);
+  const runChecks = page.getByRole("button", { name: "Run checks" });
+  await expect(runChecks).toBeVisible();
+  await runChecks.focus();
+  await expect(runChecks).toBeFocused();
+  await expect(
+    page.getByText("Run lesson checks before rendering."),
+  ).toBeVisible();
+});
+
 test("storyboard page queues a regeneration without losing the draft", async ({
   page,
 }) => {

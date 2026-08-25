@@ -339,7 +339,11 @@ describe("validation API", () => {
         new InMemoryOwnerScopedProjectRepository([fixture.project]),
       ),
       trustedOrigin: "https://app.example.test",
-      lessonValidationService: { latest: vi.fn().mockResolvedValue(null), run },
+      lessonValidationService: {
+        acknowledge: vi.fn(),
+        latest: vi.fn().mockResolvedValue(null),
+        run,
+      },
     });
     const server = app.getHttpAdapter().getInstance();
     const foreign = await server.inject({
@@ -371,5 +375,52 @@ describe("validation API", () => {
       projectId: fixture.projectId,
       body: {},
     });
+  });
+
+  it("requires a trusted origin and exact hash when acknowledging a warning", async () => {
+    const fixture = createCrossUserProjectFixture();
+    const acknowledge = vi.fn().mockResolvedValue({ status: "passed" });
+    const authGateway: AuthGateway = {
+      register: async () => {
+        throw new Error("Not used by this test.");
+      },
+      signIn: async () => null,
+      currentSession: async (token) =>
+        token === "owner"
+          ? {
+              id: fixture.ownerUserId,
+              email: "owner@example.test",
+              displayName: "Owner",
+            }
+          : null,
+      signOut: async () => {},
+      requestPasswordReset: async () => {},
+      confirmPasswordReset: async () => {},
+    };
+    app = await createApp({
+      authGateway,
+      projectAuthorizer: new ProjectAuthorizationService(
+        new InMemoryOwnerScopedProjectRepository([fixture.project]),
+      ),
+      trustedOrigin: "https://app.example.test",
+      lessonValidationService: { latest: vi.fn(), run: vi.fn(), acknowledge },
+    });
+    const server = app.getHttpAdapter().getInstance();
+    const issueId = "01989a3d-8e00-7000-8000-000000000009";
+    const response = await server.inject({
+      method: "POST",
+      url: `/projects/${fixture.projectId}/validation/issues/${issueId}/acknowledge`,
+      cookies: { [sessionCookieName]: "owner" },
+      headers: { origin: "https://app.example.test" },
+      payload: { inputHash: sourceHash },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(acknowledge).toHaveBeenCalledWith(
+      expect.objectContaining({
+        issueId,
+        projectId: fixture.projectId,
+        body: { inputHash: sourceHash },
+      }),
+    );
   });
 });

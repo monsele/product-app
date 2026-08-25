@@ -6788,3 +6788,11 @@ export const lessonValidationRunInputSchema = z.object({}).strict();
 export type LessonValidationRunInput = z.infer<
   typeof lessonValidationRunInputSchema
 >;
+
+/** The acknowledgement is tied to the immutable validation input it reviewed. */
+export const validationIssueAcknowledgementInputSchema = z
+  .object({ inputHash: z.string().regex(sha256HexPattern) })
+  .strict();
+export type ValidationIssueAcknowledgementInput = z.infer<
+  typeof validationIssueAcknowledgementInputSchema
+>;
