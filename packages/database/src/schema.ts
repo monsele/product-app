@@ -2056,3 +2056,77 @@ export const captionCues = pgTable(
     ),
   ],
 );
+
+/** A deterministic ST-066 validation result, bound to one immutable lesson input. */
+export const validationRunStatuses = ["passed", "failed"] as const;
+export const validationRunStatus = pgEnum(
+  "validation_run_status",
+  validationRunStatuses,
+);
+export const validationRuns = pgTable(
+  "validation_runs",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    lessonSpecId: uuid("lesson_spec_id")
+      .notNull()
+      .references(() => lessonSpecs.id, { onDelete: "cascade" }),
+    lessonSpecRevision: integer("lesson_spec_revision").notNull(),
+    lessonSpecContentHash: text("lesson_spec_content_hash").notNull(),
+    inputHash: text("input_hash").notNull(),
+    rulesetVersion: text("ruleset_version").notNull(),
+    sceneLibraryVersion: text("scene_library_version").notNull(),
+    artifactHashes: jsonb("artifact_hashes").notNull().default({}),
+    status: validationRunStatus("status").notNull(),
+    startedAt: utcTimestamp("started_at").notNull(),
+    completedAt: utcTimestamp("completed_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("validation_runs_tenant_input_hash_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.inputHash,
+    ),
+    index("validation_runs_owner_project_completed_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.completedAt,
+    ),
+    index("validation_runs_lesson_spec_idx").on(table.lessonSpecId),
+  ],
+);
+
+/** Individual deep-linkable results. Acknowledgements are reserved for warnings. */
+export const validationIssues = pgTable(
+  "validation_issues",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => validationRuns.id, { onDelete: "cascade" }),
+    severity: text("severity").notNull(),
+    code: text("code").notNull(),
+    scopeType: text("scope_type").notNull(),
+    scopeId: uuid("scope_id"),
+    sceneId: uuid("scene_id"),
+    fieldPath: text("field_path").notNull(),
+    message: text("message").notNull(),
+    details: jsonb("details").notNull().default({}),
+    acknowledgeable: boolean("acknowledgeable").notNull().default(false),
+    acknowledgedAt: utcTimestamp("acknowledged_at"),
+    acknowledgedBy: uuid("acknowledged_by").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    index("validation_issues_owner_project_run_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.runId,
+    ),
+    index("validation_issues_run_severity_idx").on(table.runId, table.severity),
+    index("validation_issues_scene_idx").on(table.sceneId),
+  ],
+);

@@ -37,6 +37,7 @@ import { PostgresLessonVersionsService } from "./lesson-versions.js";
 import { PostgresVoiceConfigurationService } from "./voice-configuration.js";
 import { SceneAudioService } from "./scene-audio.js";
 import { PreviewManifestService } from "./preview-manifest.js";
+import { PostgresLessonValidationService } from "./lesson-validation.js";
 
 export async function runApi(input: {
   telemetryShutdown: () => Promise<void>;
@@ -177,6 +178,9 @@ export async function runApi(input: {
       previewManifestService: new PreviewManifestService(
         database.client,
         storage,
+      ),
+      lessonValidationService: new PostgresLessonValidationService(
+        database.client,
       ),
       projectAuthorizer,
       ...(environment.WEB_ORIGIN === undefined

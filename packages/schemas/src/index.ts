@@ -6684,3 +6684,107 @@ export function sceneEditInvalidation(
       : null,
   };
 }
+
+// ---------------------------------------------------------------------------
+// ST-066 — deterministic lesson quality validation
+// ---------------------------------------------------------------------------
+
+/** Versioned deterministic rules that decide whether a lesson can be rendered. */
+export const lessonValidationRulesetVersion = "1" as const;
+
+export const validationSeveritySchema = z.enum(["error", "warning", "info"]);
+export type ValidationSeverity = z.infer<typeof validationSeveritySchema>;
+
+export const validationScopeTypeSchema = z.enum([
+  "lesson",
+  "objective",
+  "scene",
+  "asset",
+  "audio",
+  "captions",
+  "grounding",
+]);
+export type ValidationScopeType = z.infer<typeof validationScopeTypeSchema>;
+
+/**
+ * Stable codes are an API contract: clients deep-link with scope/entity/path,
+ * rather than parsing human-readable messages.
+ */
+export const validationIssueCodeSchema = z.enum([
+  "objective_uncovered",
+  "objective_unknown",
+  "unsupported_template",
+  "invalid_scene",
+  "text_overflow",
+  "diagram_collision",
+  "asset_required",
+  "asset_unresolved",
+  "lesson_duration_mismatch",
+  "scene_duration_out_of_range",
+  "narration_duration_mismatch",
+  "audio_missing",
+  "audio_not_ready",
+  "audio_duration_mismatch",
+  "captions_missing",
+  "captions_not_ready",
+  "caption_timing_invalid",
+  "grounding_missing",
+  "grounding_recheck_required",
+  "generated_addition_unlabelled",
+]);
+export type ValidationIssueCode = z.infer<typeof validationIssueCodeSchema>;
+
+export const validationIssueSchema = z
+  .object({
+    id: identifierSchema,
+    severity: validationSeveritySchema,
+    code: validationIssueCodeSchema,
+    scopeType: validationScopeTypeSchema,
+    scopeId: identifierSchema.nullable(),
+    sceneId: identifierSchema.nullable(),
+    fieldPath: z.string().trim().min(1).max(500),
+    message: z.string().trim().min(1).max(1_000),
+    details: z.record(z.string(), z.unknown()),
+    /** Only advisory warnings can be acknowledged; errors always block. */
+    acknowledgeable: z.boolean(),
+    acknowledgedAt: z.string().datetime({ offset: true }).nullable(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.acknowledgeable && value.severity !== "warning")
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["acknowledgeable"],
+        message: "Only validation warnings may be acknowledged.",
+      });
+  });
+export type ValidationIssue = z.infer<typeof validationIssueSchema>;
+
+export const validationRunStatusSchema = z.enum(["passed", "failed"]);
+export type ValidationRunStatus = z.infer<typeof validationRunStatusSchema>;
+
+/** A response is valid only while its exact input hash remains current. */
+export const lessonValidationRunSchema = z
+  .object({
+    id: identifierSchema,
+    lessonSpecId: identifierSchema,
+    lessonSpecRevision: z.number().int().nonnegative(),
+    lessonSpecContentHash: z.string().regex(sha256HexPattern),
+    inputHash: z.string().regex(sha256HexPattern),
+    rulesetVersion: z.literal(lessonValidationRulesetVersion),
+    sceneLibraryVersion: z.string().trim().min(1).max(100),
+    artifactHashes: z.record(z.string(), z.string().regex(sha256HexPattern)),
+    status: validationRunStatusSchema,
+    stale: z.boolean(),
+    startedAt: z.string().datetime({ offset: true }),
+    completedAt: z.string().datetime({ offset: true }),
+    issues: z.array(validationIssueSchema),
+  })
+  .strict();
+export type LessonValidationRun = z.infer<typeof lessonValidationRunSchema>;
+
+/** Explicit validation remains safe to repeat because its input hash is cached. */
+export const lessonValidationRunInputSchema = z.object({}).strict();
+export type LessonValidationRunInput = z.infer<
+  typeof lessonValidationRunInputSchema
+>;

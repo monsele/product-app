@@ -82,6 +82,7 @@ import {
 } from "./voice-configuration.js";
 import { SceneAudioService } from "./scene-audio.js";
 import type { PreviewManifestService } from "./preview-manifest.js";
+import type { LessonValidationService } from "./lesson-validation.js";
 import { searchApprovedAssets } from "./approved-assets.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
@@ -116,6 +117,7 @@ const LESSON_VERSIONS_SERVICE = Symbol("LESSON_VERSIONS_SERVICE");
 const VOICE_CONFIGURATION_SERVICE = Symbol("VOICE_CONFIGURATION_SERVICE");
 const SCENE_AUDIO_SERVICE = Symbol("SCENE_AUDIO_SERVICE");
 const PREVIEW_MANIFEST_SERVICE = Symbol("PREVIEW_MANIFEST_SERVICE");
+const LESSON_VALIDATION_SERVICE = Symbol("LESSON_VALIDATION_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -373,6 +375,7 @@ type VoiceConfigurationApiService = Pick<
 >;
 type SceneAudioApiService = Pick<SceneAudioService, "generate" | "status">;
 type PreviewManifestApiService = Pick<PreviewManifestService, "get">;
+type LessonValidationApiService = Pick<LessonValidationService, "run" | "latest">;
 
 function approvedAssetCatalogFilters(input: {
   query: unknown;
@@ -495,6 +498,8 @@ class ProjectsController {
     private readonly sceneAudio: SceneAudioApiService,
     @Inject(PREVIEW_MANIFEST_SERVICE)
     private readonly previewManifests: PreviewManifestApiService,
+    @Inject(LESSON_VALIDATION_SERVICE)
+    private readonly validations: LessonValidationApiService,
   ) {}
 
   @Post()
@@ -865,6 +870,32 @@ class ProjectsController {
       ...assertAuthorizedProject(request, projectId),
       ...(quality === undefined ? {} : { quality }),
     });
+  }
+
+  @Post(":projectId/validation-runs")
+  @HttpCode(200)
+  public async runValidation(
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.validations.run({
+      ...assertAuthorizedProject(request, projectId),
+      body,
+    });
+  }
+
+  @Get(":projectId/validation-runs/latest")
+  public async latestValidation(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<{ run: unknown | null }> {
+    return {
+      run: await this.validations.latest(
+        assertAuthorizedProject(request, projectId),
+      ),
+    };
   }
 
   @Get(":projectId/source-review")
@@ -2241,6 +2272,7 @@ function createAppModule(
   voiceConfigurationService: VoiceConfigurationApiService,
   sceneAudioService: SceneAudioApiService,
   previewManifestService: PreviewManifestApiService,
+  lessonValidationService: LessonValidationApiService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -2289,6 +2321,7 @@ function createAppModule(
       },
       { provide: SCENE_AUDIO_SERVICE, useValue: sceneAudioService },
       { provide: PREVIEW_MANIFEST_SERVICE, useValue: previewManifestService },
+      { provide: LESSON_VALIDATION_SERVICE, useValue: lessonValidationService },
     ],
   };
 }
@@ -2322,6 +2355,7 @@ export type CreateAppOptions = {
   voiceConfigurationService?: VoiceConfigurationApiService;
   sceneAudioService?: SceneAudioApiService;
   previewManifestService?: PreviewManifestApiService;
+  lessonValidationService?: LessonValidationApiService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -3171,6 +3205,16 @@ const unavailablePreviewManifestService: PreviewManifestApiService = {
       new PublicError("internal_error", "Preview is unavailable.", 503, true),
     ),
 };
+const unavailableLessonValidationService: LessonValidationApiService = {
+  latest: () =>
+    Promise.reject(
+      new PublicError("internal_error", "Validation is unavailable.", 503, true),
+    ),
+  run: () =>
+    Promise.reject(
+      new PublicError("internal_error", "Validation is unavailable.", 503, true),
+    ),
+};
 
 export async function createApp(
   options: CreateAppOptions = {},
@@ -3210,6 +3254,7 @@ export async function createApp(
       options.voiceConfigurationService ?? unavailableVoiceConfigurationService,
       options.sceneAudioService ?? unavailableSceneAudioService,
       options.previewManifestService ?? unavailablePreviewManifestService,
+      options.lessonValidationService ?? unavailableLessonValidationService,
     ),
     new FastifyAdapter({
       logger: {

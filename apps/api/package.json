@@ -17,6 +17,7 @@
     "@avlp/database": "workspace:*",
     "@avlp/jobs": "workspace:*",
     "@avlp/observability": "workspace:*",
+    "@avlp/scene-library": "workspace:*",
     "@avlp/schemas": "workspace:*",
     "@avlp/storage": "workspace:*",
     "@fastify/cookie": "^11.0.2",

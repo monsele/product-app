@@ -2,7 +2,7 @@
 story_id: ST-066
 title: "Implement the Deterministic Lesson Quality Validation Engine"
 phase: "06 \u2014 Audio, Validation, Rendering, and Delivery"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E16", "E19"]
 prd_user_stories: ["E16-US1"]
@@ -134,15 +134,15 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-25
+- **Completed:** 2026-08-25
+- **Branch/PR:** `story/st-066` (local; ready for review)
+- **Files changed:** `packages/schemas/src/index.ts`, `packages/database/src/schema.ts`, `packages/database/drizzle/0052_validation_runs.sql`, `packages/database/drizzle/meta/_journal.json`, `apps/api/src/lesson-validation.ts`, `apps/api/src/lesson-validation.test.ts`, `apps/api/src/app.ts`, `apps/api/src/runtime.ts`, `apps/api/src/caption-export.ts`, `apps/api/package.json`, and `pnpm-lock.yaml`.
+- **Migrations:** `0052_validation_runs.sql` adds version-bound validation runs and deep-linkable validation issues, including tenant-scoped indexes and warning-acknowledgement fields.
+- **Contracts changed:** Added versioned validation run, issue, severity, scope, status, issue-code, and explicit-run input schemas. Added `POST /projects/:projectId/validation-runs` and `GET /projects/:projectId/validation-runs/latest`.
+- **Commands/tests run:** `pnpm --filter @avlp/api test` (passed); `pnpm --filter @avlp/api test -- lesson-validation.test.ts` (12 passed); `pnpm --filter @avlp/{api,schemas,database} typecheck` (passed); `pnpm --filter @avlp/{api,schemas,database} build` (passed); `pnpm --filter @avlp/{schemas,database} test` (passed; database integration tests skipped without a database); `pnpm --filter @avlp/api lint` and `git diff --check` (passed).
+- **Screenshots or representative output:** Five-scene valid fixture has no blocking issues; missing media and objective coverage fixture returns exact paths such as `scenes.2.audio` and `objectiveIds`.
+- **Decisions and assumptions:** Reused the pinned scene-library validator for template/schema/text/layout/frame-safety checks. A run is cached by a canonical hash of lesson content, ruleset, scene-library version, derived media, and current source-grounding state. Grounding rechecks are a designated acknowledgeable warning; missing citations, assets, media, invalid schema, and timing are always blocking.
+- **Deviations from story/technical guide:** Used the guide's `validation-runs` endpoint name. Teacher issue-resolution UI, warning-acknowledgement endpoint, render-readiness endpoint, and final render command remain intentionally out of scope for later stories.
+- **Known risks or follow-up:** Database integration tests remain skipped without a configured database. The migration journal now records the existing `0050`/`0051` audio/caption migrations before `0052`; applying this branch to a database that was advanced manually outside Drizzle requires the standard migration-history reconciliation procedure.
