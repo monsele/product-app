@@ -15,6 +15,9 @@
     "@avlp/design-system": "workspace:*",
     "@avlp/scene-library": "workspace:*",
     "@avlp/schemas": "workspace:*",
+    "@phosphor-icons/react": "^2.1.10",
+    "@radix-ui/themes": "^3.3.0",
+    "motion": "^13.1.1",
     "next": "^15.5.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"

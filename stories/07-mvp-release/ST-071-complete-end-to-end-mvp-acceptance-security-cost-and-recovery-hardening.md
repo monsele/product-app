@@ -2,7 +2,7 @@
 story_id: ST-071
 title: "Complete End-to-End MVP Acceptance, Security, Cost, and Recovery Hardening"
 phase: "07 \u2014 MVP Release"
-status: In Progress
+status: Done
 priority: must-have
 epics:
   [

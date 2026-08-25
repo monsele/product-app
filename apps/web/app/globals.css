@@ -1,0 +1,113 @@
+@import "@radix-ui/themes/styles.css";
+
+/* Design System Semantic Tokens for Product UI */
+
+:root,
+.theme-studio-daylight {
+  --color-canvas: #F7F8FC;
+  --color-surface: #FCFCFF;
+  --color-surface-subtle: #F0F1F7;
+  --color-surface-brand: #F0EAFF;
+  --color-surface-raised: #FFFFFF;
+  --color-text: #2B2138;
+  --color-text-muted: #6C6575;
+  --color-border: #DDD8E5;
+  --color-brand: #6430D7;
+  --color-brand-hover: #5525BF;
+  --color-brand-active: #47209F;
+  --color-focus: #5B2CCB;
+  --color-on-brand: #FFFFFF;
+
+  --shadow-elevation: 0 18px 50px rgba(73, 52, 105, 0.10);
+  --color-scheme: light;
+}
+
+.theme-focus-studio {
+  --color-canvas: #18131F;
+  --color-surface: #211A2B;
+  --color-surface-subtle: #292035;
+  --color-surface-brand: #342548;
+  --color-surface-raised: #292035;
+  --color-text: #F4F1F8;
+  --color-text-muted: #BDB5C7;
+  --color-border: #3A3046;
+  --color-brand: #A883FF;
+  --color-brand-hover: #B797FF;
+  --color-brand-active: #976EFF;
+  --color-focus: #A883FF;
+  --color-on-brand: #1B1027;
+
+  --shadow-elevation: 0 20px 60px rgba(8, 4, 14, 0.36);
+  --color-scheme: dark;
+}
+
+/* Shared Brand & Semantic Tokens */
+:root {
+  --gradient-atmosphere: linear-gradient(135deg, #6F35E8 0%, #8B68EE 52%, #79A9E7 100%);
+
+  --color-success-fg: #176B46;
+  --color-success-bg: #EFFAF4;
+  --color-success-border: #B7E4CA;
+
+  --color-warning-fg: #8A4B08;
+  --color-warning-bg: #FFF8E7;
+  --color-warning-border: #F7DBA7;
+
+  --color-error-fg: #B42318;
+  --color-error-bg: #FFF5F4;
+  --color-error-border: #FECDCA;
+
+  --color-info-fg: #3159A6;
+  --color-info-bg: #F0F5FF;
+  --color-info-border: #B8D3FF;
+
+  --radius-card: 16px;
+  --radius-control: 10px;
+  --radius-pill: 9999px;
+  --radius-circle: 50%;
+
+  --motion-instant: 120ms;
+  --motion-quick: 200ms;
+  --motion-standard: 320ms;
+  --motion-transform: 600ms;
+  --motion-easing: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --font-family-sans: Arial, Helvetica, sans-serif;
+}
+
+/* Base Styles */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-canvas);
+  color: var(--color-text);
+  font-family: var(--font-family-sans);
+  -webkit-font-smoothing: antialiased;
+  color-scheme: var(--color-scheme, light);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Focus Indicator Standards */
+*:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Reduced Motion Overrides */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
