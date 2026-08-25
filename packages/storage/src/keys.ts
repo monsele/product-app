@@ -155,10 +155,24 @@ export const storageKeys = {
     );
   },
 
+  renderStagingVideo(input: RenderKey): StorageKey {
+    const renderJobId = identifierSchema.parse(input.renderJobId);
+    return validatedKey(
+      `${tenantPrefix(input)}/renders/${renderJobId}/staging/lesson.mp4`,
+    );
+  },
+
   renderThumbnail(input: RenderKey): StorageKey {
     const renderJobId = identifierSchema.parse(input.renderJobId);
     return validatedKey(
       `${tenantPrefix(input)}/renders/${renderJobId}/thumbnail.png`,
+    );
+  },
+
+  renderStagingThumbnail(input: RenderKey): StorageKey {
+    const renderJobId = identifierSchema.parse(input.renderJobId);
+    return validatedKey(
+      `${tenantPrefix(input)}/renders/${renderJobId}/staging/thumbnail.png`,
     );
   },
 } as const;

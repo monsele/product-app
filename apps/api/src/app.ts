@@ -83,6 +83,7 @@ import {
 import { SceneAudioService } from "./scene-audio.js";
 import type { PreviewManifestService } from "./preview-manifest.js";
 import type { LessonValidationService } from "./lesson-validation.js";
+import type { RenderService } from "./renders.js";
 import { searchApprovedAssets } from "./approved-assets.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
@@ -118,6 +119,7 @@ const VOICE_CONFIGURATION_SERVICE = Symbol("VOICE_CONFIGURATION_SERVICE");
 const SCENE_AUDIO_SERVICE = Symbol("SCENE_AUDIO_SERVICE");
 const PREVIEW_MANIFEST_SERVICE = Symbol("PREVIEW_MANIFEST_SERVICE");
 const LESSON_VALIDATION_SERVICE = Symbol("LESSON_VALIDATION_SERVICE");
+const RENDER_SERVICE = Symbol("RENDER_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -379,6 +381,10 @@ type LessonValidationApiService = Pick<
   LessonValidationService,
   "run" | "latest" | "acknowledge"
 >;
+type RenderApiService = Pick<
+  RenderService,
+  "start" | "list" | "detail" | "retry"
+>;
 
 function approvedAssetCatalogFilters(input: {
   query: unknown;
@@ -503,6 +509,8 @@ class ProjectsController {
     private readonly previewManifests: PreviewManifestApiService,
     @Inject(LESSON_VALIDATION_SERVICE)
     private readonly validations: LessonValidationApiService,
+    @Inject(RENDER_SERVICE)
+    private readonly renders: RenderApiService,
   ) {}
 
   @Post()
@@ -940,6 +948,60 @@ class ProjectsController {
       ...assertAuthorizedProject(request, projectId),
       issueId: identifierSchema.parse(issueId),
       body,
+    });
+  }
+
+  @Post(":projectId/renders")
+  @HttpCode(202)
+  public async startRender(
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+    @Headers("idempotency-key") idempotencyKey: string | undefined,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.renders.start({
+      ...assertAuthorizedProject(request, projectId),
+      body,
+      ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Get(":projectId/renders")
+  public async listRenders(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    return this.renders.list(assertAuthorizedProject(request, projectId));
+  }
+
+  @Get(":projectId/renders/:renderId")
+  public async renderDetail(
+    @Param("projectId") projectId: string,
+    @Param("renderId") renderId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    return this.renders.detail({
+      ...assertAuthorizedProject(request, projectId),
+      renderId: identifierSchema.parse(renderId),
+    });
+  }
+
+  @Post(":projectId/renders/:renderId/retry")
+  @HttpCode(202)
+  public async retryRender(
+    @Param("projectId") projectId: string,
+    @Param("renderId") renderId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.renders.retry({
+      ...assertAuthorizedProject(request, projectId),
+      renderId: identifierSchema.parse(renderId),
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
     });
   }
 
@@ -2318,6 +2380,7 @@ function createAppModule(
   sceneAudioService: SceneAudioApiService,
   previewManifestService: PreviewManifestApiService,
   lessonValidationService: LessonValidationApiService,
+  renderService: RenderApiService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -2367,6 +2430,7 @@ function createAppModule(
       { provide: SCENE_AUDIO_SERVICE, useValue: sceneAudioService },
       { provide: PREVIEW_MANIFEST_SERVICE, useValue: previewManifestService },
       { provide: LESSON_VALIDATION_SERVICE, useValue: lessonValidationService },
+      { provide: RENDER_SERVICE, useValue: renderService },
     ],
   };
 }
@@ -2401,6 +2465,7 @@ export type CreateAppOptions = {
   sceneAudioService?: SceneAudioApiService;
   previewManifestService?: PreviewManifestApiService;
   lessonValidationService?: LessonValidationApiService;
+  renderService?: RenderApiService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -3279,6 +3344,24 @@ const unavailableLessonValidationService: LessonValidationApiService = {
       ),
     ),
 };
+const unavailableRenderService: RenderApiService = {
+  start: () =>
+    Promise.reject(
+      new PublicError("internal_error", "Rendering is unavailable.", 503, true),
+    ),
+  list: () =>
+    Promise.reject(
+      new PublicError("internal_error", "Rendering is unavailable.", 503, true),
+    ),
+  detail: () =>
+    Promise.reject(
+      new PublicError("internal_error", "Rendering is unavailable.", 503, true),
+    ),
+  retry: () =>
+    Promise.reject(
+      new PublicError("internal_error", "Rendering is unavailable.", 503, true),
+    ),
+};
 
 export async function createApp(
   options: CreateAppOptions = {},
@@ -3319,6 +3402,7 @@ export async function createApp(
       options.sceneAudioService ?? unavailableSceneAudioService,
       options.previewManifestService ?? unavailablePreviewManifestService,
       options.lessonValidationService ?? unavailableLessonValidationService,
+      options.renderService ?? unavailableRenderService,
     ),
     new FastifyAdapter({
       logger: {

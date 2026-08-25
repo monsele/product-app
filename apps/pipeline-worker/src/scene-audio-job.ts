@@ -36,12 +36,19 @@ export interface SceneAudioTtsProvider {
   readonly providerId: string;
   readonly outputFormat: "mp3" | "wav";
   readonly contentType: "audio/mpeg" | "audio/wav";
-  synthesize(input: { narration: string; speakingRate: number }): SceneAudioSynthesis;
+  synthesize(input: {
+    narration: string;
+    speakingRate: number;
+  }): SceneAudioSynthesis;
 }
 /** Forced alignment is isolated behind an application-owned boundary so
  * production providers can align narration against the generated waveform. */
 export interface SceneAudioAlignmentProvider {
-  align(input: { audio: Uint8Array; narration: string; durationMs: number }): Array<{ startMs: number; endMs: number; text: string }>;
+  align(input: {
+    audio: Uint8Array;
+    narration: string;
+    durationMs: number;
+  }): Array<{ startMs: number; endMs: number; text: string }>;
 }
 const digest = (value: unknown) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
@@ -242,7 +249,7 @@ export function createSceneAudioGenerationJobHandler(input: {
           contentHash: audio.contentHash!,
           extension: provider.outputFormat,
         });
-        await input.storage.putBytes({
+        const stored = await input.storage.putBytes({
           key,
           body: new Uint8Array(output.bytes),
           contentType: provider.contentType,
@@ -262,6 +269,7 @@ export function createSceneAudioGenerationJobHandler(input: {
             .set({
               status: "ready",
               storageKey: key,
+              checksumSha256: stored.checksumSha256 ?? null,
               contentType: provider.contentType,
               durationMs: output.durationMs,
               timing: output.timing,
@@ -321,9 +329,19 @@ export function createSceneAudioGenerationJobHandler(input: {
           sceneAudioId: audio.id,
           narrationHash: payload.narrationHash,
           audioContentHash: audio.contentHash!,
-          timing: output.timing.length > 0
-            ? alignSentences({ narration, durationMs: output.durationMs, timing: output.timing })
-            : alignWithoutProvider(alignmentProvider, output.bytes, narration, output.durationMs),
+          timing:
+            output.timing.length > 0
+              ? alignSentences({
+                  narration,
+                  durationMs: output.durationMs,
+                  timing: output.timing,
+                })
+              : alignWithoutProvider(
+                  alignmentProvider,
+                  output.bytes,
+                  narration,
+                  output.durationMs,
+                ),
           durationMs: output.durationMs,
           now,
         });
@@ -391,7 +409,11 @@ function alignWithoutProvider(
       "FORCED_ALIGNMENT_UNAVAILABLE",
       "The TTS provider returned no timestamps and no forced-alignment provider is configured.",
     );
-  return alignSentences({ narration, durationMs, timing: provider.align({ audio, narration, durationMs }) });
+  return alignSentences({
+    narration,
+    durationMs,
+    timing: provider.align({ audio, narration, durationMs }),
+  });
 }
 
 async function persistCaptions(input: {

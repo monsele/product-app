@@ -5347,6 +5347,80 @@ export const lessonStoryboardSchema = z
 export type LessonStoryboard = z.infer<typeof lessonStoryboardSchema>;
 
 // ---------------------------------------------------------------------------
+// ST-068 — immutable production-render lifecycle
+// ---------------------------------------------------------------------------
+
+export const renderStatusSchema = z.enum([
+  "queued",
+  "rendering",
+  "completed",
+  "failed",
+  "cancelled",
+]);
+export type RenderStatus = z.infer<typeof renderStatusSchema>;
+
+export const renderErrorCodeSchema = z.enum([
+  "VALIDATION_STALE",
+  "VALIDATION_BLOCKED",
+  "RENDER_TIMEOUT",
+  "RENDER_WORKER_UNAVAILABLE",
+  "ASSET_MISSING",
+  "ASSET_CHECKSUM_MISMATCH",
+  "OUTPUT_UNREADABLE",
+  "OUTPUT_PROFILE_INVALID",
+  "RENDER_STORAGE_FAILED",
+  "RENDER_FAILED",
+  "RENDER_CANCELLED",
+]);
+export type RenderErrorCode = z.infer<typeof renderErrorCodeSchema>;
+
+export const renderRequestSchema = z
+  .object({
+    lessonVersionId: identifierSchema,
+    /** An optional client token distinguishes an intentional new render profile. */
+    idempotencyKey: z.string().trim().min(1).max(200).optional(),
+  })
+  .strict();
+export type RenderRequest = z.infer<typeof renderRequestSchema>;
+
+export const renderedVideoSchema = z
+  .object({
+    id: identifierSchema,
+    durationMs: z.number().int().positive(),
+    sizeBytes: z.number().int().positive(),
+    width: z.literal(1920),
+    height: z.literal(1080),
+    fps: z.literal(30),
+    videoCodec: z.literal("h264"),
+    audioCodec: z.literal("aac"),
+    storageKey: z.string().min(1).max(1_000),
+    thumbnailStorageKey: z.string().min(1).max(1_000).nullable(),
+    thumbnailUrl: z.string().url().nullable(),
+  })
+  .strict();
+export type RenderedVideo = z.infer<typeof renderedVideoSchema>;
+
+export const renderStatusResponseSchema = z
+  .object({
+    id: identifierSchema,
+    lessonVersionId: identifierSchema,
+    validationRunId: identifierSchema,
+    status: renderStatusSchema,
+    progress: z.number().min(0).max(1),
+    attempt: z.number().int().nonnegative(),
+    errorCode: renderErrorCodeSchema.nullable(),
+    errorMessage: z.string().min(1).max(500).nullable(),
+    retryable: z.boolean(),
+    correlationId: identifierSchema,
+    createdAt: z.string().datetime({ offset: true }),
+    startedAt: z.string().datetime({ offset: true }).nullable(),
+    completedAt: z.string().datetime({ offset: true }).nullable(),
+    video: renderedVideoSchema.nullable(),
+  })
+  .strict();
+export type RenderStatusResponse = z.infer<typeof renderStatusResponseSchema>;
+
+// ---------------------------------------------------------------------------
 // ST-051 — Regenerate one storyboard scene without altering neighboring
 // teacher edits
 // ---------------------------------------------------------------------------

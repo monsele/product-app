@@ -1974,6 +1974,8 @@ export const sceneAudio = pgTable(
     voiceConfigurationHash: text("voice_configuration_hash"),
     contentHash: text("content_hash"),
     storageKey: text("storage_key"),
+    /** Storage-verifier checksum; input `contentHash` is not a media checksum. */
+    checksumSha256: text("checksum_sha256"),
     contentType: text("content_type"),
     durationMs: integer("duration_ms"),
     timing: jsonb("timing"),
@@ -2128,5 +2130,108 @@ export const validationIssues = pgTable(
     ),
     index("validation_issues_run_severity_idx").on(table.runId, table.severity),
     index("validation_issues_scene_idx").on(table.sceneId),
+  ],
+);
+
+/** Production renders remain bound to the immutable lesson-version and exact
+ * validation run that authorized their creation. Generic `jobs` owns leases. */
+export const renderStatuses = [
+  "queued",
+  "rendering",
+  "completed",
+  "failed",
+  "cancelled",
+] as const;
+export const renderStatus = pgEnum("render_status", renderStatuses);
+export const renderJobs = pgTable(
+  "render_jobs",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    jobId: uuid("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "restrict" }),
+    lessonVersionId: uuid("lesson_version_id")
+      .notNull()
+      .references(() => lessonVersions.id, { onDelete: "restrict" }),
+    validationRunId: uuid("validation_run_id")
+      .notNull()
+      .references(() => validationRuns.id, { onDelete: "restrict" }),
+    manifest: jsonb("manifest").notNull(),
+    manifestHash: text("manifest_hash").notNull(),
+    status: renderStatus("status").notNull().default("queued"),
+    progress: real("progress").notNull().default(0),
+    attempt: integer("attempt").notNull().default(0),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    startedAt: utcTimestamp("started_at"),
+    completedAt: utcTimestamp("completed_at"),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: utcTimestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("render_jobs_job_unique").on(table.jobId),
+    uniqueIndex("render_jobs_tenant_manifest_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.manifestHash,
+    ),
+    index("render_jobs_owner_project_created_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const renderedVideos = pgTable(
+  "rendered_videos",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    renderJobId: uuid("render_job_id")
+      .notNull()
+      .references(() => renderJobs.id, { onDelete: "restrict" }),
+    storageKey: text("storage_key").notNull(),
+    checksumSha256: text("checksum_sha256").notNull(),
+    durationMs: integer("duration_ms").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    fps: integer("fps").notNull(),
+    videoCodec: text("video_codec").notNull(),
+    audioCodec: text("audio_codec").notNull(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("rendered_videos_render_job_unique").on(table.renderJobId),
+    index("rendered_videos_owner_project_idx").on(
+      table.ownerUserId,
+      table.projectId,
+    ),
+  ],
+);
+
+export const renderThumbnails = pgTable(
+  "render_thumbnails",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    renderedVideoId: uuid("rendered_video_id")
+      .notNull()
+      .references(() => renderedVideos.id, { onDelete: "restrict" }),
+    storageKey: text("storage_key").notNull(),
+    checksumSha256: text("checksum_sha256").notNull(),
+    timestampMs: integer("timestamp_ms").notNull(),
+    width: integer("width").notNull(),
+    height: integer("height").notNull(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("render_thumbnails_video_unique").on(table.renderedVideoId),
+    index("render_thumbnails_owner_project_idx").on(
+      table.ownerUserId,
+      table.projectId,
+    ),
   ],
 );

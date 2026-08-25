@@ -26,12 +26,16 @@ import {
   renderedVideoMetadataSchema,
   renderJobType,
   renderPayloadVersion,
+  assertProductionManifestIntegrity,
   type RenderJobPayload,
   type RenderJobResult,
   type RenderedVideoMetadata,
   type ThumbnailResult,
 } from "./contracts.js";
-import { loadImmutableFixture } from "./fixture.js";
+import {
+  hydrateProductionComposition,
+  loadImmutableFixture,
+} from "./fixture.js";
 import {
   RemotionRenderEngine,
   RenderMediaError,
@@ -222,8 +226,15 @@ export type RenderHandlerOptions = {
   logger?: Pick<StructuredLogger, "info" | "warn">;
   storage: ObjectStorage;
   temporaryRoot?: string;
+  timeoutMs?: number;
   uploadArtifact?: UploadArtifact;
   usageMeter: UsageMeter;
+  lifecycle?: {
+    complete(input: {
+      context: JobHandlerContext;
+      result: RenderJobResult;
+    }): Promise<boolean>;
+  };
 };
 
 function renderUsageIdempotencyKey(
@@ -292,6 +303,7 @@ async function generateThumbnail(input: {
   profile: RenderJobPayload["profile"];
   storage: ObjectStorage;
   storageKey: StorageKey;
+  stagingStorageKey: StorageKey;
   upload: UploadArtifact;
 }): Promise<ThumbnailResult> {
   const details = await input.engine.renderThumbnail({
@@ -302,7 +314,7 @@ async function generateThumbnail(input: {
     outputPath: input.path,
     profile: input.profile,
   });
-  const uploaded = await input.upload({
+  const uploaded = await publishVerifiedArtifact({
     contentType: "image/png",
     localPath: input.path,
     metadata: {
@@ -311,8 +323,10 @@ async function generateThumbnail(input: {
       "timestamp-ms": String(details.timestampMs),
       width: String(details.width),
     },
+    stagingStorageKey: input.stagingStorageKey,
     storage: input.storage,
     storageKey: input.storageKey,
+    upload: input.upload,
   });
   return {
     metadata: {
@@ -324,6 +338,44 @@ async function generateThumbnail(input: {
     },
     status: "succeeded",
   };
+}
+
+/** Upload to a private staging key, verify its checksum, then atomically make
+ * the immutable public render key visible. Staging bytes are always cleaned. */
+async function publishVerifiedArtifact(input: {
+  contentType: string;
+  localPath: string;
+  metadata: Readonly<Record<string, string>>;
+  stagingStorageKey: StorageKey;
+  storage: ObjectStorage;
+  storageKey: StorageKey;
+  upload: UploadArtifact;
+}): Promise<UploadedArtifact> {
+  const uploaded = await input.upload({
+    contentType: input.contentType,
+    localPath: input.localPath,
+    metadata: input.metadata,
+    storage: input.storage,
+    storageKey: input.stagingStorageKey,
+  });
+  try {
+    const promoted = await input.storage.copy({
+      sourceKey: input.stagingStorageKey,
+      destinationKey: input.storageKey,
+    });
+    if (
+      promoted.checksumSha256 !== uploaded.checksumSha256 ||
+      promoted.sizeBytes !== uploaded.sizeBytes
+    )
+      throw new JobExecutionError(
+        "retryable",
+        "OUTPUT_PROMOTION_FAILED",
+        "The verified output could not be promoted to its final location.",
+      );
+    return uploaded;
+  } finally {
+    await input.storage.delete(input.stagingStorageKey).catch(() => undefined);
+  }
 }
 
 export function createRenderJobHandler(
@@ -340,6 +392,7 @@ export function createRenderJobHandler(
       let preflightStage = "fixture_validation";
       try {
         try {
+          assertProductionManifestIntegrity(payload);
           composition = loadImmutableFixture(payload);
         } catch {
           throw new JobExecutionError(
@@ -359,6 +412,12 @@ export function createRenderJobHandler(
         await options.storage.assertPrivateBucket();
         preflightStage = "asset_manifest_validation";
         await verifyManifest(payload, context, options.storage, composition);
+        preflightStage = "media_manifest_resolution";
+        composition = await hydrateProductionComposition(
+          payload,
+          composition,
+          options.storage,
+        );
       } catch (error) {
         logRenderFailure(options, context, error, preflightStage);
         throw error;
@@ -369,6 +428,16 @@ export function createRenderJobHandler(
         userId: context.ownerUserId,
       });
       const thumbnailKey = storageKeys.renderThumbnail({
+        projectId: context.projectId,
+        renderJobId: context.jobId,
+        userId: context.ownerUserId,
+      });
+      const stagingVideoKey = storageKeys.renderStagingVideo({
+        projectId: context.projectId,
+        renderJobId: context.jobId,
+        userId: context.ownerUserId,
+      });
+      const stagingThumbnailKey = storageKeys.renderStagingThumbnail({
         projectId: context.projectId,
         renderJobId: context.jobId,
         userId: context.ownerUserId,
@@ -388,7 +457,9 @@ export function createRenderJobHandler(
       }
       const videoPath = join(temporaryDirectory, "lesson.mp4");
       const thumbnailPath = join(temporaryDirectory, "thumbnail.png");
+      const computeStartedAt = Date.now();
       let stage = "artifact_reuse";
+      let successfulUsageRecorded = false;
       try {
         let reused = false;
         let video = await reusableVideo(options.storage, videoKey, payload);
@@ -411,7 +482,7 @@ export function createRenderJobHandler(
             profile: payload.profile,
           });
           stage = "video_upload";
-          const uploaded = await upload({
+          const uploaded = await publishVerifiedArtifact({
             contentType: "video/mp4",
             localPath: videoPath,
             metadata: {
@@ -423,8 +494,10 @@ export function createRenderJobHandler(
               "video-codec": rendered.videoCodec,
               width: String(rendered.width),
             },
+            stagingStorageKey: stagingVideoKey,
             storage: options.storage,
             storageKey: videoKey,
+            upload,
           });
           video = renderedVideoMetadataSchema.parse({
             ...rendered,
@@ -457,6 +530,7 @@ export function createRenderJobHandler(
               profile: payload.profile,
               storage: options.storage,
               storageKey: thumbnailKey,
+              stagingStorageKey: stagingThumbnailKey,
               upload,
             });
           } catch (error) {
@@ -483,6 +557,7 @@ export function createRenderJobHandler(
             correlationId: context.correlationId,
             estimatedCostUsd: 0,
             idempotencyKey: renderUsageIdempotencyKey("succeeded", context),
+            latencyMs: Date.now() - computeStartedAt,
             metadata: { optionsHash: payload.optionsHash },
             operationType: "video.render",
             ownerUserId: context.ownerUserId,
@@ -492,11 +567,33 @@ export function createRenderJobHandler(
             status: "succeeded",
             unit: "render_seconds",
           });
+          successfulUsageRecorded = true;
         } catch {
           throw new JobExecutionError(
             "retryable",
             "RENDER_USAGE_FAILED",
             "The render usage record could not be persisted.",
+          );
+        }
+        // The generic job remains the lease authority. Persist completion only
+        // after metering succeeds, so a retriable metering failure cannot leave
+        // completed render metadata attached to a failed generic job.
+        const outputPersisted = await options.lifecycle?.complete({
+          context,
+          result,
+        });
+        if (outputPersisted === false) {
+          await options.storage
+            .delete(result.video.storageKey)
+            .catch(() => undefined);
+          if (result.thumbnail.status === "succeeded")
+            await options.storage
+              .delete(result.thumbnail.metadata.storageKey)
+              .catch(() => undefined);
+          throw new JobExecutionError(
+            "cancelled",
+            "RENDER_CANCELLED",
+            "The render was cancelled before verified output could be saved.",
           );
         }
         options.logger?.info("render.completed", {
@@ -508,27 +605,29 @@ export function createRenderJobHandler(
         return result;
       } catch (error) {
         const failure = logRenderFailure(options, context, error, stage);
-        try {
-          await options.usageMeter.record({
-            correlationId: context.correlationId,
-            estimatedCostUsd: 0,
-            idempotencyKey: `${renderUsageIdempotencyKey("failed", context)}:${context.attempt}`,
-            metadata: { ...failure, optionsHash: payload.optionsHash },
-            operationType: "video.render",
-            ownerUserId: context.ownerUserId,
-            projectId: context.projectId,
-            quantity: 1,
-            retryCount: context.attempt - 1,
-            status: "failed",
-            unit: "render_attempts",
-          });
-        } catch {
-          options.logger?.warn("render.failure_usage_failed", {
-            correlationId: context.correlationId,
-            jobId: context.jobId,
-            projectId: context.projectId,
-          });
-        }
+        if (!successfulUsageRecorded)
+          try {
+            await options.usageMeter.record({
+              correlationId: context.correlationId,
+              estimatedCostUsd: 0,
+              idempotencyKey: `${renderUsageIdempotencyKey("failed", context)}:${context.attempt}`,
+              latencyMs: Date.now() - computeStartedAt,
+              metadata: { ...failure, optionsHash: payload.optionsHash },
+              operationType: "video.render",
+              ownerUserId: context.ownerUserId,
+              projectId: context.projectId,
+              quantity: 1,
+              retryCount: context.attempt - 1,
+              status: "failed",
+              unit: "render_attempts",
+            });
+          } catch {
+            options.logger?.warn("render.failure_usage_failed", {
+              correlationId: context.correlationId,
+              jobId: context.jobId,
+              projectId: context.projectId,
+            });
+          }
         if (error instanceof JobExecutionError) throw error;
         if (error instanceof RenderMediaError)
           throw new JobExecutionError(
@@ -546,7 +645,11 @@ export function createRenderJobHandler(
         await rm(temporaryDirectory, { force: true, recursive: true });
       }
     },
-    { leaseDurationMs: 300_000, maxAttempts: 3, retryDelayMs: 30_000 },
+    {
+      leaseDurationMs: options.timeoutMs ?? 300_000,
+      maxAttempts: 3,
+      retryDelayMs: 30_000,
+    },
   );
 }
 

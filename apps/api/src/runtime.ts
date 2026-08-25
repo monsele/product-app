@@ -38,6 +38,7 @@ import { PostgresVoiceConfigurationService } from "./voice-configuration.js";
 import { SceneAudioService } from "./scene-audio.js";
 import { PreviewManifestService } from "./preview-manifest.js";
 import { PostgresLessonValidationService } from "./lesson-validation.js";
+import { PostgresRenderService } from "./renders.js";
 
 export async function runApi(input: {
   telemetryShutdown: () => Promise<void>;
@@ -88,6 +89,9 @@ export async function runApi(input: {
     const authorizedProjectStorage = new AuthorizedProjectStorage(
       storage,
       projectAuthorizer,
+    );
+    const lessonValidationService = new PostgresLessonValidationService(
+      database.client,
     );
     const app = await createApp({
       database,
@@ -179,8 +183,16 @@ export async function runApi(input: {
         database.client,
         storage,
       ),
-      lessonValidationService: new PostgresLessonValidationService(
+      lessonValidationService,
+      renderService: new PostgresRenderService(
         database.client,
+        lessonValidationService,
+        {
+          maxConcurrentPerProject: environment.RENDER_CONCURRENCY,
+          maxStartsPerProjectHour: environment.MAX_RENDERS_PER_HOUR,
+        },
+        undefined,
+        storage,
       ),
       projectAuthorizer,
       ...(environment.WEB_ORIGIN === undefined

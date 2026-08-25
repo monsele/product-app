@@ -388,6 +388,62 @@ describe("initial render worker", () => {
     expect(usageMeter.measurements.size).toBe(1);
   });
 
+  it("deletes promoted output when cancellation wins the lifecycle race", async () => {
+    const storage = new MemoryStorage();
+    const usageMeter = new MemoryUsageMeter();
+    const handler = createRenderJobHandler({
+      engine: new FakeRenderEngine(),
+      lifecycle: { complete: async () => false },
+      storage,
+      uploadArtifact: uploader(storage),
+      usageMeter,
+    });
+
+    let failure: unknown;
+    try {
+      await handler.handler(payload, context([]));
+    } catch (error) {
+      failure = error;
+    }
+    expect(classifyJobError(failure)).toMatchObject({
+      classification: "cancelled",
+      code: "RENDER_CANCELLED",
+    });
+    expect(storage.objects).toHaveLength(0);
+    expect([...usageMeter.measurements.values()]).toEqual([
+      expect.objectContaining({ status: "succeeded", unit: "render_seconds" }),
+    ]);
+  });
+
+  it("does not persist completed output when successful-render metering fails", async () => {
+    const storage = new MemoryStorage();
+    const complete = vi.fn(async () => true);
+    const handler = createRenderJobHandler({
+      engine: new FakeRenderEngine(),
+      lifecycle: { complete },
+      storage,
+      uploadArtifact: uploader(storage),
+      usageMeter: {
+        record: async () => {
+          throw new Error("Usage database is unavailable.");
+        },
+      },
+    });
+
+    let failure: unknown;
+    try {
+      await handler.handler(payload, context([]));
+    } catch (error) {
+      failure = error;
+    }
+
+    expect(classifyJobError(failure)).toMatchObject({
+      classification: "retryable",
+      code: "RENDER_USAGE_FAILED",
+    });
+    expect(complete).not.toHaveBeenCalled();
+  });
+
   it("records a forced deterministic render failure as terminal and cleans up", async () => {
     const storage = new MemoryStorage();
     const engine = new FakeRenderEngine();

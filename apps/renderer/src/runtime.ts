@@ -22,10 +22,17 @@ import {
 } from "@avlp/storage";
 import { z } from "zod";
 import { createRenderJobHandler } from "./render-worker.js";
+import { PostgresRenderLifecycle } from "./render-lifecycle.js";
 
 const renderWorkerEnvironmentSchema = z
   .object({
     RENDER_BROWSER_EXECUTABLE: z.string().min(1).optional(),
+    RENDER_TIMEOUT_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(60)
+      .max(3_600)
+      .default(300),
   })
   .passthrough();
 
@@ -139,9 +146,11 @@ export async function runRenderWorker(
       ...(renderEnvironment.RENDER_BROWSER_EXECUTABLE === undefined
         ? {}
         : { browserExecutable: renderEnvironment.RENDER_BROWSER_EXECUTABLE }),
+      timeoutMs: renderEnvironment.RENDER_TIMEOUT_SECONDS * 1_000,
       logger,
       storage,
       usageMeter: new PostgresUsageMeter(database.client),
+      lifecycle: new PostgresRenderLifecycle(database.client),
     });
     consumer =
       options.consumerFactory?.({

@@ -407,6 +407,8 @@ export const apiEnvironmentSchema = baseEnvironmentSchema
       .min(1)
       .max(100)
       .default(10),
+    RENDER_CONCURRENCY: z.coerce.number().int().min(1).max(10).default(1),
+    MAX_RENDERS_PER_HOUR: z.coerce.number().int().min(1).max(100).default(12),
   })
   .superRefine((value, context) => {
     validateStorageCredentialPair(value, context);
