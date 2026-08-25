@@ -5482,6 +5482,51 @@ export type SignedDownloadResponse = z.infer<
 >;
 
 // ---------------------------------------------------------------------------
+// ST-070 — revocable public playback capabilities
+// ---------------------------------------------------------------------------
+
+export const shareLinkStatusSchema = z.enum(["active", "revoked"]);
+export type ShareLinkStatus = z.infer<typeof shareLinkStatusSchema>;
+export const createShareLinkInputSchema = z
+  .object({
+    renderId: identifierSchema,
+    expiresAt: z.string().datetime({ offset: true }).optional(),
+  })
+  .strict();
+export type CreateShareLinkInput = z.infer<typeof createShareLinkInputSchema>;
+export const shareLinkSchema = z
+  .object({
+    id: identifierSchema,
+    lessonVersionId: identifierSchema,
+    renderedVideoId: identifierSchema,
+    status: shareLinkStatusSchema,
+    expiresAt: z.string().datetime({ offset: true }).nullable(),
+    revokedAt: z.string().datetime({ offset: true }).nullable(),
+    createdAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type ShareLink = z.infer<typeof shareLinkSchema>;
+export const shareLinksResponseSchema = z
+  .object({ shareLinks: z.array(shareLinkSchema).max(100) })
+  .strict();
+export type ShareLinksResponse = z.infer<typeof shareLinksResponseSchema>;
+export const shareLinkCreatedResponseSchema = z
+  .object({ shareLink: shareLinkSchema, token: z.string().min(43).max(128) })
+  .strict();
+export type ShareLinkCreatedResponse = z.infer<
+  typeof shareLinkCreatedResponseSchema
+>;
+/** Strictly public projection: no project, source, user, editor, or key data. */
+export const publicPlaybackSchema = z
+  .object({
+    title: boundedText(200),
+    thumbnailUrl: z.string().url().nullable(),
+    playbackUrl: z.string().url(),
+  })
+  .strict();
+export type PublicPlayback = z.infer<typeof publicPlaybackSchema>;
+
+// ---------------------------------------------------------------------------
 // ST-051 — Regenerate one storyboard scene without altering neighboring
 // teacher edits
 // ---------------------------------------------------------------------------

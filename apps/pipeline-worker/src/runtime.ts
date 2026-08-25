@@ -41,7 +41,10 @@ import {
   repositoryPrompts,
   StaticPromptRegistry,
 } from "@avlp/provider-adapters";
-import { PostgresGenerationQuotaGuard } from "./model-call.js";
+import {
+  PostgresGenerationQuotaGuard,
+  type ModelCallQuotaLimits,
+} from "./model-call.js";
 import { createObjectivesGenerationJobHandler } from "./objectives-job.js";
 import { createOutlineGenerationJobHandler } from "./outline-job.js";
 import { createNarrationGenerationJobHandler } from "./narration-job.js";
@@ -138,6 +141,13 @@ export async function runPipelineWorker(
     if (handlers === undefined) {
       const storage = await (options.storageFactory?.() ??
         createStorage(environmentInput));
+      const generationQuotaGuard = (limits: ModelCallQuotaLimits) =>
+        new PostgresGenerationQuotaGuard(
+          database.client,
+          limits,
+          undefined,
+          workerEnvironment.MAX_PROVIDER_CALLS_PER_HOUR,
+        );
       handlers = [
         createDocumentValidationJobHandler({
           database: database.client,
@@ -198,7 +208,7 @@ export async function runPipelineWorker(
           database: database.client,
           provider: new MockLanguageModelProvider(),
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),
-          quotaGuard: new PostgresGenerationQuotaGuard(database.client, {
+          quotaGuard: generationQuotaGuard({
             "ai.objectives": { maxCallsPerHour: 20 },
           }),
           pricing: mockPricing,
@@ -207,7 +217,7 @@ export async function runPipelineWorker(
           database: database.client,
           provider: new MockLanguageModelProvider(),
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),
-          quotaGuard: new PostgresGenerationQuotaGuard(database.client, {
+          quotaGuard: generationQuotaGuard({
             "ai.outline": { maxCallsPerHour: 20 },
           }),
           pricing: mockPricing,
@@ -216,7 +226,7 @@ export async function runPipelineWorker(
           database: database.client,
           provider: new MockLanguageModelProvider(),
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),
-          quotaGuard: new PostgresGenerationQuotaGuard(database.client, {
+          quotaGuard: generationQuotaGuard({
             "ai.narration": { maxCallsPerHour: 20 },
           }),
           pricing: mockPricing,
@@ -225,7 +235,7 @@ export async function runPipelineWorker(
           database: database.client,
           provider: new MockLanguageModelProvider(),
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),
-          quotaGuard: new PostgresGenerationQuotaGuard(database.client, {
+          quotaGuard: generationQuotaGuard({
             "ai.narration": { maxCallsPerHour: 20 },
           }),
           pricing: mockPricing,
@@ -234,7 +244,7 @@ export async function runPipelineWorker(
           database: database.client,
           provider: new MockLanguageModelProvider(),
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),
-          quotaGuard: new PostgresGenerationQuotaGuard(database.client, {
+          quotaGuard: generationQuotaGuard({
             "ai.storyboard": { maxCallsPerHour: 20 },
           }),
           pricing: mockPricing,
@@ -243,8 +253,10 @@ export async function runPipelineWorker(
           database: database.client,
           provider: new MockLanguageModelProvider(),
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),
-          quotaGuard: new PostgresGenerationQuotaGuard(database.client, {
-            "ai.scene_regeneration": { maxCallsPerHour: 20 },
+          quotaGuard: generationQuotaGuard({
+            "ai.scene_regeneration": {
+              maxCallsPerHour: workerEnvironment.MAX_REGENERATIONS_PER_HOUR,
+            },
           }),
           pricing: mockPricing,
         }),
@@ -252,7 +264,7 @@ export async function runPipelineWorker(
           database: database.client,
           provider: new MockLanguageModelProvider(),
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),
-          quotaGuard: new PostgresGenerationQuotaGuard(database.client, {
+          quotaGuard: generationQuotaGuard({
             "ai.grounding": { maxCallsPerHour: 20 },
           }),
           pricing: mockPricing,

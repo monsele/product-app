@@ -8,6 +8,7 @@ import {
   projects,
   sourceDocumentIngestionArtifacts,
   sourceDocuments,
+  users,
 } from "@avlp/database";
 import { createTestDatabase, type TestDatabase } from "@avlp/database/testing";
 import { eq } from "drizzle-orm";
@@ -52,8 +53,25 @@ describeWithPostgres("PostgresLessonConfigurationService", () => {
     await database!.client.delete(sourceDocumentIngestionArtifacts);
     await database!.client.delete(sourceDocuments);
     await database!.client.delete(projects);
+    await database!.client.delete(users);
 
     const timestamp = new Date("2026-08-14T10:00:00.000Z");
+    await database!.client.insert(users).values([
+      {
+        id: ownerUserId,
+        emailNormalized: "lesson-owner@example.test",
+        displayName: "Lesson owner",
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+      {
+        id: otherOwnerUserId,
+        emailNormalized: "other-lesson-owner@example.test",
+        displayName: "Other lesson owner",
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      },
+    ]);
     await database!.client.insert(projects).values({
       id: projectId,
       ownerUserId,
@@ -249,7 +267,7 @@ describeWithPostgres("PostgresLessonConfigurationService", () => {
     await expect(
       service.save({
         ownerUserId: otherOwnerUserId,
-        projectId: otherProjectId,
+        projectId,
         body: validBody,
         correlationId,
       }),

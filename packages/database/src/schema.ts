@@ -998,6 +998,8 @@ export const auditEventTypeValues = [
   "project.created",
   "project.duplicated",
   "project.deleted",
+  "project_asset.validation_requested",
+  "project_asset.deleted",
   "document.uploaded",
   "document.deleted",
   "document.validation_requested",
@@ -2233,6 +2235,44 @@ export const renderThumbnails = pgTable(
     index("render_thumbnails_owner_project_idx").on(
       table.ownerUserId,
       table.projectId,
+    ),
+  ],
+);
+
+/** A public-view capability. The raw token is never persisted. */
+export const shareLinkStatuses = ["active", "revoked"] as const;
+export const shareLinkStatus = pgEnum("share_link_status", shareLinkStatuses);
+export const shareLinks = pgTable(
+  "share_links",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    renderedVideoId: uuid("rendered_video_id")
+      .notNull()
+      .references(() => renderedVideos.id, { onDelete: "restrict" }),
+    lessonVersionId: uuid("lesson_version_id")
+      .notNull()
+      .references(() => lessonVersions.id, { onDelete: "restrict" }),
+    tokenHash: text("token_hash").notNull(),
+    status: shareLinkStatus("status").notNull().default("active"),
+    expiresAt: utcTimestamp("expires_at"),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    revokedAt: utcTimestamp("revoked_at"),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("share_links_token_hash_unique").on(table.tokenHash),
+    index("share_links_owner_project_created_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.createdAt,
+    ),
+    index("share_links_public_lookup_idx").on(
+      table.tokenHash,
+      table.status,
+      table.expiresAt,
     ),
   ],
 );

@@ -86,5 +86,20 @@ describeWithPostgres("model-call persistence", () => {
         now: new Date("2026-08-16T11:00:00.000Z"),
       }),
     ).resolves.toBeUndefined();
+
+    const totalGuard = new PostgresGenerationQuotaGuard(
+      database!.client,
+      { "ai.outline": { maxCallsPerHour: 10 } },
+      () => new Date("2026-08-16T11:00:00.000Z"),
+      1,
+    );
+    await expect(
+      totalGuard.assertCanGenerate({
+        ownerUserId,
+        projectId,
+        operationType: "ai.outline",
+        now: new Date("2026-08-16T11:00:00.000Z"),
+      }),
+    ).rejects.toThrow(/total AI provider-call quota/);
   });
 });

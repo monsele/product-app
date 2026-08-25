@@ -3,16 +3,22 @@ import type { Identifier } from "@avlp/config";
 import {
   auditEvents,
   jobs,
+  learningObjectives,
+  learningObjectiveSets,
   lessonConfigurations,
   lessonOutlineItems,
   lessonOutlineSets,
   lessonSpecs,
   migrateDatabase,
+  modelCalls,
   narrationBlocks,
   narrationSets,
   outboxEvents,
+  parsedDocuments,
   projects,
   scenes,
+  sourceDocumentIngestionArtifacts,
+  sourceDocuments,
   sourceSnapshots,
   users,
   type DatabaseClient,
@@ -26,7 +32,12 @@ const describeWithPostgres = serverUrl === undefined ? describe.skip : describe;
 const ownerUserId: Identifier = "019ffbf1-aaaa-7000-8000-000000000006";
 const otherOwnerUserId: Identifier = "019ffbf1-bbbb-7000-8000-000000000006";
 const projectId: Identifier = "019ffbf1-cccc-7000-8000-000000000006";
+const sourceDocumentId: Identifier = "019ffbf1-abcd-7000-8000-000000000006";
+const artifactId: Identifier = "019ffbf1-abce-7000-8000-000000000006";
+const parsedDocumentId: Identifier = "019ffbf1-abcf-7000-8000-000000000006";
 const snapshotId: Identifier = "019ffbf1-dddd-7000-8000-000000000006";
+const objectiveSetId: Identifier = "019ffbf1-9999-7000-8000-000000000006";
+const modelCallId: Identifier = "019ffbf1-eeee-7000-8000-000000000005";
 const outlineSetId: Identifier = "019ffbf1-eeee-7000-8000-000000000006";
 const narrationSetId: Identifier = "019ffbf1-ffff-7000-8000-000000000006";
 const outlineItemA: Identifier = "019ffbf1-1111-7000-8000-000000000006";
@@ -66,13 +77,13 @@ function outlineSetRow() {
     ownerUserId,
     sourceSnapshotId: snapshotId,
     sourceSnapshotContentHash: "b".repeat(64),
-    objectiveSetId: "019ffbf1-9999-7000-8000-000000000006",
+    objectiveSetId,
     objectiveSetContentHash: "b".repeat(64),
     configurationVersion: 3,
     promptId: "outline",
     promptVersion: "v2",
     model: "mock-model-1",
-    modelCallId: "019ffbf1-eeee-7000-8000-000000000005",
+    modelCallId,
     status: "draft" as const,
     revision: 0,
     idempotencyKey: "outline:key-1",
@@ -135,7 +146,7 @@ function narrationSetRow() {
     promptId: "narration",
     promptVersion: "v2",
     model: "mock-model-1",
-    modelCallId: "019ffbf1-eeee-7000-8000-000000000005",
+    modelCallId,
     status: "draft" as const,
     revision: 0,
     idempotencyKey: "narration:key-1",
@@ -216,7 +227,7 @@ function storyboardPayload() {
     promptId: "storyboard",
     promptVersion: "v1",
     model: "mock-model-1",
-    modelCallId: "019ffbf1-eeee-7000-8000-000000000005",
+    modelCallId,
     status: "draft",
     revision: 0,
     title: "The water cycle",
@@ -255,7 +266,10 @@ function storyboardPayload() {
           ],
           generatedAdditions: [],
           template: "definition",
-          visual: { term: "Evaporation", definition: "A liquid becoming a gas." },
+          visual: {
+            term: "Evaporation",
+            definition: "A liquid becoming a gas.",
+          },
         },
       },
       {
@@ -338,13 +352,27 @@ async function seed(client: DatabaseClient) {
   await client.delete(lessonOutlineItems);
   await client.delete(lessonOutlineSets);
   await client.delete(lessonConfigurations);
+  await client.delete(learningObjectives);
+  await client.delete(learningObjectiveSets);
+  await client.delete(modelCalls);
   await client.delete(sourceSnapshots);
+  await client.delete(parsedDocuments);
+  await client.delete(sourceDocumentIngestionArtifacts);
+  await client.delete(sourceDocuments);
   await client.delete(projects);
   await client.delete(users);
 
   await client.insert(users).values([
-    { id: ownerUserId, emailNormalized: "owner@example.test", displayName: "Owner" },
-    { id: otherOwnerUserId, emailNormalized: "other@example.test", displayName: "Other" },
+    {
+      id: ownerUserId,
+      emailNormalized: "owner@example.test",
+      displayName: "Owner",
+    },
+    {
+      id: otherOwnerUserId,
+      emailNormalized: "other@example.test",
+      displayName: "Other",
+    },
   ]);
   await client.insert(projects).values({
     id: projectId,
@@ -356,7 +384,124 @@ async function seed(client: DatabaseClient) {
     updatedAt: now,
     revision: 1,
   });
+  await client.insert(sourceDocuments).values({
+    id: sourceDocumentId,
+    ownerUserId,
+    projectId,
+    originalName: "water-cycle.pdf",
+    mediaType: "application/pdf",
+    sizeBytes: 1_000,
+    sha256: "a".repeat(64),
+    storageKey: "users/storyboard-owner/water-cycle.pdf",
+    pageCount: 2,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  });
+  await client.insert(sourceDocumentIngestionArtifacts).values({
+    id: artifactId,
+    ownerUserId,
+    projectId,
+    sourceDocumentId,
+    parserVersion: "docling-v1",
+    normalizedSchemaVersion: "1.0",
+    canonicalStorageKey: "users/storyboard-owner/canonical.json",
+    state: "ready",
+    createdAt: now,
+    updatedAt: now,
+  });
+  await client.insert(parsedDocuments).values({
+    id: parsedDocumentId,
+    ownerUserId,
+    projectId,
+    ingestionArtifactId: artifactId,
+    sourceDocumentId,
+    version: 1,
+    schemaVersion: "1.0",
+    parserVersion: "docling-v1",
+    adapterVersion: "1.0",
+    normalizedStorageKey: "users/storyboard-owner/normalized.json",
+    title: "The Water Cycle",
+    language: "en",
+    pageCount: 2,
+    createdAt: now,
+    updatedAt: now,
+  });
+  await client.insert(sourceSnapshots).values({
+    id: snapshotId,
+    ownerUserId,
+    projectId,
+    parsedDocumentId,
+    parsedDocumentVersion: 1,
+    snapshotVersion: 1,
+    schemaVersion: "1.0",
+    contentHash: "b".repeat(64),
+    approvedBy: ownerUserId,
+    approvedAt: now,
+    payload: {
+      schemaVersion: "1.0",
+      id: snapshotId,
+      projectId,
+      sourceDocumentId,
+      parsedDocumentId,
+      parsedDocumentVersion: 1,
+      contentHash: "b".repeat(64),
+      approvedBy: ownerUserId,
+      approvedAt: now.toISOString(),
+      sections: [],
+      blocks: [],
+      figures: [],
+      tables: [],
+    },
+    createdAt: now,
+    updatedAt: now,
+  });
   await client.insert(lessonConfigurations).values(configRow());
+  await client.insert(modelCalls).values({
+    id: modelCallId,
+    ownerUserId,
+    projectId,
+    operationType: "ai.objectives",
+    idempotencyKey: "storyboard:model-call:1",
+    promptId: "objectives",
+    promptVersion: "v2",
+    provider: "mock",
+    model: "mock-model-1",
+    inputVersion: "objectives:input-1",
+    inputHash: "a".repeat(64),
+    inputUnits: 100,
+    outputUnits: 100,
+    estimatedCostUsd: "0.001",
+    latencyMs: 100,
+    validationStatus: "valid",
+    status: "succeeded",
+    correlationId: "019ffbf1-0000-7000-8000-000000000099",
+    createdAt: now,
+    updatedAt: now,
+  });
+  await client.insert(learningObjectiveSets).values({
+    id: objectiveSetId,
+    ownerUserId,
+    projectId,
+    sourceSnapshotId: snapshotId,
+    sourceSnapshotContentHash: "b".repeat(64),
+    configurationVersion: 3,
+    promptId: "objectives",
+    promptVersion: "v2",
+    model: "mock-model-1",
+    modelCallId,
+    status: "approved",
+    revision: 0,
+    idempotencyKey: "storyboard:objectives:1",
+    keyConcepts: [],
+    prerequisiteKnowledge: [],
+    vocabulary: [],
+    misconceptions: [],
+    assessmentQuestions: [],
+    generatedAt: now,
+    createdAt: now,
+    updatedAt: now,
+  });
   await client.insert(lessonOutlineSets).values(outlineSetRow());
   await client.insert(lessonOutlineItems).values(outlineItemRows());
   await client.insert(narrationSets).values(narrationSetRow());
@@ -364,182 +509,187 @@ async function seed(client: DatabaseClient) {
   await client.insert(lessonSpecs).values(lessonSpecRow());
 }
 
-describeWithPostgres("PostgresStoryboardService scene editor (Postgres)", () => {
-  let database: TestDatabase | undefined;
-  let service: PostgresStoryboardService;
+describeWithPostgres(
+  "PostgresStoryboardService scene editor (Postgres)",
+  () => {
+    let database: TestDatabase | undefined;
+    let service: PostgresStoryboardService;
 
-  beforeAll(async () => {
-    database = await createTestDatabase(serverUrl!);
-    await migrateDatabase(database.client);
-  });
-
-  beforeEach(async () => {
-    await seed(database!.client);
-    service = new PostgresStoryboardService(
-      database!.client,
-      async () => ({
-        approved: true,
-        parsedDocumentVersion: 1,
-        snapshotId,
-        snapshotVersion: 1,
-        contentHash: "c".repeat(64),
-        approvedAt: "2026-08-17T10:00:00.000Z",
-        stale: false,
-      }),
-      () => new Date("2026-08-17T10:00:00.000Z"),
-    );
-  });
-
-  afterAll(async () => {
-    await database?.destroy();
-  });
-
-  it("adds a scene for the owner and rejects another tenant", async () => {
-    const result = await service.addScene({
-      ownerUserId,
-      projectId,
-      body: { expectedRevision: 0, template: "hook" },
-      correlationId: "019ffbf1-0000-7000-8000-000000000001",
+    beforeAll(async () => {
+      database = await createTestDatabase(serverUrl!);
+      await migrateDatabase(database.client);
     });
-    expect(result.revision).toBe(1);
-    expect(result.scenes).toHaveLength(3);
-    expect(result.scenes[2]!.template).toBe("hook");
 
-    await expect(
-      service.addScene({
-        ownerUserId: otherOwnerUserId,
+    beforeEach(async () => {
+      await seed(database!.client);
+      service = new PostgresStoryboardService(
+        database!.client,
+        async () => ({
+          approved: true,
+          parsedDocumentVersion: 1,
+          snapshotId,
+          snapshotVersion: 1,
+          contentHash: "c".repeat(64),
+          approvedAt: "2026-08-17T10:00:00.000Z",
+          stale: false,
+        }),
+        () => new Date("2026-08-17T10:00:00.000Z"),
+      );
+    });
+
+    afterAll(async () => {
+      await database?.destroy();
+    });
+
+    it("adds a scene for the owner and rejects another tenant", async () => {
+      const result = await service.addScene({
+        ownerUserId,
         projectId,
-        body: { expectedRevision: 1, template: "hook" },
-        correlationId: "019ffbf1-0000-7000-8000-000000000002",
-      }),
-    ).rejects.toMatchObject({ code: "not_found", statusCode: 404 });
-  });
+        body: { expectedRevision: 0, template: "hook" },
+        correlationId: "019ffbf1-0000-7000-8000-000000000001",
+      });
+      expect(result.revision).toBe(1);
+      expect(result.scenes).toHaveLength(3);
+      expect(result.scenes[2]!.template).toBe("hook");
 
-  it("duplicates a scene for the owner and rejects another tenant", async () => {
-    const result = await service.duplicateScene({
-      ownerUserId,
-      projectId,
-      sceneId: sceneA,
-      body: { expectedRevision: 0 },
-      correlationId: "019ffbf1-0000-7000-8000-000000000003",
+      await expect(
+        service.addScene({
+          ownerUserId: otherOwnerUserId,
+          projectId,
+          body: { expectedRevision: 1, template: "hook" },
+          correlationId: "019ffbf1-0000-7000-8000-000000000002",
+        }),
+      ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
     });
-    expect(result.revision).toBe(1);
-    expect(result.scenes).toHaveLength(3);
-    expect(result.scenes[1]!.template).toBe("definition");
-    expect(result.scenes[1]!.sceneId).not.toBe(sceneA);
 
-    await expect(
-      service.duplicateScene({
-        ownerUserId: otherOwnerUserId,
-        projectId,
-        sceneId: sceneA,
-        body: { expectedRevision: 1 },
-        correlationId: "019ffbf1-0000-7000-8000-000000000004",
-      }),
-    ).rejects.toMatchObject({ code: "not_found", statusCode: 404 });
-  });
-
-  it("deletes a scene for the owner and rejects another tenant", async () => {
-    const result = await service.deleteScene({
-      ownerUserId,
-      projectId,
-      sceneId: sceneB,
-      body: { expectedRevision: 0 },
-      correlationId: "019ffbf1-0000-7000-8000-000000000005",
-    });
-    expect(result.revision).toBe(1);
-    expect(result.scenes).toHaveLength(1);
-    expect(result.scenes[0]!.sceneId).toBe(sceneA);
-
-    await expect(
-      service.deleteScene({
-        ownerUserId: otherOwnerUserId,
-        projectId,
-        sceneId: sceneA,
-        body: { expectedRevision: 1 },
-        correlationId: "019ffbf1-0000-7000-8000-000000000006",
-      }),
-    ).rejects.toMatchObject({ code: "not_found", statusCode: 404 });
-  });
-
-  it("reorders scenes for the owner and rejects another tenant", async () => {
-    const result = await service.reorderScenes({
-      ownerUserId,
-      projectId,
-      body: { expectedRevision: 0, sceneIds: [sceneB, sceneA] },
-      correlationId: "019ffbf1-0000-7000-8000-000000000007",
-    });
-    expect(result.revision).toBe(1);
-    expect(result.scenes.map((s) => s.sceneId)).toEqual([sceneB, sceneA]);
-
-    await expect(
-      service.reorderScenes({
-        ownerUserId: otherOwnerUserId,
-        projectId,
-        body: { expectedRevision: 1, sceneIds: [sceneA, sceneB] },
-        correlationId: "019ffbf1-0000-7000-8000-000000000008",
-      }),
-    ).rejects.toMatchObject({ code: "not_found", statusCode: 404 });
-  });
-
-  it("records audit events with storyboard.edited type", async () => {
-    await service.addScene({
-      ownerUserId,
-      projectId,
-      body: { expectedRevision: 0, template: "hook" },
-      correlationId: "019ffbf1-0000-7000-8000-000000000009",
-    });
-    const audit = await database!.client.select().from(auditEvents);
-    const sceneEdits = audit.filter((a) => a.eventType === "storyboard.edited");
-    expect(sceneEdits).toHaveLength(1);
-    const edit = sceneEdits[0]!;
-    expect(edit).toMatchObject({
-      ownerUserId,
-      projectId,
-      eventType: "storyboard.edited",
-    });
-    expect((edit.metadata as { operation: string }).operation).toBe("add");
-  });
-
-  it("blocks deleting the final scene", async () => {
-    await service.deleteScene({
-      ownerUserId,
-      projectId,
-      sceneId: sceneB,
-      body: { expectedRevision: 0 },
-      correlationId: "019ffbf1-0000-7000-8000-000000000010",
-    });
-    await expect(
-      service.deleteScene({
+    it("duplicates a scene for the owner and rejects another tenant", async () => {
+      const result = await service.duplicateScene({
         ownerUserId,
         projectId,
         sceneId: sceneA,
-        body: { expectedRevision: 1 },
-        correlationId: "019ffbf1-0000-7000-8000-000000000011",
-      }),
-    ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
-  });
+        body: { expectedRevision: 0 },
+        correlationId: "019ffbf1-0000-7000-8000-000000000003",
+      });
+      expect(result.revision).toBe(1);
+      expect(result.scenes).toHaveLength(3);
+      expect(result.scenes[1]!.template).toBe("definition");
+      expect(result.scenes[1]!.sceneId).not.toBe(sceneA);
 
-  it("rejects a reorder that omits a scene", async () => {
-    await expect(
-      service.reorderScenes({
+      await expect(
+        service.duplicateScene({
+          ownerUserId: otherOwnerUserId,
+          projectId,
+          sceneId: sceneA,
+          body: { expectedRevision: 1 },
+          correlationId: "019ffbf1-0000-7000-8000-000000000004",
+        }),
+      ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
+    });
+
+    it("deletes a scene for the owner and rejects another tenant", async () => {
+      const result = await service.deleteScene({
         ownerUserId,
         projectId,
-        body: { expectedRevision: 0, sceneIds: [sceneA] },
-        correlationId: "019ffbf1-0000-7000-8000-000000000012",
-      }),
-    ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
-  });
+        sceneId: sceneB,
+        body: { expectedRevision: 0 },
+        correlationId: "019ffbf1-0000-7000-8000-000000000005",
+      });
+      expect(result.revision).toBe(1);
+      expect(result.scenes).toHaveLength(1);
+      expect(result.scenes[0]!.sceneId).toBe(sceneA);
 
-  it("rejects duplicate on stale revision", async () => {
-    await expect(
-      service.duplicateScene({
+      await expect(
+        service.deleteScene({
+          ownerUserId: otherOwnerUserId,
+          projectId,
+          sceneId: sceneA,
+          body: { expectedRevision: 1 },
+          correlationId: "019ffbf1-0000-7000-8000-000000000006",
+        }),
+      ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
+    });
+
+    it("reorders scenes for the owner and rejects another tenant", async () => {
+      const result = await service.reorderScenes({
         ownerUserId,
         projectId,
-        sceneId: sceneA,
-        body: { expectedRevision: 99 },
-        correlationId: "019ffbf1-0000-7000-8000-000000000013",
-      }),
-    ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
-  });
-});
+        body: { expectedRevision: 0, sceneIds: [sceneB, sceneA] },
+        correlationId: "019ffbf1-0000-7000-8000-000000000007",
+      });
+      expect(result.revision).toBe(1);
+      expect(result.scenes.map((s) => s.sceneId)).toEqual([sceneB, sceneA]);
+
+      await expect(
+        service.reorderScenes({
+          ownerUserId: otherOwnerUserId,
+          projectId,
+          body: { expectedRevision: 1, sceneIds: [sceneA, sceneB] },
+          correlationId: "019ffbf1-0000-7000-8000-000000000008",
+        }),
+      ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
+    });
+
+    it("records audit events with storyboard.edited type", async () => {
+      await service.addScene({
+        ownerUserId,
+        projectId,
+        body: { expectedRevision: 0, template: "hook" },
+        correlationId: "019ffbf1-0000-7000-8000-000000000009",
+      });
+      const audit = await database!.client.select().from(auditEvents);
+      const sceneEdits = audit.filter(
+        (a) => a.eventType === "storyboard.edited",
+      );
+      expect(sceneEdits).toHaveLength(1);
+      const edit = sceneEdits[0]!;
+      expect(edit).toMatchObject({
+        ownerUserId,
+        projectId,
+        eventType: "storyboard.edited",
+      });
+      expect((edit.metadata as { operation: string }).operation).toBe("add");
+    });
+
+    it("blocks deleting the final scene", async () => {
+      await service.deleteScene({
+        ownerUserId,
+        projectId,
+        sceneId: sceneB,
+        body: { expectedRevision: 0 },
+        correlationId: "019ffbf1-0000-7000-8000-000000000010",
+      });
+      await expect(
+        service.deleteScene({
+          ownerUserId,
+          projectId,
+          sceneId: sceneA,
+          body: { expectedRevision: 1 },
+          correlationId: "019ffbf1-0000-7000-8000-000000000011",
+        }),
+      ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
+    });
+
+    it("rejects a reorder that omits a scene", async () => {
+      await expect(
+        service.reorderScenes({
+          ownerUserId,
+          projectId,
+          body: { expectedRevision: 0, sceneIds: [sceneA] },
+          correlationId: "019ffbf1-0000-7000-8000-000000000012",
+        }),
+      ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
+    });
+
+    it("rejects duplicate on stale revision", async () => {
+      await expect(
+        service.duplicateScene({
+          ownerUserId,
+          projectId,
+          sceneId: sceneA,
+          body: { expectedRevision: 99 },
+          correlationId: "019ffbf1-0000-7000-8000-000000000013",
+        }),
+      ).rejects.toMatchObject({ code: "edit_conflict", statusCode: 409 });
+    });
+  },
+);

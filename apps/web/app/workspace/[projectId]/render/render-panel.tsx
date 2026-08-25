@@ -3,7 +3,10 @@
 import { useEffect, useState, type JSX } from "react";
 import {
   renderStatusResponseSchema,
+  shareLinkCreatedResponseSchema,
+  shareLinksResponseSchema,
   type RenderStatusResponse,
+  type ShareLink,
 } from "@avlp/schemas";
 
 const api = (path: string) =>
@@ -23,6 +26,9 @@ export function RenderPanel({
   const [renders, setRenders] =
     useState<readonly RenderStatusResponse[]>(initial);
   const [busy, setBusy] = useState(false);
+  const [shareLinks, setShareLinks] = useState<readonly ShareLink[]>([]);
+  const [shareBusy, setShareBusy] = useState(false);
+  const [revokeTarget, setRevokeTarget] = useState<ShareLink | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const base = `/projects/${encodeURIComponent(projectId)}/renders`;
   const refresh = async () => {
@@ -47,6 +53,20 @@ export function RenderPanel({
     const timer = window.setInterval(() => void refresh(), 5_000);
     return () => window.clearInterval(timer);
   });
+  const shareBase = `/projects/${encodeURIComponent(projectId)}/share-links`;
+  const refreshShareLinks = async () => {
+    const response = await fetch(api(shareBase), {
+      credentials: "include",
+      cache: "no-store",
+    });
+    const parsed = shareLinksResponseSchema.safeParse(
+      response.ok ? await response.json() : null,
+    );
+    if (parsed.success) setShareLinks(parsed.data.shareLinks);
+  };
+  useEffect(() => {
+    void refreshShareLinks();
+  }, [projectId]);
   const submit = async (url: string, body?: unknown) => {
     setBusy(true);
     setMessage(null);
@@ -69,6 +89,54 @@ export function RenderPanel({
       await refresh();
     } finally {
       setBusy(false);
+    }
+  };
+  const createShareLink = async () => {
+    const latestRender = renders.find((render) => render.video !== null);
+    if (latestRender === undefined) return;
+    setShareBusy(true);
+    setMessage(null);
+    try {
+      const response = await fetch(api(shareBase), {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ renderId: latestRender.id }),
+      });
+      const parsed = shareLinkCreatedResponseSchema.safeParse(
+        response.ok ? await response.json() : null,
+      );
+      if (!parsed.success) {
+        setMessage(
+          "A share link could not be created. Render the lesson first.",
+        );
+        return;
+      }
+      const link = `${window.location.origin}/share/${encodeURIComponent(parsed.data.token)}`;
+      try {
+        await globalThis.navigator.clipboard.writeText(link);
+        setMessage("View-only link copied to the clipboard.");
+      } catch {
+        setMessage(`View-only link: ${link}`);
+      }
+      await refreshShareLinks();
+    } finally {
+      setShareBusy(false);
+    }
+  };
+  const revokeShareLink = async (shareLink: ShareLink) => {
+    setShareBusy(true);
+    try {
+      const response = await fetch(
+        api(`${shareBase}/${encodeURIComponent(shareLink.id)}`),
+        { method: "DELETE", credentials: "include" },
+      );
+      if (response.ok) {
+        setRevokeTarget(null);
+        await refreshShareLinks();
+      } else setMessage("The share link could not be revoked.");
+    } finally {
+      setShareBusy(false);
     }
   };
   return (
@@ -159,6 +227,66 @@ export function RenderPanel({
           </li>
         ))}
       </ul>
+      <section aria-labelledby="share-heading">
+        <h2 id="share-heading">Share view-only lesson</h2>
+        <p>Shared viewers can play only the selected rendered lesson.</p>
+        <button
+          type="button"
+          disabled={
+            shareBusy || !renders.some((render) => render.video !== null)
+          }
+          onClick={() => void createShareLink()}
+        >
+          {shareBusy ? "Creating…" : "Create and copy share link"}
+        </button>
+        <ul aria-label="Share links">
+          {shareLinks.map((link) => (
+            <li key={link.id}>
+              {link.status}
+              {link.expiresAt
+                ? ` until ${new Date(link.expiresAt).toLocaleString()}`
+                : ""}
+              {link.status === "active" ? (
+                <button
+                  type="button"
+                  disabled={shareBusy}
+                  onClick={() => setRevokeTarget(link)}
+                >
+                  Revoke
+                </button>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+        {revokeTarget ? (
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="revoke-share-link-heading"
+          >
+            <h3 id="revoke-share-link-heading">Revoke view-only link?</h3>
+            <p>
+              Revoke the link created{" "}
+              {new Date(revokeTarget.createdAt).toLocaleString()}? Anyone using
+              it will lose access immediately.
+            </p>
+            <button
+              type="button"
+              disabled={shareBusy}
+              onClick={() => setRevokeTarget(null)}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={shareBusy}
+              onClick={() => void revokeShareLink(revokeTarget)}
+            >
+              {shareBusy ? "Revoking…" : "Revoke link"}
+            </button>
+          </section>
+        ) : null}
+      </section>
     </section>
   );
 }

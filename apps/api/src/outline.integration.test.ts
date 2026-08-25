@@ -38,6 +38,16 @@ const objectiveSetId: Identifier = "019ffbf1-2222-7000-8000-000000000006";
 const objectiveId: Identifier = "019ffbf1-3333-7000-8000-000000000006";
 const modelCallId: Identifier = "019ffbf1-4444-7000-8000-000000000006";
 const contentHash = "c".repeat(64);
+const sourceReference = [
+  {
+    documentId: parsedDocumentId,
+    parsedDocumentVersion: 1,
+    pageStart: 1,
+    pageEnd: 1,
+    sectionId: "019ffbf1-5555-7000-8000-000000000007",
+    blockIds: ["019ffbf1-5555-7000-8000-000000000008"],
+  },
+] as const;
 
 const approvalStatus: SourceApprovalStatus = {
   approved: true,
@@ -243,7 +253,10 @@ describeWithPostgres("PostgresOutlineService editor (Postgres)", () => {
     expect(added.set?.items).toHaveLength(3);
     expect(added.set?.totalEstimatedSeconds).toBe(100);
     const addedItem = added.set!.items[2]!;
-    expect(addedItem).toMatchObject({ title: "Condensation", generated: false });
+    expect(addedItem).toMatchObject({
+      title: "Condensation",
+      generated: false,
+    });
 
     const updated = await service.update({
       ownerUserId,
@@ -612,7 +625,7 @@ async function seedDraftOutline(
       title: "Evaporation",
       description: "Explain evaporation.",
       estimatedSeconds: 40,
-      sourceRefs: [],
+      sourceRefs: sourceReference,
       framingNote: null,
       generated: true,
       revision: 0,

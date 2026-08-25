@@ -40,6 +40,7 @@ import { PreviewManifestService } from "./preview-manifest.js";
 import { PostgresLessonValidationService } from "./lesson-validation.js";
 import { PostgresRenderService } from "./renders.js";
 import { ExportService } from "./exports.js";
+import { PostgresShareLinkService } from "./share-links.js";
 
 export async function runApi(input: {
   telemetryShutdown: () => Promise<void>;
@@ -108,6 +109,7 @@ export async function runApi(input: {
             ),
         environment.WEB_ORIGIN ?? "http://localhost:3000",
         environment.PASSWORD_RESET_TTL_SECONDS * 1000,
+        environment.PASSWORD_RESET_RESPONSE_FLOOR_MS,
       ),
       authRateLimiter: new InMemoryAuthRateLimiter(
         environment.AUTH_SESSION_SECRET,
@@ -199,6 +201,7 @@ export async function runApi(input: {
         database.client,
         authorizedProjectStorage,
       ),
+      shareLinkService: new PostgresShareLinkService(database.client, storage),
       projectAuthorizer,
       ...(environment.WEB_ORIGIN === undefined
         ? {}

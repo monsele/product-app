@@ -302,6 +302,12 @@ function isLocalStorageEndpoint(endpoint: URL): boolean {
     endpoint.hostname === "[::1]"
   );
 }
+
+function isLoopbackHost(hostname: string): boolean {
+  return (
+    hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]"
+  );
+}
 function validateStorageCredentialPair(
   value: {
     OBJECT_STORAGE_ACCESS_KEY?: string | undefined;
@@ -392,6 +398,12 @@ export const apiEnvironmentSchema = baseEnvironmentSchema
       .min(60)
       .max(3600)
       .default(900),
+    PASSWORD_RESET_RESPONSE_FLOOR_MS: z.coerce
+      .number()
+      .int()
+      .min(100)
+      .max(2_000)
+      .default(250),
     PASSWORD_RESET_EMAIL_WEBHOOK_URL: z
       .string()
       .url()
@@ -407,8 +419,15 @@ export const apiEnvironmentSchema = baseEnvironmentSchema
       .min(1)
       .max(100)
       .default(10),
+    MAX_PROVIDER_CALLS_PER_HOUR: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(1_000)
+      .default(60),
     RENDER_CONCURRENCY: z.coerce.number().int().min(1).max(10).default(1),
     MAX_RENDERS_PER_HOUR: z.coerce.number().int().min(1).max(100).default(12),
+    AUTH_RATE_LIMIT_MODE: z.enum(["local", "shared-edge"]).default("local"),
   })
   .superRefine((value, context) => {
     validateStorageCredentialPair(value, context);
@@ -418,6 +437,29 @@ export const apiEnvironmentSchema = baseEnvironmentSchema
         path: ["WEB_ORIGIN"],
         message:
           "WEB_ORIGIN is required in production for CORS and CSRF protection.",
+      });
+    if (value.WEB_ORIGIN !== undefined) {
+      const origin = new URL(value.WEB_ORIGIN);
+      if (
+        origin.protocol !== "https:" &&
+        !(value.NODE_ENV !== "production" && isLoopbackHost(origin.hostname))
+      )
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["WEB_ORIGIN"],
+          message:
+            "WEB_ORIGIN must use HTTPS; HTTP is allowed only for a non-production loopback origin.",
+        });
+    }
+    if (
+      value.NODE_ENV === "production" &&
+      value.AUTH_RATE_LIMIT_MODE !== "shared-edge"
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["AUTH_RATE_LIMIT_MODE"],
+        message:
+          "AUTH_RATE_LIMIT_MODE must be shared-edge in production so authentication limits are enforced across replicas.",
       });
     if (
       value.NODE_ENV === "production" &&
@@ -436,6 +478,22 @@ export const workerEnvironmentSchema = baseEnvironmentSchema
   .merge(storageEnvironmentObjectSchema)
   .merge(malwareScannerEnvironmentSchema)
   .merge(ingestionServiceEnvironmentSchema)
+  .merge(
+    z.object({
+      MAX_REGENERATIONS_PER_HOUR: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .default(10),
+      MAX_PROVIDER_CALLS_PER_HOUR: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(1_000)
+        .default(60),
+    }),
+  )
   .superRefine((value, context) => {
     validateStorageCredentialPair(value, context);
     if (

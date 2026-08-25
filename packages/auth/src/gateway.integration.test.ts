@@ -1,3 +1,4 @@
+import { performance } from "node:perf_hooks";
 import { createId } from "@avlp/config";
 import {
   auditEvents,
@@ -227,5 +228,45 @@ describeWithPostgres("PostgresAuthGateway", () => {
       context(),
     );
     expect(sent).toEqual([]);
+  });
+
+  it("keeps known and unknown reset responses generic when an email adapter throws synchronously", async () => {
+    const resetGateway = new PostgresAuthGateway(
+      database!.client,
+      "a".repeat(32),
+      undefined,
+      {
+        sendPasswordReset: () => {
+          throw new Error("Synchronous email adapter failure.");
+        },
+      },
+      "https://app.example.test",
+      60_000,
+      750,
+    );
+    await resetGateway.register(
+      {
+        email: "teacher@example.test",
+        password: "correct horse battery staple",
+      },
+      context(),
+    );
+
+    const knownStartedAt = performance.now();
+    await resetGateway.requestPasswordReset(
+      { email: "teacher@example.test" },
+      context(),
+    );
+    const knownDuration = performance.now() - knownStartedAt;
+    const unknownStartedAt = performance.now();
+    await resetGateway.requestPasswordReset(
+      { email: "missing@example.test" },
+      context(),
+    );
+    const unknownDuration = performance.now() - unknownStartedAt;
+
+    expect(knownDuration).toBeGreaterThanOrEqual(700);
+    expect(unknownDuration).toBeGreaterThanOrEqual(700);
+    expect(Math.abs(knownDuration - unknownDuration)).toBeLessThan(200);
   });
 });

@@ -70,6 +70,37 @@ describe("project route authorization", () => {
     return { fixture, server: app.getHttpAdapter().getInstance() };
   }
 
+  async function actualApi() {
+    const fixture = createCrossUserProjectFixture();
+    const users = new Map<string, AuthenticatedUser>([
+      [
+        "other-session",
+        {
+          id: fixture.otherUserId,
+          email: "other@example.test",
+          displayName: "Other",
+        },
+      ],
+    ]);
+    const authGateway: AuthGateway = {
+      register: async () => {
+        throw new Error("Not used by this test.");
+      },
+      signIn: async () => null,
+      currentSession: async (token) => users.get(token) ?? null,
+      signOut: async () => {},
+      requestPasswordReset: async () => {},
+      confirmPasswordReset: async () => {},
+    };
+    app = await createApp({
+      authGateway,
+      projectAuthorizer: new ProjectAuthorizationService(
+        new InMemoryOwnerScopedProjectRepository([fixture.project]),
+      ),
+    });
+    return { fixture, server: app.getHttpAdapter().getInstance() };
+  }
+
   it("allows the owner and attaches the verified tenant scope", async () => {
     const { fixture, server } = await api();
     const response = await server.inject({
@@ -139,5 +170,56 @@ describe("project route authorization", () => {
     expect(response.json()).toMatchObject({
       error: { code: "unauthorized", retryable: false },
     });
+  });
+
+  it("rejects a foreign user before every project-owned endpoint family", async () => {
+    const { fixture, server } = await actualApi();
+    const secondaryId = "018f3c2d-4a00-7000-8000-000000000088";
+    const routes = [
+      ["GET", ""],
+      ["POST", "/duplicate"],
+      ["POST", "/source-upload"],
+      ["GET", "/source-document"],
+      ["GET", "/ingestion"],
+      ["POST", "/ingestion/retry"],
+      ["GET", "/parsed-document"],
+      ["PATCH", `/source-sections/${secondaryId}`],
+      ["PATCH", `/source-blocks/${secondaryId}`],
+      ["PATCH", `/source-figures/${secondaryId}`],
+      ["GET", "/source-review"],
+      ["PUT", "/configuration"],
+      ["PUT", "/voice-configuration"],
+      ["POST", "/objectives/generate"],
+      ["POST", "/outline/generate"],
+      ["POST", "/narration/generate"],
+      ["GET", "/storyboard"],
+      ["PATCH", `/scenes/${secondaryId}`],
+      ["POST", `/scenes/${secondaryId}/audio/generate`],
+      ["POST", `/scenes/${secondaryId}/assets/subject/generate`],
+      ["GET", "/assets"],
+      ["GET", "/teacher-assets"],
+      ["POST", "/grounding-checks"],
+      ["GET", "/preview-manifest"],
+      ["POST", "/validation-runs"],
+      ["POST", "/renders"],
+      ["GET", `/renders/${secondaryId}/download`],
+      ["GET", `/exports/${secondaryId}/captions`],
+      ["POST", "/share-links"],
+      ["GET", "/versions"],
+      ["POST", `/versions/${secondaryId}/restore`],
+      ["DELETE", ""],
+    ] as const;
+
+    for (const [method, suffix] of routes) {
+      const response = await server.inject({
+        method,
+        url: `/projects/${fixture.projectId}${suffix}`,
+        cookies: { [sessionCookieName]: "other-session" },
+      });
+      expect(response.statusCode, `${method} ${suffix || "/"}`).toBe(404);
+      expect(response.json()).toMatchObject({
+        error: { code: "not_found", retryable: false },
+      });
+    }
   });
 });

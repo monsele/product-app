@@ -140,7 +140,10 @@ describe("full lesson preview route", () => {
               path: "/",
             },
           ]);
-          await page.goto(`${origin}/workspace/${projectId}/preview`);
+          await page.goto(`${origin}/workspace/${projectId}/preview`, {
+            timeout: 60_000,
+            waitUntil: "load",
+          });
           await playwrightExpect(
             page.getByRole("button", { name: "Scene 2" }),
           ).toBeVisible();

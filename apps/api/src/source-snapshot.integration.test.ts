@@ -125,7 +125,7 @@ describeWithPostgres("PostgresSourceSnapshotService", () => {
       projectId,
       correlationId,
     });
-    const snapshot = parseStored(
+    const snapshot = await parseStored(
       database!.client,
       ownerUserId,
       projectId,
@@ -155,7 +155,7 @@ describeWithPostgres("PostgresSourceSnapshotService", () => {
     expect(second.snapshot.snapshotVersion).toBe(2);
     expect(second.snapshot.id).not.toBe(first.snapshot.id);
 
-    const storedAfter = parseStored(
+    const storedAfter = await parseStored(
       database!.client,
       ownerUserId,
       projectId,
@@ -170,7 +170,7 @@ describeWithPostgres("PostgresSourceSnapshotService", () => {
       projectId,
       correlationId,
     });
-    const storedBefore = parseStored(
+    const storedBefore = await parseStored(
       database!.client,
       ownerUserId,
       projectId,
@@ -189,7 +189,7 @@ describeWithPostgres("PostgresSourceSnapshotService", () => {
       updatedAt: new Date("2026-08-16T10:05:00.000Z"),
     });
 
-    const storedAfter = parseStored(
+    const storedAfter = await parseStored(
       database!.client,
       ownerUserId,
       projectId,

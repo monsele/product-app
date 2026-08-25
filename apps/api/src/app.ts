@@ -85,6 +85,7 @@ import type { PreviewManifestService } from "./preview-manifest.js";
 import type { LessonValidationService } from "./lesson-validation.js";
 import type { RenderService } from "./renders.js";
 import type { ExportService } from "./exports.js";
+import type { ShareLinkService } from "./share-links.js";
 import { searchApprovedAssets } from "./approved-assets.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
@@ -122,6 +123,7 @@ const PREVIEW_MANIFEST_SERVICE = Symbol("PREVIEW_MANIFEST_SERVICE");
 const LESSON_VALIDATION_SERVICE = Symbol("LESSON_VALIDATION_SERVICE");
 const RENDER_SERVICE = Symbol("RENDER_SERVICE");
 const EXPORT_SERVICE = Symbol("EXPORT_SERVICE");
+const SHARE_LINK_SERVICE = Symbol("SHARE_LINK_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -388,6 +390,10 @@ type RenderApiService = Pick<
   "start" | "list" | "detail" | "retry"
 >;
 type ExportApiService = Pick<ExportService, "build" | "signedVideoDownload">;
+type ShareLinkApiService = Pick<
+  ShareLinkService,
+  "create" | "list" | "revoke" | "resolve"
+>;
 
 function approvedAssetCatalogFilters(input: {
   query: unknown;
@@ -516,6 +522,8 @@ class ProjectsController {
     private readonly renders: RenderApiService,
     @Inject(EXPORT_SERVICE)
     private readonly exports: ExportApiService,
+    @Inject(SHARE_LINK_SERVICE)
+    private readonly shareLinks: ShareLinkApiService,
   ) {}
 
   @Post()
@@ -1055,6 +1063,46 @@ class ProjectsController {
         `attachment; filename="${exported.fileName}"`,
       )
       .send(exported.body);
+  }
+
+  @Post(":projectId/share-links")
+  @HttpCode(201)
+  public async createShareLink(
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.shareLinks.create({
+      ...assertAuthorizedProject(request, projectId),
+      body,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Get(":projectId/share-links")
+  public async listShareLinks(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    return this.shareLinks.list(assertAuthorizedProject(request, projectId));
+  }
+
+  @Delete(":projectId/share-links/:shareLinkId")
+  @HttpCode(204)
+  public async revokeShareLink(
+    @Param("projectId") projectId: string,
+    @Param("shareLinkId") shareLinkId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<void> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    await this.shareLinks.revoke({
+      ...assertAuthorizedProject(request, projectId),
+      shareLinkId: identifierSchema.parse(shareLinkId),
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
   }
 
   @Get(":projectId/source-review")
@@ -2294,6 +2342,24 @@ class ProjectsController {
   }
 }
 
+@Controller("share")
+class PublicShareController {
+  public constructor(
+    @Inject(SHARE_LINK_SERVICE)
+    private readonly shareLinks: ShareLinkApiService,
+  ) {}
+
+  @Get(":token")
+  public async resolve(
+    @Param("token") token: string,
+    @Req() request: FastifyRequest,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ): Promise<unknown> {
+    reply.header("cache-control", "no-store");
+    return this.shareLinks.resolve({ token, network: request.ip });
+  }
+}
+
 function assertAuthorizedProject(
   request: AuthorizedProjectRequest,
   projectId: string,
@@ -2394,6 +2460,7 @@ class DatabaseShutdown implements OnApplicationShutdown {
     AssetsController,
     VoicesController,
     ProjectsController,
+    PublicShareController,
   ],
   providers: [HealthService, DatabaseShutdown],
 })
@@ -2434,6 +2501,7 @@ function createAppModule(
   lessonValidationService: LessonValidationApiService,
   renderService: RenderApiService,
   exportService: ExportApiService,
+  shareLinkService: ShareLinkApiService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -2485,6 +2553,7 @@ function createAppModule(
       { provide: LESSON_VALIDATION_SERVICE, useValue: lessonValidationService },
       { provide: RENDER_SERVICE, useValue: renderService },
       { provide: EXPORT_SERVICE, useValue: exportService },
+      { provide: SHARE_LINK_SERVICE, useValue: shareLinkService },
     ],
   };
 }
@@ -2521,6 +2590,7 @@ export type CreateAppOptions = {
   lessonValidationService?: LessonValidationApiService;
   renderService?: RenderApiService;
   exportService?: ExportApiService;
+  shareLinkService?: ShareLinkApiService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -3427,6 +3497,24 @@ const unavailableExportService: ExportApiService = {
       new PublicError("internal_error", "Exports are unavailable.", 503, true),
     ),
 };
+const unavailableShareLinkService: ShareLinkApiService = {
+  create: () =>
+    Promise.reject(
+      new PublicError("internal_error", "Sharing is unavailable.", 503, true),
+    ),
+  list: () =>
+    Promise.reject(
+      new PublicError("internal_error", "Sharing is unavailable.", 503, true),
+    ),
+  revoke: () =>
+    Promise.reject(
+      new PublicError("internal_error", "Sharing is unavailable.", 503, true),
+    ),
+  resolve: () =>
+    Promise.reject(
+      new PublicError("not_found", "This shared lesson is unavailable.", 404),
+    ),
+};
 
 export async function createApp(
   options: CreateAppOptions = {},
@@ -3469,6 +3557,7 @@ export async function createApp(
       options.lessonValidationService ?? unavailableLessonValidationService,
       options.renderService ?? unavailableRenderService,
       options.exportService ?? unavailableExportService,
+      options.shareLinkService ?? unavailableShareLinkService,
     ),
     new FastifyAdapter({
       logger: {

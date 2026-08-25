@@ -131,6 +131,7 @@ export class PostgresGenerationQuotaGuard implements QuotaGuard {
     private readonly executor: DatabaseExecutor,
     private readonly limits: ModelCallQuotaLimits,
     private readonly now: () => Date = () => new Date(),
+    private readonly maxTotalCallsPerHour = 60,
   ) {}
 
   public async assertCanGenerate(input: {
@@ -140,23 +141,38 @@ export class PostgresGenerationQuotaGuard implements QuotaGuard {
     now?: Date;
   }): Promise<void> {
     const limit = this.limits[input.operationType as ModelCallOperation];
-    if (limit === undefined) return;
     const at = input.now ?? this.now();
     const since = new Date(at.getTime() - 60 * 60 * 1000);
-    const [row] = await this.executor
+    if (limit !== undefined) {
+      const [row] = await this.executor
+        .select({ count: sql<number>`count(*)` })
+        .from(modelCalls)
+        .where(
+          and(
+            eq(modelCalls.ownerUserId, input.ownerUserId),
+            eq(modelCalls.projectId, input.projectId),
+            eq(modelCalls.operationType, input.operationType),
+            gte(modelCalls.createdAt, since),
+          ),
+        );
+      if ((row?.count ?? 0) >= limit.maxCallsPerHour)
+        throw new QuotaExceededError(
+          `The ${input.operationType} generation quota for this project has been reached.`,
+        );
+    }
+    const [total] = await this.executor
       .select({ count: sql<number>`count(*)` })
       .from(modelCalls)
       .where(
         and(
           eq(modelCalls.ownerUserId, input.ownerUserId),
           eq(modelCalls.projectId, input.projectId),
-          eq(modelCalls.operationType, input.operationType),
           gte(modelCalls.createdAt, since),
         ),
       );
-    if ((row?.count ?? 0) >= limit.maxCallsPerHour)
+    if ((total?.count ?? 0) >= this.maxTotalCallsPerHour)
       throw new QuotaExceededError(
-        `The ${input.operationType} generation quota for this project has been reached.`,
+        "The total AI provider-call quota for this project has been reached.",
       );
   }
 }

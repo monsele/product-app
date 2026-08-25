@@ -72,8 +72,53 @@ describe("parseEnvironment", () => {
         WEB_ORIGIN: "https://app.example.test",
         PASSWORD_RESET_EMAIL_WEBHOOK_URL:
           "https://mail.example.test/password-reset",
+        AUTH_RATE_LIMIT_MODE: "shared-edge",
       }).PASSWORD_RESET_TTL_SECONDS,
     ).toBe(900);
+  });
+
+  it("requires secure production origins and shared authentication limits", () => {
+    const production = {
+      NODE_ENV: "production",
+      DATABASE_URL: "postgresql://localhost/app",
+      REDIS_URL: "redis://localhost:6379",
+      AUTH_SESSION_SECRET: "a".repeat(32),
+      PASSWORD_RESET_EMAIL_WEBHOOK_URL:
+        "https://mail.example.test/password-reset",
+    } as const;
+
+    expect(() =>
+      parseEnvironment({
+        ...production,
+        WEB_ORIGIN: "http://app.example.test",
+        AUTH_RATE_LIMIT_MODE: "shared-edge",
+      }),
+    ).toThrow("must use HTTPS");
+    expect(() =>
+      parseEnvironment({
+        ...production,
+        WEB_ORIGIN: "https://app.example.test",
+      }),
+    ).toThrow("shared-edge");
+    expect(
+      parseEnvironment({
+        ...production,
+        WEB_ORIGIN: "https://app.example.test",
+        AUTH_RATE_LIMIT_MODE: "shared-edge",
+      }),
+    ).toMatchObject({
+      AUTH_RATE_LIMIT_MODE: "shared-edge",
+      MAX_PROVIDER_CALLS_PER_HOUR: 60,
+      PASSWORD_RESET_RESPONSE_FLOOR_MS: 250,
+    });
+    expect(
+      parseEnvironment({
+        DATABASE_URL: "postgresql://localhost/app",
+        REDIS_URL: "redis://localhost:6379",
+        AUTH_SESSION_SECRET: "a".repeat(32),
+        WEB_ORIGIN: "http://127.0.0.1:3000",
+      }).WEB_ORIGIN,
+    ).toBe("http://127.0.0.1:3000");
   });
 
   it("validates optional worker values when they are supplied", () => {
@@ -84,6 +129,10 @@ describe("parseEnvironment", () => {
     expect(() =>
       parseWorkerEnvironment({ MALWARE_SCANNER_URL: "http://scanner.test" }),
     ).toThrow("must use HTTPS");
+    expect(parseWorkerEnvironment({})).toMatchObject({
+      MAX_PROVIDER_CALLS_PER_HOUR: 60,
+      MAX_REGENERATIONS_PER_HOUR: 10,
+    });
   });
 
   it("exports reusable database, Redis, and storage schemas", () => {

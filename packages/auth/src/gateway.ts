@@ -1,4 +1,5 @@
 import { createHmac, randomBytes } from "node:crypto";
+import { setTimeout as wait } from "node:timers/promises";
 import { hash, verify } from "@node-rs/argon2";
 import { createId } from "@avlp/config";
 import {
@@ -60,6 +61,10 @@ export class PostgresAuthGateway implements AuthGateway {
     private readonly passwordResetEmailSender: PasswordResetEmailSender = unavailablePasswordResetEmailSender,
     private readonly passwordResetOrigin = "http://localhost:3000",
     private readonly passwordResetLifetimeMs = 1000 * 60 * 15,
+    private readonly passwordResetResponseFloorMs = 250,
+    private readonly delay: (milliseconds: number) => Promise<void> = (
+      milliseconds,
+    ) => wait(milliseconds),
   ) {}
 
   public async register(
@@ -215,43 +220,52 @@ export class PostgresAuthGateway implements AuthGateway {
     input: PasswordResetRequestInput,
     context: AuthContext,
   ): Promise<void> {
+    const startedAt = Date.now();
     const parsed = passwordResetRequestInputSchema.parse(input);
     const email = normalizeEmail(parsed.email);
-    const [user] = await this.executor
-      .select({ id: users.id, status: users.status })
-      .from(users)
-      .where(eq(users.emailNormalized, email))
-      .limit(1);
-    if (user === undefined || user.status !== "active") return;
-
-    const token = randomBytes(32).toString("base64url");
-    const requestedAt = this.now();
-    await this.executor.transaction(async (transaction) => {
-      await transaction.insert(passwordResetTokens).values({
-        id: createId(requestedAt),
-        userId: user.id,
-        tokenHash: hashSessionToken(token, this.sessionSecret),
-        expiresAt: new Date(
-          requestedAt.getTime() + this.passwordResetLifetimeMs,
-        ),
-      });
-      await new PostgresAuditWriter(transaction).write({
-        ownerUserId: user.id,
-        actor: { type: "user", userId: user.id },
-        eventType: "auth.password_reset_requested",
-        target: { type: "user", id: user.id },
-        correlationId: context.correlationId,
-      });
-    });
-    const resetUrl = new URL("/reset-password", this.passwordResetOrigin);
-    resetUrl.searchParams.set("token", token);
     try {
-      await this.passwordResetEmailSender.sendPasswordReset({
-        recipient: email,
-        resetUrl: resetUrl.toString(),
+      const [user] = await this.executor
+        .select({ id: users.id, status: users.status })
+        .from(users)
+        .where(eq(users.emailNormalized, email))
+        .limit(1);
+      if (user === undefined || user.status !== "active") return;
+
+      const token = randomBytes(32).toString("base64url");
+      const requestedAt = this.now();
+      await this.executor.transaction(async (transaction) => {
+        await transaction.insert(passwordResetTokens).values({
+          id: createId(requestedAt),
+          userId: user.id,
+          tokenHash: hashSessionToken(token, this.sessionSecret),
+          expiresAt: new Date(
+            requestedAt.getTime() + this.passwordResetLifetimeMs,
+          ),
+        });
+        await new PostgresAuditWriter(transaction).write({
+          ownerUserId: user.id,
+          actor: { type: "user", userId: user.id },
+          eventType: "auth.password_reset_requested",
+          target: { type: "user", id: user.id },
+          correlationId: context.correlationId,
+        });
       });
-    } catch {
-      // The generic endpoint response deliberately does not expose mail delivery.
+      const resetUrl = new URL("/reset-password", this.passwordResetOrigin);
+      resetUrl.searchParams.set("token", token);
+      // Delivery is intentionally detached from the enumeration-safe response.
+      // Promise.resolve also converts a synchronous adapter throw into a rejection.
+      void Promise.resolve()
+        .then(() =>
+          this.passwordResetEmailSender.sendPasswordReset({
+            recipient: email,
+            resetUrl: resetUrl.toString(),
+          }),
+        )
+        .catch(() => undefined);
+    } finally {
+      const remaining =
+        this.passwordResetResponseFloorMs - (Date.now() - startedAt);
+      if (remaining > 0) await this.delay(remaining);
     }
   }
 

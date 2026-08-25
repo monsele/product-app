@@ -524,7 +524,11 @@ function mockSceneVisual(template) {
         mappings: [{ concept: "Concept part", analogy: "Familiar part" }],
       };
     case "worked-example":
-      return { problem: "Example problem", steps: ["First step"], answer: "Answer" };
+      return {
+        problem: "Example problem",
+        steps: ["First step"],
+        answer: "Answer",
+      };
     case "summary":
       return { takeaways: [{ text: "Key takeaway" }] };
     default:
@@ -553,6 +557,30 @@ const server = createServer(async (request, response) => {
   response.setHeader("access-control-allow-credentials", "true");
   if (request.method === "GET" && url.pathname === "/health")
     return send(response, 200, { status: "ok" });
+  if (
+    request.method === "POST" &&
+    url.pathname === "/auth/password-reset/request"
+  ) {
+    let body = "";
+    for await (const chunk of request) body += chunk;
+    const input = JSON.parse(body);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    return input.email === "outage@example.test"
+      ? send(response, 503, { error: { code: "internal_error" } })
+      : send(response, 202, {});
+  }
+  if (
+    request.method === "POST" &&
+    url.pathname === "/auth/password-reset/confirm"
+  ) {
+    let body = "";
+    for await (const chunk of request) body += chunk;
+    const input = JSON.parse(body);
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    return input.token === "A".repeat(43)
+      ? send(response, 204, {})
+      : send(response, 400, { error: { code: "bad_request" } });
+  }
   if (
     request.method === "GET" &&
     url.pathname === "/projects" &&
@@ -1073,7 +1101,9 @@ const server = createServer(async (request, response) => {
           message: "The storyboard changed. Please refresh and try again.",
         },
       });
-    const byId = new Map(draft.scenes.map((scene) => [scene.stableSceneId, scene]));
+    const byId = new Map(
+      draft.scenes.map((scene) => [scene.stableSceneId, scene]),
+    );
     if (
       byId.size !== input.sceneIds.length ||
       [...byId.keys()].some((id) => !input.sceneIds.includes(id))
@@ -1172,8 +1202,7 @@ const server = createServer(async (request, response) => {
     const index = draft.scenes.findIndex(
       (scene) => scene.stableSceneId === sceneId,
     );
-    if (index < 0)
-      return send(response, 404, { error: { code: "not_found" } });
+    if (index < 0) return send(response, 404, { error: { code: "not_found" } });
     const source = draft.scenes[index];
     const newId = newMockSceneId();
     const duplicate = {

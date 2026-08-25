@@ -2,7 +2,7 @@
 story_id: ST-070
 title: "Create Revocable View-Only Share Links and Public Playback"
 phase: "06 \u2014 Audio, Validation, Rendering, and Delivery"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E18", "E21"]
 prd_user_stories: ["E18-US2", "E21-US3"]
@@ -117,15 +117,16 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Contracts changed:**
-- **Commands/tests run:**
-- **Screenshots or representative output:**
-- **Decisions and assumptions:**
-- **Deviations from story/technical guide:**
-- **Known risks or follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-08-25
+- **Completed:** 2026-08-25
+- **Branch/PR:** `story/st-070` (local branch; no PR published)
+- **Files changed:** Share-link schema/migration, API service/routes/runtime, render sharing controls, public playback page, and focused API/browser tests.
+- **Migrations:** `0055_share_links` adds `share_links` and its tenant/public lookup indexes. It does not alter existing renders or lesson versions.
+- **Contracts changed:** `POST/GET/DELETE /projects/:id/share-links`, `GET /share/:token`, create/list share-link DTOs, and a minimal public-playback DTO. Create requires a completed `renderId`; only the creation response contains the raw opaque token.
+- **Commands/tests run:** `pnpm --filter @avlp/schemas build`; `pnpm --filter @avlp/database build`; API and web `typecheck`/`lint`; `pnpm --filter @avlp/api test -- share-links.test.ts` (6 passing); `pnpm --filter @avlp/web test` (110 passing); affected schema/database test suites passed (252 schema tests; 8 database tests, 3 integration tests skipped without a database); `pnpm --filter @avlp/web build`; `git diff --check` passed.
+- **Screenshots or representative output:** Headless-browser test renders the public page with one labelled video element, no controls or source/editor data, and a signed playback URL.
+- **Decisions and assumptions:** Tokens are 32 random bytes encoded base64url and stored only as SHA-256 hashes. The create command explicitly selects one verified completed render. Public playback URLs are regenerated for each resolution, expire after five minutes, and response caching is disabled. A local network limiter protects public lookup; deployment should retain the existing edge rate limit when horizontally scaled.
+- **Deviations from story/technical guide:** None. The database migration was written as a focused forward migration because the repository's current Drizzle snapshot set is behind the existing manual migrations; a generated migration incorrectly attempted to recreate old tables and was discarded before it could be applied.
+- **Review findings fixed:** Removed duplicate pre-existing share audit enum entries from the generated schema/migration draft; the final migration adds only the share-link table and indexes. Added a named revocation confirmation and converted the public route to the Focus Studio theater treatment with the thumbnail as the video poster.
+- **Known risks or follow-up:** Apply the migration before deploying the API. End-to-end database integration coverage remains contingent on the optional test database environment.
