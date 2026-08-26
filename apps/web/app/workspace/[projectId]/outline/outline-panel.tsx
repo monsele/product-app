@@ -1,23 +1,40 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   objectivesResponseSchema,
   outlineResponseSchema,
   type LearningObjectiveSet,
   type LessonOutlineItem,
-  type LessonOutlineSet,
   type ObjectivesResponse,
   type OutlineItemKind,
   type OutlineResponse,
 } from "@avlp/schemas";
 import {
   isGenerating,
+  outlineDurationStatusLabel,
   outlineFailureMessage,
-  outlineGenerationStateLabel,
   outlineItemKindLabel,
   outlineValidationWarnings,
 } from "./outline-input";
+import { ReviewEditorScaffold } from "../../../../components/review-editor/review-editor-scaffold";
+import { ReorderItemContainer } from "../../../../components/review-editor/reorder-item-container";
+import { SourceDrawer } from "../../../../components/review-editor/source-drawer";
+import { CandidateBanner } from "../../../../components/review-editor/candidate-banner";
+import { Button } from "../../../../components/ui/button";
+import { Notice } from "../../../../components/ui/notice";
+import { StatusLabel } from "../../../../components/ui/status-label";
+import {
+  BookOpen,
+  CheckCircle,
+  Clock,
+  PencilSimple,
+  Plus,
+  Sparkle,
+  Target,
+  Trash,
+  TreeStructure,
+} from "@phosphor-icons/react";
 
 type ViewState =
   | { kind: "loading" }
@@ -78,7 +95,13 @@ function citationText(item: LessonOutlineItem): string {
   }, ${blocks} source block${blocks === 1 ? "" : "s"}`;
 }
 
-export function OutlinePanel({ projectId }: { projectId: string }) {
+export function OutlinePanel({
+  projectId,
+  projectTitle = "Lesson",
+}: {
+  projectId: string;
+  projectTitle?: string;
+}) {
   const [view, setView] = useState<ViewState>({ kind: "loading" });
   const [objectivesView, setObjectivesView] = useState<ObjectivesViewState>({
     kind: "loading",
@@ -86,9 +109,24 @@ export function OutlinePanel({ projectId }: { projectId: string }) {
   const [pending, setPending] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [actionMessageType, setActionMessageType] = useState<
+    "info" | "success" | "error" | "warning"
+  >("info");
   const [editing, setEditing] = useState<EditingState | null>(null);
   const [adding, setAdding] = useState<ItemDraft>(emptyDraft());
+  const [isAddingOpen, setIsAddingOpen] = useState(false);
+
+  // Drag-and-drop & Reorder state
   const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [lastMovedId, setLastMovedId] = useState<string | null>(null);
+  const [lastMovedDirection, setLastMovedDirection] = useState<-1 | 1 | null>(
+    null,
+  );
+
+  // Source drawer inspection state
+  const [inspectedItem, setInspectedItem] = useState<LessonOutlineItem | null>(
+    null,
+  );
 
   const refresh = useCallback(async () => {
     const response = await fetch(
@@ -201,6 +239,8 @@ export function OutlinePanel({ projectId }: { projectId: string }) {
           extractErrorMessage(payload, "Unable to start outline generation."),
         );
       await refresh().catch(() => undefined);
+      setActionMessage("Outline generation job started.");
+      setActionMessageType("info");
     } catch (error) {
       setPending(false);
       setActionMessage(
@@ -208,6 +248,7 @@ export function OutlinePanel({ projectId }: { projectId: string }) {
           ? error.message
           : "Unable to start outline generation.",
       );
+      setActionMessageType("error");
     } finally {
       setSubmitting(false);
     }
@@ -243,12 +284,15 @@ export function OutlinePanel({ projectId }: { projectId: string }) {
           );
         setEditing(null);
         setAdding(emptyDraft());
+        setIsAddingOpen(false);
         setActionMessage(`Outline ${successMessage.toLowerCase()}.`);
+        setActionMessageType("success");
         await refresh().catch(() => undefined);
       } catch (error) {
         setActionMessage(
           error instanceof Error ? error.message : "Unable to update outline.",
         );
+        setActionMessageType("error");
         await refresh().catch(() => undefined);
       } finally {
         setSubmitting(false);
@@ -262,31 +306,38 @@ export function OutlinePanel({ projectId }: { projectId: string }) {
     const estimatedSeconds = Number(adding.estimatedSeconds);
     if (!Number.isInteger(estimatedSeconds) || estimatedSeconds < 10) {
       setActionMessage("Enter an estimated duration of at least 10 seconds.");
+      setActionMessageType("warning");
       return;
     }
     if (adding.objectiveIds.length === 0) {
       setActionMessage("Link the item to at least one approved objective.");
+      setActionMessageType("warning");
       return;
     }
-    void mutate("POST", "/items", {
-      kind: adding.kind,
-      title: adding.title,
-      description: adding.description,
-      estimatedSeconds,
-      objectiveIds: adding.objectiveIds,
-      ...(adding.sourceBlockIds.trim().length === 0
-        ? {}
-        : {
-            sourceBlockIds: adding.sourceBlockIds
-              .split(",")
-              .map((id) => id.trim())
-              .filter((id) => id.length > 0),
-          }),
-      ...(adding.framingNote.trim().length === 0
-        ? {}
-        : { framingNote: adding.framingNote.trim() }),
-      expectedRevision: value.set.revision,
-    }, "item added");
+    void mutate(
+      "POST",
+      "/items",
+      {
+        kind: adding.kind,
+        title: adding.title,
+        description: adding.description,
+        estimatedSeconds,
+        objectiveIds: adding.objectiveIds,
+        ...(adding.sourceBlockIds.trim().length === 0
+          ? {}
+          : {
+              sourceBlockIds: adding.sourceBlockIds
+                .split(",")
+                .map((id) => id.trim())
+                .filter((id) => id.length > 0),
+            }),
+        ...(adding.framingNote.trim().length === 0
+          ? {}
+          : { framingNote: adding.framingNote.trim() }),
+        expectedRevision: value.set.revision,
+      },
+      "item added",
+    );
   }, [adding, mutate, value]);
 
   const updateItem = useCallback(() => {
@@ -294,28 +345,35 @@ export function OutlinePanel({ projectId }: { projectId: string }) {
     const estimatedSeconds = Number(editing.estimatedSeconds);
     if (!Number.isInteger(estimatedSeconds) || estimatedSeconds < 10) {
       setActionMessage("Enter an estimated duration of at least 10 seconds.");
+      setActionMessageType("warning");
       return;
     }
     if (editing.objectiveIds.length === 0) {
       setActionMessage("Link the item to at least one approved objective.");
+      setActionMessageType("warning");
       return;
     }
-    void mutate("PATCH", `/items/${encodeURIComponent(editing.itemId)}`, {
-      kind: editing.kind,
-      title: editing.title,
-      description: editing.description,
-      estimatedSeconds,
-      objectiveIds: editing.objectiveIds,
-      sourceBlockIds: editing.sourceBlockIds
-        .split(",")
-        .map((id) => id.trim())
-        .filter((id) => id.length > 0),
-      framingNote:
-        editing.framingNote.trim().length === 0
-          ? null
-          : editing.framingNote.trim(),
-      expectedRevision: value.set.revision,
-    }, "item updated");
+    void mutate(
+      "PATCH",
+      `/items/${encodeURIComponent(editing.itemId)}`,
+      {
+        kind: editing.kind,
+        title: editing.title,
+        description: editing.description,
+        estimatedSeconds,
+        objectiveIds: editing.objectiveIds,
+        sourceBlockIds: editing.sourceBlockIds
+          .split(",")
+          .map((id) => id.trim())
+          .filter((id) => id.length > 0),
+        framingNote:
+          editing.framingNote.trim().length === 0
+            ? null
+            : editing.framingNote.trim(),
+        expectedRevision: value.set.revision,
+      },
+      "item updated",
+    );
   }, [editing, mutate, value]);
 
   const removeItem = useCallback(
@@ -343,6 +401,8 @@ export function OutlinePanel({ projectId }: { projectId: string }) {
         itemIds[swapWith]!,
         itemIds[index]!,
       ];
+      setLastMovedId(itemId);
+      setLastMovedDirection(direction);
       void mutate(
         "POST",
         "/reorder",
@@ -363,6 +423,8 @@ export function OutlinePanel({ projectId }: { projectId: string }) {
       if (fromIndex === -1 || toIndex === -1) return;
       itemIds.splice(fromIndex, 1);
       itemIds.splice(toIndex, 0, draggedId);
+      setLastMovedId(draggedId);
+      setLastMovedDirection(null);
       void mutate(
         "POST",
         "/reorder",
@@ -383,314 +445,787 @@ export function OutlinePanel({ projectId }: { projectId: string }) {
     );
   }, [mutate, value]);
 
-  if (view.kind === "loading")
+  if (view.kind === "loading") {
     return (
-      <section aria-labelledby="outline-heading">
-        <h2 id="outline-heading">Lesson outline</h2>
-        <p role="status">Loading the lesson outline.</p>
-      </section>
+      <ReviewEditorScaffold
+        title="Lesson outline"
+        subtitle="Loading lesson outline…"
+        mainContent={
+          <div style={{ padding: "40px 0", textAlign: "center" }}>
+            <p role="status" style={{ color: "var(--color-text-muted)" }}>
+              Loading the lesson outline…
+            </p>
+          </div>
+        }
+      />
     );
+  }
 
-  if (view.kind === "failed")
+  if (view.kind === "failed") {
     return (
-      <section aria-labelledby="outline-heading">
-        <h2 id="outline-heading">Lesson outline</h2>
-        <p role="alert">{view.message}</p>
-        <button type="button" onClick={() => void refresh()}>
-          Try again
-        </button>
-      </section>
+      <ReviewEditorScaffold
+        title="Lesson outline"
+        subtitle="Review lesson outline"
+        notices={
+          <Notice
+            type="error"
+            title="Failed to load outline"
+            message={view.message}
+            actionLabel="Try again"
+            onAction={() => void refresh()}
+          />
+        }
+        mainContent={null}
+      />
     );
+  }
 
   const draft = view.value.set;
   const approved = view.value.approved;
   const warnings = outlineValidationWarnings(view.value.validation);
+  const isApproved = draft !== null && draft.status === "approved";
+  const hasDiffWithApproved =
+    approved !== null && draft !== null && approved.id !== draft.id;
 
   return (
-    <section aria-labelledby="outline-heading">
-      <h2 id="outline-heading">Lesson outline</h2>
-
-      <p role="status">{outlineGenerationStateLabel(view.value.state)}</p>
-
-      {view.value.latestJob?.state === "failed" ? (
-        <p role="alert">
-          {outlineFailureMessage(view.value.latestJob.errorCode)}
-        </p>
-      ) : null}
-
-      {actionMessage !== null ? <p role="alert">{actionMessage}</p> : null}
-
-      {view.value.canGenerate ? (
-        <button
-          type="button"
-          onClick={() => void generate()}
-          disabled={submitting || generating}
-        >
-          {submitting || generating
-            ? "Starting generation…"
-            : draft === null
-              ? "Generate outline"
-              : "Regenerate outline"}
-        </button>
-      ) : null}
-
-      {warnings.map((warning) => (
-        <p key={warning} role={view.value.canApprove ? "status" : "alert"}>
-          {warning}
-        </p>
-      ))}
-
-      {approved !== null && approved.id !== draft?.id ? (
-        <p role="status">
-          An approved outline still guides the lesson until you review this
-          draft.
-        </p>
-      ) : null}
-
-      {draft === null ? (
-        <p role="status">
-          Confirm the reviewed source, save the lesson configuration, and
-          approve learning objectives before generating the outline.
-        </p>
-      ) : (
-        <OutlineEditor
-          projectId={projectId}
-          set={draft}
-          approved={approved}
-          approvedObjectives={approvedObjectives}
-          objectiveStatement={objectiveStatement}
-          editing={editing}
-          adding={adding}
-          onEditStart={(item) =>
-            setEditing({
-              itemId: item.id,
-              kind: item.kind,
-              title: item.title,
-              description: item.description,
-              estimatedSeconds: String(item.estimatedSeconds),
-              sourceBlockIds: item.sourceRefs.flatMap((ref) =>
-                ref.blockIds,
-              ).join(", "),
-              framingNote: item.framingNote ?? "",
-              objectiveIds: item.objectiveIds,
-            })
-          }
-          onEditChange={setEditing}
-          onEditCancel={() => setEditing(null)}
-          onAddingChange={setAdding}
-          onAdd={addItem}
-          onUpdate={updateItem}
-          onRemove={removeItem}
-          onMove={moveItem}
-          onDropItem={dropItem}
-          onApprove={approve}
-          canApprove={view.value.canApprove && !submitting}
-          disabled={submitting}
-          draggingId={draggingId}
-          onDraggingChange={setDraggingId}
-        />
-      )}
-    </section>
-  );
-}
-
-function OutlineEditor({
-  projectId,
-  set,
-  approved,
-  approvedObjectives,
-  objectiveStatement,
-  editing,
-  adding,
-  onEditStart,
-  onEditChange,
-  onEditCancel,
-  onAddingChange,
-  onAdd,
-  onUpdate,
-  onRemove,
-  onMove,
-  onDropItem,
-  onApprove,
-  canApprove,
-  disabled,
-  draggingId,
-  onDraggingChange,
-}: {
-  projectId: string;
-  set: LessonOutlineSet;
-  approved: LessonOutlineSet | null;
-  approvedObjectives: LearningObjectiveSet | null;
-  objectiveStatement: (objectiveId: string) => string;
-  editing: EditingState | null;
-  adding: ItemDraft;
-  onEditStart: (item: LessonOutlineItem) => void;
-  onEditChange: (state: EditingState) => void;
-  onEditCancel: () => void;
-  onAddingChange: (draft: ItemDraft) => void;
-  onAdd: () => void;
-  onUpdate: () => void;
-  onRemove: (itemId: string) => void;
-  onMove: (itemId: string, direction: -1 | 1) => void;
-  onDropItem: (draggedId: string, targetId: string) => void;
-  onApprove: () => void;
-  canApprove: boolean;
-  disabled: boolean;
-  draggingId: string | null;
-  onDraggingChange: (itemId: string | null) => void;
-}) {
-  const isApproved = set.status === "approved";
-  return (
-    <div>
-      <p>
-        {isApproved ? "Approved outline" : "Draft outline"} {set.id.slice(0, 8)}{" "}
-        — prompt {set.promptId}@{set.promptVersion}, configuration v
-        {set.configurationVersion}. Estimated total:{" "}
-        {set.totalEstimatedSeconds} seconds.
-      </p>
-
-      <ol aria-label="Outline items" data-testid="outline-items">
-        {set.items.map((item, index) => (
-          <li
-            key={item.id}
-            draggable={!isApproved && !disabled}
-            onDragStart={(event) => {
-              event.dataTransfer.setData("text/plain", item.id);
-              event.dataTransfer.effectAllowed = "move";
-              onDraggingChange(item.id);
-            }}
-            onDragEnd={() => onDraggingChange(null)}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={(event) => {
-              event.preventDefault();
-              if (draggingId !== null) onDropItem(draggingId, item.id);
-            }}
-            data-testid={`outline-item-${item.id}`}
-          >
-            {editing?.itemId === item.id ? (
-              <ItemForm
-                draft={editing}
-                approvedObjectives={approvedObjectives}
-                objectiveStatement={objectiveStatement}
-                onChange={(draft) =>
-                  onEditChange({ itemId: editing.itemId, ...draft })
-                }
-                onSave={onUpdate}
-                onCancel={onEditCancel}
-                disabled={disabled}
-              />
+    <ReviewEditorScaffold
+      title="Lesson outline"
+      subtitle={`Review the structured vertical story arc and timing for ${projectTitle}.`}
+      statusBadge={
+        draft ? (
+          <>
+            {isApproved ? (
+              <StatusLabel status="success" label="Approved Outline" />
             ) : (
-              <>
-                <p>
-                  {item.order}. {item.title} — {outlineItemKindLabel(item.kind)}{" "}
-                  · {item.estimatedSeconds}s
-                  {item.generated ? "" : ". Teacher-added item"}
-                </p>
-                <p>{item.description}</p>
-                {item.framingNote !== null ? (
-                  <p role="status">Generated framing: {item.framingNote}</p>
-                ) : null}
-                <p>
-                  Links to {item.objectiveIds.length} objective
-                  {item.objectiveIds.length === 1 ? "" : "s"}:{" "}
-                  {item.objectiveIds.map(objectiveStatement).join("; ")}
-                </p>
-                <p>
-                  Source:{" "}
-                  <a
-                    href={`/workspace/${encodeURIComponent(projectId)}/review`}
-                  >
-                    {citationText(item)}
-                  </a>
-                  .
-                  {item.revision > 0
-                    ? ` Edited ${item.revision} time${
-                        item.revision === 1 ? "" : "s"
-                      }.`
-                    : ""}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => onEditStart(item)}
-                  disabled={disabled || isApproved}
-                >
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onMove(item.id, -1)}
-                  disabled={disabled || isApproved || index === 0}
-                >
-                  Move up
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onMove(item.id, 1)}
-                  disabled={disabled || isApproved || index === set.items.length - 1}
-                >
-                  Move down
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onRemove(item.id)}
-                  disabled={disabled || isApproved}
-                >
-                  Remove
-                </button>
-              </>
+              <StatusLabel status="info" label="Draft Outline" />
             )}
-          </li>
-        ))}
-      </ol>
+            <StatusLabel status="info" label={`Rev #${draft.revision}`} />
+          </>
+        ) : null
+      }
+      notices={
+        <>
+          {view.value.latestJob?.state === "failed" && (
+            <Notice
+              type="error"
+              title="Generation Failed"
+              message={outlineFailureMessage(
+                view.value.latestJob.errorCode,
+              )}
+            />
+          )}
 
-      {!isApproved ? (
-        <ItemForm
-          draft={adding}
-          approvedObjectives={approvedObjectives}
-          objectiveStatement={objectiveStatement}
-          onChange={onAddingChange}
-          onSave={onAdd}
-          onCancel={() => onAddingChange(emptyDraft())}
-          disabled={disabled}
-          isAdd
+          {actionMessage && (
+            <Notice
+              type={actionMessageType}
+              message={actionMessage}
+              onClose={() => setActionMessage(null)}
+            />
+          )}
+
+          {warnings.map((warning, idx) => (
+            <Notice
+              key={idx}
+              type={view.value.canApprove ? "warning" : "error"}
+              title="Outline Validation Note"
+              message={warning}
+            />
+          ))}
+
+          {hasDiffWithApproved && (
+            <Notice
+              type="warning"
+              title="Draft Outline in Progress"
+              message="An approved outline still guides narration and storyboard until you approve this draft."
+            />
+          )}
+        </>
+      }
+      candidateBanner={
+        <CandidateBanner
+          hasCandidate={false}
+          isGenerating={generating}
+          generatingMessage="AI is analyzing approved objectives and source citations to build a duration-aware outline…"
         />
-      ) : null}
+      }
+      mainContent={
+        draft === null ? (
+          <div
+            style={{
+              padding: "36px 24px",
+              textAlign: "center",
+              backgroundColor: "var(--color-surface)",
+              border: "1px dashed var(--color-border)",
+              borderRadius: "var(--radius-card)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "16px",
+            }}
+          >
+            <TreeStructure size={36} weight="duotone" style={{ color: "var(--color-brand)" }} />
+            <div>
+              <h3 style={{ margin: "0 0 6px 0", fontSize: "16px", fontWeight: 600 }}>
+                No outline generated yet
+              </h3>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "14px",
+                  color: "var(--color-text-muted)",
+                  maxWidth: "440px",
+                }}
+              >
+                Confirm your reviewed source, complete lesson setup, and approve
+                learning objectives before generating the outline.
+              </p>
+            </div>
+            {view.value.canGenerate && (
+              <Button
+                variant="primary"
+                onClick={() => void generate()}
+                disabled={submitting || generating}
+              >
+                <Sparkle size={16} weight="bold" />
+                {submitting || generating
+                  ? "Starting generation…"
+                  : "Generate outline"}
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+            {/* Action Bar */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "12px",
+                paddingBottom: "12px",
+                borderBottom: "1px solid var(--color-border)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    color: "var(--color-text)",
+                  }}
+                >
+                  Story Arc ({draft.items.length} section
+                  {draft.items.length === 1 ? "" : "s"})
+                </span>
+                {view.value.canGenerate && (
+                  <Button
+                    variant="tertiary"
+                    size="compact"
+                    onClick={() => void generate()}
+                    disabled={submitting || generating}
+                  >
+                    <Sparkle size={14} weight="bold" />
+                    {submitting || generating
+                      ? "Regenerating…"
+                      : "Regenerate outline"}
+                  </Button>
+                )}
+              </div>
 
-      {approved !== null ? (
-        <section aria-label="Approved outline">
-          <h3>Approved outline (used by narration generation)</h3>
-          <ol>
-            {approved.items.map((item) => (
-              <li key={item.id}>
-                {item.order}. {item.title} — {outlineItemKindLabel(item.kind)} ·{" "}
-                {item.estimatedSeconds}s
-              </li>
-            ))}
-          </ol>
-          <p>
-            Estimated total: {approved.totalEstimatedSeconds} seconds.
-          </p>
-        </section>
-      ) : null}
+              {!isApproved && (
+                <Button
+                  variant="secondary"
+                  size="compact"
+                  onClick={() => setIsAddingOpen((prev) => !prev)}
+                  disabled={submitting}
+                >
+                  <Plus size={14} weight="bold" />
+                  Add Section
+                </Button>
+              )}
+            </div>
 
-      {!isApproved ? (
-        <button type="button" onClick={() => onApprove()} disabled={!canApprove}>
-          Approve outline
-        </button>
-      ) : (
-        <p role="status">
-          These outline items are approved and will guide narration. Editing
-          them creates a new draft.
-        </p>
-      )}
-    </div>
+            {/* Inline Add Item Form */}
+            {isAddingOpen && !isApproved && (
+              <div
+                style={{
+                  padding: "18px 20px",
+                  backgroundColor: "var(--color-surface-subtle)",
+                  border: "1px solid var(--color-brand)",
+                  borderRadius: "var(--radius-card)",
+                }}
+              >
+                <h3
+                  style={{
+                    margin: "0 0 14px 0",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    color: "var(--color-text)",
+                  }}
+                >
+                  Add a new outline section
+                </h3>
+                <ItemFormFields
+                  draft={adding}
+                  approvedObjectives={approvedObjectives}
+                  objectiveStatement={objectiveStatement}
+                  onChange={setAdding}
+                  onSave={addItem}
+                  onCancel={() => setIsAddingOpen(false)}
+                  disabled={submitting}
+                  isAdd
+                />
+              </div>
+            )}
+
+            {/* Outline Ordered Items List */}
+            <ol
+              aria-label="Outline items"
+              data-testid="outline-items"
+              style={{
+                listStyle: "none",
+                margin: 0,
+                padding: 0,
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              {draft.items.map((item, index) => {
+                const isFirst = index === 0;
+                const isLast = index === draft.items.length - 1;
+                const isEditingThis = editing?.itemId === item.id;
+
+                return (
+                  <ReorderItemContainer
+                    key={item.id}
+                    id={item.id}
+                    index={index}
+                    totalItems={draft.items.length}
+                    isFirst={isFirst}
+                    isLast={isLast}
+                    disabled={submitting || isApproved}
+                    isDragging={draggingId === item.id}
+                    lastMovedId={lastMovedId}
+                    lastMovedDirection={lastMovedDirection}
+                    onMoveUp={() => moveItem(item.id, -1)}
+                    onMoveDown={() => moveItem(item.id, 1)}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData("text/plain", item.id);
+                      e.dataTransfer.effectAllowed = "move";
+                      setDraggingId(item.id);
+                    }}
+                    onDragEnd={() => setDraggingId(null)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (draggingId !== null) {
+                        dropItem(draggingId, item.id);
+                      }
+                    }}
+                    data-testid={`outline-item-${item.id}`}
+                  >
+                    {isEditingThis ? (
+                      <div
+                        style={{
+                          padding: "16px",
+                          backgroundColor: "var(--color-surface-subtle)",
+                          borderRadius: "var(--radius-control)",
+                          border: "1px solid var(--color-brand)",
+                        }}
+                      >
+                        <ItemFormFields
+                          draft={editing}
+                          approvedObjectives={approvedObjectives}
+                          objectiveStatement={objectiveStatement}
+                          onChange={(d) =>
+                            setEditing({ itemId: editing.itemId, ...d })
+                          }
+                          onSave={updateItem}
+                          onCancel={() => setEditing(null)}
+                          disabled={submitting}
+                        />
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "8px",
+                        }}
+                      >
+                        {/* Title line */}
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            justifyContent: "space-between",
+                            gap: "12px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "8px",
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: "14px",
+                                fontWeight: 700,
+                                color: "var(--color-brand)",
+                                minWidth: "20px",
+                              }}
+                            >
+                              {item.order}.
+                            </span>
+                            <span
+                              style={{
+                                fontSize: "15px",
+                                fontWeight: 600,
+                                color: "var(--color-text)",
+                              }}
+                            >
+                              {item.title}
+                            </span>
+                            <StatusLabel
+                              status="info"
+                              label={outlineItemKindLabel(item.kind)}
+                              size="compact"
+                            />
+                            <StatusLabel
+                              status="info"
+                              label={`${item.estimatedSeconds}s`}
+                              size="compact"
+                            />
+                          </div>
+
+                          {/* Action buttons */}
+                          {!isApproved && (
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                flexShrink: 0,
+                              }}
+                            >
+                              <Button
+                                variant="tertiary"
+                                size="compact"
+                                onClick={() =>
+                                  setEditing({
+                                    itemId: item.id,
+                                    kind: item.kind,
+                                    title: item.title,
+                                    description: item.description,
+                                    estimatedSeconds: String(
+                                      item.estimatedSeconds,
+                                    ),
+                                    sourceBlockIds: item.sourceRefs
+                                      .flatMap((ref) => ref.blockIds)
+                                      .join(", "),
+                                    framingNote: item.framingNote ?? "",
+                                    objectiveIds: item.objectiveIds,
+                                  })
+                                }
+                                disabled={submitting}
+                              >
+                                <PencilSimple size={13} />
+                                Edit
+                              </Button>
+                              <Button
+                                variant="tertiary"
+                                size="compact"
+                                onClick={() => removeItem(item.id)}
+                                disabled={submitting}
+                              >
+                                <Trash size={13} />
+                                Remove
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Description */}
+                        <p
+                          style={{
+                            margin: 0,
+                            paddingLeft: "28px",
+                            fontSize: "14px",
+                            color: "var(--color-text-muted)",
+                            lineHeight: "1.5",
+                          }}
+                        >
+                          {item.description}
+                        </p>
+
+                        {/* Framing Note if present */}
+                        {item.framingNote && (
+                          <div
+                            style={{
+                              marginLeft: "28px",
+                              padding: "6px 10px",
+                              borderRadius: "4px",
+                              backgroundColor: "var(--color-surface-subtle)",
+                              borderLeft: "3px solid var(--color-brand)",
+                              fontSize: "12px",
+                              color: "var(--color-text)",
+                            }}
+                          >
+                            <span style={{ fontWeight: 600 }}>Framing note:</span>{" "}
+                            {item.framingNote}
+                          </div>
+                        )}
+
+                        {/* Objective chips & Citations */}
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                            gap: "8px",
+                            paddingLeft: "28px",
+                            fontSize: "12px",
+                            color: "var(--color-text-muted)",
+                          }}
+                        >
+                          {item.objectiveIds.length > 0 && (
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                flexWrap: "wrap",
+                              }}
+                            >
+                              <Target size={14} style={{ color: "var(--color-brand)" }} />
+                              <span>Covers:</span>
+                              {item.objectiveIds.map((objId) => (
+                                <span
+                                  key={objId}
+                                  title={objectiveStatement(objId)}
+                                  style={{
+                                    padding: "2px 6px",
+                                    borderRadius: "4px",
+                                    backgroundColor: "var(--color-surface-subtle)",
+                                    border: "1px solid var(--color-border)",
+                                    fontSize: "11px",
+                                    color: "var(--color-text)",
+                                    maxWidth: "200px",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                >
+                                  {objectiveStatement(objId)}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Source References */}
+                          {item.sourceRefs.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setInspectedItem(item)}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                padding: 0,
+                                color: "var(--color-brand)",
+                                fontSize: "12px",
+                                textDecoration: "underline",
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                              }}
+                            >
+                              <BookOpen size={13} />
+                              {citationText(item)}
+                            </button>
+                          )}
+
+                          {!item.generated && (
+                            <StatusLabel
+                              status="info"
+                              label="Teacher added"
+                              size="compact"
+                            />
+                          )}
+
+                          {item.revision > 0 && (
+                            <StatusLabel
+                              status="info"
+                              label={`Edited (${item.revision}×)`}
+                              size="compact"
+                            />
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </ReorderItemContainer>
+                );
+              })}
+            </ol>
+
+            {/* Approval Footer */}
+            <div
+              style={{
+                marginTop: "16px",
+                padding: "20px",
+                backgroundColor: isApproved
+                  ? "var(--color-surface-subtle)"
+                  : "var(--color-surface)",
+                border: "1px solid var(--color-border)",
+                borderRadius: "var(--radius-card)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "16px",
+              }}
+            >
+              <div>
+                <h4
+                  style={{
+                    margin: "0 0 4px 0",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    color: "var(--color-text)",
+                  }}
+                >
+                  {isApproved ? "Outline Approved" : "Ready to proceed?"}
+                </h4>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: "13px",
+                    color: "var(--color-text-muted)",
+                  }}
+                >
+                  {isApproved
+                    ? "This outline is approved and guides narration generation. Editing creates a new draft."
+                    : "Approving confirms the lesson structure and unlocks narration writing."}
+                </p>
+              </div>
+
+              {!isApproved ? (
+                <Button
+                  variant="primary"
+                  onClick={() => approve()}
+                  disabled={!view.value.canApprove || submitting}
+                >
+                  <CheckCircle size={16} weight="bold" />
+                  Approve outline
+                </Button>
+              ) : (
+                <StatusLabel status="success" label="Active Approved Outline" />
+              )}
+            </div>
+          </div>
+        )
+      }
+      sidebarContent={
+        draft ? (
+          <>
+            {/* Timing & Duration Tracker */}
+            <div>
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  marginBottom: "10px",
+                }}
+              >
+                <Clock size={16} weight="bold" style={{ color: "var(--color-brand)" }} />
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    color: "var(--color-text)",
+                  }}
+                >
+                  Estimated Duration
+                </h3>
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  justifyContent: "space-between",
+                  padding: "12px",
+                  backgroundColor: "var(--color-surface-subtle)",
+                  borderRadius: "var(--radius-control)",
+                  border: "1px solid var(--color-border)",
+                }}
+              >
+                <span style={{ fontSize: "13px", color: "var(--color-text-muted)" }}>
+                  Total Runtime
+                </span>
+                <span
+                  style={{
+                    fontSize: "18px",
+                    fontWeight: 700,
+                    color: "var(--color-text)",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {draft.totalEstimatedSeconds}s
+                </span>
+              </div>
+
+              <div style={{ marginTop: "6px" }}>
+                <StatusLabel
+                  status={
+                    view.value.validation.durationStatus === "within"
+                      ? "success"
+                      : "warning"
+                  }
+                  label={outlineDurationStatusLabel(
+                    view.value.validation.durationStatus,
+                  )}
+                  size="compact"
+                />
+              </div>
+            </div>
+
+            {/* Objective Coverage Breakdown */}
+            {approvedObjectives && (
+              <div
+                style={{
+                  paddingTop: "16px",
+                  borderTop: "1px solid var(--color-border)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    marginBottom: "8px",
+                  }}
+                >
+                  <Target size={16} weight="bold" style={{ color: "var(--color-brand)" }} />
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      color: "var(--color-text)",
+                    }}
+                  >
+                    Objective Coverage
+                  </h3>
+                </div>
+
+                <p style={{ margin: "0 0 8px 0", fontSize: "12px", color: "var(--color-text-muted)" }}>
+                  {
+                    approvedObjectives.objectives.filter((o) =>
+                      !view.value.validation.uncoveredObjectiveIds.includes(o.id),
+                    ).length
+                  }{" "}
+                  of {approvedObjectives.objectives.length} objectives covered
+                </p>
+
+                {view.value.validation.uncoveredObjectiveIds.length > 0 && (
+                  <div
+                    style={{
+                      padding: "8px 10px",
+                      borderRadius: "var(--radius-control)",
+                      backgroundColor: "var(--color-warning-bg)",
+                      color: "var(--color-warning-fg)",
+                      fontSize: "12px",
+                    }}
+                  >
+                    {view.value.validation.uncoveredObjectiveIds.length} uncovered
+                    objective(s) remaining.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Outline Metadata */}
+            <div
+              style={{
+                paddingTop: "16px",
+                borderTop: "1px solid var(--color-border)",
+              }}
+            >
+              <h3
+                style={{
+                  margin: "0 0 10px 0",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  color: "var(--color-text)",
+                }}
+              >
+                Outline Details
+              </h3>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "6px",
+                  fontSize: "12px",
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>Outline ID:</span>
+                  <span style={{ fontWeight: 500, color: "var(--color-text)" }}>
+                    {draft.id.slice(0, 8)}…
+                  </span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>Revision:</span>
+                  <span style={{ fontWeight: 500, color: "var(--color-text)" }}>
+                    v{draft.revision}
+                  </span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>Config binding:</span>
+                  <span style={{ fontWeight: 500, color: "var(--color-text)" }}>
+                    v{draft.configurationVersion}
+                  </span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>Prompt version:</span>
+                  <span style={{ fontWeight: 500, color: "var(--color-text)" }}>
+                    {draft.promptId}@{draft.promptVersion}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : null
+      }
+      sourceDrawer={
+        <SourceDrawer
+          isOpen={inspectedItem !== null}
+          onClose={() => setInspectedItem(null)}
+          title={
+            inspectedItem
+              ? `Sources for Section #${inspectedItem.order}: ${inspectedItem.title}`
+              : "Source Citations"
+          }
+          sourceRefs={inspectedItem?.sourceRefs ?? []}
+          projectId={projectId}
+        />
+      }
+    />
   );
 }
 
-function ItemForm({
+function ItemFormFields({
   draft,
   approvedObjectives,
-  objectiveStatement,
   onChange,
   onSave,
   onCancel,
@@ -699,7 +1234,7 @@ function ItemForm({
 }: {
   draft: ItemDraft;
   approvedObjectives: LearningObjectiveSet | null;
-  objectiveStatement: (objectiveId: string) => string;
+  objectiveStatement?: (objectiveId: string) => string;
   onChange: (draft: ItemDraft) => void;
   onSave: () => void;
   onCancel: () => void;
@@ -712,119 +1247,292 @@ function ItemForm({
       : [...draft.objectiveIds, objectiveId];
     onChange({ ...draft, objectiveIds: selected });
   };
+
   return (
     <form
-      onSubmit={(event) => {
-        event.preventDefault();
+      onSubmit={(e) => {
+        e.preventDefault();
         onSave();
       }}
+      style={{ display: "flex", flexDirection: "column", gap: "14px" }}
     >
-      <label>
-        Item kind
-        <select
-          value={draft.kind}
-          onChange={(event) =>
-            onChange({ ...draft, kind: event.target.value as OutlineItemKind })
-          }
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <label
+            style={{
+              fontSize: "12px",
+              fontWeight: 600,
+              color: "var(--color-text)",
+            }}
+          >
+            Structural Kind
+          </label>
+          <select
+            value={draft.kind}
+            onChange={(e) =>
+              onChange({
+                ...draft,
+                kind: e.target.value as OutlineItemKind,
+              })
+            }
+            style={{
+              padding: "8px 10px",
+              borderRadius: "var(--radius-control)",
+              border: "1px solid var(--color-border)",
+              backgroundColor: "var(--color-surface)",
+              fontSize: "13px",
+              color: "var(--color-text)",
+            }}
+          >
+            {(
+              [
+                "hook",
+                "concept",
+                "example",
+                "analogy",
+                "summary",
+                "recall_question",
+              ] as const
+            ).map((kind) => (
+              <option key={kind} value={kind}>
+                {outlineItemKindLabel(kind)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <label
+            style={{
+              fontSize: "12px",
+              fontWeight: 600,
+              color: "var(--color-text)",
+            }}
+          >
+            Estimated Duration (seconds)
+          </label>
+          <input
+            type="number"
+            min={10}
+            max={240}
+            value={draft.estimatedSeconds}
+            onChange={(e) =>
+              onChange({ ...draft, estimatedSeconds: e.target.value })
+            }
+            style={{
+              padding: "8px 10px",
+              borderRadius: "var(--radius-control)",
+              border: "1px solid var(--color-border)",
+              backgroundColor: "var(--color-surface)",
+              fontSize: "13px",
+              color: "var(--color-text)",
+            }}
+          />
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+        <label
+          style={{
+            fontSize: "12px",
+            fontWeight: 600,
+            color: "var(--color-text)",
+          }}
         >
-          {(
-            [
-              "hook",
-              "concept",
-              "example",
-              "analogy",
-              "summary",
-              "recall_question",
-            ] as const
-          ).map((kind) => (
-            <option key={kind} value={kind}>
-              {outlineItemKindLabel(kind)}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Title
+          Section Title
+        </label>
         <input
           type="text"
           value={draft.title}
           maxLength={160}
-          onChange={(event) => onChange({ ...draft, title: event.target.value })}
+          onChange={(e) => onChange({ ...draft, title: e.target.value })}
+          placeholder="e.g. The Chemical Equation for Photosynthesis"
+          style={{
+            padding: "8px 10px",
+            borderRadius: "var(--radius-control)",
+            border: "1px solid var(--color-border)",
+            backgroundColor: "var(--color-surface)",
+            fontSize: "13px",
+            color: "var(--color-text)",
+          }}
         />
-      </label>
-      <label>
-        Description
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+        <label
+          style={{
+            fontSize: "12px",
+            fontWeight: 600,
+            color: "var(--color-text)",
+          }}
+        >
+          Teaching Purpose & Description
+        </label>
         <textarea
           value={draft.description}
           maxLength={1000}
-          onChange={(event) =>
-            onChange({ ...draft, description: event.target.value })
-          }
+          rows={3}
+          onChange={(e) => onChange({ ...draft, description: e.target.value })}
+          placeholder="Describe what learners should see and understand during this section…"
+          style={{
+            padding: "8px 10px",
+            borderRadius: "var(--radius-control)",
+            border: "1px solid var(--color-border)",
+            backgroundColor: "var(--color-surface)",
+            fontSize: "13px",
+            color: "var(--color-text)",
+            resize: "vertical",
+          }}
         />
-      </label>
-      <label>
-        Estimated duration (seconds)
-        <input
-          type="number"
-          min={10}
-          max={240}
-          value={draft.estimatedSeconds}
-          onChange={(event) =>
-            onChange({ ...draft, estimatedSeconds: event.target.value })
-          }
-        />
-      </label>
-      <label>
-        Source block IDs (comma separated)
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+        <label
+          style={{
+            fontSize: "12px",
+            fontWeight: 600,
+            color: "var(--color-text)",
+          }}
+        >
+          Source block IDs (comma-separated, optional)
+        </label>
         <input
           type="text"
           value={draft.sourceBlockIds}
-          onChange={(event) =>
-            onChange({ ...draft, sourceBlockIds: event.target.value })
+          onChange={(e) =>
+            onChange({ ...draft, sourceBlockIds: e.target.value })
           }
+          placeholder="e.g. block-1, block-2"
+          style={{
+            padding: "8px 10px",
+            borderRadius: "var(--radius-control)",
+            border: "1px solid var(--color-border)",
+            backgroundColor: "var(--color-surface)",
+            fontSize: "13px",
+            color: "var(--color-text)",
+          }}
         />
-      </label>
-      {draft.kind === "hook" ? (
-        <label>
-          Framing note (required when a hook cites no source blocks)
+      </div>
+
+      {draft.kind === "hook" && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <label
+            style={{
+              fontSize: "12px",
+              fontWeight: 600,
+              color: "var(--color-text)",
+            }}
+          >
+            Framing note (required when hook cites no source blocks)
+          </label>
           <input
             type="text"
             value={draft.framingNote}
             maxLength={500}
-            onChange={(event) =>
-              onChange({ ...draft, framingNote: event.target.value })
+            onChange={(e) =>
+              onChange({ ...draft, framingNote: e.target.value })
             }
+            placeholder="e.g. Why do leaves turn green?"
+            style={{
+              padding: "8px 10px",
+              borderRadius: "var(--radius-control)",
+              border: "1px solid var(--color-border)",
+              backgroundColor: "var(--color-surface)",
+              fontSize: "13px",
+              color: "var(--color-text)",
+            }}
           />
-        </label>
-      ) : null}
-      <fieldset>
-        <legend>Linked approved objectives</legend>
-        {approvedObjectives === null ? (
-          <p role="status">Approved objectives are not available.</p>
+        </div>
+      )}
+
+      {/* Linked Objectives */}
+      <fieldset
+        style={{
+          margin: 0,
+          padding: "12px",
+          borderRadius: "var(--radius-control)",
+          border: "1px solid var(--color-border)",
+          backgroundColor: "var(--color-surface)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+        }}
+      >
+        <legend
+          style={{
+            fontSize: "12px",
+            fontWeight: 600,
+            color: "var(--color-text)",
+            padding: "0 4px",
+          }}
+        >
+          Covered Learning Objectives (select at least one)
+        </legend>
+        {approvedObjectives === null ||
+        approvedObjectives.objectives.length === 0 ? (
+          <p style={{ margin: 0, fontSize: "12px", color: "var(--color-text-muted)" }}>
+            No approved objectives found. Return to the Objectives step to
+            approve objectives first.
+          </p>
         ) : (
-          approvedObjectives.objectives.map((objective) => (
-            <label key={objective.id}>
-              <input
-                type="checkbox"
-                checked={draft.objectiveIds.includes(objective.id)}
-                onChange={() => toggleObjective(objective.id)}
-              />
-              {objective.order}. {objectiveStatement(objective.id)}
-            </label>
-          ))
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            {approvedObjectives.objectives.map((obj) => {
+              const checked = draft.objectiveIds.includes(obj.id);
+              return (
+                <label
+                  key={obj.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "8px",
+                    fontSize: "12px",
+                    color: "var(--color-text)",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleObjective(obj.id)}
+                    style={{ marginTop: "2px" }}
+                  />
+                  <span>
+                    <span style={{ fontWeight: 600 }}>{obj.order}.</span>{" "}
+                    {obj.statement}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
         )}
       </fieldset>
-      <button type="submit" disabled={disabled}>
-        {isAdd ? "Add outline item" : "Save"}
-      </button>
-      <button type="button" onClick={onCancel} disabled={disabled}>
-        {isAdd ? "Clear" : "Cancel"}
-      </button>
-      <p role="status">
-        Every non-hook item must cite a source block and every uncited hook
-        needs a framing note before approval. The total estimated duration is
-        recalculated after every save.
-      </p>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          gap: "8px",
+          marginTop: "4px",
+        }}
+      >
+        <Button
+          type="button"
+          variant="tertiary"
+          size="compact"
+          onClick={onCancel}
+          disabled={disabled}
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          variant="primary"
+          size="compact"
+          disabled={disabled}
+        >
+          {isAdd ? "Add Section" : "Save Changes"}
+        </Button>
+      </div>
     </form>
   );
 }
