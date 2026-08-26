@@ -1,6 +1,6 @@
 "use client";
 
-import {
+import React, {
   useCallback,
   useEffect,
   useMemo,
@@ -168,6 +168,36 @@ export function SceneList({
     setDragIndex(null);
   }, []);
 
+  const handleMoveUp = useCallback(
+    (index: number, event: React.MouseEvent) => {
+      event.stopPropagation();
+      if (index <= 0) return;
+      onReorder(
+        reorderSceneIds(
+          scenes.map((s) => s.sceneId),
+          index,
+          index - 1,
+        ),
+      );
+    },
+    [scenes, onReorder],
+  );
+
+  const handleMoveDown = useCallback(
+    (index: number, event: React.MouseEvent) => {
+      event.stopPropagation();
+      if (index >= scenes.length - 1) return;
+      onReorder(
+        reorderSceneIds(
+          scenes.map((s) => s.sceneId),
+          index,
+          index + 1,
+        ),
+      );
+    },
+    [scenes, onReorder],
+  );
+
   const handleKeyDown = useCallback(
     (event: KeyboardEvent<HTMLOListElement>) => {
       switch (event.key) {
@@ -193,7 +223,19 @@ export function SceneList({
   );
 
   if (scenes.length === 0)
-    return <p role="status">This storyboard has no scenes yet.</p>;
+    return (
+      <div
+        role="status"
+        style={{
+          padding: "24px",
+          textAlign: "center",
+          color: "var(--color-text-muted)",
+          fontSize: "14px",
+        }}
+      >
+        <p style={{ margin: 0 }}>This storyboard has no scenes yet.</p>
+      </div>
+    );
 
   const windowScenes = scenes.slice(start, end);
 
@@ -209,12 +251,14 @@ export function SceneList({
       tabIndex={0}
       style={{
         boxSizing: "border-box",
-        height: 480,
+        height: "100%",
+        minHeight: 480,
         listStyle: "none",
         margin: 0,
         overflowY: "auto",
-        padding: 0,
+        padding: "8px",
         position: "relative",
+        outline: "none",
       }}
     >
       <li aria-hidden style={{ height: start * sceneRowHeight }} />
@@ -222,6 +266,8 @@ export function SceneList({
         const index = start + windowIndex;
         const selected = scene.sceneId === selectedSceneId;
         const sceneStale = scene.status.stale || stale;
+        const isDragging = dragIndex === index;
+
         return (
           <li
             key={scene.sceneId}
@@ -239,22 +285,160 @@ export function SceneList({
               boxSizing: "border-box",
               cursor: "grab",
               height: sceneRowHeight,
-              padding: "6px 8px",
+              marginBottom: "4px",
+              padding: "8px 10px",
+              borderRadius: "8px",
+              backgroundColor: selected
+                ? "var(--color-surface-raised, #292035)"
+                : isDragging
+                  ? "var(--color-surface-brand, #342548)"
+                  : "transparent",
+              border: selected
+                ? "1.5px solid var(--color-brand, #A883FF)"
+                : "1px solid var(--color-border, #3A3046)",
+              boxShadow: selected
+                ? "0 4px 12px rgba(168, 131, 255, 0.15)"
+                : "none",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              transition: "border-color 0.15s ease, background-color 0.15s ease",
             }}
           >
-            <p style={{ margin: 0 }}>
-              {scene.order}. {scene.template} — {scene.durationSeconds}s ·{" "}
-              {scene.narrationBlockCount} narration block
-              {scene.narrationBlockCount === 1 ? "" : "s"}
-              {scene.title !== null ? ` · ${scene.title}` : ""}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "6px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    color: selected ? "var(--color-brand, #A883FF)" : "var(--color-text-muted, #BDB5C7)",
+                    backgroundColor: selected ? "rgba(168, 131, 255, 0.16)" : "rgba(255, 255, 255, 0.06)",
+                    padding: "2px 6px",
+                    borderRadius: "4px",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  #{scene.order}
+                </span>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: "13px",
+                    fontWeight: selected ? 600 : 500,
+                    color: selected ? "var(--color-text, #F4F1F8)" : "var(--color-text-muted, #BDB5C7)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {scene.order}. {scene.template} — {scene.durationSeconds}s ·{" "}
+                  {scene.narrationBlockCount} narration block
+                  {scene.narrationBlockCount === 1 ? "" : "s"}
+                  {scene.title !== null ? ` · ${scene.title}` : ""}
+                </p>
+              </div>
+
+              {/* Quick Reorder Controls (for keyboard & mobile access) */}
+              <div style={{ display: "flex", gap: "2px", flexShrink: 0 }}>
+                <button
+                  type="button"
+                  aria-label={`Move scene ${scene.order} up`}
+                  title="Move up"
+                  disabled={index === 0}
+                  onClick={(e) => handleMoveUp(index, e)}
+                  style={{
+                    padding: "2px 4px",
+                    fontSize: "10px",
+                    lineHeight: 1,
+                    background: "rgba(255, 255, 255, 0.05)",
+                    border: "1px solid var(--color-border, #3A3046)",
+                    borderRadius: "3px",
+                    color: "var(--color-text-muted, #BDB5C7)",
+                    cursor: index === 0 ? "not-allowed" : "pointer",
+                    opacity: index === 0 ? 0.3 : 0.8,
+                  }}
+                >
+                  ▲
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Move scene ${scene.order} down`}
+                  title="Move down"
+                  disabled={index === scenes.length - 1}
+                  onClick={(e) => handleMoveDown(index, e)}
+                  style={{
+                    padding: "2px 4px",
+                    fontSize: "10px",
+                    lineHeight: 1,
+                    background: "rgba(255, 255, 255, 0.05)",
+                    border: "1px solid var(--color-border, #3A3046)",
+                    borderRadius: "3px",
+                    color: "var(--color-text-muted, #BDB5C7)",
+                    cursor: index === scenes.length - 1 ? "not-allowed" : "pointer",
+                    opacity: index === scenes.length - 1 ? 0.3 : 0.8,
+                  }}
+                >
+                  ▼
+                </button>
+              </div>
+            </div>
+
+            <p
+              style={{
+                margin: 0,
+                fontSize: "12px",
+                color: "var(--color-text-muted, #BDB5C7)",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {scene.narrationSummary}
             </p>
-            <p style={{ margin: 0 }}>{scene.narrationSummary}</p>
-            <p style={{ margin: 0 }}>
-              {sceneAssetStatusLabel(scene.status.assets)} ·{" "}
-              {sceneAudioStatusLabel(scene.status.audio)} ·{" "}
-              {sceneValidationStatusLabel(scene.status.validation)}
-              {sceneStale ? <span role="status"> · Stale</span> : null}
-            </p>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "4px",
+                fontSize: "11px",
+              }}
+            >
+              <p style={{ margin: 0, color: "var(--color-text-muted, #BDB5C7)", fontSize: "11px" }}>
+                {sceneAssetStatusLabel(scene.status.assets)} ·{" "}
+                {sceneAudioStatusLabel(scene.status.audio)} ·{" "}
+                {sceneValidationStatusLabel(scene.status.validation)}
+                {sceneStale ? (
+                  <span
+                    role="status"
+                    style={{
+                      marginLeft: "4px",
+                      color: "var(--color-warning-fg, #8A4B08)",
+                      fontWeight: 600,
+                    }}
+                  >
+                    · Stale
+                  </span>
+                ) : null}
+              </p>
+            </div>
           </li>
         );
       })}

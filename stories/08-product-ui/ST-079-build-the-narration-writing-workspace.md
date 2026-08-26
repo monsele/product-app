@@ -2,7 +2,7 @@
 story_id: ST-079
 title: "Build the Narration Writing Workspace"
 phase: "08 - Product UI"
-status: In Review
+status: Done
 priority: must-have
 epics: ["E9", "E19", "E20"]
 prd_user_stories: ["E9-US1", "E9-US2", "E19-US1", "E19-US2", "E20-US1"]

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type JSX } from "react";
+import React, { useEffect, useMemo, useState, type JSX } from "react";
 import {
   sceneEditorMetadata,
   sceneSpecSchema,
@@ -378,18 +378,69 @@ export function SceneEditorForm({
     }
   };
 
+  const inputStyle: React.CSSProperties = {
+    width: "100%",
+    backgroundColor: "var(--color-surface, #211A2B)",
+    border: "1px solid var(--color-border, #3A3046)",
+    borderRadius: "6px",
+    color: "var(--color-text, #F4F1F8)",
+    padding: "8px 10px",
+    fontSize: "13px",
+    marginTop: "4px",
+    outline: "none",
+    boxSizing: "border-box",
+  };
+
   return (
-    <section aria-label="Scene editor" data-testid="scene-editor">
-      <h4>Edit scene</h4>
-      <p role="status">
-        {saveState === "saving"
-          ? "Saving…"
-          : saveState === "saved"
-            ? "Saved"
-            : saveState === "conflict"
-              ? "Conflict — refresh and retry."
-              : "Save failed."}
-      </p>
+    <section
+      aria-label="Scene editor"
+      data-testid="scene-editor"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "16px",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          borderBottom: "1px solid var(--color-border, #3A3046)",
+          paddingBottom: "8px",
+        }}
+      >
+        <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: "var(--color-text, #F4F1F8)" }}>
+          Edit scene
+        </h4>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <p
+            role="status"
+            style={{
+              margin: 0,
+              fontSize: "12px",
+              fontWeight: 500,
+              color:
+                saveState === "saving"
+                  ? "var(--color-brand, #A883FF)"
+                  : saveState === "saved"
+                    ? "var(--color-success-fg, #176B46)"
+                    : saveState === "conflict"
+                      ? "var(--color-warning-fg, #8A4B08)"
+                      : "var(--color-error-fg, #B42318)",
+            }}
+          >
+            {saveState === "saving"
+              ? "Saving…"
+              : saveState === "saved"
+                ? "Saved"
+                : saveState === "conflict"
+                  ? "Conflict — refresh and retry."
+                  : "Save failed."}
+          </p>
+        </div>
+      </div>
+
       {message !== null ? (
         <p
           role={
@@ -397,28 +448,55 @@ export function SceneEditorForm({
               ? "alert"
               : "status"
           }
+          style={{
+            margin: 0,
+            padding: "8px 12px",
+            borderRadius: "6px",
+            fontSize: "12px",
+            backgroundColor:
+              saveState === "failed" || saveState === "conflict"
+                ? "rgba(180, 35, 24, 0.15)"
+                : "rgba(23, 107, 70, 0.15)",
+            color:
+              saveState === "failed" || saveState === "conflict"
+                ? "#FCA5A5"
+                : "#86EFAC",
+            border: `1px solid ${
+              saveState === "failed" || saveState === "conflict"
+                ? "rgba(180, 35, 24, 0.3)"
+                : "rgba(23, 107, 70, 0.3)"
+            }`,
+          }}
         >
           {message}
         </p>
       ) : null}
-      <label>
-        Template{" "}
-        <select
-          value={draft.template}
-          disabled={disabled || saveState === "saving"}
-          onChange={(event) =>
-            void switchTemplate(event.target.value as SceneTemplate)
-          }
-        >
-          {sceneTemplateValues.map((template) => (
-            <option key={template} value={template}>
-              {template}
-            </option>
-          ))}
-        </select>
-      </label>
+
+      <div>
+        <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text-muted, #BDB5C7)" }}>
+          Template{" "}
+          <select
+            value={draft.template}
+            disabled={disabled || saveState === "saving"}
+            onChange={(event) =>
+              void switchTemplate(event.target.value as SceneTemplate)
+            }
+            style={inputStyle}
+          >
+            {sceneTemplateValues.map((template) => (
+              <option key={template} value={template}>
+                {template}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
       {metadata.fields.map((field) => (
-        <label key={field.path} style={{ display: "block", marginTop: 8 }}>
+        <label
+          key={field.path}
+          style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--color-text-muted, #BDB5C7)" }}
+        >
           {field.label}
           {field.control === "select" ? (
             <select
@@ -429,6 +507,7 @@ export function SceneEditorForm({
                   writeField(current, field, event.target.value),
                 )
               }
+              style={inputStyle}
             >
               {!field.required ? <option value="">Not set</option> : null}
               {field.options?.map((option) => (
@@ -447,6 +526,8 @@ export function SceneEditorForm({
                   writeField(current, field, event.target.value),
                 )
               }
+              rows={3}
+              style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
             />
           ) : (
             <input
@@ -458,22 +539,34 @@ export function SceneEditorForm({
                   writeField(current, field, event.target.value),
                 )
               }
+              style={inputStyle}
             />
           )}
           {field.control === "text-list" ? (
-            <small>
+            <small style={{ display: "block", marginTop: "4px", color: "var(--color-text-muted, #BDB5C7)", fontWeight: 400 }}>
               {field.path === "visual.labels"
                 ? "One label per line: text | semantic anchor."
                 : "One item per line."}
             </small>
           ) : null}
           {fieldErrors[`scene.${field.path}`] !== undefined ? (
-            <span role="alert">{fieldErrors[`scene.${field.path}`]}</span>
+            <span role="alert" style={{ display: "block", marginTop: "4px", color: "#FCA5A5", fontSize: "11px" }}>
+              {fieldErrors[`scene.${field.path}`]}
+            </span>
           ) : null}
         </label>
       ))}
+
       {metadata.assetSlots.map((slot) => (
-        <div key={slot}>
+        <div
+          key={slot}
+          style={{
+            border: "1px solid var(--color-border, #3A3046)",
+            borderRadius: "8px",
+            padding: "12px",
+            backgroundColor: "rgba(0,0,0,0.15)",
+          }}
+        >
           <ApprovedAssetPicker
             assets={assetsBySlot[slot] ?? []}
             disabled={disabled || saveState === "saving"}
@@ -501,18 +594,46 @@ export function SceneEditorForm({
           />
         </div>
       ))}
-      {saveState === "conflict" ? (
-        <button type="button" onClick={() => onPersisted()}>
-          Reload current scene
+
+      <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
+        {saveState === "conflict" ? (
+          <button
+            type="button"
+            onClick={() => onPersisted()}
+            style={{
+              padding: "8px 14px",
+              borderRadius: "6px",
+              backgroundColor: "rgba(255, 255, 255, 0.1)",
+              border: "1px solid var(--color-border, #3A3046)",
+              color: "var(--color-text, #F4F1F8)",
+              fontSize: "13px",
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            Reload current scene
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={disabled || saveState === "saving"}
+          style={{
+            flex: 1,
+            padding: "8px 16px",
+            borderRadius: "6px",
+            backgroundColor: "var(--color-brand, #A883FF)",
+            border: "none",
+            color: "var(--color-on-brand, #1B1027)",
+            fontSize: "13px",
+            fontWeight: 600,
+            cursor: disabled || saveState === "saving" ? "not-allowed" : "pointer",
+            opacity: disabled || saveState === "saving" ? 0.6 : 1,
+          }}
+        >
+          {saveState === "saving" ? "Saving scene…" : "Save scene"}
         </button>
-      ) : null}
-      <button
-        type="button"
-        onClick={() => void save()}
-        disabled={disabled || saveState === "saving"}
-      >
-        Save scene
-      </button>
+      </div>
     </section>
   );
 }
