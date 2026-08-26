@@ -1,8 +1,18 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import type { ProjectStage } from "@avlp/schemas";
+import { AuthenticatedAppShell } from "../../../../components/layout/authenticated-app-shell";
+import { getPipelineStages } from "../../../../lib/project-pipeline";
+import { getStageDetails } from "../../project-stage-utils";
 import { NarrationPanel } from "./narration-panel";
 
-type ProjectPayload = { project: { id: string; title: string } };
+type ProjectPayload = {
+  project: {
+    id: string;
+    title: string;
+    stage: ProjectStage;
+  };
+};
 
 function isProjectPayload(value: unknown): value is ProjectPayload {
   return (
@@ -14,7 +24,9 @@ function isProjectPayload(value: unknown): value is ProjectPayload {
     "id" in value.project &&
     typeof value.project.id === "string" &&
     "title" in value.project &&
-    typeof value.project.title === "string"
+    typeof value.project.title === "string" &&
+    "stage" in value.project &&
+    typeof value.project.stage === "string"
   );
 }
 
@@ -35,12 +47,23 @@ export default async function NarrationPage({
   );
   const payload: unknown = response.ok ? await response.json() : null;
   if (!response.ok || !isProjectPayload(payload)) redirect("/workspace");
+
+  const stageDetails = getStageDetails(payload.project.stage);
+  const stages = getPipelineStages(payload.project.stage, "Narration");
+
   return (
-    <main>
-      <h1>Narration</h1>
-      <p>{payload.project.title}</p>
-      <NarrationPanel projectId={projectId} />
-      <a href="/workspace">Back to workspace</a>
-    </main>
+    <AuthenticatedAppShell
+      projectTitle={payload.project.title}
+      projectStatus={stageDetails.label}
+      userEmail="teacher@school.org"
+      stages={stages}
+      mode="daylight"
+    >
+      <NarrationPanel
+        projectId={projectId}
+        projectTitle={payload.project.title}
+      />
+    </AuthenticatedAppShell>
   );
 }
+

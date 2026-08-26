@@ -159,7 +159,7 @@ describe("scene audio generation job", () => {
   it("persists a ready per-scene audio artifact and records metered usage", async () => {
     const updates: Array<Record<string, unknown>> = [];
     const inserts: Array<Record<string, unknown>> = [];
-    const putBytes = vi.fn();
+    const putBytes = vi.fn().mockResolvedValue({ checksumSha256: "a".repeat(64) });
     const synthesize = vi.fn(({ narration, speakingRate }: { narration: string; speakingRate: number }) =>
       synthesizeFixtureAudio(narration, speakingRate),
     );
@@ -199,7 +199,7 @@ describe("scene audio generation job", () => {
     const align = vi.fn(() => [{ startMs: 0, endMs: 1_000, text: "Water enters through roots." }]);
     const handler = createSceneAudioGenerationJobHandler({
       database: databaseFor([[queuedAudio], [scene], [voice], [], [{ status: "ready" }], [{ id: sceneId }]], updates, inserts),
-      storage: { putBytes: vi.fn() },
+      storage: { putBytes: vi.fn().mockResolvedValue({ checksumSha256: "a".repeat(64) }) },
       provider: { providerId: "fixture-v1", outputFormat: "wav", contentType: "audio/wav", synthesize: () => ({ ...synthesizeFixtureAudio("Water enters through roots.", 1), timing: [] }) },
       alignmentProvider: { align },
       now,

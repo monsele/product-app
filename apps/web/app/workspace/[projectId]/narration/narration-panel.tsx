@@ -1,13 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   narrationBlockRevisionsResponseSchema,
   narrationResponseSchema,
   type LessonNarrationBlock,
-  type LessonNarrationSet,
-  type NarrationBlockCandidate,
-  type NarrationBudgetStatus,
   type NarrationBlockRevision,
   type NarrationResponse,
   type NarrationTransformMode,
@@ -21,6 +18,24 @@ import {
   narrationTransformModeLabel,
   narrationValidationWarnings,
 } from "./narration-input";
+import { ReviewEditorScaffold } from "../../../../components/review-editor/review-editor-scaffold";
+import { SourceDrawer } from "../../../../components/review-editor/source-drawer";
+import { CandidateBanner } from "../../../../components/review-editor/candidate-banner";
+import { Button } from "../../../../components/ui/button";
+import { Drawer } from "../../../../components/ui/drawer";
+import { Notice, type NoticeType } from "../../../../components/ui/notice";
+import { StatusLabel } from "../../../../components/ui/status-label";
+import {
+  ArrowClockwise,
+  ArrowRight,
+  ArrowsClockwise,
+  BookOpen,
+  CheckCircle,
+  Clock,
+  FileText,
+  PencilSimple,
+  Sparkle,
+} from "@phosphor-icons/react";
 
 type ViewState =
   | { kind: "loading" }
@@ -46,10 +61,11 @@ function extractErrorMessage(payload: unknown, fallback: string): string {
 }
 
 function citationText(block: LessonNarrationBlock): string {
-  if (block.sourceRefs.length === 0)
+  if (block.sourceRefs.length === 0) {
     return block.generatedAdditions.length > 0
-      ? "Generated addition"
-      : "No source references";
+      ? "Generated addition (no direct source passage)"
+      : "No direct source references";
+  }
   const blocks = block.sourceRefs.reduce(
     (count, ref) => count + ref.blockIds.length,
     0,
@@ -59,15 +75,30 @@ function citationText(block: LessonNarrationBlock): string {
   }, ${blocks} source block${blocks === 1 ? "" : "s"}`;
 }
 
-export function NarrationPanel({ projectId }: { projectId: string }) {
+export function NarrationPanel({
+  projectId,
+  projectTitle = "Lesson",
+}: {
+  projectId: string;
+  projectTitle?: string;
+}) {
   const [view, setView] = useState<ViewState>({ kind: "loading" });
   const [pending, setPending] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [actionMessageType, setActionMessageType] = useState<NoticeType>("info");
   const [editing, setEditing] = useState<EditingState | null>(null);
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [pendingTransforms, setPendingTransforms] = useState<Set<string>>(
     new Set(),
   );
+
+  // Source drawer inspection state
+  const [inspectedBlock, setInspectedBlock] =
+    useState<LessonNarrationBlock | null>(null);
+
+  // Mobile details drawer state
+  const [isMobileDetailsOpen, setIsMobileDetailsOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     const response = await fetch(
@@ -125,6 +156,13 @@ export function NarrationPanel({ projectId }: { projectId: string }) {
       value.latestTransformJob.state === "retry_wait");
   const busy = pendingTransforms.size > 0 || transformInFlight || generating;
 
+  // Auto-select first block once loaded if none is selected
+  useEffect(() => {
+    if (value?.set && value.set.blocks.length > 0 && selectedBlockId === null) {
+      setSelectedBlockId(value.set.blocks[0]?.id ?? null);
+    }
+  }, [value, selectedBlockId]);
+
   useEffect(() => {
     if (!pending && !generating && pendingTransforms.size === 0) return;
     const timer = window.setInterval(() => {
@@ -157,9 +195,12 @@ export function NarrationPanel({ projectId }: { projectId: string }) {
             "Unable to start narration generation.",
           ),
         );
+      setActionMessageType("info");
+      setActionMessage("Narration generation started in the background.");
       await refresh().catch(() => undefined);
     } catch (error) {
       setPending(false);
+      setActionMessageType("error");
       setActionMessage(
         error instanceof Error
           ? error.message
@@ -191,9 +232,11 @@ export function NarrationPanel({ projectId }: { projectId: string }) {
             extractErrorMessage(payload, `Unable to ${successMessage.toLowerCase()}.`),
           );
         setEditing(null);
+        setActionMessageType("success");
         setActionMessage(`Narration ${successMessage.toLowerCase()}.`);
         await refresh().catch(() => undefined);
       } catch (error) {
+        setActionMessageType("error");
         setActionMessage(
           error instanceof Error ? error.message : "Unable to update narration.",
         );
@@ -210,6 +253,7 @@ export function NarrationPanel({ projectId }: { projectId: string }) {
       if (value === null || value.set === null || editing === null) return;
       const text = editing.text.trim();
       if (text.length === 0) {
+        setActionMessageType("warning");
         setActionMessage("Narration text cannot be empty.");
         return;
       }
@@ -256,9 +300,14 @@ export function NarrationPanel({ projectId }: { projectId: string }) {
             );
           setPendingTransforms((current) => new Set(current).add(blockId));
           setPending(true);
+          setActionMessageType("info");
+          setActionMessage(
+            `Started ${narrationTransformModeLabel(mode).toLowerCase()} rewrite for block.`,
+          );
           await refresh().catch(() => undefined);
         })
         .catch((error: unknown) => {
+          setActionMessageType("error");
           setActionMessage(
             error instanceof Error ? error.message : "Unable to start the rewrite.",
           );
@@ -267,343 +316,864 @@ export function NarrationPanel({ projectId }: { projectId: string }) {
     [projectId, refresh, value],
   );
 
-  if (view.kind === "loading")
+  if (view.kind === "loading") {
     return (
-      <section aria-labelledby="narration-heading">
-        <h2 id="narration-heading">Narration</h2>
-        <p role="status">Loading the narration.</p>
-      </section>
+      <ReviewEditorScaffold
+        title="Narration script"
+        subtitle="Loading narration script…"
+        mainContent={
+          <div style={{ padding: "40px 0", textAlign: "center" }}>
+            <p role="status" style={{ color: "var(--color-text-muted)" }}>
+              Loading the narration…
+            </p>
+          </div>
+        }
+      />
     );
+  }
 
-  if (view.kind === "failed")
+  if (view.kind === "failed") {
     return (
-      <section aria-labelledby="narration-heading">
-        <h2 id="narration-heading">Narration</h2>
-        <p role="alert">{view.message}</p>
-        <button type="button" onClick={() => void refresh()}>
-          Try again
-        </button>
-      </section>
+      <ReviewEditorScaffold
+        title="Narration script"
+        subtitle={projectTitle}
+        notices={
+          <Notice type="error" title="Unable to load narration" message={view.message} />
+        }
+        mainContent={
+          <div style={{ padding: "20px 0" }}>
+            <Button variant="secondary" onClick={() => void refresh()}>
+              Try again
+            </Button>
+          </div>
+        }
+      />
     );
+  }
 
   const draft = view.value.set;
   const approved = view.value.approved;
   const warnings = narrationValidationWarnings(view.value.validation);
+  const selectedBlock =
+    draft?.blocks.find((b) => b.id === selectedBlockId) ?? draft?.blocks[0] ?? null;
 
-  return (
-    <section aria-labelledby="narration-heading">
-      <h2 id="narration-heading">Narration</h2>
+  // Status badge calculation
+  let statusBadge: React.ReactNode = null;
+  if (generating) {
+    statusBadge = <StatusLabel status="info" label="Generating…" size="compact" />;
+  } else if (view.value.stale) {
+    statusBadge = <StatusLabel status="warning" label="Outline changed" size="compact" />;
+  } else if (draft?.status === "approved") {
+    statusBadge = <StatusLabel status="success" label="Narration approved" size="compact" />;
+  } else if (draft !== null) {
+    statusBadge = <StatusLabel status="info" label="Draft ready" size="compact" />;
+  } else {
+    statusBadge = <StatusLabel status="info" label="Not generated" size="compact" />;
+  }
 
-      <p role="status">{narrationGenerationStateLabel(view.value.state)}</p>
+  // Header notices
+  const notices = (
+    <>
+      <p role="status" className="sr-only">
+        {narrationGenerationStateLabel(view.value.state)}
+      </p>
 
-      {view.value.stale ? (
-        <p role="status">
-          {view.value.staleReason ??
-            "This narration is out of date. Review the lesson outline, source, or configuration before continuing."}
-        </p>
-      ) : null}
-
-      {view.value.latestJob?.state === "failed" ? (
-        <p role="alert">
-          {narrationFailureMessage(view.value.latestJob.errorCode)}
-        </p>
-      ) : null}
-
-      {view.value.latestTransformJob?.state === "failed" ? (
-        <p role="alert">
-          {narrationFailureMessage(view.value.latestTransformJob.errorCode)}
-        </p>
-      ) : null}
-
-      {transformInFlight ? (
-        <p role="status">A narration block rewrite is in progress…</p>
-      ) : null}
-
-      {actionMessage !== null ? <p role="alert">{actionMessage}</p> : null}
-
-      {view.value.canGenerate ? (
-        <button
-          type="button"
-          onClick={() => void generate()}
-          disabled={submitting || generating}
-        >
-          {submitting || generating
-            ? "Starting generation…"
-            : draft === null
-              ? "Generate narration"
-              : "Regenerate narration"}
-        </button>
-      ) : null}
-
-      {warnings.map((warning) => (
-        <p key={warning} role="alert">
-          {warning}
-        </p>
-      ))}
-
-      {approved !== null && approved.id !== draft?.id ? (
-        <p role="status">
-          An approved narration still guides the lesson until you review this
-          draft.
-        </p>
-      ) : null}
-
-      {draft === null ? (
-        <p role="status">
-          Confirm the reviewed source, save the lesson configuration, and
-          approve the lesson outline before generating narration.
-        </p>
-      ) : (
-        <NarrationEditor
-          projectId={projectId}
-          set={draft}
-          approved={approved}
-          candidates={view.value.candidates}
-          durationStatus={view.value.validation.durationStatus}
-          wordCountStatus={view.value.validation.wordCountStatus}
-          editing={editing}
-          onEditStart={setEditing}
-          onEditChange={setEditing}
-          onEditCancel={() => setEditing(null)}
-          onSave={saveBlock}
-          onRegenerate={regenerateBlock}
-          onAccept={(candidate) =>
-            void mutateNarration(
-              "POST",
-              `/blocks/${encodeURIComponent(candidate.blockId)}/candidates/${encodeURIComponent(candidate.id)}/accept`,
-              { expectedRevision: draft.revision },
-              "candidate accepted",
-            )
+      {view.value.stale && (
+        <Notice
+          type="warning"
+          title="Narration may be out of date"
+          message={
+            view.value.staleReason ??
+            "This narration is out of date. Review the lesson outline, source, or configuration before continuing."
           }
-          onReject={(candidate) =>
-            void mutateNarration(
-              "POST",
-              `/blocks/${encodeURIComponent(candidate.blockId)}/candidates/${encodeURIComponent(candidate.id)}/reject`,
-              { expectedRevision: draft.revision },
-              "candidate rejected",
-            )
-          }
-          onRestore={(blockId, revision) =>
-            void mutateNarration(
-              "POST",
-              `/blocks/${encodeURIComponent(blockId)}/restore`,
-              { revision, expectedRevision: draft.revision },
-              "revision restored",
-            )
-          }
-          canEdit={view.value.canEdit && !busy}
-          busy={busy}
         />
       )}
-    </section>
+
+      {view.value.latestJob?.state === "failed" && (
+        <Notice
+          type="error"
+          title="Narration generation failed"
+          message={narrationFailureMessage(view.value.latestJob.errorCode)}
+        />
+      )}
+
+      {view.value.latestTransformJob?.state === "failed" && (
+        <Notice
+          type="error"
+          title="Block rewrite failed"
+          message={narrationFailureMessage(view.value.latestTransformJob.errorCode)}
+        />
+      )}
+
+      {actionMessage !== null && (
+        <Notice
+          type={actionMessageType}
+          title={actionMessageType === "error" ? "Error" : "Update"}
+          message={actionMessage}
+          onClose={() => setActionMessage(null)}
+        />
+      )}
+
+      {warnings.map((warning) => (
+        <Notice key={warning} type="warning" title="Narration warning" message={warning} />
+      ))}
+
+      {approved !== null && approved.id !== draft?.id && (
+        <Notice
+          type="info"
+          title="Approved version active"
+          message="An approved narration still guides the lesson until you review and confirm this draft."
+        />
+      )}
+    </>
   );
-}
 
-function NarrationEditor({
-  projectId,
-  set,
-  approved,
-  candidates,
-  durationStatus,
-  wordCountStatus,
-  editing,
-  onEditStart,
-  onEditChange,
-  onEditCancel,
-  onSave,
-  onRegenerate,
-  onAccept,
-  onReject,
-  onRestore,
-  canEdit,
-  busy,
-}: {
-  projectId: string;
-  set: LessonNarrationSet;
-  approved: LessonNarrationSet | null;
-  candidates: NarrationBlockCandidate[];
-  durationStatus: NarrationBudgetStatus;
-  wordCountStatus: NarrationBudgetStatus;
-  editing: EditingState | null;
-  onEditStart: (state: EditingState) => void;
-  onEditChange: (state: EditingState) => void;
-  onEditCancel: () => void;
-  onSave: (blockId: string) => void;
-  onRegenerate: (blockId: string, mode: NarrationTransformMode) => void;
-  onAccept: (candidate: NarrationBlockCandidate) => void;
-  onReject: (candidate: NarrationBlockCandidate) => void;
-  onRestore: (blockId: string, revision: number) => void;
-  canEdit: boolean;
-  busy: boolean;
-}) {
-  const isApproved = set.status === "approved";
-  return (
-    <div>
-      <p>
-        {isApproved ? "Approved narration" : "Draft narration"} {set.id.slice(0, 8)}{" "}
-        — prompt {set.promptId}@{set.promptVersion}, configuration v
-        {set.configurationVersion}. Estimated total: {set.totalEstimatedSeconds}{" "}
-        seconds, {set.blocks.reduce((sum, block) => sum + block.estimatedWords, 0)}{" "}
-        words.
-      </p>
+  // Candidate banner at top if global rewrite in progress
+  const candidateBanner = transformInFlight ? (
+    <CandidateBanner
+      isGenerating
+      generatingMessage="A narration block rewrite is processing in the background… Your existing text and revisions are safe."
+      hasCandidate={false}
+    />
+  ) : null;
 
-      <ol aria-label="Narration blocks" data-testid="narration-blocks">
-        {set.blocks.map((block) => (
-          <li key={block.id} data-testid={`narration-block-${block.id}`}>
-            <p>
-              {block.order}. {block.outlineItemId.slice(0, 8)} ·{" "}
-              {block.estimatedWords} words · ~{block.targetSeconds}s
+  // Empty state when draft is null
+  if (draft === null) {
+    return (
+      <ReviewEditorScaffold
+        title="Narration script"
+        subtitle={projectTitle}
+        statusBadge={statusBadge}
+        notices={notices}
+        candidateBanner={candidateBanner}
+        mainContent={
+          <div
+            style={{
+              padding: "40px 24px",
+              backgroundColor: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-card)",
+              textAlign: "center",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: "16px",
+            }}
+          >
+            <BookOpen size={48} weight="duotone" style={{ color: "var(--color-brand)" }} />
+            <h3 style={{ fontSize: "18px", fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
+              No narration generated yet
+            </h3>
+            <p
+              style={{
+                fontSize: "14px",
+                color: "var(--color-text-muted)",
+                maxWidth: "480px",
+                margin: 0,
+                lineHeight: 1.5,
+              }}
+            >
+              Confirm the reviewed source, save your lesson setup, and approve the lesson outline
+              before generating narration.
             </p>
-            {editing?.blockId === block.id ? (
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  onSave(block.id);
+            {view.value.canGenerate && (
+              <Button
+                variant="primary"
+                onClick={() => void generate()}
+                disabled={submitting || generating}
+              >
+                <Sparkle size={16} weight="fill" />
+                <span>{submitting || generating ? "Starting generation…" : "Generate narration"}</span>
+              </Button>
+            )}
+          </div>
+        }
+        sidebarContent={
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <h3 style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
+              Prerequisites
+            </h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--color-text-muted)" }}>
+                <CheckCircle size={16} weight="fill" style={{ color: "var(--color-brand)" }} />
+                <span>Source document intake</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--color-text-muted)" }}>
+                <CheckCircle size={16} weight="fill" style={{ color: "var(--color-brand)" }} />
+                <span>Lesson configuration</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "var(--color-text-muted)" }}>
+                <CheckCircle size={16} weight="fill" style={{ color: "var(--color-brand)" }} />
+                <span>Approved lesson outline</span>
+              </div>
+            </div>
+            <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "14px" }}>
+              <a
+                href={`/workspace/${encodeURIComponent(projectId)}/outline`}
+                style={{
+                  fontSize: "13px",
+                  color: "var(--color-brand)",
+                  textDecoration: "underline",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
                 }}
               >
-                <label>
-                  Narration text
-                  <textarea
-                    value={editing.text}
-                    rows={4}
-                    maxLength={10_000}
-                    onChange={(event) =>
-                      onEditChange({ ...editing, text: event.target.value })
-                    }
-                  />
-                </label>
-                <button type="submit" disabled={busy}>
-                  Save
-                </button>
-                <button type="button" onClick={onEditCancel} disabled={busy}>
-                  Cancel
-                </button>
-              </form>
-            ) : (
-              <>
-                <p>{block.text}</p>
-                <p>
-                  Source: {citationText(block)}.
-                  {block.generatedAdditions.map((addition, index) => (
-                    <span key={`${addition.kind}-${index}`}>
-                      {" "}
-                      Generated {addition.kind}: {addition.content}.
-                    </span>
-                  ))}
-                  {block.revision > 0
-                    ? ` Edited ${block.revision} time${
-                        block.revision === 1 ? "" : "s"
-                      }.`
-                    : ""}
-                </p>
-                {canEdit ? (
-                  <p>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onEditStart({ blockId: block.id, text: block.text })
-                      }
-                      disabled={busy}
-                    >
-                      Edit
-                    </button>
-                    {(
-                      ["shorten", "simplify", "expand", "regenerate"] as const
-                    ).map((mode) => (
-                      <button
-                        key={mode}
-                        type="button"
-                        onClick={() => onRegenerate(block.id, mode)}
-                        disabled={busy}
-                      >
-                        {narrationTransformModeLabel(mode)}
-                      </button>
-                    ))}
-                    <BlockHistory
-                      projectId={projectId}
-                      blockId={block.id}
-                      onRestore={(revision) => onRestore(block.id, revision)}
-                      disabled={busy}
-                    />
-                  </p>
-                ) : null}
-                <BlockCandidates
-                  blockId={block.id}
-                  candidates={candidates}
-                  onAccept={onAccept}
-                  onReject={onReject}
-                  disabled={!canEdit}
-                />
-              </>
+                Review lesson outline &rarr;
+              </a>
+            </div>
+          </div>
+        }
+      />
+    );
+  }
+
+  // Sidebar / Details Content (used on desktop sidebar and mobile drawer)
+  const sidebarOrDrawerContent = (
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      {/* Active Selected Block Context */}
+      {selectedBlock ? (
+        <section aria-labelledby="selected-block-heading" style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <h3
+              id="selected-block-heading"
+              style={{
+                fontSize: "15px",
+                fontWeight: 600,
+                color: "var(--color-text)",
+                margin: 0,
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <FileText size={18} style={{ color: "var(--color-brand)" }} />
+              Section {selectedBlock.order} Details
+            </h3>
+            <StatusLabel
+              status="info"
+              label={selectedBlock.revision > 0 ? `Rev ${selectedBlock.revision}` : "Original"}
+              size="compact"
+            />
+          </div>
+
+          <div
+            style={{
+              padding: "12px",
+              backgroundColor: "var(--color-surface-subtle)",
+              borderRadius: "var(--radius-control)",
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+              fontSize: "13px",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "var(--color-text-muted)" }}>Target duration:</span>
+              <strong style={{ color: "var(--color-text)" }}>~{selectedBlock.targetSeconds}s</strong>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "var(--color-text-muted)" }}>Word estimate:</span>
+              <strong style={{ color: "var(--color-text)" }}>{selectedBlock.estimatedWords} words</strong>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}>
+              <span style={{ color: "var(--color-text-muted)" }}>Outline section ID:</span>
+              <span style={{ fontFamily: "monospace", fontSize: "12px", color: "var(--color-text-muted)" }}>
+                {selectedBlock.outlineItemId.slice(0, 8)}
+              </span>
+            </div>
+          </div>
+
+          {/* Source Support & Citation Button */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text)" }}>
+              Source Grounding
+            </span>
+            <p style={{ fontSize: "13px", color: "var(--color-text-muted)", margin: 0 }}>
+              {citationText(selectedBlock)}
+            </p>
+            {selectedBlock.sourceRefs.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setInspectedBlock(selectedBlock)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  fontSize: "12px",
+                  color: "var(--color-brand)",
+                  textDecoration: "underline",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  marginTop: "2px",
+                }}
+              >
+                <BookOpen size={14} />
+                Inspect cited passages ({selectedBlock.sourceRefs.length})
+              </button>
             )}
-          </li>
-        ))}
-      </ol>
+          </div>
 
-      {approved !== null ? (
-        <section aria-label="Approved narration">
-          <h3>Approved narration</h3>
-          <ol>
-            {approved.blocks.map((block) => (
-              <li key={block.id}>
-                {block.order}. {block.estimatedWords} words · ~{block.targetSeconds}s
-              </li>
-            ))}
-          </ol>
+          {/* Generated Additions if any */}
+          {selectedBlock.generatedAdditions.length > 0 && (
+            <div
+              style={{
+                padding: "10px 12px",
+                backgroundColor: "var(--color-surface-brand)",
+                borderRadius: "var(--radius-control)",
+                fontSize: "12px",
+                color: "var(--color-text)",
+                display: "flex",
+                flexDirection: "column",
+                gap: "4px",
+              }}
+            >
+              <strong style={{ color: "var(--color-brand)" }}>AI Generated Content Note:</strong>
+              {selectedBlock.generatedAdditions.map((addition, i) => (
+                <div key={i} style={{ color: "var(--color-text-muted)" }}>
+                  • {addition.kind}: {addition.content}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Scoped Rewrite Controls */}
+          {view.value.canEdit && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+                borderTop: "1px solid var(--color-border)",
+                paddingTop: "12px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <Sparkle size={16} weight="fill" style={{ color: "var(--color-brand)" }} />
+                <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text)" }}>
+                  Scoped AI Rewrite
+                </span>
+              </div>
+              <p style={{ fontSize: "12px", color: "var(--color-text-muted)", margin: 0 }}>
+                Rewrites only Section {selectedBlock.order}. All other sections and previous revisions
+                remain unchanged.
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                {(["shorten", "simplify", "expand", "regenerate"] as const).map((mode) => (
+                  <Button
+                    key={mode}
+                    variant="secondary"
+                    size="compact"
+                    onClick={() => regenerateBlock(selectedBlock.id, mode)}
+                    disabled={busy}
+                  >
+                    {narrationTransformModeLabel(mode)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Block Revisions History */}
+          <div
+            style={{
+              borderTop: "1px solid var(--color-border)",
+              paddingTop: "12px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "6px",
+            }}
+          >
+            <BlockHistory
+              projectId={projectId}
+              blockId={selectedBlock.id}
+              onRestore={(revision) =>
+                void mutateNarration(
+                  "POST",
+                  `/blocks/${encodeURIComponent(selectedBlock.id)}/restore`,
+                  { revision, expectedRevision: draft.revision },
+                  "revision restored",
+                )
+              }
+              disabled={busy || !view.value.canEdit}
+            />
+          </div>
         </section>
-      ) : null}
+      ) : (
+        <p style={{ fontSize: "13px", color: "var(--color-text-muted)" }}>
+          Select a script block to view its grounding, duration, and rewrite options.
+        </p>
+      )}
 
-      <p role="status">
-        Duration: {narrationBudgetStatusLabel(durationStatus)} · Word count:{" "}
-        {narrationBudgetStatusLabel(wordCountStatus)}.{" "}
-        <a href={`/workspace/${encodeURIComponent(projectId)}/outline`}>
+      {/* Lesson Narration Budget Summary */}
+      <section
+        aria-labelledby="budget-summary-heading"
+        style={{
+          borderTop: "1px solid var(--color-border)",
+          paddingTop: "16px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+        }}
+      >
+        <h3
+          id="budget-summary-heading"
+          style={{
+            fontSize: "14px",
+            fontWeight: 600,
+            color: "var(--color-text)",
+            margin: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
+          <Clock size={16} />
+          Lesson Narration Budget
+        </h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={{ color: "var(--color-text-muted)" }}>Total duration:</span>
+            <span style={{ fontWeight: 600, color: "var(--color-text)" }}>
+              {draft.totalEstimatedSeconds}s ({narrationBudgetStatusLabel(view.value.validation.durationStatus)})
+            </span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span style={{ color: "var(--color-text-muted)" }}>Total words:</span>
+            <span style={{ fontWeight: 600, color: "var(--color-text)" }}>
+              {draft.blocks.reduce((sum, b) => sum + b.estimatedWords, 0)} words ({narrationBudgetStatusLabel(view.value.validation.wordCountStatus)})
+            </span>
+          </div>
+        </div>
+      </section>
+
+      {/* Re-generate Whole Narration Action */}
+      {view.value.canGenerate && (
+        <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "14px" }}>
+          <Button
+            variant="tertiary"
+            size="compact"
+            onClick={() => void generate()}
+            disabled={submitting || generating || busy}
+          >
+            <ArrowsClockwise size={14} />
+            <span>{submitting || generating ? "Generating…" : "Regenerate whole narration"}</span>
+          </Button>
+        </div>
+      )}
+
+      {/* Continuation to Storyboard */}
+      <div
+        style={{
+          borderTop: "1px solid var(--color-border)",
+          paddingTop: "14px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+        }}
+      >
+        <Button
+          variant="primary"
+          onClick={() => {
+            window.location.href = `/workspace/${encodeURIComponent(projectId)}/storyboard`;
+          }}
+        >
+          <span>Continue to Storyboard</span>
+          <ArrowRight size={16} weight="bold" />
+        </Button>
+        <a
+          href={`/workspace/${encodeURIComponent(projectId)}/outline`}
+          style={{
+            fontSize: "12px",
+            color: "var(--color-text-muted)",
+            textAlign: "center",
+            textDecoration: "underline",
+          }}
+        >
           Review the lesson outline
-        </a>{" "}
-        if the narration does not match your plan.
-      </p>
+        </a>
+      </div>
     </div>
   );
-}
 
-function BlockCandidates({
-  blockId,
-  candidates,
-  onAccept,
-  onReject,
-  disabled,
-}: {
-  blockId: string;
-  candidates: NarrationBlockCandidate[];
-  onAccept: (candidate: NarrationBlockCandidate) => void;
-  onReject: (candidate: NarrationBlockCandidate) => void;
-  disabled: boolean;
-}) {
-  const pending = candidates.filter(
-    (candidate) => candidate.blockId === blockId && candidate.status === "pending",
-  );
-  if (pending.length === 0) return null;
   return (
-    <section aria-label={`Rewrites for ${blockId}`}>
-      {pending.map((candidate) => (
-        <div key={candidate.id}>
-          <p>
-            <strong>{narrationTransformModeLabel(candidate.mode)} candidate</strong>
-            {" — "}
-            {candidate.text} ({candidate.estimatedWords} words)
-          </p>
-          <p role="status">
-            {narrationCandidateStatusLabel(candidate.status)}. Generated from
-            block revision {candidate.blockRevision}.
-          </p>
-          <button type="button" onClick={() => onAccept(candidate)} disabled={disabled}>
-            Accept rewrite
-          </button>
-          <button type="button" onClick={() => onReject(candidate)} disabled={disabled}>
-            Reject rewrite
-          </button>
+    <ReviewEditorScaffold
+      title="Narration script"
+      subtitle={`${projectTitle} · ${draft.blocks.length} sections · ~${draft.totalEstimatedSeconds}s`}
+      statusBadge={statusBadge}
+      notices={notices}
+      candidateBanner={candidateBanner}
+      mainContent={
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          {/* Mobile details toggle button */}
+          <div style={{ display: "flex", gap: "8px" }}>
+            <Button
+              variant="secondary"
+              size="compact"
+              onClick={() => setIsMobileDetailsOpen(true)}
+            >
+              <FileText size={16} />
+              <span>
+                {selectedBlock
+                  ? `Section ${selectedBlock.order} Details & Rewrites`
+                  : "View Section Details"}
+              </span>
+            </Button>
+          </div>
+
+          {/* Central Script Column (constrained to max 72ch for reading comfort) */}
+          <section
+            aria-labelledby="script-blocks-heading"
+            style={{
+              maxWidth: "72ch",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+            }}
+          >
+            <h2 id="script-blocks-heading" className="sr-only">
+              Narration blocks
+            </h2>
+
+            <ol
+              aria-label="Narration blocks"
+              data-testid="narration-blocks"
+              style={{
+                listStyle: "none",
+                padding: 0,
+                margin: 0,
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+              }}
+            >
+              {draft.blocks.map((block) => {
+                const isSelected = selectedBlock?.id === block.id;
+                const isEditingThis = editing?.blockId === block.id;
+                const blockCandidate = view.value.candidates.find(
+                  (c) => c.blockId === block.id && c.status === "pending",
+                );
+
+                return (
+                  <li
+                    key={block.id}
+                    data-testid={`narration-block-${block.id}`}
+                    onClick={() => {
+                      if (!isEditingThis) setSelectedBlockId(block.id);
+                    }}
+                    style={{
+                      backgroundColor: "var(--color-surface)",
+                      border: isSelected
+                        ? "2px solid var(--color-brand)"
+                        : "1px solid var(--color-border)",
+                      borderRadius: "var(--radius-card)",
+                      padding: "20px",
+                      boxShadow: isSelected
+                        ? "0 4px 16px rgba(100, 48, 215, 0.08)"
+                        : "none",
+                      transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+                      cursor: isEditingThis ? "default" : "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "12px",
+                    }}
+                  >
+                    {/* Block Header Info */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        flexWrap: "wrap",
+                        gap: "8px",
+                        borderBottom: "1px solid var(--color-border)",
+                        paddingBottom: "10px",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span
+                          style={{
+                            fontSize: "14px",
+                            fontWeight: 700,
+                            color: isSelected ? "var(--color-brand)" : "var(--color-text)",
+                          }}
+                        >
+                          Section {block.order}
+                        </span>
+                        <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                          {block.estimatedWords} words · ~{block.targetSeconds}s
+                        </span>
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        {block.revision > 0 ? (
+                          <StatusLabel
+                            status="info"
+                            label={`Edited (rev ${block.revision})`}
+                            size="compact"
+                          />
+                        ) : (
+                          <StatusLabel
+                            status="info"
+                            label="Generated"
+                            size="compact"
+                          />
+                        )}
+                        {block.generatedAdditions.length > 0 && (
+                          <StatusLabel
+                            status="warning"
+                            label="Inferred additions"
+                            size="compact"
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Block Script Body: Form or Text */}
+                    {isEditingThis ? (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          saveBlock(block.id);
+                        }}
+                        style={{ display: "flex", flexDirection: "column", gap: "12px" }}
+                      >
+                        <label
+                          htmlFor={`textarea-${block.id}`}
+                          style={{
+                            fontSize: "13px",
+                            fontWeight: 600,
+                            color: "var(--color-text)",
+                          }}
+                        >
+                          Edit narration script
+                        </label>
+                        <textarea
+                          id={`textarea-${block.id}`}
+                          value={editing.text}
+                          rows={5}
+                          maxLength={10_000}
+                          autoFocus
+                          onChange={(e) =>
+                            setEditing({ ...editing, text: e.target.value })
+                          }
+                          style={{
+                            width: "100%",
+                            padding: "12px",
+                            fontSize: "15px",
+                            lineHeight: "1.6",
+                            fontFamily: "inherit",
+                            color: "var(--color-text)",
+                            backgroundColor: "var(--color-canvas)",
+                            border: "1px solid var(--color-brand)",
+                            borderRadius: "var(--radius-control)",
+                            outline: "none",
+                            resize: "vertical",
+                            boxSizing: "border-box",
+                          }}
+                        />
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <Button type="submit" variant="primary" size="compact" disabled={busy}>
+                            Save
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="tertiary"
+                            size="compact"
+                            onClick={() => setEditing(null)}
+                            disabled={busy}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </form>
+                    ) : (
+                      <>
+                        <div
+                          style={{
+                            fontSize: "15px",
+                            lineHeight: "1.65",
+                            color: "var(--color-text)",
+                            letterSpacing: "-0.005em",
+                            whiteSpace: "pre-wrap",
+                          }}
+                        >
+                          {block.text}
+                        </div>
+
+                        {/* Citations and Provenance footnote */}
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            color: "var(--color-text-muted)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            flexWrap: "wrap",
+                            gap: "8px",
+                            paddingTop: "6px",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <BookOpen size={14} />
+                            <span>Source: {citationText(block)}</span>
+                          </div>
+
+                          {view.value.canEdit && (
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <Button
+                                variant="tertiary"
+                                size="compact"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditing({ blockId: block.id, text: block.text });
+                                }}
+                                disabled={busy}
+                              >
+                                <PencilSimple size={14} />
+                                <span>Edit</span>
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+
+                    {/* Candidate rewrite preview banner if present for this block */}
+                    {blockCandidate && (
+                      <div
+                        style={{
+                          marginTop: "8px",
+                          padding: "14px",
+                          backgroundColor: "var(--color-surface-brand)",
+                          border: "1.5px solid var(--color-brand)",
+                          borderRadius: "var(--radius-control)",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "10px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <Sparkle size={16} weight="fill" style={{ color: "var(--color-brand)" }} />
+                            <strong style={{ fontSize: "13px", color: "var(--color-brand)" }}>
+                              {narrationTransformModeLabel(blockCandidate.mode)} Candidate Ready
+                            </strong>
+                          </div>
+                          <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                            {blockCandidate.estimatedWords} words · {narrationCandidateStatusLabel(blockCandidate.status)}
+                          </span>
+                        </div>
+
+                        <div
+                          style={{
+                            fontSize: "14px",
+                            lineHeight: "1.6",
+                            color: "var(--color-text)",
+                            backgroundColor: "var(--color-surface)",
+                            padding: "10px 12px",
+                            borderRadius: "var(--radius-control)",
+                            border: "1px solid var(--color-border)",
+                          }}
+                        >
+                          {blockCandidate.text}
+                        </div>
+
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", justifyContent: "flex-end" }}>
+                          <Button
+                            variant="tertiary"
+                            size="compact"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void mutateNarration(
+                                "POST",
+                                `/blocks/${encodeURIComponent(block.id)}/candidates/${encodeURIComponent(blockCandidate.id)}/reject`,
+                                { expectedRevision: draft.revision },
+                                "candidate rejected",
+                              );
+                            }}
+                            disabled={busy || !view.value.canEdit}
+                          >
+                            Reject rewrite
+                          </Button>
+                          <Button
+                            variant="primary"
+                            size="compact"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void mutateNarration(
+                                "POST",
+                                `/blocks/${encodeURIComponent(block.id)}/candidates/${encodeURIComponent(blockCandidate.id)}/accept`,
+                                { expectedRevision: draft.revision },
+                                "candidate accepted",
+                              );
+                            }}
+                            disabled={busy || !view.value.canEdit}
+                          >
+                            Accept rewrite
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          </section>
+
+          {/* Approved Narration Comparison (if another version was previously approved) */}
+          {approved !== null && approved.id !== draft.id && (
+            <section
+              aria-label="Approved narration"
+              style={{
+                marginTop: "20px",
+                padding: "20px",
+                backgroundColor: "var(--color-surface-subtle)",
+                borderRadius: "var(--radius-card)",
+                border: "1px solid var(--color-border)",
+                maxWidth: "72ch",
+              }}
+            >
+              <h3 style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)", margin: "0 0 12px 0" }}>
+                Active Approved Narration ({approved.blocks.length} sections)
+              </h3>
+              <ol style={{ paddingLeft: "20px", margin: 0, fontSize: "13px", color: "var(--color-text-muted)" }}>
+                {approved.blocks.map((b) => (
+                  <li key={b.id} style={{ marginBottom: "6px" }}>
+                    Section {b.order}: {b.estimatedWords} words (~{b.targetSeconds}s) —{" "}
+                    <em>{b.text.slice(0, 80)}…</em>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+
+          {/* Mobile details drawer */}
+          <Drawer
+            isOpen={isMobileDetailsOpen}
+            onClose={() => setIsMobileDetailsOpen(false)}
+            title="Section Details & Rewrites"
+          >
+            {sidebarOrDrawerContent}
+          </Drawer>
         </div>
-      ))}
-    </section>
+      }
+      sidebarContent={sidebarOrDrawerContent}
+      sourceDrawer={
+        inspectedBlock ? (
+          <SourceDrawer
+            isOpen={true}
+            onClose={() => setInspectedBlock(null)}
+            title={`Source Citations — Section ${inspectedBlock.order}`}
+            sourceRefs={inspectedBlock.sourceRefs}
+            projectId={projectId}
+          />
+        ) : null
+      }
+    />
   );
 }
 
@@ -619,60 +1189,124 @@ function BlockHistory({
   disabled: boolean;
 }) {
   const [revisions, setRevisions] = useState<NarrationBlockRevision[] | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const load = useCallback(async () => {
     setMessage(null);
-    const response = await fetch(
-      apiUrl(
-        `/projects/${encodeURIComponent(projectId)}/narration/blocks/${encodeURIComponent(blockId)}/revisions`,
-      ),
-      { credentials: "include", cache: "no-store" },
-    );
-    const payload: unknown = await response.json().catch(() => null);
-    if (!response.ok) {
+    setLoading(true);
+    try {
+      const response = await fetch(
+        apiUrl(
+          `/projects/${encodeURIComponent(projectId)}/narration/blocks/${encodeURIComponent(blockId)}/revisions`,
+        ),
+        { credentials: "include", cache: "no-store" },
+      );
+      const payload: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        setMessage("We could not load the previous versions.");
+        return;
+      }
+      const parsed = narrationBlockRevisionsResponseSchema.safeParse(payload);
+      if (!parsed.success) {
+        setMessage("We could not load the previous versions.");
+        return;
+      }
+      setRevisions(parsed.data.revisions);
+      setIsOpen(true);
+    } catch {
       setMessage("We could not load the previous versions.");
-      return;
+    } finally {
+      setLoading(false);
     }
-    const parsed = narrationBlockRevisionsResponseSchema.safeParse(payload);
-    if (!parsed.success) {
-      setMessage("We could not load the previous versions.");
-      return;
-    }
-    setRevisions(parsed.data.revisions);
   }, [projectId, blockId]);
 
-  if (revisions === null)
+  if (!isOpen || revisions === null) {
     return (
-      <button type="button" onClick={() => void load()} disabled={disabled}>
-        Show previous versions
-      </button>
+      <Button
+        variant="tertiary"
+        size="compact"
+        onClick={() => void load()}
+        disabled={disabled || loading}
+      >
+        <ArrowClockwise size={14} />
+        <span>{loading ? "Loading history…" : "View revision history"}</span>
+      </Button>
     );
+  }
+
   return (
-    <span>
-      <button type="button" onClick={() => void load()} disabled={disabled}>
-        Refresh versions
-      </button>
-      {message !== null ? <span role="alert"> {message}</span> : null}
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "8px",
+        padding: "10px",
+        backgroundColor: "var(--color-surface)",
+        borderRadius: "var(--radius-control)",
+        border: "1px solid var(--color-border)",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text)" }}>
+          Previous Revisions ({revisions.length})
+        </span>
+        <button
+          type="button"
+          onClick={() => setIsOpen(false)}
+          style={{
+            background: "none",
+            border: "none",
+            fontSize: "11px",
+            color: "var(--color-text-muted)",
+            cursor: "pointer",
+          }}
+        >
+          Hide
+        </button>
+      </div>
+
+      {message !== null && (
+        <span role="alert" style={{ fontSize: "12px", color: "var(--color-error-fg)" }}>
+          {message}
+        </span>
+      )}
+
       {revisions.length === 0 ? (
-        <span role="status"> No previous versions.</span>
+        <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+          No previous revisions saved.
+        </span>
       ) : (
-        <ol>
-          {revisions.map((revision) => (
-            <li key={revision.id}>
-              revision {revision.revision} ({revision.origin}) —{" "}
-              {revision.estimatedWords} words.
-              <button
-                type="button"
-                onClick={() => onRestore(revision.revision)}
+        <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "6px" }}>
+          {revisions.map((rev) => (
+            <li
+              key={rev.id}
+              style={{
+                fontSize: "12px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "6px 8px",
+                backgroundColor: "var(--color-surface-subtle)",
+                borderRadius: "var(--radius-control)",
+              }}
+            >
+              <div>
+                <strong>Rev {rev.revision}</strong> ({rev.origin}) · {rev.estimatedWords} words
+              </div>
+              <Button
+                variant="secondary"
+                size="compact"
+                onClick={() => onRestore(rev.revision)}
                 disabled={disabled}
               >
                 Restore
-              </button>
+              </Button>
             </li>
           ))}
         </ol>
       )}
-    </span>
+    </div>
   );
 }
