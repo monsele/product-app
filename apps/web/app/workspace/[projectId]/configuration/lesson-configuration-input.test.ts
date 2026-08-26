@@ -4,7 +4,9 @@ import {
   buildConfigurationSaveInput,
   emptyConfigurationFormState,
   formStateFromConfiguration,
+  hasConfigurationChanges,
   isConfigurationFormComplete,
+  narrationWordCountRange,
   type ConfigurationFormState,
 } from "./lesson-configuration-input";
 
@@ -26,9 +28,7 @@ describe("lesson configuration form input", () => {
   it("starts empty and incomplete", () => {
     const state = emptyConfigurationFormState();
     expect(isConfigurationFormComplete(state)).toBe(false);
-    expect(
-      buildConfigurationSaveInput(null, state),
-    ).toBeNull();
+    expect(buildConfigurationSaveInput(null, state)).toBeNull();
   });
 
   it("pre-fills the form from a persisted configuration", () => {
@@ -83,5 +83,25 @@ describe("lesson configuration form input", () => {
     const input = buildConfigurationSaveInput(persisted, state);
     expect(input?.subject).toBe("Biology");
     expect(input?.lessonTitle).toBe("The Water Cycle");
+  });
+
+  it("computes word count ranges for duration targets accurately", () => {
+    const target3m = narrationWordCountRange(180);
+    expect(target3m.min).toBeLessThan(target3m.max);
+    expect(target3m.target).toBe(336);
+
+    const target5m = narrationWordCountRange(300);
+    expect(target5m.target).toBe(560);
+  });
+
+  it("detects unsaved modifications properly", () => {
+    const base = formStateFromConfiguration(persisted);
+    expect(hasConfigurationChanges(persisted, base)).toBe(false);
+
+    const modified = { ...base, tone: "academic" as const };
+    expect(hasConfigurationChanges(persisted, modified)).toBe(true);
+
+    expect(hasConfigurationChanges(null, emptyConfigurationFormState())).toBe(false);
+    expect(hasConfigurationChanges(null, { ...emptyConfigurationFormState(), subject: "Math" })).toBe(true);
   });
 });

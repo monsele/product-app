@@ -1,9 +1,18 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { LessonConfigurationForm } from "./lesson-configuration-form";
-import { VoiceConfigurationForm } from "./voice-configuration-form";
+import type { ProjectStage } from "@avlp/schemas";
+import { AuthenticatedAppShell } from "../../../../components/layout/authenticated-app-shell";
+import { getPipelineStages } from "../../../../lib/project-pipeline";
+import { getStageDetails } from "../../project-stage-utils";
+import { ConfigurationWorkspace } from "./configuration-workspace";
 
-type ProjectPayload = { project: { id: string; title: string } };
+type ProjectPayload = {
+  project: {
+    id: string;
+    title: string;
+    stage: ProjectStage;
+  };
+};
 
 function isProjectPayload(value: unknown): value is ProjectPayload {
   return (
@@ -15,7 +24,9 @@ function isProjectPayload(value: unknown): value is ProjectPayload {
     "id" in value.project &&
     typeof value.project.id === "string" &&
     "title" in value.project &&
-    typeof value.project.title === "string"
+    typeof value.project.title === "string" &&
+    "stage" in value.project &&
+    typeof value.project.stage === "string"
   );
 }
 
@@ -36,13 +47,22 @@ export default async function LessonConfigurationPage({
   );
   const payload: unknown = response.ok ? await response.json() : null;
   if (!response.ok || !isProjectPayload(payload)) redirect("/workspace");
+
+  const stageDetails = getStageDetails(payload.project.stage);
+  const stages = getPipelineStages(payload.project.stage, "Setup");
+
   return (
-    <main>
-      <h1>Configure the lesson</h1>
-      <p>{payload.project.title}</p>
-      <LessonConfigurationForm projectId={projectId} />
-      <VoiceConfigurationForm projectId={projectId} />
-      <a href="/workspace">Back to workspace</a>
-    </main>
+    <AuthenticatedAppShell
+      projectTitle={payload.project.title}
+      projectStatus={stageDetails.label}
+      userEmail="teacher@school.org"
+      stages={stages}
+      mode="daylight"
+    >
+      <ConfigurationWorkspace
+        projectId={projectId}
+        projectTitle={payload.project.title}
+      />
+    </AuthenticatedAppShell>
   );
 }
