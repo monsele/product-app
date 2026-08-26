@@ -2,7 +2,9 @@
 
 import { Player } from "@remotion/player";
 import { Composition, Easing, interpolate, useCurrentFrame } from "remotion";
-import "@fontsource/atkinson-hyperlegible/400.css";
+if (typeof window !== "undefined") {
+  void import("@fontsource/atkinson-hyperlegible/400.css");
+}
 import type { JSX } from "react";
 import { useVideoTheme, VideoThemeProvider } from "./video-theme-provider.js";
 import {

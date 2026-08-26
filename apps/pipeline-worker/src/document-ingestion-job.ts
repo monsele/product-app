@@ -104,9 +104,13 @@ function deterministicId(seed: string): Identifier {
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-7${hex.slice(13, 16)}-${((Number.parseInt(hex[16]!, 16) & 3) | 8).toString(16)}${hex.slice(17, 20)}-${hex.slice(20, 32)}` as Identifier;
 }
 
-/** A stable, collision-resistant positive number required by SourceRef v1. */
+/** A stable, collision-resistant positive 32-bit integer required by PostgreSQL int4. */
 function parsedDocumentVersionForArtifact(artifactId: Identifier): number {
-  return Number.parseInt(artifactId.replaceAll("-", "").slice(-13), 16) + 1;
+  return (
+    (Number.parseInt(artifactId.replaceAll("-", "").slice(-7), 16) %
+      2_000_000_000) +
+    1
+  );
 }
 
 function imageExtension(contentType: string): "gif" | "jpeg" | "png" | "webp" {
@@ -639,41 +643,45 @@ export function createDocumentIngestionJobHandler(
               updatedAt: timestamp,
             })
             .onConflictDoNothing();
-          await transaction
-            .insert(parsedSections)
-            .values(
-              normalized.sections.map((section) => ({
-                id: section.id,
-                parsedDocumentId: normalized.id,
-                parentSectionId: section.parentSectionId ?? null,
-                order: section.order,
-                level: section.level,
-                heading: section.heading,
-                pageStart: section.pageStart,
-                pageEnd: section.pageEnd ?? section.pageStart,
-                createdAt: timestamp,
-                updatedAt: timestamp,
-              })),
-            )
-            .onConflictDoNothing();
-          await transaction
-            .insert(contentBlocks)
-            .values(
-              normalized.blocks.map((block) => ({
-                id: block.id,
-                parsedDocumentId: normalized.id,
-                sectionId: block.sectionId,
-                kind: block.kind,
-                order: block.order,
-                pageStart: block.pageStart,
-                pageEnd: block.pageEnd ?? block.pageStart,
-                boundingBox: block.boundingBox ?? null,
-                content: block,
-                createdAt: timestamp,
-                updatedAt: timestamp,
-              })),
-            )
-            .onConflictDoNothing();
+          if (normalized.sections.length > 0) {
+            await transaction
+              .insert(parsedSections)
+              .values(
+                normalized.sections.map((section) => ({
+                  id: section.id,
+                  parsedDocumentId: normalized.id,
+                  parentSectionId: section.parentSectionId ?? null,
+                  order: section.order,
+                  level: section.level,
+                  heading: section.heading,
+                  pageStart: section.pageStart,
+                  pageEnd: section.pageEnd ?? section.pageStart,
+                  createdAt: timestamp,
+                  updatedAt: timestamp,
+                })),
+              )
+              .onConflictDoNothing();
+          }
+          if (normalized.blocks.length > 0) {
+            await transaction
+              .insert(contentBlocks)
+              .values(
+                normalized.blocks.map((block) => ({
+                  id: block.id,
+                  parsedDocumentId: normalized.id,
+                  sectionId: block.sectionId,
+                  kind: block.kind,
+                  order: block.order,
+                  pageStart: block.pageStart,
+                  pageEnd: block.pageEnd ?? block.pageStart,
+                  boundingBox: block.boundingBox ?? null,
+                  content: block,
+                  createdAt: timestamp,
+                  updatedAt: timestamp,
+                })),
+              )
+              .onConflictDoNothing();
+          }
           if (normalized.figures.length > 0)
             await transaction
               .insert(extractedFigures)

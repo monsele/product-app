@@ -192,6 +192,7 @@ export async function executeJobDelivery<T>(input: {
     );
     return outcome;
   } catch (error) {
+    console.error("Job execution error:", error);
     const classified = classifyJobError(error);
     const updated = await input.repository.recordFailure(
       lease,

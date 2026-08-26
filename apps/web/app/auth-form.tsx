@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState, type FormEvent } from "react";
+import React, { useState, type FormEvent } from "react";
 import styles from "./auth.module.css";
 
 type AuthMode = "register" | "login";
