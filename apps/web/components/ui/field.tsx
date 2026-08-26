@@ -3,15 +3,15 @@
 import React from "react";
 
 export interface FieldProps {
-  id?: string;
-  label?: string;
-  helperText?: string;
-  error?: string;
-  required?: boolean;
+  id?: string | undefined;
+  label?: string | undefined;
+  helperText?: string | undefined;
+  error?: string | undefined;
+  required?: boolean | undefined;
   children: React.ReactNode;
-  isFieldset?: boolean;
-  legend?: string;
-  className?: string;
+  isFieldset?: boolean | undefined;
+  legend?: string | undefined;
+  className?: string | undefined;
 }
 
 export const Field: React.FC<FieldProps> = ({

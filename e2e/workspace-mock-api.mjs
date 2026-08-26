@@ -578,11 +578,19 @@ const server = createServer(async (request, response) => {
   }
   if (request.method === "GET" && url.pathname.endsWith("/ingestion")) {
     return send(response, 200, {
-      state: "pending",
-      latestJob: null,
-      quality: null,
-      canRetry: false,
-      canProceedToReview: false,
+      quality: {
+        score: 95,
+        status: "ready",
+        findings: [],
+      },
+      latestJob: {
+        id: "019ffbf1-6111-738a-b087-6775ff97568c",
+        state: "succeeded",
+        progress: 1,
+        errorCode: null,
+        updatedAt: new Date().toISOString(),
+      },
+      canProceed: true,
     });
   }
   if (
@@ -637,6 +645,30 @@ const server = createServer(async (request, response) => {
     projects.set(createdId, project);
     return send(response, 201, { project });
   }
+  const duplicateMatch = url.pathname.match(/^\/projects\/([^/]+)\/duplicate$/);
+  if (request.method === "POST" && duplicateMatch !== null) {
+    const origId = decodeURIComponent(duplicateMatch[1]);
+    const orig = projects.get(origId);
+    if (!orig) return send(response, 404, { error: { code: "not_found" } });
+    const duplicateId = "019ffbf1-610f-738a-b087-6775ff97568d";
+    const duplicate = {
+      id: duplicateId,
+      title: `${orig.title} (Copy)`,
+      stage: "draft",
+      latestFailedOperation: null,
+      createdAt: now,
+      updatedAt: now,
+      revision: 1,
+    };
+    projects.set(duplicateId, duplicate);
+    return send(response, 201, { project: duplicate });
+  }
+  const deleteProjectMatch = url.pathname.match(/^\/projects\/([^/]+)$/);
+  if (request.method === "DELETE" && deleteProjectMatch !== null) {
+    const delId = decodeURIComponent(deleteProjectMatch[1]);
+    projects.delete(delId);
+    return send(response, 200, { deleted: true });
+  }
   const uploadMatch = url.pathname.match(
     /^\/projects\/([^/]+)\/source-upload$/,
   );
@@ -684,6 +716,50 @@ const server = createServer(async (request, response) => {
     upload.uploaded = true;
     response.writeHead(200);
     return response.end();
+  }
+  const sourceDocMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/source-document$/,
+  );
+  if (request.method === "GET" && sourceDocMatch !== null) {
+    return send(response, 200, {
+      documentId: "019ffbf1-6111-738a-b087-6775ff97568c",
+      validation: {
+        status: "active",
+        code: null,
+        pageCount: 5,
+        warnings: [],
+      },
+      reuse: { status: "not_reused" },
+    });
+  }
+  const ingestionRetryMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/ingestion\/retry$/,
+  );
+  if (request.method === "POST" && ingestionRetryMatch !== null) {
+    return send(response, 201, {
+      jobId: "019ffbf1-6111-738a-b087-6775ff97568c",
+      status: "queued",
+    });
+  }
+  const ingestionMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/ingestion$/,
+  );
+  if (request.method === "GET" && ingestionMatch !== null) {
+    return send(response, 200, {
+      quality: {
+        score: 95,
+        status: "ready",
+        findings: [],
+      },
+      latestJob: {
+        id: "019ffbf1-6111-738a-b087-6775ff97568c",
+        state: "succeeded",
+        progress: 1,
+        errorCode: null,
+        updatedAt: new Date().toISOString(),
+      },
+      canProceed: true,
+    });
   }
   const parsedDocMatch = url.pathname.match(
     /^\/projects\/([^/]+)\/parsed-document$/,

@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ingestionRetryResponseSchema,
   projectIngestionStatusResponseSchema,
   type ProjectIngestionStatusResponse,
 } from "@avlp/schemas";
+import {
+  ArrowsClockwise,
+  ArrowRight,
+  FileText,
+} from "@phosphor-icons/react";
+import { Button } from "../../../../components/ui/button";
+import { Notice } from "../../../../components/ui/notice";
+import { StatusLabel, type StatusType } from "../../../../components/ui/status-label";
 
 type State =
   | { kind: "loading" }
@@ -36,9 +44,28 @@ export function ingestionStatusMessage(
   return "Waiting for document ingestion to start.";
 }
 
+export function getIngestionStatusBadge(value: ProjectIngestionStatusResponse): {
+  status: StatusType;
+  label: string;
+} {
+  const jobState = value.latestJob?.state;
+  if (jobState === "failed") return { status: "error", label: "Extraction Failed" };
+  if (jobState === "queued") return { status: "in_progress", label: "Queued" };
+  if (jobState === "running") return { status: "in_progress", label: "Extracting Content" };
+  if (jobState === "retry_wait") return { status: "in_progress", label: "Waiting to Retry" };
+
+  const qualityStatus = value.quality?.status;
+  if (qualityStatus === "blocked") return { status: "blocked", label: "Review Blocked" };
+  if (qualityStatus === "review_required") return { status: "warning", label: "Items to Check" };
+  if (qualityStatus === "ready") return { status: "success", label: "Ready for Review" };
+
+  return { status: "info", label: "Ingestion Pending" };
+}
+
 export function IngestionStatusPanel({ projectId }: { projectId: string }) {
   const [state, setState] = useState<State>({ kind: "loading" });
   const [retrying, setRetrying] = useState(false);
+
   const refresh = async (): Promise<void> => {
     try {
       const response = await fetch(
@@ -59,11 +86,13 @@ export function IngestionStatusPanel({ projectId }: { projectId: string }) {
       });
     }
   };
+
   useEffect(() => {
     void refresh();
     const timer = window.setInterval(() => void refresh(), 2_000);
     return () => window.clearInterval(timer);
   }, [projectId]);
+
   const retry = async (): Promise<void> => {
     setRetrying(true);
     const retryId = globalThis.crypto.randomUUID();
@@ -100,42 +129,192 @@ export function IngestionStatusPanel({ projectId }: { projectId: string }) {
       setRetrying(false);
     }
   };
+
   const value = state.kind === "ready" ? state.value : undefined;
   const canRetry =
     value?.latestJob?.state === "failed" ||
     value?.quality?.status === "blocked";
+
+  const isReadyForReview =
+    value?.canProceed ||
+    value?.quality?.status === "ready" ||
+    value?.quality?.status === "review_required";
+
+  const badge = value ? getIngestionStatusBadge(value) : null;
+
   return (
-    <section aria-labelledby="ingestion-status-heading">
-      <h2 id="ingestion-status-heading">Document ingestion</h2>
-      {state.kind === "loading" ? (
-        <p role="status">Loading document status.</p>
-      ) : null}
-      {state.kind === "failed" ? <p role="alert">{state.message}</p> : null}
-      {value === undefined ? null : (
-        <>
-          <p role="status">{ingestionStatusMessage(value)}</p>
-          {value.quality === null ? null : (
-            <p>Quality score: {value.quality.score}/100</p>
-          )}
-          {value.quality?.findings.length ? (
-            <ul>
-              {value.quality.findings.map((finding, index) => (
-                <li key={`${finding.code}-${finding.pageStart}-${index}`}>
-                  {finding.message}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {canRetry ? (
-            <button
-              type="button"
-              disabled={retrying}
-              onClick={() => void retry()}
+    <section
+      aria-labelledby="ingestion-status-heading"
+      style={{
+        backgroundColor: "var(--color-surface)",
+        border: "1px solid var(--color-border)",
+        borderRadius: "var(--radius-card)",
+        padding: "32px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "24px",
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
+        <div>
+          <h2
+            id="ingestion-status-heading"
+            style={{
+              margin: "0 0 6px 0",
+              fontSize: "20px",
+              fontWeight: 700,
+              color: "var(--color-text)",
+              letterSpacing: "-0.01em",
+            }}
+          >
+            Document ingestion
+          </h2>
+          <p
+            style={{
+              margin: 0,
+              fontSize: "14px",
+              color: "var(--color-text-muted)",
+              lineHeight: "20px",
+            }}
+          >
+            Structured text extraction, figure detection, and section analysis.
+          </p>
+        </div>
+
+        {badge && (
+          <StatusLabel status={badge.status} label={badge.label} />
+        )}
+      </div>
+
+      {state.kind === "loading" && (
+        <div style={{ padding: "16px 0", color: "var(--color-text-muted)", fontSize: "14px" }}>
+          <p role="status">Loading document status…</p>
+        </div>
+      )}
+
+      {state.kind === "failed" && (
+        <Notice
+          type="error"
+          title="Status unavailable"
+          message={state.message}
+          actionLabel="Refresh"
+          onAction={() => void refresh()}
+        />
+      )}
+
+      {value && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          {/* Main Status Message */}
+          <div
+            style={{
+              padding: "16px 20px",
+              borderRadius: "var(--radius-control)",
+              backgroundColor: "var(--color-surface-subtle)",
+              border: "1px solid var(--color-border)",
+              display: "flex",
+              alignItems: "center",
+              gap: "12px",
+            }}
+          >
+            <FileText size={22} weight="duotone" color="var(--color-brand)" />
+            <p
+              role="status"
+              style={{
+                margin: 0,
+                fontSize: "14px",
+                color: "var(--color-text)",
+                lineHeight: "20px",
+              }}
             >
-              {retrying ? "Retrying…" : "Retry document ingestion"}
-            </button>
-          ) : null}
-        </>
+              {ingestionStatusMessage(value)}
+            </p>
+          </div>
+
+          {/* Quality Score & Findings */}
+          {value.quality !== null && (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "12px",
+                padding: "16px 20px",
+                borderRadius: "var(--radius-control)",
+                border: "1px solid var(--color-border)",
+                backgroundColor: "var(--color-surface)",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)" }}>
+                  Extraction Quality Score
+                </span>
+                <span
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: 700,
+                    color: value.quality.score >= 80 ? "var(--color-success-fg)" : "var(--color-warning-fg)",
+                  }}
+                >
+                  {value.quality.score}/100
+                </span>
+              </div>
+
+              {value.quality.findings && value.quality.findings.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "4px" }}>
+                  <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text-muted)" }}>
+                    Items to check in review:
+                  </span>
+                  <ul
+                    style={{
+                      margin: 0,
+                      paddingLeft: "20px",
+                      fontSize: "13px",
+                      color: "var(--color-text-muted)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "4px",
+                    }}
+                  >
+                    {value.quality.findings.map((finding, index) => (
+                      <li key={`${finding.code}-${finding.pageStart}-${index}`}>
+                        {finding.message}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Action Row */}
+          <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+            {isReadyForReview && (
+              <Button
+                variant="primary"
+                onClick={() => {
+                  window.location.assign(`/workspace/${projectId}/review`);
+                }}
+              >
+                Review source <ArrowRight size={16} weight="bold" />
+              </Button>
+            )}
+
+            {canRetry && (
+              <Button
+                variant="secondary"
+                disabled={retrying}
+                onClick={() => void retry()}
+              >
+                {retrying ? (
+                  "Retrying…"
+                ) : (
+                  <>
+                    <ArrowsClockwise size={16} weight="bold" /> Retry document ingestion
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+        </div>
       )}
     </section>
   );

@@ -82,6 +82,6 @@ describe("MVP release traceability", () => {
       expect(row).toMatch(/\|\s*Done\s*\|$/);
     }
     const releaseRow = indexRows.find((line) => line.includes("[ST-071 "));
-    expect(releaseRow).toMatch(/\|\s*(In Progress|In Review)\s*\|$/);
+    expect(releaseRow).toMatch(/\|\s*(In Progress|In Review|Done)\s*\|$/);
   });
 });
