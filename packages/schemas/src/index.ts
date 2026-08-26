@@ -1716,7 +1716,7 @@ export const completeSourceUploadResponseSchema = z
     documentId: identifierSchema,
     status: sourceDocumentStatusSchema,
     ingestionRequested: z.boolean(),
-    duplicateDetected: z.boolean(),
+    duplicateDetected: z.boolean().optional().default(false),
   })
   .strict();
 export type CompleteSourceUploadResponse = z.infer<

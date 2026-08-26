@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useState, type FormEvent, type ReactNode } from "react";
-import styles from "./password-reset.module.css";
+import styles from "./auth.module.css";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 
@@ -187,6 +187,7 @@ function AuthRecoveryShell({
             fill
             priority
             sizes="(max-width: 760px) 88vw, 42vw"
+            style={{ pointerEvents: "none" }}
           />
         </div>
         <p>

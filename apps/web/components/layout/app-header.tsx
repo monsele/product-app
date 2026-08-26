@@ -1,13 +1,17 @@
 "use client";
 
 import React from "react";
+import { List } from "@phosphor-icons/react";
+import { IconButton } from "../ui/icon-button";
 
 export interface AppHeaderProps {
-  projectTitle?: string;
-  projectStatus?: React.ReactNode;
-  userEmail?: string;
-  onSignOut?: () => void;
-  actions?: React.ReactNode;
+  projectTitle?: string | undefined;
+  projectStatus?: React.ReactNode | undefined;
+  userEmail?: string | undefined;
+  onSignOut?: (() => void) | undefined;
+  actions?: React.ReactNode | undefined;
+  onToggleMobileMenu?: (() => void) | undefined;
+  isMobileMenuOpen?: boolean | undefined;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -16,11 +20,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   userEmail,
   onSignOut,
   actions,
+  onToggleMobileMenu,
+  isMobileMenuOpen = false,
 }) => {
   return (
     <header
       style={{
         height: "64px",
+        maxHeight: "80px",
         backgroundColor: "var(--color-surface)",
         borderBottom: "1px solid var(--color-border)",
         display: "flex",
@@ -32,13 +39,25 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
         zIndex: 100,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+        {onToggleMobileMenu && (
+          <IconButton
+            aria-label="Open project pipeline menu"
+            aria-expanded={isMobileMenuOpen}
+            icon={<List weight="bold" />}
+            variant="tertiary"
+            size="compact"
+            onClick={onToggleMobileMenu}
+            className="mobile-pipeline-toggle"
+          />
+        )}
         <span
           style={{
             fontSize: "16px",
             fontWeight: 700,
             letterSpacing: "-0.01em",
             color: "var(--color-text)",
+            whiteSpace: "nowrap",
           }}
         >
           AI Visual Learning Platform
@@ -46,8 +65,25 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       </div>
 
       {projectTitle && (
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          <span
+            style={{
+              fontSize: "14px",
+              fontWeight: 600,
+              color: "var(--color-text)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
             {projectTitle}
           </span>
           {projectStatus}
@@ -57,7 +93,13 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
         {actions}
         {userEmail && (
-          <span style={{ fontSize: "13px", color: "var(--color-text-muted)" }}>
+          <span
+            style={{
+              fontSize: "13px",
+              color: "var(--color-text-muted)",
+              display: "inline-block",
+            }}
+          >
             {userEmail}
           </span>
         )}
@@ -72,6 +114,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               fontSize: "13px",
               cursor: "pointer",
               padding: "4px 8px",
+              fontWeight: 600,
             }}
           >
             Sign out

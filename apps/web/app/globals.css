@@ -100,6 +100,19 @@ html, body {
   outline-offset: 2px;
 }
 
+/* Responsive Pipeline Layout Helpers */
+@media (min-width: 1024px) {
+  .mobile-pipeline-toggle {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1023px) {
+  .desktop-pipeline-rail {
+    display: none !important;
+  }
+}
+
 /* Reduced Motion Overrides */
 @media (prefers-reduced-motion: reduce) {
   *,

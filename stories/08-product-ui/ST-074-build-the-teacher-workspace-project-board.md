@@ -2,7 +2,7 @@
 story_id: ST-074
 title: "Build the Teacher Workspace Project Board"
 phase: "08 - Product UI"
-status: Ready
+status: In Progress
 priority: must-have
 epics: ["E2"]
 prd_user_stories: ["E2-US1", "E2-US2", "E2-US3", "E2-US4"]

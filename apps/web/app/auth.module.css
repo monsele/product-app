@@ -1,0 +1,228 @@
+.page {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(20rem, 1fr) minmax(24rem, 1.2fr);
+  background: var(--color-canvas, #f7f8fc);
+  color: var(--color-text, #2b2138);
+  font-family: inherit;
+}
+
+.reassurance {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: clamp(2rem, 5vw, 4.5rem);
+  overflow: hidden;
+  background: linear-gradient(135deg, #f0eaff 0%, #f7f5ff 60%, #eef5ff 100%);
+  border-right: 1px solid var(--color-border, #ddd8e5);
+  pointer-events: none;
+}
+
+.brand {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-brand, #6430d7);
+  pointer-events: auto;
+}
+
+.artFrame {
+  position: relative;
+  width: min(100%, 30rem);
+  aspect-ratio: 4 / 3;
+  align-self: center;
+  pointer-events: none;
+}
+
+.artFrame img {
+  object-fit: contain;
+  pointer-events: none;
+}
+
+.reassurance > p {
+  max-width: 32rem;
+  margin: 0;
+  color: var(--color-text-muted, #6c6575);
+  font-size: clamp(1.1rem, 2vw, 1.4rem);
+  line-height: 1.5;
+  pointer-events: auto;
+}
+
+.formPanel {
+  display: grid;
+  place-items: center;
+  padding: clamp(2rem, 6vw, 6rem);
+}
+
+.formContent {
+  width: min(100%, 28rem);
+}
+
+.eyebrow {
+  margin: 0 0 1rem;
+  color: var(--color-brand, #6430d7);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.formContent h1 {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--color-text, #2b2138);
+}
+
+.intro {
+  max-width: 42ch;
+  margin: 1rem 0 0;
+  color: var(--color-text-muted, #6c6575);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.form {
+  display: grid;
+  gap: 1.25rem;
+  margin-top: 1.75rem;
+}
+
+.field {
+  display: grid;
+  gap: 0.5rem;
+  color: var(--color-text, #2b2138);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.field input {
+  min-height: 3rem;
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid var(--color-border, #ddd8e5);
+  border-radius: var(--radius-control, 10px);
+  background: var(--color-surface, #fcfcff);
+  color: var(--color-text, #2b2138);
+  font: inherit;
+  font-weight: 400;
+  padding: 0.75rem 1rem;
+  transition: border-color var(--motion-quick, 200ms) ease;
+}
+
+.field input:focus-visible,
+.backLink:focus-visible,
+.primaryAction:focus-visible {
+  outline: 3px solid var(--color-focus, #5b2ccb);
+  outline-offset: 2px;
+}
+
+.primaryAction {
+  min-height: 3rem;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--color-brand, #6430d7);
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  transition: background-color var(--motion-quick, 200ms) ease;
+}
+
+.primaryAction:hover:not(:disabled) {
+  background: var(--color-brand-hover, #5525bf);
+}
+
+.primaryAction:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.requirements {
+  margin: -0.25rem 0 0;
+  padding-left: 1.25rem;
+  color: var(--color-text-muted, #6c6575);
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.success,
+.error {
+  margin: 1rem 0 0;
+  border-left: 3px solid;
+  padding: 0.75rem 1rem;
+  border-radius: 0 8px 8px 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.success {
+  border-color: var(--color-success-fg, #176b46);
+  background: var(--color-success-bg, #effaf4);
+  color: var(--color-success-fg, #176b46);
+}
+
+.error {
+  border-color: var(--color-error-fg, #b42318);
+  background: var(--color-error-bg, #fff5f4);
+  color: var(--color-error-fg, #b42318);
+}
+
+.links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+.backLink {
+  display: inline-block;
+  color: var(--color-brand, #6430d7);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: underline;
+  text-underline-offset: 0.25rem;
+}
+
+@media (max-width: 760px) {
+  .page {
+    grid-template-columns: 1fr;
+  }
+
+  .reassurance {
+    min-height: auto;
+    gap: 1rem;
+    padding: 1.25rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-border, #ddd8e5);
+  }
+
+  .artFrame {
+    width: min(60vw, 16rem);
+  }
+
+  .reassurance > p {
+    font-size: 1rem;
+  }
+
+  .formPanel {
+    place-items: start center;
+    padding: 2rem 1.25rem 3.5rem;
+  }
+
+  .formContent h1 {
+    font-size: clamp(1.85rem, 8vw, 2.5rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .primaryAction,
+  .field input {
+    transition: none;
+  }
+}

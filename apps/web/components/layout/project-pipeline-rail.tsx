@@ -18,7 +18,7 @@ export interface StageState {
   id: StageId;
   label: string;
   status: "completed" | "current" | "available" | "blocked";
-  onClick?: () => void;
+  onClick?: (() => void) | undefined;
 }
 
 export interface ProjectPipelineRailProps {

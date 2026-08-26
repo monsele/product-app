@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { randomUUID } from "node:crypto";
 import { projectListPageSchema } from "@avlp/schemas";
+import { AuthenticatedAppShell } from "../../components/layout/authenticated-app-shell";
 
 function apiUrl(path: string): string {
   return `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}${path}`;
@@ -73,108 +74,107 @@ export default async function WorkspacePage({
   const payload = parsed.data;
 
   return (
-    <main>
-      <h1>Teacher workspace</h1>
-      <form action="/api/projects" method="post">
-        <label htmlFor="project-title">Project title</label>
-        <input id="project-title" name="title" maxLength={160} required />
-        <button type="submit">Create project</button>
-      </form>
-      {error === "title" ? <p role="alert">Enter a project title.</p> : null}
-      {error === "duplicate" ? (
-        <p role="alert">The project could not be duplicated.</p>
-      ) : null}
-      {error === "confirm-delete" ? (
-        <p role="alert">Confirm deletion before continuing.</p>
-      ) : null}
-      {error === "delete" ? (
-        <p role="alert">The project could not be deleted.</p>
-      ) : null}
-      {payload.items.length === 0 ? (
-        <p>Create your first project to upload a source document and begin.</p>
-      ) : (
-        <ul aria-label="Projects">
-          {payload.items.map((project) => (
-            <li key={project.id}>
-              <a href={`/workspace/${project.id}/upload`}>{project.title}</a>
-              <p>
-                Status: {stageLabel(project.stage)}. Last modified{" "}
-                <time dateTime={project.updatedAt}>
-                  {new Intl.DateTimeFormat("en", {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                    timeZone: "UTC",
-                  }).format(new Date(project.updatedAt))}
-                </time>
-                .
-              </p>
-              {objectivesStages.has(project.stage) ? (
+    <AuthenticatedAppShell userEmail="teacher@school.org">
+      <main>
+        <h1>Teacher workspace</h1>
+        <form action="/api/projects" method="post">
+          <label htmlFor="project-title">Project title</label>
+          <input id="project-title" name="title" maxLength={160} required />
+          <button type="submit">Create project</button>
+        </form>
+        {error === "title" ? <p role="alert">Enter a project title.</p> : null}
+        {error === "duplicate" ? (
+          <p role="alert">The project could not be duplicated.</p>
+        ) : null}
+        {error === "confirm-delete" ? (
+          <p role="alert">Confirm deletion before continuing.</p>
+        ) : null}
+        {error === "delete" ? (
+          <p role="alert">The project could not be deleted.</p>
+        ) : null}
+        {payload.items.length === 0 ? (
+          <p>Create your first project to upload a source document and begin.</p>
+        ) : (
+          <ul aria-label="Projects">
+            {payload.items.map((project) => (
+              <li key={project.id}>
+                <a href={`/workspace/${project.id}/upload`}>{project.title}</a>
                 <p>
-                  <a href={`/workspace/${project.id}/objectives`}>
-                    Review learning objectives
-                  </a>
+                  Status: {stageLabel(project.stage)}. Last modified{" "}
+                  <time dateTime={project.updatedAt}>
+                    {new Intl.DateTimeFormat("en", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                      timeZone: "UTC",
+                    }).format(new Date(project.updatedAt))}
+                  </time>
+                  .
                 </p>
-              ) : null}
-              {outlineStages.has(project.stage) ? (
-                <p>
-                  <a href={`/workspace/${project.id}/outline`}>
-                    Review lesson outline
-                  </a>
-                </p>
-              ) : null}
-              {narrationStages.has(project.stage) ? (
-                <p>
-                  <a href={`/workspace/${project.id}/narration`}>
-                    Review narration
-                  </a>
-                </p>
-              ) : null}
-              {storyboardStages.has(project.stage) ? (
-                <p>
-                  <a href={`/workspace/${project.id}/storyboard`}>
-                    Review storyboard
-                  </a>
-                </p>
-              ) : null}
-              {project.latestFailedOperation === null ? null : (
-                <p role="status">
-                  Latest failed operation: {project.latestFailedOperation}
-                </p>
-              )}
-              <form
-                action={`/api/projects/${encodeURIComponent(project.id)}/duplicate`}
-                method="post"
-              >
-                <input
-                  name="idempotencyKey"
-                  type="hidden"
-                  value={randomUUID()}
-                />
-                <button type="submit">Duplicate project</button>
-              </form>
-              <form
-                action={`/api/projects/${encodeURIComponent(project.id)}/delete`}
-                method="post"
-              >
-                <label>
-                  <input name="confirm" type="checkbox" value="delete" /> I
-                  understand this removes the project from my workspace and
-                  schedules retained cleanup.
-                </label>
-                <button type="submit">Delete project</button>
-              </form>
-            </li>
-          ))}
-        </ul>
-      )}
-      {payload.nextCursor === undefined ? null : (
-        <a href={`/workspace?cursor=${encodeURIComponent(payload.nextCursor)}`}>
-          Load more projects
-        </a>
-      )}
-      <form action="/api/auth/sign-out" method="post">
-        <button type="submit">Sign out</button>
-      </form>
-    </main>
+                {objectivesStages.has(project.stage) ? (
+                  <p>
+                    <a href={`/workspace/${project.id}/objectives`}>
+                      Review learning objectives
+                    </a>
+                  </p>
+                ) : null}
+                {outlineStages.has(project.stage) ? (
+                  <p>
+                    <a href={`/workspace/${project.id}/outline`}>
+                      Review lesson outline
+                    </a>
+                  </p>
+                ) : null}
+                {narrationStages.has(project.stage) ? (
+                  <p>
+                    <a href={`/workspace/${project.id}/narration`}>
+                      Review narration
+                    </a>
+                  </p>
+                ) : null}
+                {storyboardStages.has(project.stage) ? (
+                  <p>
+                    <a href={`/workspace/${project.id}/storyboard`}>
+                      Review storyboard
+                    </a>
+                  </p>
+                ) : null}
+                {project.latestFailedOperation === null ? null : (
+                  <p role="status">
+                    Latest failed operation: {project.latestFailedOperation}
+                  </p>
+                )}
+                <form
+                  action={`/api/projects/${encodeURIComponent(project.id)}/duplicate`}
+                  method="post"
+                >
+                  <input
+                    name="idempotencyKey"
+                    type="hidden"
+                    value={randomUUID()}
+                  />
+                  <button type="submit">Duplicate project</button>
+                </form>
+                <form
+                  action={`/api/projects/${encodeURIComponent(project.id)}/delete`}
+                  method="post"
+                >
+                  <label>
+                    <input name="confirm" type="checkbox" value="delete" /> I
+                    understand this removes the project from my workspace and
+                    schedules retained cleanup.
+                  </label>
+                  <button type="submit">Delete project</button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
+        {payload.nextCursor === undefined ? null : (
+          <a href={`/workspace?cursor=${encodeURIComponent(payload.nextCursor)}`}>
+            Load more projects
+          </a>
+        )}
+      </main>
+    </AuthenticatedAppShell>
   );
 }

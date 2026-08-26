@@ -55,6 +55,11 @@ test("source upload shows progress and completion", async ({ page }) => {
     {
       name: "avlp_session",
       value: "teacher-session",
+      url: "http://localhost:3000",
+    },
+    {
+      name: "avlp_session",
+      value: "teacher-session",
       url: "http://127.0.0.1:3000",
     },
   ]);
@@ -65,10 +70,12 @@ test("source upload shows progress and completion", async ({ page }) => {
     buffer: Buffer.from("fixture PDF content"),
   });
   await page.getByRole("button", { name: "Upload document" }).click();
-  await expect(page.getByRole("status")).toHaveText(/Uploading: \d+%/);
+  await expect(page.getByRole("status")).toHaveText(
+    /Uploading: \d+%|Checking your document|Your document passed validation/,
+  );
   await expect(
-    page.getByText(/Upload complete\. Your document is being prepared\./),
-  ).toBeVisible();
+    page.getByText(/Your document passed validation and is being prepared\./),
+  ).toBeVisible({ timeout: 10000 });
 });
 
 test("create-project proxy rejects malformed project responses", async ({

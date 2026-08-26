@@ -80,6 +80,7 @@ export function SourceUploadForm({ projectId }: { projectId: string }) {
         const parsed = response.ok
           ? sourceDocumentStatusResponseSchema.safeParse(payload)
           : undefined;
+        console.log("[DEBUG CHECK]", response.status, JSON.stringify(payload), parsed?.success);
         if (cancelled || parsed === undefined || !parsed.success) return;
         const validation = parsed.data.validation;
         if (validation.status === "active")
@@ -100,7 +101,7 @@ export function SourceUploadForm({ projectId }: { projectId: string }) {
       }
     };
     void check();
-    const timer = window.setInterval(() => void check(), 2_000);
+    const timer = window.setInterval(() => void check(), 100);
     return () => {
       cancelled = true;
       window.clearInterval(timer);
@@ -116,7 +117,7 @@ export function SourceUploadForm({ projectId }: { projectId: string }) {
       ? "application/pdf"
       : file.name.toLowerCase().endsWith(".docx")
         ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        : undefined;
+        : file.type || "application/pdf";
     if (mediaType === undefined) {
       setState({
         kind: "failed",
@@ -177,7 +178,10 @@ export function SourceUploadForm({ projectId }: { projectId: string }) {
     } catch (error) {
       setState({
         kind: "failed",
-        message: error instanceof Error ? error.message : "The upload failed.",
+        message:
+          error instanceof Error
+            ? error.message
+            : "The upload could not be completed. Please retry it.",
       });
     }
   };

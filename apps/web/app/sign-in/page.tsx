@@ -1,5 +1,12 @@
 import { AuthForm } from "../auth-form";
 
-export default function SignInPage() {
-  return <AuthForm mode="login" />;
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ passwordReset?: string }>;
+}) {
+  const { passwordReset } = await searchParams;
+  return (
+    <AuthForm mode="login" passwordResetSuccess={passwordReset === "1"} />
+  );
 }

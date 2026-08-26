@@ -537,19 +537,24 @@ function mockSceneVisual(template) {
 }
 
 function send(response, status, body) {
-  response.writeHead(status, { "content-type": "application/json" });
+  response.writeHead(status, {
+    "content-type": "application/json",
+    "access-control-allow-origin": response.requestOrigin ?? "http://127.0.0.1:3000",
+    "access-control-allow-credentials": "true",
+  });
   response.end(JSON.stringify(body));
 }
 
 const server = createServer(async (request, response) => {
   const url = new URL(request.url ?? "/", "http://127.0.0.1:3002");
+  response.requestOrigin = request.headers.origin ?? "http://127.0.0.1:3000";
   if (request.method === "OPTIONS") {
     response.writeHead(204, {
-      "access-control-allow-origin": "http://127.0.0.1:3000",
+      "access-control-allow-origin": response.requestOrigin,
       "access-control-allow-credentials": "true",
       "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
       "access-control-allow-headers":
-        "content-type, x-amz-checksum-sha256, idempotency-key",
+        request.headers["access-control-request-headers"] ?? "*",
     });
     return response.end();
   }
@@ -557,6 +562,29 @@ const server = createServer(async (request, response) => {
   response.setHeader("access-control-allow-credentials", "true");
   if (request.method === "GET" && url.pathname === "/health")
     return send(response, 200, { status: "ok" });
+  if (request.method === "GET" && url.pathname.endsWith("/source-document")) {
+    return send(response, 200, {
+      documentId: "019ffbf1-610e-738a-b087-6775ff97568c",
+      validation: {
+        status: "active",
+        code: null,
+        pageCount: 5,
+        warnings: [],
+      },
+      reuse: {
+        status: "not_reused",
+      },
+    });
+  }
+  if (request.method === "GET" && url.pathname.endsWith("/ingestion")) {
+    return send(response, 200, {
+      state: "pending",
+      latestJob: null,
+      quality: null,
+      canRetry: false,
+      canProceedToReview: false,
+    });
+  }
   if (
     request.method === "POST" &&
     url.pathname === "/auth/password-reset/request"
@@ -1856,6 +1884,62 @@ const server = createServer(async (request, response) => {
       return send(response, 200, outlineResponse(projectId));
     }
     return send(response, 404, { error: { code: "not_found" } });
+  }
+  if (
+    request.method === "POST" &&
+    url.pathname.endsWith("/complete") &&
+    url.pathname.includes("/source-upload")
+  ) {
+    let body = "";
+    for await (const chunk of request) body += chunk;
+    console.log("[MOCK API COMPLETE ROUTE HIT]", url.pathname);
+    return send(response, 200, {
+      documentId: "019ffbf1-610e-738a-b087-6775ff97568c",
+      status: "validating",
+      ingestionRequested: true,
+      duplicateDetected: false,
+    });
+  }
+  if (request.method === "POST" && url.pathname.endsWith("/source-upload")) {
+    let body = "";
+    for await (const chunk of request) body += chunk;
+    console.log("[MOCK API SESSION ROUTE HIT]", url.pathname);
+    return send(response, 200, {
+      sessionId: "019ffbf1-610e-738a-b087-6775ff97568c",
+      documentId: "019ffbf1-610e-738a-b087-6775ff97568c",
+      uploadUrl: "http://127.0.0.1:3002/mock-upload",
+      method: "PUT",
+      requiredHeaders: {},
+      expiresAt: new Date().toISOString(),
+    });
+  }
+  if (request.method === "PUT" && url.pathname === "/mock-upload") {
+    let body = "";
+    for await (const chunk of request) body += chunk;
+    return send(response, 200, {});
+  }
+  if (request.method === "GET" && url.pathname.endsWith("/source-document")) {
+    return send(response, 200, {
+      documentId: "019ffbf1-610e-738a-b087-6775ff97568c",
+      validation: {
+        status: "active",
+        code: null,
+        pageCount: 5,
+        warnings: [],
+      },
+      reuse: {
+        status: "not_reused",
+      },
+    });
+  }
+  if (request.method === "GET" && url.pathname.endsWith("/ingestion")) {
+    return send(response, 200, {
+      state: "pending",
+      latestJob: null,
+      quality: null,
+      canRetry: false,
+      canProceedToReview: false,
+    });
   }
   if (request.method === "GET" && url.pathname.startsWith("/projects/")) {
     const project = projects.get(decodeURIComponent(url.pathname.slice(10)));
