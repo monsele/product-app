@@ -99,7 +99,7 @@ export default async function RenderPage({
   const versions = lessonVersionsResponseSchema.safeParse(versionsPayload);
 
   const stageDetails = getStageDetails(project.stage);
-  const stages = getPipelineStages(project.stage, "Deliver");
+  const stages = getPipelineStages(project.stage, "Deliver", projectId);
 
   return (
     <AuthenticatedAppShell

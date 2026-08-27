@@ -51,7 +51,7 @@ export default async function ProjectUploadPage({
   if (!response.ok || !isProjectPayload(payload)) redirect("/workspace");
 
   const stageDetails = getStageDetails(payload.project.stage);
-  const stages = getPipelineStages(payload.project.stage, "Source");
+  const stages = getPipelineStages(payload.project.stage, "Source", projectId);
 
   return (
     <AuthenticatedAppShell

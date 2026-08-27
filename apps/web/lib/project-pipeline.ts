@@ -52,25 +52,38 @@ export function getProjectStageIndex(stage: ProjectStage): number {
 export function getPipelineStages(
   projectStage: ProjectStage,
   currentStageId?: StageId | undefined,
-  onNavigate?: ((id: StageId, path: string) => void) | undefined,
+  projectIdOrNavigate?: string | ((id: StageId, path: string) => void) | undefined,
+  onNavigateExplicit?: ((id: StageId, path: string) => void) | undefined,
 ): StageState[] {
   const maxReachedIndex = getProjectStageIndex(projectStage);
   const activeIndex = currentStageId
     ? PIPELINE_STAGES.findIndex((s) => s.id === currentStageId)
     : maxReachedIndex;
 
+  const projectId =
+    typeof projectIdOrNavigate === "string" ? projectIdOrNavigate : undefined;
+  const onNavigate =
+    typeof projectIdOrNavigate === "function"
+      ? projectIdOrNavigate
+      : onNavigateExplicit;
+
   return PIPELINE_STAGES.map((config, index) => {
     let status: "completed" | "current" | "available" | "blocked";
 
     if (index === activeIndex) {
       status = "current";
-    } else if (index < maxReachedIndex) {
+    } else if (index < activeIndex || index < maxReachedIndex) {
       status = "completed";
-    } else if (index === maxReachedIndex) {
+    } else if (index <= Math.max(maxReachedIndex, activeIndex + 1)) {
       status = "available";
     } else {
       status = "blocked";
     }
+
+    const href =
+      status !== "blocked" && projectId
+        ? `/workspace/${encodeURIComponent(projectId)}${config.pathSuffix}`
+        : undefined;
 
     const onClick =
       status !== "blocked" && onNavigate
@@ -81,6 +94,7 @@ export function getPipelineStages(
       id: config.id,
       label: config.label,
       status,
+      ...(href !== undefined ? { href } : {}),
       ...(onClick !== undefined ? { onClick } : {}),
     };
   });

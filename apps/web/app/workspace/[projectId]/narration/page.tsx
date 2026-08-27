@@ -49,7 +49,7 @@ export default async function NarrationPage({
   if (!response.ok || !isProjectPayload(payload)) redirect("/workspace");
 
   const stageDetails = getStageDetails(payload.project.stage);
-  const stages = getPipelineStages(payload.project.stage, "Narration");
+  const stages = getPipelineStages(payload.project.stage, "Narration", projectId);
 
   return (
     <AuthenticatedAppShell

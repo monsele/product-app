@@ -52,7 +52,7 @@ export default async function IngestionReviewPage({
   if (!response.ok || !isProjectPayload(payload)) redirect("/workspace");
 
   const stageDetails = getStageDetails(payload.project.stage);
-  const stages = getPipelineStages(payload.project.stage, "Review");
+  const stages = getPipelineStages(payload.project.stage, "Review", projectId);
 
   return (
     <AuthenticatedAppShell

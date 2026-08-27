@@ -49,7 +49,7 @@ export default async function LessonConfigurationPage({
   if (!response.ok || !isProjectPayload(payload)) redirect("/workspace");
 
   const stageDetails = getStageDetails(payload.project.stage);
-  const stages = getPipelineStages(payload.project.stage, "Setup");
+  const stages = getPipelineStages(payload.project.stage, "Setup", projectId);
 
   return (
     <AuthenticatedAppShell

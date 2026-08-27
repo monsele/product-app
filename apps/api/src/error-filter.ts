@@ -28,6 +28,9 @@ export class ApiExceptionFilter implements ExceptionFilter {
     const envelope = toApiErrorEnvelope(publicError, correlationId);
     const statusCode =
       publicError instanceof PublicError ? publicError.statusCode : 500;
+    if (!(publicError instanceof PublicError) || statusCode >= 500) {
+      console.error("[api.unhandled_error]", { correlationId, error: exception });
+    }
     void reply
       .header("x-correlation-id", correlationId)
       .status(statusCode)

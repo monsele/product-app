@@ -19,7 +19,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
-    "db:migrate": "tsx src/run-migrations.ts"
+    "db:migrate": "tsx --env-file=../../.env src/run-migrations.ts"
   },
   "dependencies": {
     "@avlp/schemas": "workspace:*",

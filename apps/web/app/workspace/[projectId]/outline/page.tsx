@@ -49,7 +49,7 @@ export default async function OutlinePage({
   if (!response.ok || !isProjectPayload(payload)) redirect("/workspace");
 
   const stageDetails = getStageDetails(payload.project.stage);
-  const stages = getPipelineStages(payload.project.stage, "Outline");
+  const stages = getPipelineStages(payload.project.stage, "Outline", projectId);
 
   return (
     <AuthenticatedAppShell

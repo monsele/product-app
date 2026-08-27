@@ -95,89 +95,93 @@ export async function runApi(input: {
     const lessonValidationService = new PostgresLessonValidationService(
       database.client,
     );
-    const app = await createApp({
-      database,
-      authGateway: new PostgresAuthGateway(
+      const sourceSnapshotService = new PostgresSourceSnapshotService(
         database.client,
-        environment.AUTH_SESSION_SECRET,
-        undefined,
-        environment.PASSWORD_RESET_EMAIL_WEBHOOK_URL === undefined
-          ? undefined
-          : new WebhookPasswordResetEmailSender(
-              environment.PASSWORD_RESET_EMAIL_WEBHOOK_URL,
-              environment.PASSWORD_RESET_EMAIL_WEBHOOK_TOKEN,
-            ),
-        environment.WEB_ORIGIN ?? "http://localhost:3000",
-        environment.PASSWORD_RESET_TTL_SECONDS * 1000,
-        environment.PASSWORD_RESET_RESPONSE_FLOOR_MS,
-      ),
-      authRateLimiter: new InMemoryAuthRateLimiter(
-        environment.AUTH_SESSION_SECRET,
-      ),
-      projectService: new ProjectService(projectRepository),
-      sourceUploadService: new SourceUploadService(
-        new PostgresSourceUploadRepository(database.client),
-        storage,
-        undefined,
-        environment.MAX_UPLOAD_BYTES,
-      ),
-      projectAssetService: new ProjectAssetService(database.client, storage),
-      illustrationGenerationService: new IllustrationGenerationService(
+      );
+      const citationHistoryService = new PostgresCitationHistoryService(
         database.client,
-        undefined,
-        environment.MAX_REGENERATIONS_PER_HOUR,
-      ),
-      ingestionStatusService: new PostgresIngestionStatusService(
-        database.client,
-      ),
-      parsedDocumentReviewService: new PostgresParsedDocumentReviewService(
-        parsedDocumentRepository,
-        authorizedProjectStorage,
-      ),
-      sourceSectionSelectionService: new PostgresSourceSectionSelectionService(
-        database.client,
-      ),
-      contentBlockCorrectionService: new PostgresContentBlockCorrectionService(
-        database.client,
-      ),
-      figureInclusionService: new PostgresFigureInclusionService(
-        database.client,
-      ),
-      lessonConfigurationService: new PostgresLessonConfigurationService(
-        database.client,
-      ),
-      sourceSnapshotService: new PostgresSourceSnapshotService(database.client),
-      objectivesService: new PostgresObjectivesService(
-        database.client,
-        new PostgresSourceSnapshotService(database.client).status,
-      ),
-      outlineService: new PostgresOutlineService(
-        database.client,
-        new PostgresSourceSnapshotService(database.client).status,
-      ),
-      narrationService: new PostgresNarrationService(
-        database.client,
-        new PostgresSourceSnapshotService(database.client).status,
-      ),
-      storyboardService: new PostgresStoryboardService(
-        database.client,
-        new PostgresSourceSnapshotService(database.client).status,
-      ),
-      citationService: new PostgresCitationService(
-        database.client,
-        new PostgresSourceSnapshotService(database.client).resolveSourceRefs,
-      ),
-      groundingService: new PostgresGroundingService(
-        database.client,
-        new PostgresSourceSnapshotService(database.client).status,
-      ),
-      lessonVersionsService: new PostgresLessonVersionsService(
-        database.client,
-        new PostgresCitationHistoryService(
+        (input) => sourceSnapshotService.resolveSourceRefs(input),
+      );
+      const app = await createApp({
+        database,
+        authGateway: new PostgresAuthGateway(
           database.client,
-          new PostgresSourceSnapshotService(database.client).resolveSourceRefs,
+          environment.AUTH_SESSION_SECRET,
+          undefined,
+          environment.PASSWORD_RESET_EMAIL_WEBHOOK_URL === undefined
+            ? undefined
+            : new WebhookPasswordResetEmailSender(
+                environment.PASSWORD_RESET_EMAIL_WEBHOOK_URL,
+                environment.PASSWORD_RESET_EMAIL_WEBHOOK_TOKEN,
+              ),
+          environment.WEB_ORIGIN ?? "http://localhost:3000",
+          environment.PASSWORD_RESET_TTL_SECONDS * 1000,
+          environment.PASSWORD_RESET_RESPONSE_FLOOR_MS,
         ),
-      ),
+        authRateLimiter: new InMemoryAuthRateLimiter(
+          environment.AUTH_SESSION_SECRET,
+        ),
+        projectService: new ProjectService(projectRepository),
+        sourceUploadService: new SourceUploadService(
+          new PostgresSourceUploadRepository(database.client),
+          storage,
+          undefined,
+          environment.MAX_UPLOAD_BYTES,
+        ),
+        projectAssetService: new ProjectAssetService(database.client, storage),
+        illustrationGenerationService: new IllustrationGenerationService(
+          database.client,
+          undefined,
+          environment.MAX_REGENERATIONS_PER_HOUR,
+        ),
+        ingestionStatusService: new PostgresIngestionStatusService(
+          database.client,
+        ),
+        parsedDocumentReviewService: new PostgresParsedDocumentReviewService(
+          parsedDocumentRepository,
+          authorizedProjectStorage,
+        ),
+        sourceSectionSelectionService: new PostgresSourceSectionSelectionService(
+          database.client,
+        ),
+        contentBlockCorrectionService: new PostgresContentBlockCorrectionService(
+          database.client,
+        ),
+        figureInclusionService: new PostgresFigureInclusionService(
+          database.client,
+        ),
+        lessonConfigurationService: new PostgresLessonConfigurationService(
+          database.client,
+        ),
+        sourceSnapshotService,
+        objectivesService: new PostgresObjectivesService(
+          database.client,
+          (input) => sourceSnapshotService.status(input),
+        ),
+        outlineService: new PostgresOutlineService(
+          database.client,
+          (input) => sourceSnapshotService.status(input),
+        ),
+        narrationService: new PostgresNarrationService(
+          database.client,
+          (input) => sourceSnapshotService.status(input),
+        ),
+        storyboardService: new PostgresStoryboardService(
+          database.client,
+          (input) => sourceSnapshotService.status(input),
+        ),
+        citationService: new PostgresCitationService(
+          database.client,
+          (input) => sourceSnapshotService.resolveSourceRefs(input),
+        ),
+        groundingService: new PostgresGroundingService(
+          database.client,
+          (input) => sourceSnapshotService.status(input),
+        ),
+        lessonVersionsService: new PostgresLessonVersionsService(
+          database.client,
+          citationHistoryService,
+        ),
       voiceConfigurationService: new PostgresVoiceConfigurationService(
         database.client,
       ),

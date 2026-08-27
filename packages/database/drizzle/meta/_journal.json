@@ -400,6 +400,14 @@
       "when": 1787656500000,
       "tag": "0056_project_asset_audit_events",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1787660000000,
+      "tag": "0057_voice_configuration_audit_event",
+      "breakpoints": true
     }
   ]
 }
+

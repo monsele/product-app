@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createId } from "@avlp/config";
-import { usageMeasurementSchema } from "./contracts.js";
+import { auditEventTypeSchema, usageMeasurementSchema } from "./contracts.js";
 
 function measurement() {
   return {
@@ -39,5 +39,13 @@ describe("usage measurement boundaries", () => {
         quantity: Number.MAX_SAFE_INTEGER + 1,
       }).success,
     ).toBe(false);
+  });
+});
+
+describe("audit event types", () => {
+  it("includes voice.configuration_saved in allowed audit event types", () => {
+    expect(
+      auditEventTypeSchema.safeParse("voice.configuration_saved").success,
+    ).toBe(true);
   });
 });

@@ -74,7 +74,7 @@ export default async function PreviewPage({
       };
 
   const stageDetails = getStageDetails(project.stage);
-  const stages = getPipelineStages(project.stage, "Preview");
+  const stages = getPipelineStages(project.stage, "Preview", projectId);
 
   return (
     <AuthenticatedAppShell

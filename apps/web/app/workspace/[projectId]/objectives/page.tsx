@@ -49,7 +49,7 @@ export default async function ObjectivesPage({
   if (!response.ok || !isProjectPayload(payload)) redirect("/workspace");
 
   const stageDetails = getStageDetails(payload.project.stage);
-  const stages = getPipelineStages(payload.project.stage, "Objectives");
+  const stages = getPipelineStages(payload.project.stage, "Objectives", projectId);
 
   return (
     <AuthenticatedAppShell

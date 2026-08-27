@@ -49,7 +49,7 @@ export default async function StoryboardPage({
   if (!response.ok || !isProjectPayload(payload)) redirect("/workspace");
 
   const stageDetails = getStageDetails(payload.project.stage);
-  const stages = getPipelineStages(payload.project.stage, "Storyboard");
+  const stages = getPipelineStages(payload.project.stage, "Storyboard", projectId);
 
   return (
     <AuthenticatedAppShell

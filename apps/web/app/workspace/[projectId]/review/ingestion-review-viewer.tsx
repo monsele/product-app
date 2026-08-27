@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import {
   parsedDocumentReviewResponseSchema,
   parsedDocumentSectionResponseSchema,
@@ -781,6 +782,29 @@ export function IngestionReviewViewer({
               </span>
             </div>
           ) : null}
+
+          {/* Proceed to Next Phase Action */}
+          <Link
+            href={`/workspace/${encodeURIComponent(projectId)}/configuration`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "9px 18px",
+              backgroundColor: "var(--color-brand)",
+              color: "var(--color-on-brand)",
+              borderRadius: "var(--radius-control)",
+              fontSize: "14px",
+              fontWeight: 600,
+              textDecoration: "none",
+              cursor: "pointer",
+              boxShadow: "var(--shadow-elevation)",
+              transition: "opacity var(--motion-quick) var(--motion-easing)",
+            }}
+          >
+            <span>Proceed to Lesson Setup</span>
+            <ArrowRight weight="bold" size={16} />
+          </Link>
 
           {/* Toggle Tablet Inspector */}
           <button

@@ -1015,6 +1015,7 @@ export const auditEventTypeValues = [
   "share.created",
   "share.revoked",
   "lesson.configuration_saved",
+  "voice.configuration_saved",
   "lesson.approved",
   "ai.generated",
   "objectives.edited",
