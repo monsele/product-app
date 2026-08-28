@@ -100,7 +100,7 @@ export const CandidateBanner: React.FC<CandidateBannerProps> = ({
               size="compact"
               onClick={onDiscardCandidate}
             >
-              Keep Current Draft
+              Keep current draft
             </Button>
           )}
           {onApplyCandidate && (

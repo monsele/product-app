@@ -22,79 +22,79 @@ describe("project-stage-utils", () => {
       },
       {
         stage: "uploading",
-        expectedLabel: "Uploading Document",
+        expectedLabel: "Uploading document",
         expectedPathSuffix: "/upload",
         badgeStyle: "info",
       },
       {
         stage: "validating_source",
-        expectedLabel: "Validating Source",
+        expectedLabel: "Validating source",
         expectedPathSuffix: "/upload",
         badgeStyle: "info",
       },
       {
         stage: "ingesting",
-        expectedLabel: "Ingesting Document",
+        expectedLabel: "Ingesting document",
         expectedPathSuffix: "/upload",
         badgeStyle: "info",
       },
       {
         stage: "ingestion_review",
-        expectedLabel: "Source Review",
+        expectedLabel: "Source review",
         expectedPathSuffix: "/review",
         badgeStyle: "info",
       },
       {
         stage: "lesson_configuration",
-        expectedLabel: "Lesson Setup",
+        expectedLabel: "Lesson setup",
         expectedPathSuffix: "/configuration",
         badgeStyle: "info",
       },
       {
         stage: "objectives_review",
-        expectedLabel: "Objectives Review",
+        expectedLabel: "Objectives review",
         expectedPathSuffix: "/objectives",
         badgeStyle: "info",
       },
       {
         stage: "outline_review",
-        expectedLabel: "Outline Review",
+        expectedLabel: "Outline review",
         expectedPathSuffix: "/outline",
         badgeStyle: "info",
       },
       {
         stage: "narration_storyboard_review",
-        expectedLabel: "Storyboard & Script",
+        expectedLabel: "Storyboard & script",
         expectedPathSuffix: "/storyboard",
         badgeStyle: "info",
       },
       {
         stage: "audio_generation",
-        expectedLabel: "Generating Audio",
+        expectedLabel: "Generating audio",
         expectedPathSuffix: "/storyboard",
         badgeStyle: "info",
       },
       {
         stage: "ready_for_validation",
-        expectedLabel: "Ready for Validation",
+        expectedLabel: "Ready for validation",
         expectedPathSuffix: "/storyboard",
         badgeStyle: "info",
       },
       {
         stage: "ready_to_render",
-        expectedLabel: "Ready to Render",
+        expectedLabel: "Ready to render",
         expectedPathSuffix: "/preview",
         badgeStyle: "info",
       },
       {
         stage: "rendering",
-        expectedLabel: "Rendering Video",
+        expectedLabel: "Rendering video",
         expectedPathSuffix: "/render",
         badgeStyle: "warning",
       },
       {
         stage: "completed",
-        expectedLabel: "Ready for Class",
+        expectedLabel: "Ready for class",
         expectedPathSuffix: "/preview",
         badgeStyle: "success",
       },
@@ -112,7 +112,7 @@ describe("project-stage-utils", () => {
     const details = getStageDetails("draft", true);
     expect(details.label).toBe("Draft");
     expect(details.badgeStyle).toBe("error");
-    expect(details.nextActionLabel).toBe("View Issue");
+    expect(details.nextActionLabel).toBe("View issue");
     expect(details.nextActionPath("proj-123")).toBe("/workspace/proj-123/upload");
   });
 

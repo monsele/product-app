@@ -1,0 +1,18 @@
+
+> @avlp/web@0.0.0 dev D:\Eronmonsele\Documents\repos\product-app\apps\web
+> next dev
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3000
+   - Network:      http://172.21.176.1:3000
+
+ ✓ Starting...
+ ✓ Ready in 19.1s
+ ○ Compiling /sign-in ...
+ ✓ Compiled /sign-in in 18.7s (10512 modules)
+ GET /sign-in 200 in 22614ms
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 3.1s (158 modules)
+ ○ Compiling /workspace/[projectId]/storyboard ...
+ ✓ Compiled /workspace/[projectId]/storyboard in 7.1s (10801 modules)
+ GET /workspace/01a047b2-3850-78a4-ac51-19b5477fd6eb/storyboard 200 in 11373ms

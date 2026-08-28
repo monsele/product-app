@@ -2,6 +2,19 @@
 
 import Image from "next/image";
 import React, { useState, type FormEvent, type ReactNode } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  EnvelopeSimple,
+  LockKey,
+  Eye,
+  EyeSlash,
+  CheckCircle,
+  WarningCircle,
+  Sparkle,
+  ArrowRight,
+  ArrowLeft,
+  ShieldCheck,
+} from "@phosphor-icons/react";
 import styles from "./auth.module.css";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -47,36 +60,76 @@ export function ForgotPasswordForm() {
       <form className={styles.form} onSubmit={submit} aria-busy={isSubmitting}>
         <label className={styles.field}>
           <span>Email address</span>
-          <input
-            name="email"
-            type="email"
-            autoComplete="email"
-            inputMode="email"
-            placeholder="teacher@school.org"
-            required
-          />
+          <div className={styles.inputWrapper}>
+            <div className={styles.inputIcon}>
+              <EnvelopeSimple size={18} weight="regular" />
+            </div>
+            <input
+              name="email"
+              type="email"
+              autoComplete="email"
+              inputMode="email"
+              placeholder="teacher@school.org"
+              required
+            />
+          </div>
         </label>
+
+        <AnimatePresence mode="wait">
+          {message !== undefined && (
+            <motion.div
+              key="reset-request-msg"
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className={styles.success}
+              role="status"
+            >
+              <CheckCircle size={18} weight="fill" className={styles.calloutIcon} />
+              <span>{message}</span>
+            </motion.div>
+          )}
+
+          {error !== undefined && (
+            <motion.div
+              key="reset-request-err"
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className={styles.error}
+              role="alert"
+            >
+              <WarningCircle size={18} weight="fill" className={styles.calloutIcon} />
+              <span>{error}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <button
           className={styles.primaryAction}
           type="submit"
           disabled={isSubmitting}
         >
-          {isSubmitting ? "Sending securely..." : "Send reset link"}
+          {isSubmitting ? (
+            <>
+              <span className={styles.spinner} />
+              <span>Sending securely...</span>
+            </>
+          ) : (
+            <>
+              <span>Send reset link</span>
+              <ArrowRight size={16} weight="bold" />
+            </>
+          )}
         </button>
       </form>
-      {message === undefined ? null : (
-        <p className={styles.success} role="status">
-          {message}
-        </p>
-      )}
-      {error === undefined ? null : (
-        <p className={styles.error} role="alert">
-          {error}
-        </p>
-      )}
-      <a className={styles.backLink} href="/sign-in">
-        Back to sign in
-      </a>
+
+      <div className={styles.links}>
+        <a className={styles.backLink} href="/sign-in">
+          <ArrowLeft size={14} weight="bold" />
+          <span>Back to sign in</span>
+        </a>
+      </div>
     </AuthRecoveryShell>
   );
 }
@@ -84,6 +137,13 @@ export function ForgotPasswordForm() {
 export function ResetPasswordForm({ token }: { token: string | undefined }) {
   const [error, setError] = useState<string>();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordValue, setPasswordValue] = useState("");
+  const [confirmPasswordValue, setConfirmPasswordValue] = useState("");
+
+  const isPasswordLongEnough = passwordValue.length >= 12;
+  const passwordsMatch =
+    confirmPasswordValue.length > 0 && passwordValue === confirmPasswordValue;
 
   async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -126,45 +186,128 @@ export function ResetPasswordForm({ token }: { token: string | undefined }) {
       <form className={styles.form} onSubmit={submit} aria-busy={isSubmitting}>
         <label className={styles.field}>
           <span>New password</span>
-          <input
-            name="password"
-            type="password"
-            autoComplete="new-password"
-            minLength={12}
-            aria-describedby="password-requirements"
-            required
-          />
+          <div className={styles.inputWrapper}>
+            <div className={styles.inputIcon}>
+              <LockKey size={18} weight="regular" />
+            </div>
+            <input
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
+              minLength={12}
+              aria-describedby="password-requirements"
+              value={passwordValue}
+              onChange={(e) => setPasswordValue(e.target.value)}
+              placeholder="At least 12 characters"
+              required
+            />
+            <button
+              type="button"
+              className={styles.toggleVisibility}
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? (
+                <EyeSlash size={18} weight="regular" />
+              ) : (
+                <Eye size={18} weight="regular" />
+              )}
+            </button>
+          </div>
         </label>
+
         <ul className={styles.requirements} id="password-requirements">
-          <li>At least 12 characters</li>
-          <li>Unique to this account</li>
+          <li
+            className={`${styles.requirementItem} ${
+              isPasswordLongEnough ? styles.requirementMet : ""
+            }`}
+          >
+            <CheckCircle
+              size={14}
+              weight={isPasswordLongEnough ? "fill" : "regular"}
+              className={styles.requirementIcon}
+            />
+            <span>At least 12 characters</span>
+          </li>
+          <li className={styles.requirementItem}>
+            <CheckCircle size={14} weight="regular" className={styles.requirementIcon} />
+            <span>Unique to this account</span>
+          </li>
         </ul>
+
         <label className={styles.field}>
           <span>Confirm new password</span>
-          <input
-            name="passwordConfirmation"
-            type="password"
-            autoComplete="new-password"
-            minLength={12}
-            required
-          />
+          <div className={styles.inputWrapper}>
+            <div className={styles.inputIcon}>
+              <LockKey size={18} weight="regular" />
+            </div>
+            <input
+              name="passwordConfirmation"
+              type={showPassword ? "text" : "password"}
+              autoComplete="new-password"
+              minLength={12}
+              value={confirmPasswordValue}
+              onChange={(e) => setConfirmPasswordValue(e.target.value)}
+              placeholder="Re-enter your password"
+              required
+            />
+            {passwordsMatch && (
+              <div
+                style={{
+                  position: "absolute",
+                  right: "0.75rem",
+                  color: "var(--color-success-fg, #176b46)",
+                  display: "grid",
+                  placeItems: "center",
+                }}
+              >
+                <CheckCircle size={18} weight="fill" />
+              </div>
+            )}
+          </div>
         </label>
+
+        <AnimatePresence mode="wait">
+          {error !== undefined && (
+            <motion.div
+              key="reset-confirm-err"
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className={styles.error}
+              role="alert"
+            >
+              <WarningCircle size={18} weight="fill" className={styles.calloutIcon} />
+              <span>{error}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <button
           className={styles.primaryAction}
           type="submit"
           disabled={isSubmitting}
         >
-          {isSubmitting ? "Updating securely..." : "Update password"}
+          {isSubmitting ? (
+            <>
+              <span className={styles.spinner} />
+              <span>Updating securely...</span>
+            </>
+          ) : (
+            <>
+              <span>Update password</span>
+              <ArrowRight size={16} weight="bold" />
+            </>
+          )}
         </button>
       </form>
-      {error === undefined ? null : (
-        <p className={styles.error} role="alert">
-          {error}
-        </p>
-      )}
-      <a className={styles.backLink} href="/sign-in">
-        Back to sign in
-      </a>
+
+      <div className={styles.links}>
+        <a className={styles.backLink} href="/sign-in">
+          <ArrowLeft size={14} weight="bold" />
+          <span>Back to sign in</span>
+        </a>
+      </div>
     </AuthRecoveryShell>
   );
 }
@@ -179,27 +322,68 @@ function AuthRecoveryShell({
   return (
     <main className={styles.page}>
       <section className={styles.reassurance} aria-label="Studio Daylight">
-        <div className={styles.brand}>Studio Daylight</div>
-        <div className={styles.artFrame}>
-          <Image
-            src="/catalog/plant-cycle.svg"
-            alt="A calm plant life-cycle learning illustration"
-            fill
-            priority
-            sizes="(max-width: 760px) 88vw, 42vw"
-            style={{ pointerEvents: "none" }}
-          />
+        <div className={styles.brandGroup}>
+          <div className={styles.brandHeader}>
+            <div className={styles.brandIcon}>
+              <Sparkle size={20} weight="fill" />
+            </div>
+            <div className={styles.brand}>Studio Daylight</div>
+          </div>
+          <div className={styles.studioBadge}>
+            <span className={styles.studioBadgeDot} />
+            AI Visual Learning Platform
+          </div>
         </div>
-        <p>
-          Your lesson work stays in place while you recover access to your
-          teaching studio.
-        </p>
+
+        <div className={styles.artFrameContainer}>
+          <motion.div
+            className={styles.artFrame}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+          >
+            <Image
+              src="/catalog/plant-cycle.svg"
+              alt="A calm plant life-cycle learning illustration"
+              fill
+              priority
+              sizes="(max-width: 760px) 88vw, 42vw"
+              style={{ pointerEvents: "none" }}
+            />
+          </motion.div>
+        </div>
+
+        <div className={styles.reassuranceFooter}>
+          <p>
+            Your lesson work stays in place while you recover access to your
+            teaching studio.
+          </p>
+          <div className={styles.pillFeatureRow}>
+            <div className={styles.featurePill}>
+              <ShieldCheck size={14} className={styles.featurePillIcon} weight="bold" />
+              Encrypted Auth
+            </div>
+            <div className={styles.featurePill}>
+              <Sparkle size={14} className={styles.featurePillIcon} weight="fill" />
+              Continuous Session
+            </div>
+          </div>
+        </div>
       </section>
+
       <section className={styles.formPanel}>
-        <div className={styles.formContent}>
-          <p className={styles.eyebrow}>{eyebrow}</p>
+        <motion.div
+          className={styles.formContent}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: "easeOut" }}
+        >
+          <div className={styles.eyebrow}>
+            <Sparkle size={14} weight="fill" />
+            {eyebrow}
+          </div>
           {children}
-        </div>
+        </motion.div>
       </section>
     </main>
   );

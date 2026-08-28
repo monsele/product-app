@@ -380,7 +380,7 @@ export function SceneDetailPanel({
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
             <div style={{ padding: "12px", borderRadius: "8px", backgroundColor: "var(--color-surface-subtle, #292035)", border: "1px solid var(--color-border, #3A3046)" }}>
               <h4 style={{ margin: "0 0 6px", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--color-text-muted, #BDB5C7)" }}>
-                Narration Script
+                Narration script
               </h4>
               <p style={{ margin: 0, fontSize: "13px", lineHeight: 1.5, color: "var(--color-text, #F4F1F8)" }}>
                 {scene.scene.narration}
@@ -403,7 +403,7 @@ export function SceneDetailPanel({
             {scene.assetRequirements.length > 0 ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 <h4 style={{ margin: 0, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--color-text-muted, #BDB5C7)" }}>
-                  Planned Assets
+                  Planned assets
                 </h4>
                 <ul aria-label="Planned assets" style={{ margin: 0, paddingLeft: "18px", fontSize: "12px", color: "var(--color-text, #F4F1F8)" }}>
                   {scene.assetRequirements.map((requirement, index) => (

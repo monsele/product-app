@@ -659,7 +659,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
           <div style={{ marginTop: "8px" }}>
             <Notice
               type="success"
-              title="Setup Saved"
+              title="Setup saved"
               message={
                 saveStatus.message ??
                 "Lesson configuration and voice preferences have been persisted."
@@ -733,7 +733,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
                     color: "var(--color-text)",
                   }}
                 >
-                  Target Age Band
+                  Target age band
                 </label>
                 {fieldErrors.ageBand && (
                   <span
@@ -830,7 +830,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
                     color: "var(--color-text)",
                   }}
                 >
-                  Difficulty Level
+                  Difficulty level
                 </label>
                 {fieldErrors.difficulty && (
                   <span
@@ -957,7 +957,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
                     color: "var(--color-text)",
                   }}
                 >
-                  Subject Area
+                  Subject area
                 </label>
                 {fieldErrors.subject && (
                   <span
@@ -1014,7 +1014,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
                     color: "var(--color-text)",
                   }}
                 >
-                  Lesson Title
+                  Lesson title
                 </label>
                 {fieldErrors.lessonTitle && (
                   <span
@@ -1113,7 +1113,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
                     color: "var(--color-text)",
                   }}
                 >
-                  Target Duration
+                  Target duration
                 </label>
                 {fieldErrors.targetDurationSeconds && (
                   <span
@@ -1233,7 +1233,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
                     color: "var(--color-text)",
                   }}
                 >
-                  Instructional Tone
+                  Instructional tone
                 </label>
                 {fieldErrors.tone && (
                   <span
@@ -1416,7 +1416,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
                     color: "var(--color-brand)",
                   }}
                 >
-                  Warm Editorial (Daylight Standard)
+                  Warm editorial (Daylight Standard)
                 </span>
                 <span
                   style={{
@@ -1469,7 +1469,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
                   color: "var(--color-text)",
                 }}
               >
-                Choose English Narrator
+                Choose English narrator
               </label>
               <div
                 role="radiogroup"
@@ -1630,7 +1630,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
                   }}
                 >
                   <SpeakerHigh size={16} />
-                  Speaking Rate
+                  Speaking rate
                 </label>
                 <span
                   style={{
@@ -1942,7 +1942,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
                 gap: "8px",
               }}
             >
-              <span style={{ color: "var(--color-text-muted)" }}>Target Duration:</span>
+              <span style={{ color: "var(--color-text-muted)" }}>Target duration:</span>
               <span
                 style={{
                   fontWeight: 600,
@@ -2032,7 +2032,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
                   textAlign: "right",
                 }}
               >
-                Warm Editorial
+                Warm editorial
               </span>
             </div>
 

@@ -112,10 +112,10 @@ describe("RenderDelivery (Playwright)", () => {
         await page.getByRole("heading", { name: "Web Captions (VTT)" }).isVisible(),
       ).toBe(true);
       expect(
-        await page.getByRole("heading", { name: "Narration Script" }).isVisible(),
+        await page.getByRole("heading", { name: "Narration script" }).isVisible(),
       ).toBe(true);
       expect(
-        await page.getByRole("heading", { name: "Storyboard Outline" }).isVisible(),
+        await page.getByRole("heading", { name: "Storyboard outline" }).isVisible(),
       ).toBe(true);
 
       // Verify Share section
@@ -126,8 +126,8 @@ describe("RenderDelivery (Playwright)", () => {
       ).toBe(true);
 
       // Verify delivery context information rail
-      expect(await page.locator("text=Delivery Context").isVisible()).toBe(true);
-      expect(await page.locator("text=Output Standard").isVisible()).toBe(true);
+      expect(await page.locator("text=Delivery context").isVisible()).toBe(true);
+      expect(await page.locator("text=Output standard").isVisible()).toBe(true);
     } finally {
       await browser.close();
     }

@@ -4,6 +4,7 @@ import { projectListPageSchema } from "@avlp/schemas";
 import { AuthenticatedAppShell } from "../../components/layout/authenticated-app-shell";
 import { ProjectBoardClient } from "./project-board-client";
 import { ContextualInformationRail } from "./information-rail";
+import styles from "./workspace.module.css";
 
 function apiUrl(path: string): string {
   return `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}${path}`;
@@ -40,50 +41,18 @@ export default async function WorkspacePage({
 
   return (
     <AuthenticatedAppShell userEmail="teacher@school.org" mode="daylight">
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "24px",
-          padding: "8px 0 40px 0",
-        }}
-      >
-        {/* Workspace Title */}
-        <header style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-          <h1
-            style={{
-              margin: 0,
-              fontSize: "32px",
-              fontWeight: 800,
-              letterSpacing: "-0.02em",
-              color: "var(--color-text)",
-            }}
-          >
-            Your lessons
-          </h1>
-          <p
-            style={{
-              margin: 0,
-              fontSize: "15px",
-              color: "var(--color-text-muted)",
-              lineHeight: "22px",
-            }}
-          >
-            Manage existing video lessons, monitor generation progress, or create a new lesson.
+      <div className={styles.page}>
+        <header className={styles.header}>
+          <h1 className={styles.pageTitle}>Your lessons</h1>
+          <p className={styles.pageLead}>
+            Manage existing video lessons, monitor generation progress, or
+            create a new lesson.
           </p>
         </header>
 
-        {/* 70/30 Composition: Project Board & Information Rail */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-            gap: "32px",
-            alignItems: "start",
-          }}
-        >
-          {/* Main Board (Flexible 70% region) */}
-          <div style={{ minWidth: 0, flex: 1 }}>
+        {/* 70/30 board and rail composition. See docs/design.md 6.2. */}
+        <div className={styles.layout}>
+          <div className={styles.board}>
             <ProjectBoardClient
               projects={payload.items}
               nextCursor={payload.nextCursor}
@@ -91,16 +60,7 @@ export default async function WorkspacePage({
             />
           </div>
 
-          {/* Contextual Information Rail (320-360px on wide screens) */}
-          <div
-            style={{
-              width: "100%",
-              maxWidth: "360px",
-              justifySelf: "center",
-            }}
-          >
-            <ContextualInformationRail />
-          </div>
+          <ContextualInformationRail projects={payload.items} />
         </div>
       </div>
     </AuthenticatedAppShell>

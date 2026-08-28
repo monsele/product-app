@@ -495,9 +495,9 @@ export function OutlinePanel({
         draft ? (
           <>
             {isApproved ? (
-              <StatusLabel status="success" label="Approved Outline" />
+              <StatusLabel status="success" label="Approved outline" />
             ) : (
-              <StatusLabel status="info" label="Draft Outline" />
+              <StatusLabel status="info" label="Draft outline" />
             )}
             <StatusLabel status="info" label={`Rev #${draft.revision}`} />
           </>
@@ -508,7 +508,7 @@ export function OutlinePanel({
           {view.value.latestJob?.state === "failed" && (
             <Notice
               type="error"
-              title="Generation Failed"
+              title="Generation failed"
               message={outlineFailureMessage(
                 view.value.latestJob.errorCode,
               )}
@@ -527,7 +527,7 @@ export function OutlinePanel({
             <Notice
               key={idx}
               type={view.value.canApprove ? "warning" : "error"}
-              title="Outline Validation Note"
+              title="Outline validation note"
               message={warning}
             />
           ))}
@@ -535,7 +535,7 @@ export function OutlinePanel({
           {hasDiffWithApproved && (
             <Notice
               type="warning"
-              title="Draft Outline in Progress"
+              title="Draft outline in progress"
               message="An approved outline still guides narration and storyboard until you approve this draft."
             />
           )}
@@ -641,7 +641,7 @@ export function OutlinePanel({
                   disabled={submitting}
                 >
                   <Plus size={14} weight="bold" />
-                  Add Section
+                  Add section
                 </Button>
               )}
             </div>
@@ -1023,7 +1023,7 @@ export function OutlinePanel({
                   Approve outline
                 </Button>
               ) : (
-                <StatusLabel status="success" label="Active Approved Outline" />
+                <StatusLabel status="success" label="Active approved outline" />
               )}
             </div>
           </div>
@@ -1051,7 +1051,7 @@ export function OutlinePanel({
                     color: "var(--color-text)",
                   }}
                 >
-                  Estimated Duration
+                  Estimated duration
                 </h3>
               </div>
 
@@ -1067,7 +1067,7 @@ export function OutlinePanel({
                 }}
               >
                 <span style={{ fontSize: "13px", color: "var(--color-text-muted)" }}>
-                  Total Runtime
+                  Total runtime
                 </span>
                 <span
                   style={{
@@ -1121,7 +1121,7 @@ export function OutlinePanel({
                       color: "var(--color-text)",
                     }}
                   >
-                    Objective Coverage
+                    Objective coverage
                   </h3>
                 </div>
 
@@ -1166,7 +1166,7 @@ export function OutlinePanel({
                   color: "var(--color-text)",
                 }}
               >
-                Outline Details
+                Outline details
               </h3>
               <div
                 style={{
@@ -1265,7 +1265,7 @@ function ItemFormFields({
               color: "var(--color-text)",
             }}
           >
-            Structural Kind
+            Structural kind
           </label>
           <select
             value={draft.kind}
@@ -1309,7 +1309,7 @@ function ItemFormFields({
               color: "var(--color-text)",
             }}
           >
-            Estimated Duration (seconds)
+            Estimated duration (seconds)
           </label>
           <input
             type="number"
@@ -1339,7 +1339,7 @@ function ItemFormFields({
             color: "var(--color-text)",
           }}
         >
-          Section Title
+          Section title
         </label>
         <input
           type="text"
@@ -1366,7 +1366,7 @@ function ItemFormFields({
             color: "var(--color-text)",
           }}
         >
-          Teaching Purpose & Description
+          Teaching purpose & description
         </label>
         <textarea
           value={draft.description}
@@ -1530,7 +1530,7 @@ function ItemFormFields({
           size="compact"
           disabled={disabled}
         >
-          {isAdd ? "Add Section" : "Save Changes"}
+          {isAdd ? "Add section" : "Save changes"}
         </Button>
       </div>
     </form>

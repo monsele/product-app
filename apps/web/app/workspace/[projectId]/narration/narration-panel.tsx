@@ -587,7 +587,7 @@ export function NarrationPanel({
           {/* Source Support & Citation Button */}
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text)" }}>
-              Source Grounding
+              Source grounding
             </span>
             <p style={{ fontSize: "13px", color: "var(--color-text-muted)", margin: 0 }}>
               {citationText(selectedBlock)}
@@ -732,7 +732,7 @@ export function NarrationPanel({
           }}
         >
           <Clock size={16} />
-          Lesson Narration Budget
+          Lesson narration budget
         </h3>
         <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "13px" }}>
           <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -781,7 +781,7 @@ export function NarrationPanel({
             window.location.href = `/workspace/${encodeURIComponent(projectId)}/storyboard`;
           }}
         >
-          <span>Continue to Storyboard</span>
+          <span>Continue to storyboard</span>
           <ArrowRight size={16} weight="bold" />
         </Button>
         <a
@@ -1155,7 +1155,7 @@ export function NarrationPanel({
           <Drawer
             isOpen={isMobileDetailsOpen}
             onClose={() => setIsMobileDetailsOpen(false)}
-            title="Section Details & Rewrites"
+            title="Section details & rewrites"
           >
             {sidebarOrDrawerContent}
           </Drawer>

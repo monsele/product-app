@@ -542,7 +542,7 @@ export function SourceUploadForm({ projectId, onUploadSuccess }: SourceUploadFor
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <CheckCircle size={20} weight="fill" color="var(--color-brand)" />
             <span style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)" }}>
-              Compatible Ingestion Result Reused
+              Compatible ingestion result reused
             </span>
           </div>
           <p style={{ margin: 0, fontSize: "14px", color: "var(--color-text-muted)", lineHeight: "20px" }}>
@@ -577,7 +577,7 @@ export function SourceUploadForm({ projectId, onUploadSuccess }: SourceUploadFor
             border: "1px solid var(--color-success-border)",
           }}
         >
-          <StatusLabel status="success" label="Validation Passed" size="compact" />
+          <StatusLabel status="success" label="Validation passed" size="compact" />
           <span style={{ fontSize: "14px", color: "var(--color-success-fg)" }}>
             {state.reused
               ? "Your document passed validation and a compatible parsing result was reused."

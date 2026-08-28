@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { ScenePreviewPlayer } from "@avlp/scene-library";
 import {
   sceneTemplateValues,
@@ -40,6 +41,12 @@ import {
   teacherReplacementPreviewForScene,
 } from "./scene-detail-panel";
 import { type VersionBrowserMetadata } from "./version-browser";
+import {
+  ArrowRight as ArrowRightIcon,
+  Copy as CopyIcon,
+  Plus as PlusIcon,
+} from "@phosphor-icons/react";
+import styles from "./storyboard.module.css";
 
 type ViewState =
   | { kind: "loading" }
@@ -122,6 +129,7 @@ export function StoryboardPanel({
   const [validationBusy, setValidationBusy] = useState(false);
   const [teacherAssets, setTeacherAssets] = useState<readonly ProjectAsset[]>([]);
   const [mobileTab, setMobileTab] = useState<MobileViewTab>("preview");
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     let cancelled = false;
@@ -654,50 +662,23 @@ export function StoryboardPanel({
 
   if (view.kind === "loading")
     return (
-      <section
-        aria-labelledby="storyboard-heading"
-        style={{
-          padding: "40px 24px",
-          textAlign: "center",
-          color: "var(--color-text-muted, #BDB5C7)",
-        }}
-      >
-        <h2 id="storyboard-heading" style={{ color: "var(--color-text, #F4F1F8)" }}>
-          Storyboard
-        </h2>
+      <section aria-labelledby="storyboard-heading" className={styles.stateShell}>
+        <h2 id="storyboard-heading">Storyboard</h2>
         <p role="status">Loading the storyboard…</p>
       </section>
     );
 
   if (view.kind === "failed")
     return (
-      <section
-        aria-labelledby="storyboard-heading"
-        style={{
-          padding: "40px 24px",
-          textAlign: "center",
-          maxWidth: "500px",
-          margin: "0 auto",
-        }}
-      >
-        <h2 id="storyboard-heading" style={{ color: "var(--color-text, #F4F1F8)" }}>
-          Storyboard
-        </h2>
-        <p role="alert" style={{ color: "var(--color-error-fg, #B42318)" }}>
+      <section aria-labelledby="storyboard-heading" className={styles.stateShell}>
+        <h2 id="storyboard-heading">Storyboard</h2>
+        <p role="alert" className={styles.stateError}>
           {view.message}
         </p>
         <button
           type="button"
           onClick={() => void refresh()}
-          style={{
-            padding: "8px 16px",
-            borderRadius: "6px",
-            backgroundColor: "var(--color-brand, #A883FF)",
-            color: "var(--color-on-brand, #1B1027)",
-            border: "none",
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
+          className={`${styles.button} ${styles.buttonPrimary}`}
         >
           Try again
         </button>
@@ -705,67 +686,21 @@ export function StoryboardPanel({
     );
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "16px",
-        padding: "16px 20px",
-        minHeight: "calc(100vh - 80px)",
-      }}
-    >
-      {/* Top Header & Overview Bar */}
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: "16px",
-          paddingBottom: "12px",
-          borderBottom: "1px solid var(--color-border, #3A3046)",
-        }}
-      >
+    <div className={styles.panel}>
+      <header className={styles.header}>
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <h1
-              id="storyboard-heading"
-              style={{
-                margin: 0,
-                fontSize: "24px",
-                fontWeight: 700,
-                color: "var(--color-text, #F4F1F8)",
-              }}
-            >
+          <div className={styles.headingRow}>
+            <h1 id="storyboard-heading" className={styles.title}>
               Storyboard
             </h1>
-            <span
-              style={{
-                fontSize: "12px",
-                fontWeight: 600,
-                padding: "2px 8px",
-                borderRadius: "9999px",
-                backgroundColor: "rgba(168, 131, 255, 0.15)",
-                color: "var(--color-brand, #A883FF)",
-              }}
-            >
-              Focus Studio
-            </span>
+            <span className={styles.badge}>Focus Studio</span>
           </div>
+
           {projectTitle ? (
-            <p style={{ margin: "2px 0 0", fontSize: "14px", color: "var(--color-text-muted, #BDB5C7)" }}>
-              {projectTitle}
-            </p>
+            <p className={styles.projectTitle}>{projectTitle}</p>
           ) : null}
 
-          <p
-            role="status"
-            style={{
-              margin: "4px 0 0",
-              fontSize: "13px",
-              color: "var(--color-text-muted, #BDB5C7)",
-            }}
-          >
+          <p role="status" className={styles.headerStatus}>
             {storyboardGenerationStateLabel(view.value.state)}
             {listScenes.length > 0 ? (
               <span>
@@ -777,23 +712,13 @@ export function StoryboardPanel({
           </p>
         </div>
 
-        {/* Global Header Actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+        <div className={styles.headerActions}>
           {view.value.canGenerate ? (
             <button
               type="button"
               onClick={() => void generate()}
               disabled={submitting || generating}
-              style={{
-                padding: "8px 16px",
-                borderRadius: "6px",
-                backgroundColor: "rgba(255, 255, 255, 0.08)",
-                border: "1px solid var(--color-border, #3A3046)",
-                color: "var(--color-text, #F4F1F8)",
-                fontSize: "13px",
-                fontWeight: 500,
-                cursor: submitting || generating ? "not-allowed" : "pointer",
-              }}
+              className={`${styles.button} ${styles.buttonSecondary}`}
             >
               {submitting || generating
                 ? "Starting generation…"
@@ -805,51 +730,29 @@ export function StoryboardPanel({
 
           <a
             href={`/workspace/${encodeURIComponent(projectId)}/preview`}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "8px 18px",
-              borderRadius: "6px",
-              backgroundColor: "var(--color-brand, #A883FF)",
-              color: "var(--color-on-brand, #1B1027)",
-              fontSize: "13px",
-              fontWeight: 600,
-              textDecoration: "none",
-              boxShadow: "0 2px 8px rgba(168, 131, 255, 0.25)",
-            }}
+            className={`${styles.button} ${styles.buttonPrimary}`}
           >
-            Preview lesson →
+            Preview lesson
+            <ArrowRightIcon size={16} weight="bold" aria-hidden />
           </a>
         </div>
       </header>
 
-      {/* Global Alerts & Warnings */}
       {view.value.stale ? (
-        <div
-          role="status"
-          style={{
-            padding: "10px 14px",
-            borderRadius: "6px",
-            backgroundColor: "rgba(138, 75, 8, 0.15)",
-            border: "1px solid rgba(138, 75, 8, 0.3)",
-            color: "var(--color-warning-fg, #FBBF24)",
-            fontSize: "13px",
-          }}
-        >
+        <div role="status" className={`${styles.alert} ${styles.alertWarning}`}>
           {view.value.staleReason ??
             "This storyboard is out of date. Review the narration, outline, source, or configuration before continuing."}
         </div>
       ) : null}
 
       {view.value.latestJob?.state === "failed" ? (
-        <p role="alert" style={{ margin: 0, padding: "10px 14px", borderRadius: "6px", backgroundColor: "rgba(180, 35, 24, 0.15)", border: "1px solid rgba(180, 35, 24, 0.3)", color: "#FCA5A5", fontSize: "13px" }}>
+        <p role="alert" className={`${styles.alert} ${styles.alertError}`}>
           {storyboardFailureMessage(view.value.latestJob.errorCode)}
         </p>
       ) : null}
 
       {view.value.latestSceneRegenerationJob?.state === "failed" ? (
-        <p role="alert" style={{ margin: 0, padding: "10px 14px", borderRadius: "6px", backgroundColor: "rgba(180, 35, 24, 0.15)", border: "1px solid rgba(180, 35, 24, 0.3)", color: "#FCA5A5", fontSize: "13px" }}>
+        <p role="alert" className={`${styles.alert} ${styles.alertError}`}>
           {sceneRegenerationFailureMessage(
             view.value.latestSceneRegenerationJob.errorCode,
           )}
@@ -857,165 +760,82 @@ export function StoryboardPanel({
       ) : null}
 
       {actionMessage !== null ? (
-        <p role="alert" style={{ margin: 0, padding: "10px 14px", borderRadius: "6px", backgroundColor: "rgba(168, 131, 255, 0.15)", border: "1px solid rgba(168, 131, 255, 0.3)", color: "var(--color-text, #F4F1F8)", fontSize: "13px" }}>
+        <p role="alert" className={`${styles.alert} ${styles.alertInfo}`}>
           {actionMessage}
         </p>
       ) : null}
 
       {warnings.map((warning) => (
-        <p key={warning} role="alert" style={{ margin: 0, padding: "8px 12px", borderRadius: "6px", backgroundColor: "rgba(180, 35, 24, 0.1)", color: "#FCA5A5", fontSize: "12px" }}>
+        <p key={warning} role="alert" className={`${styles.alert} ${styles.alertError}`}>
           {warning}
         </p>
       ))}
 
       {view.value.approved !== null &&
       view.value.approved.id !== storyboard?.id ? (
-        <p role="status" style={{ margin: 0, fontSize: "12px", color: "var(--color-text-muted, #BDB5C7)" }}>
+        <p role="status" className={styles.noteMuted}>
           An approved storyboard still guides production until you review this draft.
         </p>
       ) : null}
 
       {storyboard === null ? (
-        <div
-          role="status"
-          style={{
-            padding: "48px 24px",
-            textAlign: "center",
-            backgroundColor: "var(--color-surface, #211A2B)",
-            borderRadius: "12px",
-            border: "1px solid var(--color-border, #3A3046)",
-          }}
-        >
-          <p style={{ margin: "0 0 16px", fontSize: "14px", color: "var(--color-text-muted, #BDB5C7)" }}>
-            Confirm the reviewed source, save the lesson configuration, approve the lesson outline, and generate narration before generating a storyboard.
+        <div role="status" className={styles.emptyState}>
+          <p>
+            Confirm the reviewed source, save the lesson configuration, approve the
+            lesson outline, and generate narration before generating a storyboard.
           </p>
         </div>
       ) : (
         <>
-          {/* Mobile View Tabs Switcher (Visible on small screens) */}
-          <div
-            className="mobile-view-tabs"
-            style={{
-              display: "none",
-              borderBottom: "1px solid var(--color-border, #3A3046)",
-              marginBottom: "8px",
-            }}
-          >
+          <div className={styles.tabs}>
             <button
               type="button"
               onClick={() => setMobileTab("scenes")}
-              style={{
-                flex: 1,
-                padding: "10px",
-                fontSize: "13px",
-                fontWeight: mobileTab === "scenes" ? 600 : 500,
-                color: mobileTab === "scenes" ? "var(--color-brand, #A883FF)" : "var(--color-text-muted, #BDB5C7)",
-                backgroundColor: "transparent",
-                border: "none",
-                borderBottom: mobileTab === "scenes" ? "2px solid var(--color-brand, #A883FF)" : "none",
-              }}
+              className={`${styles.tab} ${mobileTab === "scenes" ? styles.tabActive : ""}`}
             >
               Scenes ({listScenes.length})
             </button>
             <button
               type="button"
               onClick={() => setMobileTab("preview")}
-              style={{
-                flex: 1,
-                padding: "10px",
-                fontSize: "13px",
-                fontWeight: mobileTab === "preview" ? 600 : 500,
-                color: mobileTab === "preview" ? "var(--color-brand, #A883FF)" : "var(--color-text-muted, #BDB5C7)",
-                backgroundColor: "transparent",
-                border: "none",
-                borderBottom: mobileTab === "preview" ? "2px solid var(--color-brand, #A883FF)" : "none",
-              }}
+              className={`${styles.tab} ${mobileTab === "preview" ? styles.tabActive : ""}`}
             >
-              Preview Canvas
+              Preview canvas
             </button>
             <button
               type="button"
               onClick={() => setMobileTab("details")}
-              style={{
-                flex: 1,
-                padding: "10px",
-                fontSize: "13px",
-                fontWeight: mobileTab === "details" ? 600 : 500,
-                color: mobileTab === "details" ? "var(--color-brand, #A883FF)" : "var(--color-text-muted, #BDB5C7)",
-                backgroundColor: "transparent",
-                border: "none",
-                borderBottom: mobileTab === "details" ? "2px solid var(--color-brand, #A883FF)" : "none",
-              }}
+              className={`${styles.tab} ${mobileTab === "details" ? styles.tabActive : ""}`}
             >
-              Scene Details
+              Scene details
             </button>
           </div>
 
-          {/* Three-Region Main Studio Workspace Layout */}
-          <div
-            className="storyboard-workspace-grid"
-            style={{
-              display: "grid",
-              gridTemplateColumns: "300px minmax(460px, 1fr) 420px",
-              gap: "16px",
-              alignItems: "start",
-              minHeight: "680px",
-            }}
-          >
-            {/* 1. Left Region: Scene Navigation */}
+          <div className={styles.grid}>
+            {/* Left region: ordered scene navigation */}
             <aside
-              className="storyboard-left-panel"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                height: "680px",
-                backgroundColor: "var(--color-surface, #211A2B)",
-                borderRadius: "12px",
-                border: "1px solid var(--color-border, #3A3046)",
-                overflow: "hidden",
-              }}
+              className={`${styles.leftPanel} ${mobileTab === "scenes" ? "" : styles.regionHidden}`}
             >
-              <div
-                style={{
-                  padding: "12px 14px",
-                  borderBottom: "1px solid var(--color-border, #3A3046)",
-                  backgroundColor: "var(--color-surface-subtle, #292035)",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <h3 id="scenes" style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "var(--color-text, #F4F1F8)" }}>
+              <div className={styles.panelHead}>
+                <div className={styles.panelHeadRow}>
+                  <h3 id="scenes" className={styles.panelTitle}>
                     Scene list
                   </h3>
-                  <span style={{ fontSize: "12px", color: "var(--color-text-muted, #BDB5C7)" }} className="tabular-nums">
+                  <span className={`${styles.panelCount} tabular-nums`}>
                     {listScenes.length} scenes
                   </span>
                 </div>
 
-                <div
-                  style={{
-                    alignItems: "center",
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: "6px",
-                    marginTop: "10px",
-                  }}
-                >
-                  <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", color: "var(--color-text-muted, #BDB5C7)" }}>
-                    Template{" "}
+                <div className={styles.toolbar}>
+                  <label className={styles.fieldLabel}>
+                    Template
                     <select
                       aria-label="New scene template"
                       onChange={(event) =>
                         setAddTemplate(event.target.value as SceneTemplate)
                       }
                       value={addTemplate}
-                      style={{
-                        backgroundColor: "var(--color-surface, #211A2B)",
-                        color: "var(--color-text, #F4F1F8)",
-                        border: "1px solid var(--color-border, #3A3046)",
-                        borderRadius: "4px",
-                        padding: "3px 6px",
-                        fontSize: "11px",
-                      }}
+                      className={styles.select}
                     >
                       {sceneTemplateValues.map((template) => (
                         <option key={template} value={template}>
@@ -1029,18 +849,10 @@ export function StoryboardPanel({
                     type="button"
                     onClick={handleAddScene}
                     disabled={editing || revision === null}
-                    style={{
-                      padding: "3px 8px",
-                      borderRadius: "4px",
-                      backgroundColor: "var(--color-brand, #A883FF)",
-                      color: "var(--color-on-brand, #1B1027)",
-                      border: "none",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      cursor: editing || revision === null ? "not-allowed" : "pointer",
-                    }}
+                    className={`${styles.button} ${styles.buttonPrimary} ${styles.buttonCompact}`}
                   >
-                    + Add
+                    <PlusIcon size={14} weight="bold" aria-hidden />
+                    Add
                   </button>
 
                   <button
@@ -1050,15 +862,7 @@ export function StoryboardPanel({
                         handleDuplicateScene(selectedSceneId);
                     }}
                     disabled={editing || selectedSceneId === null}
-                    style={{
-                      padding: "3px 8px",
-                      borderRadius: "4px",
-                      backgroundColor: "rgba(255, 255, 255, 0.08)",
-                      border: "1px solid var(--color-border, #3A3046)",
-                      color: "var(--color-text, #F4F1F8)",
-                      fontSize: "11px",
-                      cursor: editing || selectedSceneId === null ? "not-allowed" : "pointer",
-                    }}
+                    className={`${styles.button} ${styles.buttonSecondary} ${styles.buttonCompact}`}
                   >
                     Duplicate
                   </button>
@@ -1072,31 +876,25 @@ export function StoryboardPanel({
                     disabled={
                       editing || selectedSceneId === null || listScenes.length <= 1
                     }
-                    style={{
-                      padding: "3px 8px",
-                      borderRadius: "4px",
-                      backgroundColor: "rgba(180, 35, 24, 0.15)",
-                      border: "1px solid rgba(180, 35, 24, 0.3)",
-                      color: "#FCA5A5",
-                      fontSize: "11px",
-                      cursor:
-                        editing || selectedSceneId === null || listScenes.length <= 1
-                          ? "not-allowed"
-                          : "pointer",
-                    }}
+                    className={`${styles.button} ${styles.buttonDanger} ${styles.buttonCompact}`}
                   >
                     Delete
                   </button>
                 </div>
               </div>
 
-              <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+              <div className={styles.scroller}>
                 {sceneList.kind === "loading" ? (
-                  <p role="status" style={{ padding: "16px", margin: 0, fontSize: "13px", color: "var(--color-text-muted, #BDB5C7)" }}>
-                    Loading the scene list…
-                  </p>
+                  <div role="status" aria-label="Loading the scene list">
+                    {[0, 1, 2, 3, 4, 5].map((row) => (
+                      <div key={row} className={styles.skeletonRow}>
+                        <span className={styles.skeletonLineWide} />
+                        <span className={styles.skeletonLine} />
+                      </div>
+                    ))}
+                  </div>
                 ) : sceneList.kind === "failed" ? (
-                  <p role="alert" style={{ padding: "16px", margin: 0, fontSize: "13px", color: "var(--color-error-fg, #B42318)" }}>
+                  <p role="alert" className={`${styles.scrollerNote} ${styles.stateError}`}>
                     {sceneList.message}
                   </p>
                 ) : (
@@ -1111,119 +909,66 @@ export function StoryboardPanel({
               </div>
             </aside>
 
-            {/* 2. Center Region: Dominant Real 16:9 Selected Scene Stage */}
+            {/* Center region: the dominant 16:9 scene stage */}
             <main
-              className="storyboard-center-canvas"
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "12px",
-                minWidth: 0,
-              }}
+              className={`${styles.centerCanvas} ${mobileTab === "preview" ? "" : styles.regionHidden}`}
             >
               {editorMessage !== null ? (
-                <p role="status" style={{ margin: 0, padding: "8px 12px", borderRadius: "6px", backgroundColor: "rgba(168, 131, 255, 0.15)", color: "var(--color-text, #F4F1F8)", fontSize: "12px" }}>
+                <p role="status" className={`${styles.alert} ${styles.alertInfo}`}>
                   {editorMessage}
                 </p>
               ) : null}
 
-              {/* Dominant 16:9 Scene Preview Stage */}
-              <div
-                style={{
-                  backgroundColor: "#0F0B14",
-                  borderRadius: "12px",
-                  border: "1px solid var(--color-border, #3A3046)",
-                  boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
-                  overflow: "hidden",
-                  display: "flex",
-                  flexDirection: "column",
-                }}
-              >
-                {/* Stage Header */}
-                <div
-                  style={{
-                    padding: "8px 14px",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    backgroundColor: "rgba(255, 255, 255, 0.03)",
-                    borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
-                    fontSize: "12px",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ fontWeight: 700, color: "var(--color-brand, #A883FF)" }}>
-                      {selectedDetail ? `Scene ${selectedDetail.scene.order}` : "No Scene"}
+              <div className={styles.stage}>
+                <div className={styles.stageHeader}>
+                  <div className={styles.stageHeaderGroup}>
+                    <span className={styles.stageSceneName}>
+                      {selectedDetail
+                        ? `Scene ${selectedDetail.scene.order}`
+                        : "No scene selected"}
                     </span>
-                    <span style={{ color: "var(--color-text-muted, #BDB5C7)" }}>
+                    <span className={styles.stageMeta}>
                       {selectedDetail?.scene.template ?? ""}
                     </span>
                   </div>
 
-                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <span className="tabular-nums" style={{ color: "var(--color-text-muted, #BDB5C7)" }}>
-                      {selectedDetail ? `${selectedDetail.scene.durationSeconds}s` : ""}
-                    </span>
-                  </div>
+                  <span className={`${styles.stageMeta} tabular-nums`}>
+                    {selectedDetail ? `${selectedDetail.scene.durationSeconds}s` : ""}
+                  </span>
                 </div>
 
-                {/* Dominant Canvas 16:9 */}
-                <section
-                  aria-label="Selected scene preview"
-                  style={{
-                    position: "relative",
-                    width: "100%",
-                    aspectRatio: "16 / 9",
-                    backgroundColor: "#000",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    overflow: "hidden",
-                  }}
-                >
+                <section aria-label="Selected scene preview" className={styles.canvas}>
                   {selectedSceneId === null ? (
-                    <p role="status" style={{ color: "var(--color-text-muted, #BDB5C7)", fontSize: "14px" }}>
+                    <p role="status" className={styles.canvasNote}>
                       Select a scene to see its detail.
                     </p>
                   ) : detail.kind === "loading" ? (
-                    <p role="status" style={{ color: "var(--color-text-muted, #BDB5C7)", fontSize: "14px" }}>
+                    <p role="status" className={styles.canvasNote}>
                       Loading scene preview…
                     </p>
                   ) : detail.kind === "failed" ? (
-                    <div style={{ padding: "20px", textAlign: "center" }}>
-                      <p role="alert" style={{ color: "#FCA5A5", margin: "0 0 10px", fontSize: "13px" }}>
+                    <div className={styles.canvasFallback}>
+                      <p role="alert" className={styles.stateError}>
                         {detail.message}
                       </p>
                       <button
                         type="button"
                         onClick={() => setDetailAttempt((c) => c + 1)}
-                        style={{
-                          padding: "6px 12px",
-                          borderRadius: "4px",
-                          backgroundColor: "var(--color-brand, #A883FF)",
-                          color: "var(--color-on-brand, #1B1027)",
-                          border: "none",
-                          fontSize: "12px",
-                          fontWeight: 600,
-                          cursor: "pointer",
-                        }}
+                        className={`${styles.button} ${styles.buttonPrimary} ${styles.buttonCompact}`}
                       >
                         Try again
                       </button>
                     </div>
                   ) : teacherReplacement !== undefined ? (
-                    <figure style={{ margin: 0, width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+                    <figure className={styles.replacementFigure}>
                       <img
                         alt="Selected teacher replacement in scene preview"
                         src={teacherReplacement.previewUrl}
-                        style={{ display: "block", maxHeight: "85%", maxWidth: "90%", objectFit: "contain" }}
                       />
-                      <figcaption style={{ fontSize: "11px", color: "var(--color-text-muted, #BDB5C7)", marginTop: "4px" }}>
-                        Teacher replacement preview
-                      </figcaption>
+                      <figcaption>Teacher replacement preview</figcaption>
                     </figure>
                   ) : canPreviewScene(detail.value) && previewInput !== null ? (
-                    <div style={{ width: "100%", height: "100%" }}>
+                    <div className={styles.canvasFill}>
                       <ScenePreviewPlayer input={previewInput} />
                     </div>
                   ) : (
@@ -1231,132 +976,78 @@ export function StoryboardPanel({
                       aria-label="Scene preview unavailable"
                       data-testid="scene-preview-unavailable"
                       role="status"
-                      style={{ padding: "24px", textAlign: "center", color: "var(--color-text-muted, #BDB5C7)" }}
+                      className={styles.canvasFallback}
                     >
-                      <h4 style={{ margin: "0 0 6px", color: "var(--color-text, #F4F1F8)", fontSize: "15px" }}>
-                        Preview unavailable
-                      </h4>
-                      <p style={{ margin: 0, fontSize: "13px", maxWidth: "340px" }}>
-                        This scene references media that is not available yet. A preview will appear once scene media is generated.
+                      <h4>Preview unavailable</h4>
+                      <p>
+                        This scene references media that is not available yet. A
+                        preview will appear once scene media is generated.
                       </p>
                     </section>
                   )}
                 </section>
               </div>
 
-              {/* Bottom Quick Context Dock */}
               {selectedDetail ? (
-                <div
-                  style={{
-                    padding: "12px 16px",
-                    backgroundColor: "var(--color-surface, #211A2B)",
-                    borderRadius: "10px",
-                    border: "1px solid var(--color-border, #3A3046)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: "12px",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: "200px" }}>
-                    <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "var(--color-text, #F4F1F8)" }}>
-                      {selectedDetail.scene.scene.title ?? `Scene ${selectedDetail.scene.order}`}
+                <div className={styles.dock}>
+                  <div className={styles.dockText}>
+                    <p className={styles.dockTitle}>
+                      {selectedDetail.scene.scene.title ??
+                        `Scene ${selectedDetail.scene.order}`}
                     </p>
-                    <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--color-text-muted, #BDB5C7)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    <p className={styles.dockNarration}>
                       {selectedDetail.scene.scene.narration}
                     </p>
                   </div>
 
-                  <div style={{ display: "flex", gap: "6px" }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (selectedSceneId !== null)
-                          handleDuplicateScene(selectedSceneId);
-                      }}
-                      disabled={editing}
-                      style={{
-                        padding: "6px 10px",
-                        fontSize: "12px",
-                        borderRadius: "5px",
-                        backgroundColor: "rgba(255, 255, 255, 0.06)",
-                        border: "1px solid var(--color-border, #3A3046)",
-                        color: "var(--color-text, #F4F1F8)",
-                        cursor: "pointer",
-                      }}
-                    >
-                      Duplicate scene
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedSceneId !== null)
+                        handleDuplicateScene(selectedSceneId);
+                    }}
+                    disabled={editing}
+                    className={`${styles.button} ${styles.buttonSecondary} ${styles.buttonCompact}`}
+                  >
+                    <CopyIcon size={14} aria-hidden />
+                    Duplicate scene
+                  </button>
                 </div>
               ) : null}
             </main>
 
-            {/* 3. Right Region: Contextual Inspector */}
+            {/* Right region: contextual inspector */}
             <aside
-              className="storyboard-right-panel"
-              style={{
-                height: "680px",
-                minWidth: 0,
-              }}
+              className={`${styles.rightPanel} ${mobileTab === "details" ? "" : styles.regionHidden}`}
             >
               {selectedSceneId === null ? (
-                <div
-                  role="status"
-                  style={{
-                    padding: "24px",
-                    textAlign: "center",
-                    backgroundColor: "var(--color-surface, #211A2B)",
-                    borderRadius: "12px",
-                    border: "1px solid var(--color-border, #3A3046)",
-                    color: "var(--color-text-muted, #BDB5C7)",
-                  }}
-                >
+                <div role="status" className={styles.inspectorState}>
                   <p>Select a scene to see its detail.</p>
                 </div>
               ) : detail.kind === "loading" ? (
-                <div
-                  role="status"
-                  style={{
-                    padding: "24px",
-                    textAlign: "center",
-                    backgroundColor: "var(--color-surface, #211A2B)",
-                    borderRadius: "12px",
-                    border: "1px solid var(--color-border, #3A3046)",
-                    color: "var(--color-text-muted, #BDB5C7)",
-                  }}
-                >
+                <div role="status" className={styles.inspectorState}>
                   <p>Loading the selected scene…</p>
                 </div>
               ) : detail.kind === "failed" ? (
-                <section
-                  aria-label="Selected scene detail"
-                  style={{
-                    padding: "24px",
-                    backgroundColor: "var(--color-surface, #211A2B)",
-                    borderRadius: "12px",
-                    border: "1px solid var(--color-border, #3A3046)",
-                  }}
-                >
-                  <p role="alert" style={{ color: "#FCA5A5" }}>{detail.message}</p>
+                <section aria-label="Selected scene detail" className={styles.inspectorState}>
+                  <p role="alert" className={styles.stateError}>
+                    {detail.message}
+                  </p>
                   <button
                     type="button"
                     onClick={() => setDetailAttempt((c) => c + 1)}
-                    style={{
-                      padding: "6px 12px",
-                      borderRadius: "4px",
-                      backgroundColor: "var(--color-brand, #A883FF)",
-                      color: "var(--color-on-brand, #1B1027)",
-                      border: "none",
-                      fontSize: "12px",
-                      cursor: "pointer",
-                    }}
+                    className={`${styles.button} ${styles.buttonPrimary} ${styles.buttonCompact}`}
                   >
                     Try again
                   </button>
                 </section>
               ) : (
+                <motion.div
+                  key={selectedSceneId}
+                  initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
+                >
                 <SceneDetailPanel
                   projectId={projectId}
                   detail={detail.value}
@@ -1384,42 +1075,10 @@ export function StoryboardPanel({
                   onPreviewVersion={(vId) => void previewVersion(vId)}
                   onRestoreVersion={(vId) => void restoreVersion(vId)}
                 />
+                </motion.div>
               )}
             </aside>
           </div>
-
-          <style jsx>{`
-            @media (max-width: 1024px) {
-              .storyboard-workspace-grid {
-                grid-template-columns: 240px 1fr !important;
-              }
-              .storyboard-right-panel {
-                grid-column: span 2;
-                height: auto !important;
-              }
-            }
-            @media (max-width: 768px) {
-              .mobile-view-tabs {
-                display: flex !important;
-              }
-              .storyboard-workspace-grid {
-                display: block !important;
-              }
-              .storyboard-left-panel {
-                display: ${mobileTab === "scenes" ? "flex" : "none"} !important;
-                height: 500px !important;
-                margin-bottom: 16px;
-              }
-              .storyboard-center-canvas {
-                display: ${mobileTab === "preview" ? "flex" : "none"} !important;
-                margin-bottom: 16px;
-              }
-              .storyboard-right-panel {
-                display: ${mobileTab === "details" ? "block" : "none"} !important;
-                height: auto !important;
-              }
-            }
-          `}</style>
         </>
       )}
     </div>

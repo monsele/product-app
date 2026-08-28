@@ -2,7 +2,7 @@
 
 import { Player, type PlayerRef } from "@remotion/player";
 import { Audio, useCurrentFrame } from "remotion";
-import { useEffect, useRef, useState, type JSX } from "react";
+import React, { useEffect, useRef, useState, type JSX } from "react";
 import { z } from "zod";
 import { sceneSpecSchema, type SceneSpec } from "@avlp/schemas";
 import {
@@ -227,6 +227,16 @@ export function ScenePreviewPlayer({
     setPreviewFrame(0);
     setIsMuted(muted);
   }, [input, muted]);
+  useEffect(() => {
+    // Keep the seek control in step with playback; the player is the source of
+    // truth for the current frame once it is running.
+    const player = playerRef.current;
+    if (player === null) return;
+    const onFrameUpdate = (event: { detail: { frame: number } }): void =>
+      setPreviewFrame(event.detail.frame);
+    player.addEventListener("frameupdate", onFrameUpdate);
+    return () => player.removeEventListener("frameupdate", onFrameUpdate);
+  }, [input]);
   const result = parseScenePreviewInput(input);
   if (!result.ok)
     return (
@@ -255,62 +265,12 @@ export function ScenePreviewPlayer({
     setPreviewFrame(frame);
   };
   return (
-    <section aria-label="Scene preview player">
-      <div role="status">
-        Preview frame: {previewFrame}; {isMuted ? "muted" : "unmuted"}
-      </div>
-      <div aria-label="Scene preview controls">
-        <button onClick={() => playerRef.current?.play()} type="button">
-          Play scene
-        </button>
-        <button onClick={() => playerRef.current?.pause()} type="button">
-          Pause scene
-        </button>
-        <button
-          onClick={() => {
-            seekTo(0);
-            playerRef.current?.play();
-          }}
-          type="button"
-        >
-          Replay scene
-        </button>
-        <label>
-          Seek scene
-          <input
-            aria-label="Seek scene"
-            max={durationInFrames - 1}
-            min={0}
-            onChange={(event) => seekTo(Number(event.currentTarget.value))}
-            type="range"
-            value={previewFrame}
-          />
-        </label>
-        <button
-          onClick={() => {
-            playerRef.current?.mute();
-            setIsMuted(true);
-          }}
-          type="button"
-        >
-          Mute scene
-        </button>
-        <button
-          onClick={() => {
-            playerRef.current?.unmute();
-            setIsMuted(false);
-          }}
-          type="button"
-        >
-          Unmute scene
-        </button>
-      </div>
+    <section aria-label="Scene preview player" className="sp-player">
       <Player
         acknowledgeRemotionLicense
         component={ScenePreviewComposition}
         compositionHeight={videoTheme.canvas.height}
         compositionWidth={videoTheme.canvas.width}
-        controls
         durationInFrames={durationInFrames}
         errorFallback={({ error }) => (
           <section data-testid="scene-preview-error" role="alert">
@@ -327,10 +287,95 @@ export function ScenePreviewPlayer({
         inputProps={{ ...result.input, onAudioError: setPlaybackError }}
         ref={playerRef}
         renderLoading={() => <p role="status">Loading scene preview…</p>}
-        showVolumeControls
         spaceKeyToPlayOrPause={false}
         style={{ width: "100%" }}
       />
+
+      <div aria-label="Scene preview controls" className="sp-transport">
+        <button
+          className="sp-button"
+          aria-label="Play scene"
+          title="Play scene"
+          onClick={() => playerRef.current?.play()}
+          type="button"
+        >
+          Play
+        </button>
+        <button
+          className="sp-button"
+          aria-label="Pause scene"
+          title="Pause scene"
+          onClick={() => playerRef.current?.pause()}
+          type="button"
+        >
+          Pause
+        </button>
+        <button
+          className="sp-button"
+          aria-label="Replay scene"
+          title="Replay scene"
+          onClick={() => {
+            seekTo(0);
+            playerRef.current?.play();
+          }}
+          type="button"
+        >
+          Replay
+        </button>
+
+        <input
+          className="sp-seek"
+          aria-label="Seek scene"
+          max={durationInFrames - 1}
+          min={0}
+          onChange={(event) => seekTo(Number(event.currentTarget.value))}
+          style={{
+            // Drives the played-portion fill; the track itself is CSS.
+            "--sp-progress": `${
+              durationInFrames > 1
+                ? (previewFrame / (durationInFrames - 1)) * 100
+                : 0
+            }%`,
+          } as React.CSSProperties}
+          type="range"
+          value={previewFrame}
+        />
+
+        <span aria-hidden className="sp-time">
+          {previewFrame} / {durationInFrames - 1}
+        </span>
+        <span className="sp-status" role="status">
+          Preview frame: {previewFrame}; {isMuted ? "muted" : "unmuted"}
+        </span>
+
+        {isMuted ? (
+          <button
+            className="sp-button"
+            aria-label="Unmute scene"
+            title="Unmute scene"
+            onClick={() => {
+              playerRef.current?.unmute();
+              setIsMuted(false);
+            }}
+            type="button"
+          >
+            Unmute
+          </button>
+        ) : (
+          <button
+            className="sp-button"
+            aria-label="Mute scene"
+            title="Mute scene"
+            onClick={() => {
+              playerRef.current?.mute();
+              setIsMuted(true);
+            }}
+            type="button"
+          >
+            Mute
+          </button>
+        )}
+      </div>
     </section>
   );
 }

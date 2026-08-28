@@ -88,7 +88,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         <Drawer
           isOpen={isMobileMenuOpen}
           onClose={closeMobileMenu}
-          title="Lesson Pipeline"
+          title="Lesson pipeline"
           position="left"
           width="280px"
         >

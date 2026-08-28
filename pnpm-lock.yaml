@@ -16,7 +16,7 @@ importers:
         version: 1.62.1
       '@remotion/bundler':
         specifier: 4.0.507
-        version: 4.0.507(@swc/helpers@0.5.15)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 4.0.507(@swc/helpers@0.5.15)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@remotion/renderer':
         specifier: 4.0.507
         version: 4.0.507(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -180,7 +180,7 @@ importers:
         version: link:../../packages/storage
       '@remotion/bundler':
         specifier: 4.0.507
-        version: 4.0.507(@swc/helpers@0.5.15)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 4.0.507(@swc/helpers@0.5.15)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@remotion/renderer':
         specifier: 4.0.507
         version: 4.0.507(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -218,6 +218,9 @@ importers:
       '@radix-ui/themes':
         specifier: ^3.3.0
         version: 3.3.0(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      geist:
+        specifier: ^1.7.2
+        version: 1.7.2(next@15.5.23(@opentelemetry/api@1.9.1)(@playwright/test@1.62.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))
       motion:
         specifier: ^13.1.1
         version: 13.1.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -313,7 +316,7 @@ importers:
         version: 1.62.1
       '@remotion/bundler':
         specifier: 4.0.507
-        version: 4.0.507(@swc/helpers@0.5.15)(postcss@8.5.26)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        version: 4.0.507(@swc/helpers@0.5.15)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@remotion/renderer':
         specifier: 4.0.507
         version: 4.0.507(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -4103,6 +4106,11 @@ packages:
     resolution: {integrity: sha512-a4tiq7E0/5fTjxPAaH4jpjkSv/uCaU2p5KC6HVGrvl0cDjA8iBZv4vv1gyzlmK0ZUKqwpOyQMKzZQe3lTit77A==}
     engines: {node: '>=14'}
 
+  geist@1.7.2:
+    resolution: {integrity: sha512-Gu5lDFa3pLRyoBlBPf0QIFHVdWAnpco7fS1bJm41jyLPFoguBgiubseUN2oLXMgqZ7uxAxDoXcHMhCY/fOTTgg==}
+    peerDependencies:
+      next: '>=13.2.0'
+
   get-caller-file@2.0.5:
     resolution: {integrity: sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg==}
     engines: {node: 6.* || 8.* || >= 10.*}
@@ -7796,6 +7804,40 @@ snapshots:
       - webpack-cli
       - webpack-hot-middleware
 
+  '@remotion/bundler@4.0.507(@swc/helpers@0.5.15)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+    dependencies:
+      '@remotion/media-parser': 4.0.507
+      '@remotion/studio': 4.0.507(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@remotion/studio-shared': 4.0.507(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@remotion/timeline-utils': 4.0.507
+      '@rspack/core': 1.7.11(@swc/helpers@0.5.15)
+      '@rspack/plugin-react-refresh': 1.6.1(react-refresh@0.18.0)
+      css-loader: 7.1.4(@rspack/core@1.7.11(@swc/helpers@0.5.15))(webpack@5.105.0(esbuild@0.28.1))
+      esbuild: 0.28.1
+      react: 19.2.8
+      react-dom: 19.2.8(react@19.2.8)
+      react-refresh: 0.18.0
+      remotion: 4.0.507(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      style-loader: 4.0.0(webpack@5.105.0(esbuild@0.28.1))
+      webpack: 5.105.0(esbuild@0.28.1)
+    transitivePeerDependencies:
+      - '@minify-html/node'
+      - '@swc/core'
+      - '@swc/css'
+      - '@swc/helpers'
+      - '@swc/html'
+      - bufferutil
+      - clean-css
+      - cssnano
+      - csso
+      - html-minifier-terser
+      - lightningcss
+      - postcss
+      - uglify-js
+      - utf-8-validate
+      - webpack-cli
+      - webpack-hot-middleware
+
   '@remotion/captions@4.0.507': {}
 
   '@remotion/compositor-darwin-arm64@4.0.507':
@@ -8598,6 +8640,20 @@ snapshots:
       '@rspack/core': 1.7.11(@swc/helpers@0.5.15)
       webpack: 5.105.0(esbuild@0.28.1)(postcss@8.5.26)
 
+  css-loader@7.1.4(@rspack/core@1.7.11(@swc/helpers@0.5.15))(webpack@5.105.0(esbuild@0.28.1)):
+    dependencies:
+      icss-utils: 5.1.0(postcss@8.5.26)
+      postcss: 8.5.26
+      postcss-modules-extract-imports: 3.1.0(postcss@8.5.26)
+      postcss-modules-local-by-default: 4.2.0(postcss@8.5.26)
+      postcss-modules-scope: 3.2.1(postcss@8.5.26)
+      postcss-modules-values: 4.0.0(postcss@8.5.26)
+      postcss-value-parser: 4.2.0
+      semver: 7.8.5
+    optionalDependencies:
+      '@rspack/core': 1.7.11(@swc/helpers@0.5.15)
+      webpack: 5.105.0(esbuild@0.28.1)
+
   cssesc@3.0.0: {}
 
   csstype@3.2.3: {}
@@ -8986,6 +9042,10 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
+
+  geist@1.7.2(next@15.5.23(@opentelemetry/api@1.9.1)(@playwright/test@1.62.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)):
+    dependencies:
+      next: 15.5.23(@opentelemetry/api@1.9.1)(@playwright/test@1.62.1)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
 
   get-caller-file@2.0.5: {}
 
@@ -9733,6 +9793,10 @@ snapshots:
     dependencies:
       webpack: 5.105.0(esbuild@0.28.1)(postcss@8.5.26)
 
+  style-loader@4.0.0(webpack@5.105.0(esbuild@0.28.1)):
+    dependencies:
+      webpack: 5.105.0(esbuild@0.28.1)
+
   styled-jsx@5.1.6(react@19.2.8):
     dependencies:
       client-only: 0.0.1
@@ -9758,6 +9822,16 @@ snapshots:
     optionalDependencies:
       esbuild: 0.28.1
       postcss: 8.5.26
+
+  terser-webpack-plugin@5.6.1(esbuild@0.28.1)(webpack@5.105.0(esbuild@0.28.1)):
+    dependencies:
+      '@jridgewell/trace-mapping': 0.3.31
+      jest-worker: 27.5.1
+      schema-utils: 4.3.3
+      terser: 5.49.2
+      webpack: 5.105.0(esbuild@0.28.1)
+    optionalDependencies:
+      esbuild: 0.28.1
 
   terser@5.49.2:
     dependencies:
@@ -9944,6 +10018,47 @@ snapshots:
   webidl-conversions@3.0.1: {}
 
   webpack-sources@3.5.1: {}
+
+  webpack@5.105.0(esbuild@0.28.1):
+    dependencies:
+      '@types/eslint-scope': 3.7.7
+      '@types/estree': 1.0.9
+      '@types/json-schema': 7.0.15
+      '@webassemblyjs/ast': 1.14.1
+      '@webassemblyjs/wasm-edit': 1.14.1
+      '@webassemblyjs/wasm-parser': 1.14.1
+      acorn: 8.18.0
+      acorn-import-phases: 1.0.4(acorn@8.18.0)
+      browserslist: 4.28.8
+      chrome-trace-event: 1.0.4
+      enhanced-resolve: 5.24.5
+      es-module-lexer: 2.3.1
+      eslint-scope: 5.1.1
+      events: 3.3.0
+      glob-to-regexp: 0.4.1
+      graceful-fs: 4.2.11
+      json-parse-even-better-errors: 2.3.1
+      loader-runner: 4.3.2
+      mime-types: 2.1.35
+      neo-async: 2.6.2
+      schema-utils: 4.3.3
+      tapable: 2.3.3
+      terser-webpack-plugin: 5.6.1(esbuild@0.28.1)(webpack@5.105.0(esbuild@0.28.1))
+      watchpack: 2.5.2
+      webpack-sources: 3.5.1
+    transitivePeerDependencies:
+      - '@minify-html/node'
+      - '@swc/core'
+      - '@swc/css'
+      - '@swc/html'
+      - clean-css
+      - cssnano
+      - csso
+      - esbuild
+      - html-minifier-terser
+      - lightningcss
+      - postcss
+      - uglify-js
 
   webpack@5.105.0(esbuild@0.28.1)(postcss@8.5.26):
     dependencies:

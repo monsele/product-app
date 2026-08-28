@@ -1,0 +1,641 @@
+/*
+ * Teacher workspace board.
+ * Composition follows docs/design.md 6.2 (70/30 board + rail).
+ * Type scale follows docs/design.md 5.2. Motion is dial 4: state feedback only.
+ */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 8px 0 40px 0;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 36px;
+  line-height: 42px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
+.pageLead {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  color: var(--color-text-muted);
+}
+
+/* 70/30 at desktop. The rail holds its 340px; the board absorbs the rest. */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 340px;
+  }
+}
+
+.board {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+/* ---------- Create lesson ---------- */
+
+.createCard {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 24px 28px;
+  box-shadow: var(--shadow-elevation);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.createHeading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.createIcon {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface-brand);
+  color: var(--color-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.createTitle {
+  margin: 0;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+}
+
+.createHint {
+  margin: 2px 0 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-muted);
+}
+
+.createForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.createField {
+  flex: 1 1 320px;
+  min-width: 240px;
+}
+
+.textInput {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 14px;
+  line-height: 20px;
+  font-family: inherit;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface-subtle);
+  color: var(--color-text);
+  transition:
+    border-color var(--motion-quick) var(--motion-easing),
+    background-color var(--motion-quick) var(--motion-easing);
+}
+
+.textInput:hover {
+  border-color: var(--color-text-muted);
+}
+
+.textInput:focus {
+  background-color: var(--color-surface-raised);
+  border-color: var(--color-focus);
+}
+
+/* ---------- Empty state ---------- */
+
+.emptyState {
+  background-color: var(--color-surface);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 48px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.emptyIcon {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-circle);
+  background-color: var(--color-surface-brand);
+  color: var(--color-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.emptyTitle {
+  margin: 0 0 6px;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.emptyBody {
+  margin: 0;
+  font-size: 16px;
+  line-height: 24px;
+  color: var(--color-text-muted);
+  max-width: 420px;
+}
+
+/* ---------- Section headings ---------- */
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 24px;
+  line-height: 30px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+}
+
+/* ---------- Project cards ---------- */
+
+.featuredCard,
+.projectCard {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  transition:
+    border-color var(--motion-quick) var(--motion-easing),
+    box-shadow var(--motion-quick) var(--motion-easing),
+    transform var(--motion-quick) var(--motion-easing);
+}
+
+.featuredCard {
+  border-color: var(--color-surface-brand);
+  padding: 24px;
+  box-shadow: var(--shadow-elevation);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.projectCard {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.featuredCard:hover,
+.projectCard:hover,
+.featuredCard:focus-within,
+.projectCard:focus-within {
+  border-color: var(--color-brand);
+  box-shadow: var(--shadow-elevation);
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .featuredCard:hover,
+  .projectCard:hover,
+  .featuredCard:focus-within,
+  .projectCard:focus-within {
+    transform: none;
+  }
+}
+
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.cardIdentity {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 300px;
+  min-width: 0;
+}
+
+.cardMeta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.metaText {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-muted);
+}
+
+.featuredTitle {
+  margin: 0;
+  font-size: 24px;
+  line-height: 30px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+}
+
+.projectTitle {
+  margin: 0;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.titleLink {
+  color: inherit;
+  text-decoration: none;
+  border-radius: 2px;
+}
+
+.titleLink:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cardActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cardFooter {
+  border-top: 1px solid var(--color-surface-subtle);
+  padding-top: 12px;
+}
+
+/* ---------- Navigation affordances ---------- */
+
+/*
+ * These navigate, so they are anchors, not buttons wrapped in anchors.
+ * Styled here rather than through the shared Button component, which is
+ * inline-styled and therefore cannot express :hover.
+ */
+.actionLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  padding: 8px 18px;
+  transition:
+    background-color var(--motion-quick) var(--motion-easing),
+    border-color var(--motion-quick) var(--motion-easing),
+    color var(--motion-quick) var(--motion-easing);
+}
+
+.actionLinkPrimary {
+  composes: actionLink;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-brand);
+  border-color: var(--color-brand);
+  color: var(--color-on-brand);
+}
+
+.actionLinkPrimary:hover {
+  background-color: var(--color-brand-hover);
+  border-color: var(--color-brand-hover);
+}
+
+.actionLinkPrimary:active {
+  background-color: var(--color-brand-active);
+  border-color: var(--color-brand-active);
+}
+
+.actionLinkSecondary {
+  composes: actionLink;
+  width: 100%;
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.actionLinkSecondary:hover {
+  background-color: var(--color-surface-subtle);
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+}
+
+.actionLinkCompact {
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+.actionLinkDestructive {
+  composes: actionLink;
+  border-radius: var(--radius-control);
+  padding: 6px 14px;
+  font-size: 13px;
+  background-color: var(--color-error-bg);
+  border-color: var(--color-error-border);
+  color: var(--color-error-fg);
+}
+
+.actionLinkDestructive:hover {
+  background-color: var(--color-surface-raised);
+}
+
+/* ---------- Failure ---------- */
+
+.failureBanner {
+  background-color: var(--color-error-bg);
+  border: 1px solid var(--color-error-border);
+  border-radius: var(--radius-control);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--color-error-fg);
+  font-size: 13px;
+  line-height: 18px;
+  flex-wrap: wrap;
+}
+
+.failureBannerBody {
+  flex: 1 1 240px;
+}
+
+.failureInline {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-error-fg);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ---------- Progress ---------- */
+
+.progress {
+  border-top: 1px solid var(--color-border);
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.progressHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.progressLabel {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.progressCount {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-muted);
+}
+
+/*
+ * A segmented bar rather than nine scrolling chips: the whole pipeline stays
+ * visible at any width, and the current step is named once above it.
+ */
+.progressTrack {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 4px;
+}
+
+.progressStep {
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface-subtle);
+  border: 1px solid var(--color-border);
+}
+
+.progressStepPast {
+  background-color: var(--color-brand);
+  border-color: var(--color-brand);
+}
+
+.progressStepCurrent {
+  background-color: var(--color-brand);
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 3px var(--color-surface-brand);
+}
+
+/* ---------- Project grid ---------- */
+
+.projectGrid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.projectCardHead {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.projectCardMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* ---------- Pagination ---------- */
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+}
+
+.paginationEnd {
+  text-align: center;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-muted);
+  padding: 12px 0;
+}
+
+/* ---------- Information rail ---------- */
+
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.railCard {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.railCardAttention {
+  border-color: var(--color-error-border);
+  background-color: var(--color-error-bg);
+}
+
+.railHeading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.railTitle {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+}
+
+.railBody {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-muted);
+}
+
+.railList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.railRequirements {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--color-text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.railItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  transition:
+    border-color var(--motion-quick) var(--motion-easing),
+    background-color var(--motion-quick) var(--motion-easing);
+}
+
+.railItem:hover,
+.railItem:focus-within {
+  border-color: var(--color-brand);
+}
+
+.railItemTitle {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.railItemTitle:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.railItemMeta {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-muted);
+}
+
+.railDivider {
+  border-top: 1px solid var(--color-border);
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.railSubTitle {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+  color: var(--color-text);
+}

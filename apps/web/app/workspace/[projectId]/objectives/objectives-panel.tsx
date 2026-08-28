@@ -383,9 +383,9 @@ export function ObjectivesPanel({
         draft ? (
           <>
             {isApproved ? (
-              <StatusLabel status="success" label="Approved Set" />
+              <StatusLabel status="success" label="Approved set" />
             ) : (
-              <StatusLabel status="info" label="Draft Set" />
+              <StatusLabel status="info" label="Draft set" />
             )}
             <StatusLabel status="info" label={`Rev #${draft.revision}`} />
           </>
@@ -396,7 +396,7 @@ export function ObjectivesPanel({
           {view.value.latestJob?.state === "failed" && (
             <Notice
               type="error"
-              title="Generation Failed"
+              title="Generation failed"
               message={objectiveFailureMessage(
                 view.value.latestJob.errorCode,
               )}
@@ -414,7 +414,7 @@ export function ObjectivesPanel({
           {hasDiffWithApproved && (
             <Notice
               type="warning"
-              title="Draft in Progress"
+              title="Draft in progress"
               message="Approved objectives still guide the lesson outline until you approve this new draft."
             />
           )}
@@ -520,7 +520,7 @@ export function ObjectivesPanel({
                   disabled={submitting}
                 >
                   <Plus size={14} weight="bold" />
-                  Add Objective
+                  Add objective
                 </Button>
               )}
             </div>
@@ -561,7 +561,7 @@ export function ObjectivesPanel({
                       color: "var(--color-text)",
                     }}
                   >
-                    Objective Statement
+                    Objective statement
                   </label>
                   <input
                     type="text"
@@ -589,7 +589,7 @@ export function ObjectivesPanel({
                       color: "var(--color-text)",
                     }}
                   >
-                    Measurable Verb (Bloom's Taxonomy)
+                    Measurable verb (Bloom's Taxonomy)
                   </label>
                   <input
                     type="text"
@@ -637,7 +637,7 @@ export function ObjectivesPanel({
                       size="compact"
                       disabled={submitting}
                     >
-                      Add Objective
+                      Add objective
                     </Button>
                   </div>
                 </div>
@@ -759,7 +759,7 @@ export function ObjectivesPanel({
                               color: "var(--color-text)",
                             }}
                           >
-                            Measurable Verb
+                            Measurable verb
                           </label>
                           <input
                             type="text"
@@ -1036,7 +1036,7 @@ export function ObjectivesPanel({
                   Approve objectives
                 </Button>
               ) : (
-                <StatusLabel status="success" label="Active Approved Set" />
+                <StatusLabel status="success" label="Active approved set" />
               )}
             </div>
           </div>
@@ -1054,7 +1054,7 @@ export function ObjectivesPanel({
                   color: "var(--color-text)",
                 }}
               >
-                Artifact Details
+                Artifact details
               </h3>
               <div
                 style={{
@@ -1108,7 +1108,7 @@ export function ObjectivesPanel({
                     color: "var(--color-text)",
                   }}
                 >
-                  Previously Approved Baseline
+                  Previously approved baseline
                 </h4>
                 <p
                   style={{

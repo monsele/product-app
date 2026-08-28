@@ -49,17 +49,17 @@ export function getIngestionStatusBadge(value: ProjectIngestionStatusResponse): 
   label: string;
 } {
   const jobState = value.latestJob?.state;
-  if (jobState === "failed") return { status: "error", label: "Extraction Failed" };
+  if (jobState === "failed") return { status: "error", label: "Extraction failed" };
   if (jobState === "queued") return { status: "in_progress", label: "Queued" };
-  if (jobState === "running") return { status: "in_progress", label: "Extracting Content" };
-  if (jobState === "retry_wait") return { status: "in_progress", label: "Waiting to Retry" };
+  if (jobState === "running") return { status: "in_progress", label: "Extracting content" };
+  if (jobState === "retry_wait") return { status: "in_progress", label: "Waiting to retry" };
 
   const qualityStatus = value.quality?.status;
-  if (qualityStatus === "blocked") return { status: "blocked", label: "Review Blocked" };
-  if (qualityStatus === "review_required") return { status: "warning", label: "Items to Check" };
-  if (qualityStatus === "ready") return { status: "success", label: "Ready for Review" };
+  if (qualityStatus === "blocked") return { status: "blocked", label: "Review blocked" };
+  if (qualityStatus === "review_required") return { status: "warning", label: "Items to check" };
+  if (qualityStatus === "ready") return { status: "success", label: "Ready for review" };
 
-  return { status: "info", label: "Ingestion Pending" };
+  return { status: "info", label: "Ingestion pending" };
 }
 
 export function IngestionStatusPanel({ projectId }: { projectId: string }) {
@@ -245,7 +245,7 @@ export function IngestionStatusPanel({ projectId }: { projectId: string }) {
             >
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)" }}>
-                  Extraction Quality Score
+                  Extraction quality score
                 </span>
                 <span
                   style={{

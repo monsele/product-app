@@ -32,7 +32,7 @@ export const SourceRequirementsRail: React.FC = () => {
             letterSpacing: "-0.01em",
           }}
         >
-          Document Requirements
+          Document requirements
         </h3>
         <p
           style={{
@@ -63,7 +63,7 @@ export const SourceRequirementsRail: React.FC = () => {
           </span>
           <div>
             <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)" }}>
-              Supported Formats
+              Supported formats
             </div>
             <div style={{ fontSize: "13px", color: "var(--color-text-muted)", marginTop: "2px" }}>
               PDF (<code style={{ fontSize: "12px" }}>.pdf</code>) or Word (<code style={{ fontSize: "12px" }}>.docx</code>) documents.
@@ -111,7 +111,7 @@ export const SourceRequirementsRail: React.FC = () => {
           </span>
           <div>
             <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)" }}>
-              Language & Scope
+              Language & scope
             </div>
             <div style={{ fontSize: "13px", color: "var(--color-text-muted)", marginTop: "2px" }}>
               English language, optimized for introductory science topics (learners aged 10–16).
@@ -135,7 +135,7 @@ export const SourceRequirementsRail: React.FC = () => {
           </span>
           <div>
             <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)" }}>
-              Safety & Privacy
+              Safety & privacy
             </div>
             <div style={{ fontSize: "13px", color: "var(--color-text-muted)", marginTop: "2px" }}>
               Uploaded files stay private in tenant-isolated storage and undergo safety inspection.

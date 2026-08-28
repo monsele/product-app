@@ -52,7 +52,7 @@ export const ProjectPipelineRail: React.FC<ProjectPipelineRailProps> = ({ stages
           color: "var(--color-text-muted)",
         }}
       >
-        Lesson Pipeline
+        Lesson pipeline
       </div>
 
       {stages.map((stage) => {

@@ -9,7 +9,7 @@ export interface InformationRailProps {
 }
 
 export const InformationRail: React.FC<InformationRailProps> = ({
-  title = "Project Context",
+  title = "Project context",
   children,
   width = "340px",
 }) => {

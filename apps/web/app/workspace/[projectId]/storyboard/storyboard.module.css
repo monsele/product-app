@@ -1,0 +1,742 @@
+/*
+ * Focus Studio storyboard workspace.
+ *
+ * Shape follows the documented mixed-radius system (docs/design.md 5.3):
+ * major surfaces use --radius-card, nested controls use --radius-control,
+ * and action buttons are pill shaped. Type roles come from the scale in 5.2.
+ */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px 24px 24px;
+  min-height: calc(100dvh - 80px);
+}
+
+/* Route-level loading and failure shells */
+
+.stateShell {
+  margin: 0 auto;
+  max-width: 520px;
+  padding: 56px 24px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.stateShell h2 {
+  font: var(--text-editor-title);
+  margin: 0 0 8px;
+  color: var(--color-text);
+}
+
+.stateShell p {
+  font: var(--text-body);
+  margin: 0 0 20px;
+}
+
+.stateError {
+  color: var(--color-danger-text);
+}
+
+/* Header */
+
+.header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.headingRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.title {
+  font: var(--text-editor-title);
+  margin: 0;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+}
+
+.badge {
+  font: var(--text-supporting);
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface-brand);
+  color: var(--color-brand);
+}
+
+.projectTitle {
+  font: var(--text-body);
+  margin: 6px 0 0;
+  color: var(--color-text-muted);
+}
+
+.headerStatus {
+  font: var(--text-supporting);
+  margin: 4px 0 0;
+  color: var(--color-text-muted);
+}
+
+.headerStatus strong {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Buttons. Pill for actions, control radius for inputs. */
+
+.button {
+  font: var(--text-control);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color var(--motion-quick) var(--motion-easing),
+    border-color var(--motion-quick) var(--motion-easing),
+    transform var(--motion-instant) var(--motion-easing);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.button:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+.buttonPrimary {
+  background-color: var(--color-brand);
+  color: var(--color-on-brand);
+  font-weight: 600;
+}
+
+.buttonPrimary:not(:disabled):hover {
+  background-color: var(--color-brand-hover);
+}
+
+.buttonSecondary {
+  background-color: transparent;
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.buttonSecondary:not(:disabled):hover {
+  background-color: var(--color-surface-subtle);
+  border-color: var(--color-text-muted);
+}
+
+.buttonDanger {
+  background-color: transparent;
+  border-color: var(--color-border);
+  color: var(--color-danger-text);
+}
+
+.buttonDanger:not(:disabled):hover {
+  background-color: var(--color-danger-surface);
+  border-color: var(--color-danger-text);
+}
+
+.buttonCompact {
+  padding: 5px 12px;
+  font-size: 13px;
+}
+
+/* Alerts */
+
+.alert {
+  font: var(--text-supporting);
+  margin: 0;
+  padding: 11px 14px;
+  border-radius: var(--radius-control);
+  border: 1px solid transparent;
+}
+
+.alertWarning {
+  background-color: var(--color-warning-surface);
+  border-color: var(--color-warning-line);
+  color: var(--color-warning-text);
+}
+
+.alertError {
+  background-color: var(--color-danger-surface);
+  border-color: var(--color-danger-line);
+  color: var(--color-danger-text);
+}
+
+.alertInfo {
+  background-color: var(--color-surface-brand);
+  border-color: var(--color-brand-line);
+  color: var(--color-text);
+}
+
+.noteMuted {
+  font: var(--text-supporting);
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.emptyState {
+  padding: 64px 24px;
+  text-align: center;
+  background-color: var(--color-surface);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-border);
+}
+
+.emptyState p {
+  font: var(--text-body);
+  margin: 0 auto;
+  max-width: 52ch;
+  color: var(--color-text-muted);
+}
+
+/* Mobile region tabs */
+
+.tabs {
+  display: none;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.tab {
+  font: var(--text-control);
+  flex: 1;
+  padding: 11px 8px;
+  background-color: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: color var(--motion-quick) var(--motion-easing);
+}
+
+.tab:hover {
+  color: var(--color-text);
+}
+
+.tabActive {
+  color: var(--color-brand);
+  border-bottom-color: var(--color-brand);
+  font-weight: 600;
+}
+
+/* Three-region workspace. The canvas column is the dominant element. */
+
+.grid {
+  display: grid;
+  grid-template-columns: 288px minmax(0, 1fr) 380px;
+  gap: 20px;
+  align-items: start;
+}
+
+.leftPanel {
+  display: flex;
+  flex-direction: column;
+  height: 720px;
+  background-color: var(--color-surface);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+}
+
+.panelHead {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.panelHeadRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.panelTitle {
+  font: var(--text-subsection-title);
+  margin: 0;
+  color: var(--color-text);
+}
+
+.panelCount {
+  font: var(--text-supporting);
+  color: var(--color-text-muted);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.fieldLabel {
+  font: var(--text-supporting);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-muted);
+}
+
+.select {
+  font: var(--text-supporting);
+  background-color: var(--color-canvas);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: 5px 8px;
+  cursor: pointer;
+}
+
+.select:hover {
+  border-color: var(--color-text-muted);
+}
+
+.scroller {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.scrollerNote {
+  font: var(--text-supporting);
+  margin: 0;
+  padding: 16px;
+  color: var(--color-text-muted);
+}
+
+/* Center canvas */
+
+.centerCanvas {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.stage {
+  background-color: var(--color-stage);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-elevation);
+  overflow: hidden;
+}
+
+.stageHeader {
+  font: var(--text-supporting);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.stageHeaderGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stageSceneName {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.stageMeta {
+  color: var(--color-text-muted);
+}
+
+.canvas {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-color: var(--color-stage-canvas);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.canvasNote {
+  font: var(--text-body);
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.canvasFallback {
+  padding: 24px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.canvasFallback h4 {
+  font: var(--text-subsection-title);
+  margin: 0 0 6px;
+  color: var(--color-text);
+}
+
+.canvasFallback p {
+  font: var(--text-supporting);
+  margin: 0 auto;
+  max-width: 42ch;
+}
+
+.canvasFill {
+  width: 100%;
+  height: 100%;
+}
+
+.replacementFigure {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.replacementFigure img {
+  display: block;
+  max-height: 85%;
+  max-width: 90%;
+  object-fit: contain;
+}
+
+.replacementFigure figcaption {
+  font: var(--text-supporting);
+  color: var(--color-text-muted);
+}
+
+/* Scene context dock under the canvas */
+
+.dock {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  background-color: var(--color-surface);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-border);
+}
+
+.dockText {
+  flex: 1;
+  min-width: 220px;
+}
+
+.dockTitle {
+  font: var(--text-control);
+  font-weight: 600;
+  margin: 0;
+  color: var(--color-text);
+}
+
+.dockNarration {
+  font: var(--text-supporting);
+  margin: 3px 0 0;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Right inspector */
+
+.rightPanel {
+  min-width: 0;
+}
+
+.inspectorState {
+  padding: 28px 24px;
+  text-align: center;
+  background-color: var(--color-surface);
+  border-radius: var(--radius-card);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+
+.inspectorState p {
+  font: var(--text-body);
+  margin: 0 0 16px;
+}
+
+.inspectorState p:last-child {
+  margin-bottom: 0;
+}
+
+/* Scene list rows. Hairline separation rather than a card per row, per
+   docs/design.md 5.4: spacing and one divider before boxing every item. */
+
+.sceneList {
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 480px;
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+  position: relative;
+  outline: none;
+}
+
+.sceneRow {
+  box-sizing: border-box;
+  position: relative;
+  height: 72px;
+  padding: 10px 16px 10px 18px;
+  cursor: grab;
+  border-bottom: 1px solid var(--color-border);
+  border-left: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition:
+    background-color var(--motion-quick) var(--motion-easing),
+    border-left-color var(--motion-quick) var(--motion-easing);
+}
+
+.sceneRow:hover {
+  background-color: var(--color-surface-subtle);
+}
+
+.sceneRowSelected {
+  background-color: var(--color-surface-brand);
+  border-left-color: var(--color-brand);
+}
+
+.sceneRowSelected:hover {
+  background-color: var(--color-surface-brand);
+}
+
+.sceneRowDragging {
+  opacity: 0.6;
+  cursor: grabbing;
+}
+
+.sceneRowTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sceneRowLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sceneIndex {
+  font: var(--text-supporting);
+  font-family: var(--font-family-mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.sceneIndexSelected {
+  color: var(--color-brand);
+}
+
+.sceneTitle {
+  font: var(--text-supporting);
+  margin: 0;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sceneTitleSelected {
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.sceneReorder {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity var(--motion-quick) var(--motion-easing);
+}
+
+.sceneRow:hover .sceneReorder,
+.sceneRow:focus-within .sceneReorder,
+.sceneRowSelected .sceneReorder {
+  opacity: 1;
+}
+
+.reorderButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background-color: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition:
+    color var(--motion-quick) var(--motion-easing),
+    border-color var(--motion-quick) var(--motion-easing);
+}
+
+.reorderButton:not(:disabled):hover {
+  color: var(--color-text);
+  border-color: var(--color-text-muted);
+}
+
+.reorderButton:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.sceneSummary {
+  font: var(--text-supporting);
+  margin: 0;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sceneMeta {
+  font: var(--text-supporting);
+  font-size: 11px;
+  margin: 0;
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.staleFlag {
+  color: var(--color-warning-text);
+  font-weight: 600;
+}
+
+.sceneListEmpty {
+  padding: 28px 20px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.sceneListEmpty p {
+  font: var(--text-body);
+  margin: 0;
+}
+
+/* Scene list skeleton. Matches the real row shape so the list does not
+   reflow when the scenes arrive. */
+
+.skeletonRow {
+  height: 72px;
+  padding: 14px 16px 14px 18px;
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+
+.skeletonLine,
+.skeletonLineWide {
+  display: block;
+  height: 9px;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface-subtle);
+}
+
+.skeletonLineWide {
+  width: 78%;
+}
+
+.skeletonLine {
+  width: 52%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .skeletonLine,
+  .skeletonLineWide {
+    animation: skeletonPulse 1.6s var(--motion-easing) infinite;
+  }
+}
+
+@keyframes skeletonPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* Tablet: inspector drops below the canvas, scene rail narrows. */
+@media (max-width: 1180px) {
+  .grid {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+
+  .rightPanel {
+    grid-column: span 2;
+  }
+}
+
+/* Mobile: one region at a time, driven by the tab switcher. */
+@media (max-width: 768px) {
+  .panel {
+    padding: 16px 12px 24px;
+  }
+
+  .tabs {
+    display: flex;
+  }
+
+  .grid {
+    display: block;
+  }
+
+  .regionHidden {
+    display: none;
+  }
+
+  .leftPanel {
+    height: 520px;
+    margin-bottom: 16px;
+  }
+
+  .centerCanvas {
+    margin-bottom: 16px;
+  }
+}

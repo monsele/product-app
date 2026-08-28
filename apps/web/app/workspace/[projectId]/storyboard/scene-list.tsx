@@ -11,6 +11,8 @@ import React, {
   type KeyboardEvent,
 } from "react";
 import type { StoryboardSceneListEntry } from "@avlp/schemas";
+import { CaretDown, CaretUp } from "@phosphor-icons/react";
+import styles from "./storyboard.module.css";
 import {
   sceneAssetStatusLabel,
   sceneAudioStatusLabel,
@@ -224,16 +226,8 @@ export function SceneList({
 
   if (scenes.length === 0)
     return (
-      <div
-        role="status"
-        style={{
-          padding: "24px",
-          textAlign: "center",
-          color: "var(--color-text-muted)",
-          fontSize: "14px",
-        }}
-      >
-        <p style={{ margin: 0 }}>This storyboard has no scenes yet.</p>
+      <div role="status" className={styles.sceneListEmpty}>
+        <p>This storyboard has no scenes yet.</p>
       </div>
     );
 
@@ -244,22 +238,12 @@ export function SceneList({
       ref={containerRef}
       aria-activedescendant={activeId ?? undefined}
       aria-label="Storyboard scenes"
+      className={styles.sceneList}
       data-testid="storyboard-scenes"
       onKeyDown={handleKeyDown}
       onScroll={() => setScrollTop(containerRef.current?.scrollTop ?? 0)}
       role="listbox"
       tabIndex={0}
-      style={{
-        boxSizing: "border-box",
-        height: "100%",
-        minHeight: 480,
-        listStyle: "none",
-        margin: 0,
-        overflowY: "auto",
-        padding: "8px",
-        position: "relative",
-        outline: "none",
-      }}
     >
       <li aria-hidden style={{ height: start * sceneRowHeight }} />
       {windowScenes.map((scene, windowIndex) => {
@@ -272,6 +256,13 @@ export function SceneList({
           <li
             key={scene.sceneId}
             aria-selected={selected}
+            className={[
+              styles.sceneRow,
+              selected ? styles.sceneRowSelected : "",
+              isDragging ? styles.sceneRowDragging : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
             data-testid={`storyboard-scene-${scene.sceneId}`}
             draggable
             id={`storyboard-scene-option-${scene.sceneId}`}
@@ -281,164 +272,62 @@ export function SceneList({
             onDragStart={() => handleDragStart(index)}
             onDrop={(event) => handleDrop(index, event)}
             role="option"
-            style={{
-              boxSizing: "border-box",
-              cursor: "grab",
-              height: sceneRowHeight,
-              marginBottom: "4px",
-              padding: "8px 10px",
-              borderRadius: "8px",
-              backgroundColor: selected
-                ? "var(--color-surface-raised, #292035)"
-                : isDragging
-                  ? "var(--color-surface-brand, #342548)"
-                  : "transparent",
-              border: selected
-                ? "1.5px solid var(--color-brand, #A883FF)"
-                : "1px solid var(--color-border, #3A3046)",
-              boxShadow: selected
-                ? "0 4px 12px rgba(168, 131, 255, 0.15)"
-                : "none",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              transition: "border-color 0.15s ease, background-color 0.15s ease",
-            }}
           >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "6px",
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
+            <div className={styles.sceneRowTop}>
+              <div className={styles.sceneRowLabel}>
                 <span
-                  style={{
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    color: selected ? "var(--color-brand, #A883FF)" : "var(--color-text-muted, #BDB5C7)",
-                    backgroundColor: selected ? "rgba(168, 131, 255, 0.16)" : "rgba(255, 255, 255, 0.06)",
-                    padding: "2px 6px",
-                    borderRadius: "4px",
-                    fontVariantNumeric: "tabular-nums",
-                  }}
+                  className={`${styles.sceneIndex} ${selected ? styles.sceneIndexSelected : ""}`}
                 >
-                  #{scene.order}
+                  {scene.order}
                 </span>
                 <p
-                  style={{
-                    margin: 0,
-                    fontSize: "13px",
-                    fontWeight: selected ? 600 : 500,
-                    color: selected ? "var(--color-text, #F4F1F8)" : "var(--color-text-muted, #BDB5C7)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
+                  className={`${styles.sceneTitle} ${selected ? styles.sceneTitleSelected : ""}`}
                 >
-                  {scene.order}. {scene.template} — {scene.durationSeconds}s ·{" "}
+                  {scene.template} · {scene.durationSeconds}s ·{" "}
                   {scene.narrationBlockCount} narration block
                   {scene.narrationBlockCount === 1 ? "" : "s"}
                   {scene.title !== null ? ` · ${scene.title}` : ""}
                 </p>
               </div>
 
-              {/* Quick Reorder Controls (for keyboard & mobile access) */}
-              <div style={{ display: "flex", gap: "2px", flexShrink: 0 }}>
+              {/* Keyboard and touch equivalent for drag reorder */}
+              <div className={styles.sceneReorder}>
                 <button
                   type="button"
                   aria-label={`Move scene ${scene.order} up`}
+                  className={styles.reorderButton}
                   title="Move up"
                   disabled={index === 0}
                   onClick={(e) => handleMoveUp(index, e)}
-                  style={{
-                    padding: "2px 4px",
-                    fontSize: "10px",
-                    lineHeight: 1,
-                    background: "rgba(255, 255, 255, 0.05)",
-                    border: "1px solid var(--color-border, #3A3046)",
-                    borderRadius: "3px",
-                    color: "var(--color-text-muted, #BDB5C7)",
-                    cursor: index === 0 ? "not-allowed" : "pointer",
-                    opacity: index === 0 ? 0.3 : 0.8,
-                  }}
                 >
-                  ▲
+                  <CaretUp size={12} weight="bold" aria-hidden />
                 </button>
                 <button
                   type="button"
                   aria-label={`Move scene ${scene.order} down`}
+                  className={styles.reorderButton}
                   title="Move down"
                   disabled={index === scenes.length - 1}
                   onClick={(e) => handleMoveDown(index, e)}
-                  style={{
-                    padding: "2px 4px",
-                    fontSize: "10px",
-                    lineHeight: 1,
-                    background: "rgba(255, 255, 255, 0.05)",
-                    border: "1px solid var(--color-border, #3A3046)",
-                    borderRadius: "3px",
-                    color: "var(--color-text-muted, #BDB5C7)",
-                    cursor: index === scenes.length - 1 ? "not-allowed" : "pointer",
-                    opacity: index === scenes.length - 1 ? 0.3 : 0.8,
-                  }}
                 >
-                  ▼
+                  <CaretDown size={12} weight="bold" aria-hidden />
                 </button>
               </div>
             </div>
 
-            <p
-              style={{
-                margin: 0,
-                fontSize: "12px",
-                color: "var(--color-text-muted, #BDB5C7)",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {scene.narrationSummary}
-            </p>
+            <p className={styles.sceneSummary}>{scene.narrationSummary}</p>
 
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "4px",
-                fontSize: "11px",
-              }}
-            >
-              <p style={{ margin: 0, color: "var(--color-text-muted, #BDB5C7)", fontSize: "11px" }}>
-                {sceneAssetStatusLabel(scene.status.assets)} ·{" "}
-                {sceneAudioStatusLabel(scene.status.audio)} ·{" "}
-                {sceneValidationStatusLabel(scene.status.validation)}
-                {sceneStale ? (
-                  <span
-                    role="status"
-                    style={{
-                      marginLeft: "4px",
-                      color: "var(--color-warning-fg, #8A4B08)",
-                      fontWeight: 600,
-                    }}
-                  >
-                    · Stale
-                  </span>
-                ) : null}
-              </p>
-            </div>
+            <p className={styles.sceneMeta}>
+              {sceneAssetStatusLabel(scene.status.assets)} ·{" "}
+              {sceneAudioStatusLabel(scene.status.audio)} ·{" "}
+              {sceneValidationStatusLabel(scene.status.validation)}
+              {sceneStale ? (
+                <span role="status" className={styles.staleFlag}>
+                  {" "}
+                  · Stale
+                </span>
+              ) : null}
+            </p>
           </li>
         );
       })}

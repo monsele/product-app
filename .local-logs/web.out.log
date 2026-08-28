@@ -35,3 +35,133 @@
  ○ Compiling /workspace/[projectId]/render ...
  ✓ Compiled /workspace/[projectId]/render in 5.5s (10109 modules)
  GET /workspace/01a047b2-3850-78a4-ac51-19b5477fd6eb/render 200 in 7572ms
+ ✓ Compiled in 34.8s (10915 modules)
+ GET /workspace/01a047b2-3850-78a4-ac51-19b5477fd6eb/render 200 in 624ms
+ ○ Compiling /api/auth/sign-out ...
+ ✓ Compiled /api/auth/sign-out in 2.2s (5609 modules)
+ ⨯ Error: Cannot find module './4203.js'
+Require stack:
+- D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\server\webpack-runtime.js
+- D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\server\app\api\auth\sign-out\route.js
+- D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113\node_modules\next\dist\server\require.js
+- D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113\node_modules\next\dist\server\load-components.js
+- D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113\node_modules\next\dist\build\utils.js
+- D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113\node_modules\next\dist\build\swc\options.js
+- D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113\node_modules\next\dist\build\swc\index.js
+- D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113\node_modules\next\dist\build\next-config-ts\transpile-config.js
+- D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113\node_modules\next\dist\server\config.js
+- D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113\node_modules\next\dist\server\next.js
+- D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113\node_modules\next\dist\server\lib\start-server.js
+    at <unknown> (D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\server\app\api\auth\sign-out\route.js:1:7095)
+    at Object.<anonymous> (D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\server\app\api\auth\sign-out\route.js:1:7146) {
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/api/auth/sign-out'
+}
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 5.2s (11369 modules)
+ GET /workspace/01a047b2-3850-78a4-ac51-19b5477fd6eb/render 200 in 4674ms
+ ⨯ Failed to generate static paths for /workspace/[projectId]/render:
+[Error: Cannot find module './vendor-chunks/@phosphor-icons+react@2.1.1_59121c96ae65983fb8c378b5597ec6e8.js'
+Require stack:
+- D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\server\webpack-runtime.js
+- D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\server\app\workspace\[projectId]\render\page.js
+- D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113\node_modules\next\dist\server\require.js
+- D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113\node_modules\next\dist\server\load-components.js
+- D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113\node_modules\next\dist\build\utils.js
+- D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113\node_modules\next\dist\server\dev\static-paths-worker.js
+- D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113\node_modules\next\dist\compiled\jest-worker\processChild.js] {
+  type: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array]
+}
+ POST /api/auth/sign-out 500 in 11386ms
+ ⨯ [Error: Cannot find module './vendor-chunks/@phosphor-icons+react@2.1.1_59121c96ae65983fb8c378b5597ec6e8.js'
+Require stack:
+- D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\server\webpack-runtime.js
+- D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\server\app\workspace\[projectId]\render\page.js
+- D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113\node_modules\next\dist\server\require.js
+- D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113\node_modules\next\dist\server\load-components.js
+- D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113\node_modules\next\dist\build\utils.js
+- D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113\node_modules\next\dist\server\dev\static-paths-worker.js
+- D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113\node_modules\next\dist\compiled\jest-worker\processChild.js] {
+  type: 'Error',
+  code: 'MODULE_NOT_FOUND',
+  requireStack: [Array],
+  page: '/workspace/01a047b2-3850-78a4-ac51-19b5477fd6eb/render'
+}
+[Error: ENOENT: no such file or directory, stat 'D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\cache\webpack\client-development\34.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'D:\\Eronmonsele\\Documents\\repos\\product-app\\apps\\web\\.next\\cache\\webpack\\client-development\\34.pack.gz'
+}
+ ⨯ unhandledRejection: [Error: ENOENT: no such file or directory, stat 'D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\cache\webpack\client-development\34.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'D:\\Eronmonsele\\Documents\\repos\\product-app\\apps\\web\\.next\\cache\\webpack\\client-development\\34.pack.gz'
+}
+ ⨯ unhandledRejection:  [Error: ENOENT: no such file or directory, stat 'D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\cache\webpack\client-development\34.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'D:\\Eronmonsele\\Documents\\repos\\product-app\\apps\\web\\.next\\cache\\webpack\\client-development\\34.pack.gz'
+}
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, stat 'D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\cache\webpack\client-development\34.pack.gz'
+[Error: ENOENT: no such file or directory, stat 'D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\cache\webpack\server-development\9.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'D:\\Eronmonsele\\Documents\\repos\\product-app\\apps\\web\\.next\\cache\\webpack\\server-development\\9.pack.gz'
+}
+ ⨯ unhandledRejection: [Error: ENOENT: no such file or directory, stat 'D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\cache\webpack\server-development\9.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'D:\\Eronmonsele\\Documents\\repos\\product-app\\apps\\web\\.next\\cache\\webpack\\server-development\\9.pack.gz'
+}
+ ⨯ unhandledRejection:  [Error: ENOENT: no such file or directory, stat 'D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\cache\webpack\server-development\9.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'D:\\Eronmonsele\\Documents\\repos\\product-app\\apps\\web\\.next\\cache\\webpack\\server-development\\9.pack.gz'
+}
+[Error: ENOENT: no such file or directory, stat 'D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\cache\webpack\server-development\20.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'D:\\Eronmonsele\\Documents\\repos\\product-app\\apps\\web\\.next\\cache\\webpack\\server-development\\20.pack.gz'
+}
+ ⨯ unhandledRejection: [Error: ENOENT: no such file or directory, stat 'D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\cache\webpack\server-development\20.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'D:\\Eronmonsele\\Documents\\repos\\product-app\\apps\\web\\.next\\cache\\webpack\\server-development\\20.pack.gz'
+}
+ ⨯ unhandledRejection:  [Error: ENOENT: no such file or directory, stat 'D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\cache\webpack\server-development\20.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'D:\\Eronmonsele\\Documents\\repos\\product-app\\apps\\web\\.next\\cache\\webpack\\server-development\\20.pack.gz'
+}
+[Error: ENOENT: no such file or directory, stat 'D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\cache\webpack\server-development\29.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'D:\\Eronmonsele\\Documents\\repos\\product-app\\apps\\web\\.next\\cache\\webpack\\server-development\\29.pack.gz'
+}
+ ⨯ unhandledRejection: [Error: ENOENT: no such file or directory, stat 'D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\cache\webpack\server-development\29.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'D:\\Eronmonsele\\Documents\\repos\\product-app\\apps\\web\\.next\\cache\\webpack\\server-development\\29.pack.gz'
+}
+ ⨯ unhandledRejection:  [Error: ENOENT: no such file or directory, stat 'D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\cache\webpack\server-development\29.pack.gz'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'stat',
+  path: 'D:\\Eronmonsele\\Documents\\repos\\product-app\\apps\\web\\.next\\cache\\webpack\\server-development\\29.pack.gz'
+}
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, stat 'D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\cache\webpack\server-development\9.pack.gz'
+[?25h

@@ -366,7 +366,7 @@ export function RenderPanel({
                     margin: 0,
                   }}
                 >
-                  Latest Production Render
+                  Latest production render
                 </h2>
                 <p
                   style={{
@@ -409,7 +409,7 @@ export function RenderPanel({
                 }
               />
             ) : (
-              <StatusLabel status="info" label="Not Started" />
+              <StatusLabel status="info" label="Not started" />
             )}
           </div>
 
@@ -654,7 +654,7 @@ export function RenderPanel({
                         fontWeight: 600,
                       }}
                     >
-                      File Size
+                      File size
                     </span>
                     <div
                       style={{
@@ -947,7 +947,7 @@ export function RenderPanel({
                 margin: 0,
               }}
             >
-              Downloads & Media Exports
+              Downloads & media exports
             </h2>
           </div>
           <p
@@ -1305,7 +1305,7 @@ export function RenderPanel({
                     margin: "8px 0 2px",
                   }}
                 >
-                  Narration Script
+                  Narration script
                 </h3>
                 <p
                   style={{
@@ -1399,7 +1399,7 @@ export function RenderPanel({
                     margin: "8px 0 2px",
                   }}
                 >
-                  Storyboard Outline
+                  Storyboard outline
                 </h3>
                 <p
                   style={{
@@ -1679,7 +1679,7 @@ export function RenderPanel({
                 margin: 0,
               }}
             >
-              Render History
+              Render history
             </h2>
           </div>
           <p
@@ -1845,7 +1845,7 @@ export function RenderPanel({
       </section>
 
       {/* Contextual Information Rail */}
-      <InformationRail title="Delivery Context" width="320px">
+      <InformationRail title="Delivery context" width="320px">
         <div
           style={{
             display: "flex",
@@ -1867,7 +1867,7 @@ export function RenderPanel({
                 color: "var(--color-text)",
               }}
             >
-              Output Standard
+              Output standard
             </h4>
           </div>
           <p
@@ -1904,7 +1904,7 @@ export function RenderPanel({
                 color: "var(--color-text)",
               }}
             >
-              Privacy & Permissions
+              Privacy & permissions
             </h4>
           </div>
           <p
@@ -1942,7 +1942,7 @@ export function RenderPanel({
                 color: "var(--color-text)",
               }}
             >
-              Export Formats
+              Export formats
             </h4>
           </div>
           <ul
@@ -1958,8 +1958,8 @@ export function RenderPanel({
           >
             <li>MP4 Video (1080p HD)</li>
             <li>SRT / VTT Subtitles</li>
-            <li>Markdown Narration Script</li>
-            <li>Markdown Storyboard Schema</li>
+            <li>Markdown narration script</li>
+            <li>Markdown storyboard schema</li>
           </ul>
         </div>
       </InformationRail>

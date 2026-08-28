@@ -33,7 +33,7 @@ test.describe("Teacher Workspace Project Board", () => {
     await expect(
       page.getByRole("complementary", { name: "Workspace Contextual Guidance" }),
     ).toBeVisible();
-    await expect(page.getByText("Supported Sources")).toBeVisible();
+    await expect(page.getByText("Supported sources")).toBeVisible();
 
     // Featured Lesson Card
     await expect(
@@ -41,8 +41,9 @@ test.describe("Teacher Workspace Project Board", () => {
     ).toBeVisible();
     await expect(page.getByText("Draft")).toBeVisible();
     await expect(page.getByText(/Last modified/i)).toBeVisible();
+    // Stage actions navigate, so they are links rather than buttons.
     await expect(
-      page.getByRole("button", { name: "Upload Source" }),
+      page.getByRole("link", { name: "Upload source" }).first(),
     ).toBeVisible();
 
     // Create Lesson form with dominant action
@@ -144,7 +145,7 @@ test.describe("Teacher Workspace Project Board", () => {
     await expect(
       page.getByRole("complementary", { name: "Source Document Requirements" }),
     ).toBeVisible();
-    await expect(page.getByText("Supported Formats")).toBeVisible();
+    await expect(page.getByText("Supported formats")).toBeVisible();
     await expect(page.getByText("Maximum 20 pages")).toBeVisible();
 
     // Check Drop Target
@@ -168,14 +169,14 @@ test.describe("Teacher Workspace Project Board", () => {
 
     // Check live status announcement & validation
     await expect(
-      page.getByText(/Your document passed validation|Ready for Review/),
+      page.getByText(/Your document passed validation|Ready for review/),
     ).toBeVisible({ timeout: 10000 });
 
     // Check Ingestion Status Panel & Review Source action
     await expect(
       page.getByRole("heading", { name: "Document ingestion" }),
     ).toBeVisible();
-    await expect(page.getByText("Extraction Quality Score")).toBeVisible();
+    await expect(page.getByText("Extraction quality score")).toBeVisible();
     await expect(page.getByText("95/100")).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Review source" }),

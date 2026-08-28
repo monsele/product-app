@@ -66,7 +66,7 @@ describe("ingestion status panel", () => {
         },
         canProceed: false,
       }),
-    ).toEqual({ status: "in_progress", label: "Extracting Content" });
+    ).toEqual({ status: "in_progress", label: "Extracting content" });
 
     // Failed
     expect(
@@ -81,7 +81,7 @@ describe("ingestion status panel", () => {
         },
         canProceed: false,
       }),
-    ).toEqual({ status: "error", label: "Extraction Failed" });
+    ).toEqual({ status: "error", label: "Extraction failed" });
 
     // Ready
     expect(
@@ -96,7 +96,7 @@ describe("ingestion status panel", () => {
         },
         canProceed: true,
       }),
-    ).toEqual({ status: "success", label: "Ready for Review" });
+    ).toEqual({ status: "success", label: "Ready for review" });
 
     // Review Required
     expect(
@@ -122,6 +122,6 @@ describe("ingestion status panel", () => {
         },
         canProceed: true,
       }),
-    ).toEqual({ status: "warning", label: "Items to Check" });
+    ).toEqual({ status: "warning", label: "Items to check" });
   });
 });

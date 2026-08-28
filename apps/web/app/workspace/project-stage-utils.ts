@@ -18,7 +18,7 @@ export function getStageDetails(
     return {
       ...base,
       badgeStyle: "error",
-      nextActionLabel: "View Issue",
+      nextActionLabel: "View issue",
       nextActionPath: (id) => `/workspace/${id}/upload`,
     };
   }
@@ -32,25 +32,25 @@ function getBaseStageDetails(stage: ProjectStage | string): StageDetails {
       return {
         label: "Draft",
         badgeStyle: "neutral",
-        nextActionLabel: "Upload Source",
+        nextActionLabel: "Upload source",
         nextActionPath: (id) => `/workspace/${id}/upload`,
         isComplete: false,
         stepIndex: 0,
       };
     case "uploading":
       return {
-        label: "Uploading Document",
+        label: "Uploading document",
         badgeStyle: "info",
-        nextActionLabel: "Continue Upload",
+        nextActionLabel: "Continue upload",
         nextActionPath: (id) => `/workspace/${id}/upload`,
         isComplete: false,
         stepIndex: 0,
       };
     case "validating_source":
       return {
-        label: "Validating Source",
+        label: "Validating source",
         badgeStyle: "info",
-        nextActionLabel: "Check Validation",
+        nextActionLabel: "Check validation",
         nextActionPath: (id) => `/workspace/${id}/upload`,
         isComplete: false,
         stepIndex: 0,
@@ -58,9 +58,9 @@ function getBaseStageDetails(stage: ProjectStage | string): StageDetails {
     case "ingesting":
     case "source_uploaded":
       return {
-        label: "Ingesting Document",
+        label: "Ingesting document",
         badgeStyle: "info",
-        nextActionLabel: "Check Status",
+        nextActionLabel: "Check status",
         nextActionPath: (id) => `/workspace/${id}/upload`,
         isComplete: false,
         stepIndex: 0,
@@ -69,9 +69,9 @@ function getBaseStageDetails(stage: ProjectStage | string): StageDetails {
     case "reviewing":
     case "ingestion_reviewed":
       return {
-        label: "Source Review",
+        label: "Source review",
         badgeStyle: "info",
-        nextActionLabel: "Review Source",
+        nextActionLabel: "Review source",
         nextActionPath: (id) => `/workspace/${id}/review`,
         isComplete: false,
         stepIndex: 1,
@@ -80,9 +80,9 @@ function getBaseStageDetails(stage: ProjectStage | string): StageDetails {
     case "configuring":
     case "configured":
       return {
-        label: "Lesson Setup",
+        label: "Lesson setup",
         badgeStyle: "info",
-        nextActionLabel: "Configure Lesson",
+        nextActionLabel: "Configure lesson",
         nextActionPath: (id) => `/workspace/${id}/configuration`,
         isComplete: false,
         stepIndex: 2,
@@ -90,9 +90,9 @@ function getBaseStageDetails(stage: ProjectStage | string): StageDetails {
     case "objectives_review":
     case "objectives_approved":
       return {
-        label: "Objectives Review",
+        label: "Objectives review",
         badgeStyle: "info",
-        nextActionLabel: "Review Objectives",
+        nextActionLabel: "Review objectives",
         nextActionPath: (id) => `/workspace/${id}/objectives`,
         isComplete: false,
         stepIndex: 3,
@@ -100,9 +100,9 @@ function getBaseStageDetails(stage: ProjectStage | string): StageDetails {
     case "outline_review":
     case "outline_approved":
       return {
-        label: "Outline Review",
+        label: "Outline review",
         badgeStyle: "info",
-        nextActionLabel: "Review Outline",
+        nextActionLabel: "Review outline",
         nextActionPath: (id) => `/workspace/${id}/outline`,
         isComplete: false,
         stepIndex: 4,
@@ -112,45 +112,45 @@ function getBaseStageDetails(stage: ProjectStage | string): StageDetails {
     case "storyboarding":
     case "storyboard_approved":
       return {
-        label: "Storyboard & Script",
+        label: "Storyboard & script",
         badgeStyle: "info",
-        nextActionLabel: "Open Storyboard",
+        nextActionLabel: "Open storyboard",
         nextActionPath: (id) => `/workspace/${id}/storyboard`,
         isComplete: false,
         stepIndex: 6,
       };
     case "audio_generation":
       return {
-        label: "Generating Audio",
+        label: "Generating audio",
         badgeStyle: "info",
-        nextActionLabel: "View Storyboard",
+        nextActionLabel: "View storyboard",
         nextActionPath: (id) => `/workspace/${id}/storyboard`,
         isComplete: false,
         stepIndex: 6,
       };
     case "ready_for_validation":
       return {
-        label: "Ready for Validation",
+        label: "Ready for validation",
         badgeStyle: "info",
-        nextActionLabel: "Validate Lesson",
+        nextActionLabel: "Validate lesson",
         nextActionPath: (id) => `/workspace/${id}/storyboard`,
         isComplete: false,
         stepIndex: 6,
       };
     case "ready_to_render":
       return {
-        label: "Ready to Render",
+        label: "Ready to render",
         badgeStyle: "info",
-        nextActionLabel: "Preview & Render",
+        nextActionLabel: "Preview & render",
         nextActionPath: (id) => `/workspace/${id}/preview`,
         isComplete: false,
         stepIndex: 7,
       };
     case "rendering":
       return {
-        label: "Rendering Video",
+        label: "Rendering video",
         badgeStyle: "warning",
-        nextActionLabel: "View Render",
+        nextActionLabel: "View render",
         nextActionPath: (id) => `/workspace/${id}/render`,
         isComplete: false,
         stepIndex: 8,
@@ -158,9 +158,9 @@ function getBaseStageDetails(stage: ProjectStage | string): StageDetails {
     case "completed":
     case "rendered":
       return {
-        label: "Ready for Class",
+        label: "Ready for class",
         badgeStyle: "success",
-        nextActionLabel: "Preview & Share",
+        nextActionLabel: "Preview & share",
         nextActionPath: (id) => `/workspace/${id}/preview`,
         isComplete: true,
         stepIndex: 8,

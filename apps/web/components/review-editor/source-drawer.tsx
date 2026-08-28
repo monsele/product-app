@@ -23,7 +23,7 @@ export interface SourceDrawerProps {
 export const SourceDrawer: React.FC<SourceDrawerProps> = ({
   isOpen,
   onClose,
-  title = "Source & Grounding Context",
+  title = "Source & grounding context",
   sourceRefs,
   projectId,
   instructionalContext,
@@ -134,7 +134,7 @@ export const SourceDrawer: React.FC<SourceDrawerProps> = ({
                           textDecoration: "underline",
                         }}
                       >
-                        Inspect in Source Review &rarr;
+                        Inspect in source review &rarr;
                       </a>
                     </div>
                   </div>
@@ -168,7 +168,7 @@ export const SourceDrawer: React.FC<SourceDrawerProps> = ({
                         color: "var(--color-text)",
                       }}
                     >
-                      Prerequisite Knowledge
+                      Prerequisite knowledge
                     </h4>
                   </div>
                   <ul
@@ -210,7 +210,7 @@ export const SourceDrawer: React.FC<SourceDrawerProps> = ({
                         color: "var(--color-text)",
                       }}
                     >
-                      Common Misconceptions
+                      Common misconceptions
                     </h4>
                   </div>
                   <ul

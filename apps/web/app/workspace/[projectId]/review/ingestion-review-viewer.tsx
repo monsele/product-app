@@ -802,7 +802,7 @@ export function IngestionReviewViewer({
               transition: "opacity var(--motion-quick) var(--motion-easing)",
             }}
           >
-            <span>Proceed to Lesson Setup</span>
+            <span>Proceed to lesson setup</span>
             <ArrowRight weight="bold" size={16} />
           </Link>
 
