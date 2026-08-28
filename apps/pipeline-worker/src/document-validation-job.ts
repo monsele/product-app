@@ -358,7 +358,7 @@ async function recordSuccess(
           eq(sourceDocumentIngestionArtifacts.ownerUserId, context.ownerUserId),
           eq(
             sourceDocumentIngestionArtifacts.projectId,
-            sourceDocuments.projectId,
+            context.projectId,
           ),
           eq(sourceDocuments.ownerUserId, context.ownerUserId),
           eq(sourceDocuments.sha256, document.sha256),

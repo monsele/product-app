@@ -17,22 +17,29 @@ import json
 import os
 import zipfile
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 from pydantic.alias_generators import to_camel
 
 
 MAX_SOURCE_BYTES = 25 * 1024 * 1024
-MAX_PARSE_SECONDS = 120
-MAX_PARSE_MEMORY_BYTES = 1024 * 1024 * 1024
-MAX_PARSE_CPU_SECONDS = 110
+MAX_PARSE_SECONDS = int(os.getenv("MAX_PARSE_SECONDS", "600"))
+MAX_PARSE_MEMORY_BYTES = int(os.getenv("MAX_PARSE_MEMORY_BYTES", str(3 * 1024 * 1024 * 1024)))
+MAX_PARSE_CPU_SECONDS = int(os.getenv("MAX_PARSE_CPU_SECONDS", "550"))
 PARSER_VERSION = "docling-v1"
+
+
+os.environ["HF_HUB_DISABLE_SYMLINKS_WARNING"] = "1"
 
 
 class IngestionRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", alias_generator=to_camel, populate_by_name=True)
 
-    schema_version: int = Field(1, ge=1, le=1)
+    schema_version: int = Field(default=1, ge=1, le=1)
     job_id: str = Field(min_length=36, max_length=36)
     source_document_id: str = Field(min_length=36, max_length=36)
     source_download_url: HttpUrl
@@ -106,6 +113,9 @@ def _convert_in_child(
             return
         output.put(("success", canonical, markdown))
     except BaseException as error:
+        import traceback
+        print(f"[_convert_in_child ERROR] {type(error).__name__}: {error}", flush=True)
+        traceback.print_exc()
         failure = classify_parser_exception(error)
         output.put(("failure", failure.code, failure.classification))
 
@@ -174,6 +184,9 @@ def download_source(url: str, destination: Path) -> None:
     except IngestionFailure:
         raise
     except (HTTPError, URLError, TimeoutError, OSError, ValueError) as error:
+        import traceback
+        print(f"[download_source ERROR] {type(error).__name__}: {error}", flush=True)
+        traceback.print_exc()
         raise IngestionFailure("TEMPORARY_INFRASTRUCTURE", "retryable") from error
 
 
@@ -237,7 +250,13 @@ def create_app(adapter: DoclingAdapter | None = None, downloader: DownloadSource
         try:
             output = parse_request(request, selected_adapter, downloader)
         except IngestionFailure as error:
+            print(f"[ingest FAILED] code={error.code}, classification={error.classification}", flush=True)
             raise HTTPException(status_code=422, detail={"code": error.code, "classification": error.classification}) from error
+        except Exception as error:
+            import traceback
+            print(f"[ingest UNEXPECTED ERROR] {type(error).__name__}: {error}", flush=True)
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=str(error)) from error
         return {
             "schemaVersion": 1,
             "parserVersion": request.parser_version,

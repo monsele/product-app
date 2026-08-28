@@ -815,6 +815,7 @@ export function createStoryboardGenerationJobHandler(input: {
           templateCatalog: JSON.stringify(storyboardTemplateCatalog),
           narration: JSON.stringify(narration),
           outline: JSON.stringify(outline),
+          configuration: JSON.stringify(parsedParams),
         },
         context: loaded.context,
       };

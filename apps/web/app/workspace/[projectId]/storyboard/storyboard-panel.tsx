@@ -636,8 +636,10 @@ export function StoryboardPanel({
   const storyboard = value?.storyboard ?? null;
   const warnings = useMemo(
     () =>
-      value === null ? [] : storyboardValidationWarnings(value.validation),
-    [value],
+      value === null || storyboard === null
+        ? []
+        : storyboardValidationWarnings(value.validation),
+    [value, storyboard],
   );
 
   const selectedDetail = detail.kind === "ready" ? detail.value : null;

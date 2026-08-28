@@ -4,6 +4,7 @@ import {
   lessonConfigurations,
   parsedDocuments,
   projects,
+  sourceSnapshots,
   type DatabaseClient,
   type DatabaseExecutor,
 } from "@avlp/database";
@@ -267,16 +268,12 @@ export class PostgresLessonConfigurationService
     ownerUserId: Identifier,
     projectId: Identifier,
   ): Promise<SourceContext> {
-    const [row] = await this.database
+    const [doc] = await this.database
       .select({
-        parsedDocumentVersion: parsedDocuments.version,
-        qualityStatus: ingestionQualityReports.status,
+        id: parsedDocuments.id,
+        version: parsedDocuments.version,
       })
       .from(parsedDocuments)
-      .leftJoin(
-        ingestionQualityReports,
-        eq(ingestionQualityReports.parsedDocumentId, parsedDocuments.id),
-      )
       .where(
         and(
           eq(parsedDocuments.ownerUserId, ownerUserId),
@@ -285,9 +282,32 @@ export class PostgresLessonConfigurationService
       )
       .orderBy(desc(parsedDocuments.createdAt))
       .limit(1);
+    if (doc === undefined)
+      return { parsedDocumentVersion: null, sourceReviewComplete: false };
+
+    const [quality] = await this.database
+      .select({
+        status: ingestionQualityReports.status,
+      })
+      .from(ingestionQualityReports)
+      .where(eq(ingestionQualityReports.parsedDocumentId, doc.id))
+      .limit(1);
+
+    const [snapshot] = await this.database
+      .select({ id: sourceSnapshots.id })
+      .from(sourceSnapshots)
+      .where(
+        and(
+          eq(sourceSnapshots.ownerUserId, ownerUserId),
+          eq(sourceSnapshots.projectId, projectId),
+        ),
+      )
+      .limit(1);
+
     return {
-      parsedDocumentVersion: row?.parsedDocumentVersion ?? null,
-      sourceReviewComplete: row?.qualityStatus === "ready",
+      parsedDocumentVersion: doc.version,
+      sourceReviewComplete:
+        snapshot !== undefined || quality?.status === "ready",
     };
   }
 
@@ -296,16 +316,12 @@ export class PostgresLessonConfigurationService
     ownerUserId: Identifier,
     projectId: Identifier,
   ): Promise<SourceContext> {
-    const [row] = await executor
+    const [doc] = await executor
       .select({
-        parsedDocumentVersion: parsedDocuments.version,
-        qualityStatus: ingestionQualityReports.status,
+        id: parsedDocuments.id,
+        version: parsedDocuments.version,
       })
       .from(parsedDocuments)
-      .innerJoin(
-        ingestionQualityReports,
-        eq(ingestionQualityReports.parsedDocumentId, parsedDocuments.id),
-      )
       .where(
         and(
           eq(parsedDocuments.ownerUserId, ownerUserId),
@@ -315,11 +331,32 @@ export class PostgresLessonConfigurationService
       .orderBy(desc(parsedDocuments.createdAt))
       .limit(1)
       .for("update");
-    if (row === undefined)
+    if (doc === undefined)
       return { parsedDocumentVersion: null, sourceReviewComplete: false };
+
+    const [quality] = await executor
+      .select({
+        status: ingestionQualityReports.status,
+      })
+      .from(ingestionQualityReports)
+      .where(eq(ingestionQualityReports.parsedDocumentId, doc.id))
+      .limit(1);
+
+    const [snapshot] = await executor
+      .select({ id: sourceSnapshots.id })
+      .from(sourceSnapshots)
+      .where(
+        and(
+          eq(sourceSnapshots.ownerUserId, ownerUserId),
+          eq(sourceSnapshots.projectId, projectId),
+        ),
+      )
+      .limit(1);
+
     return {
-      parsedDocumentVersion: row.parsedDocumentVersion,
-      sourceReviewComplete: row.qualityStatus === "ready",
+      parsedDocumentVersion: doc.version,
+      sourceReviewComplete:
+        snapshot !== undefined || quality?.status === "ready",
     };
   }
 }

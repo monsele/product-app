@@ -18,6 +18,15 @@ const malwareScanResponseSchema = z
   .object({ status: z.enum(["safe", "unsafe"]) })
   .strict();
 
+export class PassThroughMalwareScanner implements MalwareScanner {
+  public async scan(_input: {
+    bytes: Uint8Array;
+    sha256: string;
+  }): Promise<MalwareScanResult> {
+    return { status: "safe" };
+  }
+}
+
 /** Minimal scanner adapter; scanner response details never leave the worker. */
 export class HttpMalwareScanner implements MalwareScanner {
   public constructor(
@@ -29,7 +38,8 @@ export class HttpMalwareScanner implements MalwareScanner {
     bytes: Uint8Array;
     sha256: string;
   }): Promise<MalwareScanResult> {
-    if (this.endpoint === undefined) return { status: "safe" };
+    if (this.endpoint === undefined)
+      throw new Error("Malware scanner is not configured.");
     const response = await fetch(this.endpoint, {
       method: "POST",
       headers: {

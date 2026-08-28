@@ -593,6 +593,7 @@ export function createNarrationGenerationJobHandler(input: {
         variables: {
           outline: JSON.stringify(loaded.set.items),
           wordBudgets: JSON.stringify(wordBudgets),
+          configuration: JSON.stringify(parsedParams),
         },
         context: {
           outlineSetContentHash: loaded.set.contentHash,

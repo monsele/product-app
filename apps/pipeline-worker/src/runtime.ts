@@ -29,17 +29,22 @@ import { z } from "zod";
 import { health } from "./health.js";
 import { createProjectCleanupJobHandler } from "./project-cleanup.js";
 import { createProjectAssetCleanupJobHandler } from "./project-asset-cleanup-job.js";
-import { HttpMalwareScanner } from "./document-validation.js";
+import {
+  HttpMalwareScanner,
+  PassThroughMalwareScanner,
+  type MalwareScanner,
+} from "./document-validation.js";
 import { createDocumentValidationCleanupJobHandler } from "./document-validation-cleanup-job.js";
 import { createDocumentValidationJobHandler } from "./document-validation-job.js";
 import { HttpDoclingIngestionClient } from "./docling-ingestion-client.js";
 import { createDocumentIngestionJobHandler } from "./document-ingestion-job.js";
 import {
   mockPricing,
-  MockLanguageModelProvider,
+  DynamicMockLanguageModelProvider,
   MockIllustrationProvider,
   repositoryPrompts,
   StaticPromptRegistry,
+  type LanguageModelProvider,
 } from "@avlp/provider-adapters";
 import {
   PostgresGenerationQuotaGuard,
@@ -64,8 +69,8 @@ function processAbortSignal(): { signal: AbortSignal; dispose: () => void } {
   return {
     signal: controller.signal,
     dispose: () => {
-      process.removeListener("SIGINT", abort);
-      process.removeListener("SIGTERM", abort);
+      process.off("SIGINT", abort);
+      process.off("SIGTERM", abort);
     },
   };
 }
@@ -100,12 +105,31 @@ async function createStorage(
   });
 }
 
+function createLanguageModelProvider(
+  _environmentInput: Record<string, string | undefined>,
+): LanguageModelProvider {
+  // When no external LLM API key is configured, fallback to the intelligent dynamic mock provider.
+  return new DynamicMockLanguageModelProvider();
+}
+
+function createMalwareScanner(
+  scannerUrl: string | undefined,
+  scannerToken: string | undefined,
+): MalwareScanner {
+  if (scannerUrl !== undefined && scannerUrl.length > 0) {
+    return new HttpMalwareScanner(scannerUrl, scannerToken);
+  }
+  return new PassThroughMalwareScanner();
+}
+
 export async function runPipelineWorker(
   environmentInput: Record<string, string | undefined>,
   options: {
     signal?: AbortSignal;
     logger?: StructuredLogger;
     handlers?: readonly RegisteredJobHandler[];
+    languageModelProvider?: LanguageModelProvider;
+    malwareScanner?: MalwareScanner;
     publisherFactory?: (
       connection: ReturnType<typeof redisConnectionFromUrl>,
     ) => JobPublisher & { close: () => Promise<void> };
@@ -141,6 +165,15 @@ export async function runPipelineWorker(
     if (handlers === undefined) {
       const storage = await (options.storageFactory?.() ??
         createStorage(environmentInput));
+      const languageModelProvider =
+        options.languageModelProvider ??
+        createLanguageModelProvider(environmentInput);
+      const malwareScanner =
+        options.malwareScanner ??
+        createMalwareScanner(
+          workerEnvironment.MALWARE_SCANNER_URL,
+          workerEnvironment.MALWARE_SCANNER_TOKEN,
+        );
       const generationQuotaGuard = (limits: ModelCallQuotaLimits) =>
         new PostgresGenerationQuotaGuard(
           database.client,
@@ -152,20 +185,14 @@ export async function runPipelineWorker(
         createDocumentValidationJobHandler({
           database: database.client,
           storage,
-          scanner: new HttpMalwareScanner(
-            workerEnvironment.MALWARE_SCANNER_URL,
-            workerEnvironment.MALWARE_SCANNER_TOKEN,
-          ),
+          scanner: malwareScanner,
           maxUploadBytes:
             storageEnvironmentSchema.parse(environmentInput).MAX_UPLOAD_BYTES,
         }),
         createProjectAssetValidationJobHandler({
           database: database.client,
           storage,
-          scanner: new HttpMalwareScanner(
-            workerEnvironment.MALWARE_SCANNER_URL,
-            workerEnvironment.MALWARE_SCANNER_TOKEN,
-          ),
+          scanner: malwareScanner,
         }),
         createIllustrationGenerationJobHandler({
           database: database.client,
@@ -206,7 +233,7 @@ export async function runPipelineWorker(
         }),
         createObjectivesGenerationJobHandler({
           database: database.client,
-          provider: new MockLanguageModelProvider(),
+          provider: languageModelProvider,
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),
           quotaGuard: generationQuotaGuard({
             "ai.objectives": { maxCallsPerHour: 20 },
@@ -215,7 +242,7 @@ export async function runPipelineWorker(
         }),
         createOutlineGenerationJobHandler({
           database: database.client,
-          provider: new MockLanguageModelProvider(),
+          provider: languageModelProvider,
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),
           quotaGuard: generationQuotaGuard({
             "ai.outline": { maxCallsPerHour: 20 },
@@ -224,7 +251,7 @@ export async function runPipelineWorker(
         }),
         createNarrationGenerationJobHandler({
           database: database.client,
-          provider: new MockLanguageModelProvider(),
+          provider: languageModelProvider,
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),
           quotaGuard: generationQuotaGuard({
             "ai.narration": { maxCallsPerHour: 20 },
@@ -233,7 +260,7 @@ export async function runPipelineWorker(
         }),
         createNarrationBlockTransformJobHandler({
           database: database.client,
-          provider: new MockLanguageModelProvider(),
+          provider: languageModelProvider,
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),
           quotaGuard: generationQuotaGuard({
             "ai.narration": { maxCallsPerHour: 20 },
@@ -242,7 +269,7 @@ export async function runPipelineWorker(
         }),
         createStoryboardGenerationJobHandler({
           database: database.client,
-          provider: new MockLanguageModelProvider(),
+          provider: languageModelProvider,
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),
           quotaGuard: generationQuotaGuard({
             "ai.storyboard": { maxCallsPerHour: 20 },
@@ -251,7 +278,7 @@ export async function runPipelineWorker(
         }),
         createSceneRegenerationJobHandler({
           database: database.client,
-          provider: new MockLanguageModelProvider(),
+          provider: languageModelProvider,
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),
           quotaGuard: generationQuotaGuard({
             "ai.scene_regeneration": {
@@ -262,7 +289,7 @@ export async function runPipelineWorker(
         }),
         createGroundingCheckJobHandler({
           database: database.client,
-          provider: new MockLanguageModelProvider(),
+          provider: languageModelProvider,
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),
           quotaGuard: generationQuotaGuard({
             "ai.grounding": { maxCallsPerHour: 20 },

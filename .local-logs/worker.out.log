@@ -1,0 +1,8 @@
+
+> @avlp/pipeline-worker@0.0.0 dev D:\Eronmonsele\Documents\repos\product-app\apps\pipeline-worker
+> tsx watch --env-file=../../.env src/main.ts
+
+{"timestamp":"2026-08-28T11:03:02.682Z","level":"info","event":"worker.started","fields":{"status":"ok","service":"pipeline-worker"}}
+{"timestamp":"2026-08-28T11:13:58.405Z","level":"info","event":"queue.job_dispatched","fields":{"outboxEventId":"01a04813-9627-7d7c-a493-2558f33c8e2b","jobId":"01a04813-9627-7b0b-8dd7-7078b241e066","projectId":"01a047b2-3850-78a4-ac51-19b5477fd6eb","correlationId":"01a04813-95f1-7233-837c-2056c243cb23","queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-08-28T11:13:58.438Z","level":"info","event":"job.started","fields":{"jobId":"01a04813-9627-7b0b-8dd7-7078b241e066","jobType":"storyboard.generate","projectId":"01a047b2-3850-78a4-ac51-19b5477fd6eb","correlationId":"01a04813-95f1-7233-837c-2056c243cb23","attempt":1,"service":"pipeline-worker"}}
+{"timestamp":"2026-08-28T11:13:58.591Z","level":"info","event":"job.completed","fields":{"jobId":"01a04813-9627-7b0b-8dd7-7078b241e066","jobType":"storyboard.generate","projectId":"01a047b2-3850-78a4-ac51-19b5477fd6eb","correlationId":"01a04813-95f1-7233-837c-2056c243cb23","attempt":1,"status":"succeeded","errorClassification":"none","durationMs":153,"service":"pipeline-worker"}}
