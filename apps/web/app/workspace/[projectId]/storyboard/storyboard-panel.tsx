@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import { ScenePreviewPlayer } from "@avlp/scene-library";
 import {
@@ -41,6 +42,8 @@ import {
   teacherReplacementPreviewForScene,
 } from "./scene-detail-panel";
 import { type VersionBrowserMetadata } from "./version-browser";
+import { toast } from "../../../../components/ui/toast-provider";
+import { useTaskStatusNotification } from "../../../../lib/use-task-notification";
 import {
   ArrowRight as ArrowRightIcon,
   Copy as CopyIcon,
@@ -303,6 +306,32 @@ export function StoryboardPanel({
     void refreshVersions().catch(() => undefined);
   }, [refreshVersions]);
 
+  const value = view.kind === "ready" ? view.value : null;
+  const generating = value !== null && isGenerating(value.state);
+  const revision = value?.storyboard?.revision ?? null;
+
+  useTaskStatusNotification({
+    taskName: "Storyboard generation",
+    status: value?.latestJob?.state,
+    successMessage: "Storyboard generated successfully.",
+    errorMessage:
+      (value?.latestJob?.errorCode &&
+        storyboardFailureMessage(value.latestJob.errorCode)) ||
+      "Storyboard generation failed.",
+  });
+
+  useTaskStatusNotification({
+    taskName: "Scene regeneration",
+    status: value?.latestSceneRegenerationJob?.state,
+    successMessage: "Scene regenerated successfully.",
+    errorMessage:
+      (value?.latestSceneRegenerationJob?.errorCode &&
+        sceneRegenerationFailureMessage(
+          value.latestSceneRegenerationJob.errorCode,
+        )) ||
+      "Scene regeneration failed.",
+  });
+
   const saveVersion = useCallback(async () => {
     setSavingVersion(true);
     setActionMessage(null);
@@ -322,13 +351,16 @@ export function StoryboardPanel({
           extractErrorMessage(payload, "Unable to save this lesson version."),
         );
       await refreshVersions();
-      setActionMessage("Lesson version saved.");
+      const msg = "Lesson version saved.";
+      setActionMessage(msg);
+      toast.success(msg);
     } catch (error) {
-      setActionMessage(
+      const errorMsg =
         error instanceof Error
           ? error.message
-          : "Unable to save this lesson version.",
-      );
+          : "Unable to save this lesson version.";
+      setActionMessage(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setSavingVersion(false);
     }
@@ -394,25 +426,23 @@ export function StoryboardPanel({
           );
         await refreshVersions();
         await refresh();
-        setActionMessage(
-          "A new current version was restored; earlier history and renders were preserved.",
-        );
+        const msg =
+          "A new current version was restored; earlier history and renders were preserved.";
+        setActionMessage(msg);
+        toast.success("Lesson version restored successfully.");
       } catch (error) {
-        setActionMessage(
+        const errorMsg =
           error instanceof Error
             ? error.message
-            : "Unable to restore this lesson version.",
-        );
+            : "Unable to restore this lesson version.";
+        setActionMessage(errorMsg);
+        toast.error(errorMsg);
       } finally {
         setRestoringVersionId(null);
       }
     },
     [projectId, refresh, refreshVersions, versionMetadata?.currentVersionId],
   );
-
-  const value = view.kind === "ready" ? view.value : null;
-  const generating = value !== null && isGenerating(value.state);
-  const revision = value?.storyboard?.revision ?? null;
 
   useEffect(() => {
     if (!pending && !generating && pendingScenes.size === 0) return;
@@ -448,14 +478,16 @@ export function StoryboardPanel({
             "Unable to start storyboard generation.",
           ),
         );
+      toast.info("Storyboard generation started.");
       await refresh().catch(() => undefined);
     } catch (error) {
       setPending(false);
-      setActionMessage(
+      const errorMsg =
         error instanceof Error
           ? error.message
-          : "Unable to start storyboard generation.",
-      );
+          : "Unable to start storyboard generation.";
+      setActionMessage(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setSubmitting(false);
     }
@@ -728,13 +760,14 @@ export function StoryboardPanel({
             </button>
           ) : null}
 
-          <a
+          <Link
             href={`/workspace/${encodeURIComponent(projectId)}/preview`}
+            prefetch={true}
             className={`${styles.button} ${styles.buttonPrimary}`}
           >
             Preview lesson
             <ArrowRightIcon size={16} weight="bold" aria-hidden />
-          </a>
+          </Link>
         </div>
       </header>
 

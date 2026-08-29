@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, type JSX } from "react";
 import type { ProjectAsset } from "@avlp/schemas";
+import { toast } from "../../../../components/ui/toast-provider";
 import {
   completeTeacherAssetUpload,
   deleteTeacherAsset,
@@ -46,18 +47,24 @@ export function TeacherAssetPicker({
       const uploaded = await uploadTeacherAsset(projectId, file);
       setFile(undefined);
       if (uploaded.completion.status === "rejected") {
-        setMessage("Image was rejected during safety checks. Choose another image and retry.");
+        const err = "Image was rejected during safety checks. Choose another image and retry.";
+        setMessage(err);
+        toast.error(err);
       } else if (uploaded.completion.status === "active") {
         await refresh();
-        setMessage("Image validated. Select it, then save the scene.");
+        const msg = "Image validated successfully. Select it, then save the scene.";
+        setMessage(msg);
+        toast.success("Teacher image uploaded and validated.");
       } else {
         setValidationSessionId(uploaded.sessionId);
         setMessage("Image uploaded and queued for safety checking.");
+        toast.info("Image uploaded, performing safety checks...");
       }
     } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "The image upload failed.",
-      );
+      const err =
+        error instanceof Error ? error.message : "The image upload failed.";
+      setMessage(err);
+      toast.error(err);
     } finally {
       setUploading(false);
     }
@@ -71,12 +78,15 @@ export function TeacherAssetPicker({
               if (result.status === "active") {
                 await refresh();
                 setValidationSessionId(undefined);
-                setMessage("Image validated. Select it, then save the scene.");
+                const msg = "Image validated. Select it, then save the scene.";
+                setMessage(msg);
+                toast.success("Teacher image validated successfully.");
               } else if (result.status === "rejected") {
                 setValidationSessionId(undefined);
-                setMessage(
-                  "Image was rejected during safety checks. Choose another image and retry.",
-                );
+                const err =
+                  "Image was rejected during safety checks. Choose another image and retry.";
+                setMessage(err);
+                toast.error(err);
               }
             })
             .catch(() => undefined),
@@ -94,10 +104,12 @@ export function TeacherAssetPicker({
       onChange("");
       await refresh();
       setMessage("Uploaded image removed.");
+      toast.info("Teacher image removed.");
     } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : "The uploaded image could not be removed.",
-      );
+      const err =
+        error instanceof Error ? error.message : "The uploaded image could not be removed.";
+      setMessage(err);
+      toast.error(err);
     } finally {
       setUploading(false);
     }

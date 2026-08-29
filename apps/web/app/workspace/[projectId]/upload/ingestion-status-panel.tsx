@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   ingestionRetryResponseSchema,
   projectIngestionStatusResponseSchema,
@@ -14,6 +15,8 @@ import {
 import { Button } from "../../../../components/ui/button";
 import { Notice } from "../../../../components/ui/notice";
 import { StatusLabel, type StatusType } from "../../../../components/ui/status-label";
+import { toast } from "../../../../components/ui/toast-provider";
+import { useTaskStatusNotification } from "../../../../lib/use-task-notification";
 
 type State =
   | { kind: "loading" }
@@ -64,6 +67,7 @@ export function getIngestionStatusBadge(value: ProjectIngestionStatusResponse): 
 
 export function IngestionStatusPanel({ projectId }: { projectId: string }) {
   const [state, setState] = useState<State>({ kind: "loading" });
+  const router = useRouter();
   const [retrying, setRetrying] = useState(false);
 
   const refresh = async (): Promise<void> => {
@@ -98,6 +102,7 @@ export function IngestionStatusPanel({ projectId }: { projectId: string }) {
     const retryId = globalThis.crypto.randomUUID();
     const configurationVersion = `retry-${retryId}`;
     try {
+      toast.info("Retrying document ingestion...");
       const response = await fetch(
         apiUrl(`/projects/${encodeURIComponent(projectId)}/ingestion/retry`),
         {
@@ -116,21 +121,34 @@ export function IngestionStatusPanel({ projectId }: { projectId: string }) {
         !ingestionRetryResponseSchema.safeParse(payload).success
       )
         throw new Error("The document could not be retried. Please try again.");
+      toast.info("Document ingestion retry queued.");
       await refresh();
     } catch (error) {
+      const msg =
+        error instanceof Error
+          ? error.message
+          : "The document could not be retried.";
       setState({
         kind: "failed",
-        message:
-          error instanceof Error
-            ? error.message
-            : "The document could not be retried.",
+        message: msg,
       });
+      toast.error(msg);
     } finally {
       setRetrying(false);
     }
   };
 
   const value = state.kind === "ready" ? state.value : undefined;
+
+  useTaskStatusNotification({
+    taskName: "Document ingestion",
+    status: value?.latestJob?.state,
+    successMessage: "Document ingestion completed. Ready to review content.",
+    errorMessage:
+      value?.latestJob?.errorCode ||
+      "Document ingestion encountered an error during extraction.",
+  });
+
   const canRetry =
     value?.latestJob?.state === "failed" ||
     value?.quality?.status === "blocked";
@@ -291,7 +309,7 @@ export function IngestionStatusPanel({ projectId }: { projectId: string }) {
               <Button
                 variant="primary"
                 onClick={() => {
-                  window.location.assign(`/workspace/${projectId}/review`);
+                  router.push(`/workspace/${projectId}/review`);
                 }}
               >
                 Review source <ArrowRight size={16} weight="bold" />

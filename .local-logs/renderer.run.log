@@ -1,0 +1,5 @@
+
+> @avlp/renderer@0.0.0 dev D:\Eronmonsele\Documents\repos\product-app\apps\renderer
+> tsx watch --env-file=../../.env src/main.ts
+
+{"timestamp":"2026-08-29T10:03:32.123Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}

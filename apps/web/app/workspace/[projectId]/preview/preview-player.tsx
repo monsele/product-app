@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { FullLessonPreviewPlayer } from "@avlp/scene-library";
 import {
   lessonValidationRunSchema,
@@ -280,8 +281,9 @@ export function FullLessonPreview({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <a
+          <Link
             href={`/workspace/${encodeURIComponent(projectId)}/storyboard`}
+            prefetch={true}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -298,7 +300,7 @@ export function FullLessonPreview({
             }}
           >
             ← Back to storyboard
-          </a>
+          </Link>
 
           <div>
             <h1
@@ -389,8 +391,9 @@ export function FullLessonPreview({
 
           {/* Render Lesson Primary Action */}
           {isReadyToRender ? (
-            <a
+            <Link
               href={`/workspace/${encodeURIComponent(projectId)}/render`}
+              prefetch={true}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -406,7 +409,7 @@ export function FullLessonPreview({
               }}
             >
               Render lesson →
-            </a>
+            </Link>
           ) : (
             <button
               disabled
@@ -870,8 +873,9 @@ export function FullLessonPreview({
           </div>
 
           {isReadyToRender && (
-            <a
+            <Link
               href={`/workspace/${encodeURIComponent(projectId)}/render`}
+              prefetch={true}
               style={{
                 padding: "6px 14px",
                 borderRadius: "6px",
@@ -882,8 +886,8 @@ export function FullLessonPreview({
                 fontWeight: 600,
               }}
             >
-              Proceed to Render →
-            </a>
+              Render lesson →
+            </Link>
           )}
         </div>
 
@@ -967,8 +971,9 @@ export function FullLessonPreview({
                         }}
                       >
                         {issue.sceneId !== null ? (
-                          <a
+                          <Link
                             href={`/workspace/${encodeURIComponent(projectId)}/storyboard#scene=${encodeURIComponent(issue.sceneId)}`}
+                            prefetch={true}
                             style={{
                               padding: "4px 8px",
                               borderRadius: "4px",
@@ -981,10 +986,11 @@ export function FullLessonPreview({
                             }}
                           >
                             Open affected scene →
-                          </a>
+                          </Link>
                         ) : issue.scopeType === "objective" ? (
-                          <a
+                          <Link
                             href={`/workspace/${encodeURIComponent(projectId)}/objectives`}
+                            prefetch={true}
                             style={{
                               color: "var(--color-brand, #A883FF)",
                               fontSize: "12px",
@@ -992,10 +998,11 @@ export function FullLessonPreview({
                             }}
                           >
                             Review learning objectives →
-                          </a>
+                          </Link>
                         ) : (
-                          <a
+                          <Link
                             href={`/workspace/${encodeURIComponent(projectId)}/storyboard`}
+                            prefetch={true}
                             style={{
                               color: "var(--color-brand, #A883FF)",
                               fontSize: "12px",
@@ -1003,7 +1010,7 @@ export function FullLessonPreview({
                             }}
                           >
                             Review storyboard →
-                          </a>
+                          </Link>
                         )}
 
                         {issue.acknowledgeable &&

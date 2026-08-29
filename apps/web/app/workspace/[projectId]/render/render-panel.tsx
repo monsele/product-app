@@ -13,6 +13,8 @@ import { StatusLabel } from "../../../../components/ui/status-label";
 import { Notice } from "../../../../components/ui/notice";
 import { Dialog } from "../../../../components/ui/dialog";
 import { InformationRail } from "../../../../components/layout/information-rail";
+import { toast } from "../../../../components/ui/toast-provider";
+import { useTaskStatusNotification } from "../../../../lib/use-task-notification";
 import {
   ArrowClockwise,
   DownloadSimple,
@@ -130,22 +132,31 @@ export function RenderPanel({
         ...(body === undefined ? {} : { body: JSON.stringify(body) }),
       });
       if (!response.ok) {
+        const errorText =
+          "The render action could not be completed. Check preflight validation and try again.";
         setMessage({
           type: "error",
-          text: "The render action could not be completed. Check preflight validation and try again.",
+          text: errorText,
         });
+        toast.error(errorText);
         return;
       }
+      const infoText =
+        "Render job queued successfully. Processing motion graphics and narration.";
       setMessage({
         type: "info",
-        text: "Render job queued successfully. Processing motion graphics and narration.",
+        text: infoText,
       });
+      toast.info(infoText);
       await refresh();
     } catch {
+      const errorText =
+        "Network connection error while submitting render action.";
       setMessage({
         type: "error",
-        text: "Network connection error while submitting render action.",
+        text: errorText,
       });
+      toast.error(errorText);
     } finally {
       setBusy(false);
     }
@@ -167,31 +178,40 @@ export function RenderPanel({
         response.ok ? await response.json() : null,
       );
       if (!parsed.success) {
+        const errorText =
+          "A share link could not be created. Render the lesson first.";
         setMessage({
           type: "error",
-          text: "A share link could not be created. Render the lesson first.",
+          text: errorText,
         });
+        toast.error(errorText);
         return;
       }
       const link = `${window.location.origin}/share/${encodeURIComponent(parsed.data.token)}`;
       try {
         await globalThis.navigator.clipboard.writeText(link);
+        const successText = "View-only link copied to the clipboard.";
         setMessage({
           type: "success",
-          text: "View-only link copied to the clipboard.",
+          text: successText,
         });
+        toast.success(successText);
       } catch {
+        const fallbackText = `View-only link created: ${link}`;
         setMessage({
           type: "success",
-          text: `View-only link: ${link}`,
+          text: fallbackText,
         });
+        toast.success(fallbackText);
       }
       await refreshShareLinks();
     } catch {
+      const errorText = "Error creating share link. Please try again.";
       setMessage({
         type: "error",
-        text: "Error creating share link. Please try again.",
+        text: errorText,
       });
+      toast.error(errorText);
     } finally {
       setShareBusy(false);
     }
@@ -206,22 +226,30 @@ export function RenderPanel({
       );
       if (response.ok) {
         setRevokeTarget(null);
+        const infoText =
+          "Share link revoked immediately. Viewers can no longer access this link.";
         setMessage({
           type: "info",
-          text: "Share link revoked immediately. Viewers can no longer access this link.",
+          text: infoText,
         });
+        toast.info(infoText);
         await refreshShareLinks();
       } else {
+        const errorText = "The share link could not be revoked.";
         setMessage({
           type: "error",
-          text: "The share link could not be revoked.",
+          text: errorText,
         });
+        toast.error(errorText);
       }
     } catch {
+      const errorText =
+        "Error revoking share link. Please check network connection.";
       setMessage({
         type: "error",
-        text: "Error revoking share link. Please check network connection.",
+        text: errorText,
       });
+      toast.error(errorText);
     } finally {
       setShareBusy(false);
     }
@@ -232,6 +260,17 @@ export function RenderPanel({
     () => renders.find((r) => r.video !== null && r.status === "completed"),
     [renders],
   );
+
+  useTaskStatusNotification({
+    taskName: "Lesson render",
+    status: latestRender?.status,
+    successMessage:
+      "Lesson video rendered successfully! Ready to preview and download.",
+    errorMessage:
+      (latestRender?.errorCode &&
+        `Lesson render failed: ${latestRender.errorCode}.`) ||
+      "Lesson render encountered an error. Check preflight validation.",
+  });
 
   return (
     <div

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   lessonConfigurationResponseSchema,
   voiceCatalogEntrySchema,
@@ -99,6 +100,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
   projectId,
   projectTitle,
 }) => {
+  const router = useRouter();
   const [loadingState, setLoadingState] = useState<LoadingState>({
     kind: "loading",
   });
@@ -623,7 +625,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
               message="Review and confirm the extracted source content before generating lessons to ensure grounded instruction."
               actionLabel="Go to review"
               onAction={() => {
-                window.location.assign(`/workspace/${projectId}/review`);
+                router.push(`/workspace/${projectId}/review`);
               }}
             />
           </div>

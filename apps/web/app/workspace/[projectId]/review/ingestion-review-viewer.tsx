@@ -786,6 +786,7 @@ export function IngestionReviewViewer({
           {/* Proceed to Next Phase Action */}
           <Link
             href={`/workspace/${encodeURIComponent(projectId)}/configuration`}
+            prefetch={true}
             style={{
               display: "inline-flex",
               alignItems: "center",

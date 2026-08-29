@@ -101,6 +101,7 @@ export const ProjectPipelineRail: React.FC<ProjectPipelineRailProps> = ({ stages
             <Link
               key={stage.id}
               href={stage.href}
+              prefetch={true}
               style={itemStyle}
             >
               <span>{stage.label}</span>

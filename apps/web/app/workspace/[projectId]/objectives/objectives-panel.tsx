@@ -18,6 +18,8 @@ import { CandidateBanner } from "../../../../components/review-editor/candidate-
 import { Button } from "../../../../components/ui/button";
 import { Notice } from "../../../../components/ui/notice";
 import { StatusLabel } from "../../../../components/ui/status-label";
+import { toast } from "../../../../components/ui/toast-provider";
+import { useTaskStatusNotification } from "../../../../lib/use-task-notification";
 import {
   BookOpen,
   CheckCircle,
@@ -129,6 +131,16 @@ export function ObjectivesPanel({
   const value = view.kind === "ready" ? view.value : null;
   const generating = value !== null && isGenerating(value.state);
 
+  useTaskStatusNotification({
+    taskName: "Learning objectives generation",
+    status: value?.latestJob?.state,
+    successMessage: "Learning objectives generated successfully.",
+    errorMessage:
+      (value?.latestJob?.errorCode &&
+        objectiveFailureMessage(value.latestJob.errorCode)) ||
+      "Objective generation failed.",
+  });
+
   useEffect(() => {
     if (!pending && !generating) return;
     const timer = window.setInterval(() => {
@@ -162,16 +174,19 @@ export function ObjectivesPanel({
           ),
         );
       await refresh().catch(() => undefined);
-      setActionMessage("Generation job started in background.");
+      const infoMsg = "Generation job started in background.";
+      setActionMessage(infoMsg);
       setActionMessageType("info");
+      toast.info("Learning objectives generation started.");
     } catch (error) {
       setPending(false);
-      setActionMessage(
+      const errorMsg =
         error instanceof Error
           ? error.message
-          : "Unable to start objective generation.",
-      );
+          : "Unable to start objective generation.";
+      setActionMessage(errorMsg);
       setActionMessageType("error");
+      toast.error(errorMsg);
     } finally {
       setSubmitting(false);
     }
@@ -187,7 +202,7 @@ export function ObjectivesPanel({
       setActionMessage(null);
       setSubmitting(true);
       try {
-        const response = await fetch(
+        const res = await fetch(
           apiUrl(
             `/projects/${encodeURIComponent(projectId)}/objectives${path}`,
           ),
@@ -199,8 +214,8 @@ export function ObjectivesPanel({
             body: JSON.stringify(body),
           },
         );
-        const payload: unknown = await response.json().catch(() => null);
-        if (!response.ok)
+        const payload: unknown = await res.json().catch(() => null);
+        if (!res.ok)
           throw new Error(
             extractErrorMessage(
               payload,
@@ -211,16 +226,19 @@ export function ObjectivesPanel({
         setAddStatement("");
         setAddVerb("");
         setIsAddingOpen(false);
-        setActionMessage(`Objective ${successMessage.toLowerCase()}.`);
+        const msg = `Objective ${successMessage.toLowerCase()}.`;
+        setActionMessage(msg);
         setActionMessageType("success");
+        toast.success(msg);
         await refresh().catch(() => undefined);
       } catch (error) {
-        setActionMessage(
+        const errorMsg =
           error instanceof Error
             ? error.message
-            : "Unable to update objectives.",
-        );
+            : "Unable to update objectives.";
+        setActionMessage(errorMsg);
         setActionMessageType("error");
+        toast.error(errorMsg);
         await refresh().catch(() => undefined);
       } finally {
         setSubmitting(false);

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   completeSourceUploadResponseSchema,
   sourceDocumentStatusResponseSchema,
@@ -18,6 +19,7 @@ import {
 import { Button } from "../../../../components/ui/button";
 import { Notice } from "../../../../components/ui/notice";
 import { StatusLabel } from "../../../../components/ui/status-label";
+import { toast } from "../../../../components/ui/toast-provider";
 import { calculateSha256 } from "./source-upload-checksum";
 
 export type UploadState =
@@ -92,6 +94,7 @@ export function SourceUploadForm({ projectId, onUploadSuccess }: SourceUploadFor
   const [state, setState] = useState<UploadState>({ kind: "idle" });
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   // Poll validation endpoint when in validating state
   useEffect(() => {
@@ -113,18 +116,22 @@ export function SourceUploadForm({ projectId, onUploadSuccess }: SourceUploadFor
           const isReused = parsed.data.reuse.status === "reused";
           if (isReused) {
             setState({ kind: "duplicate", reused: true });
+            toast.info("Existing processed source detected and reused.");
           } else {
             setState({ kind: "complete", reused: false });
+            toast.success("Source document uploaded and ready for review.");
           }
           onUploadSuccess?.();
         } else if (
           validation.status === "rejected" ||
           validation.status === "validation_error"
         ) {
+          const msg = validationMessage(validation.code);
           setState({
             kind: "failed",
-            message: validationMessage(validation.code),
+            message: msg,
           });
+          toast.error(msg);
         }
       } catch {
         // Preserve validating state; next poll will retry
@@ -553,7 +560,7 @@ export function SourceUploadForm({ projectId, onUploadSuccess }: SourceUploadFor
               variant="primary"
               size="default"
               onClick={() => {
-                window.location.assign(`/workspace/${projectId}/review`);
+                router.push(`/workspace/${projectId}/review`);
               }}
             >
               Review source <ArrowRight size={16} weight="bold" />

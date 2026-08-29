@@ -192,6 +192,20 @@ html, body {
   transform: scale(0.97);
 }
 
+/* The play/pause toggle is the primary control in the bar. */
+.sp-button-primary {
+  background-color: var(--color-brand);
+  border-color: var(--color-brand);
+  color: var(--color-on-brand);
+  font-weight: 600;
+}
+
+.sp-button-primary:hover {
+  background-color: var(--color-brand-hover);
+  border-color: var(--color-brand-hover);
+  color: var(--color-on-brand);
+}
+
 /* Seek track. The played portion is filled from --sp-progress, set by the
    player as the current frame advances. */
 .sp-seek {
@@ -259,6 +273,49 @@ html, body {
   font-variant-numeric: tabular-nums;
   color: var(--color-text-muted);
   white-space: nowrap;
+}
+
+/* Global UI Animation Keyframes */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes progressGlow {
+  0% {
+    opacity: 0.8;
+    filter: drop-shadow(0 0 4px var(--color-brand));
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 10px var(--color-brand));
+  }
+  100% {
+    opacity: 0.8;
+    filter: drop-shadow(0 0 4px var(--color-brand));
+  }
 }
 
 /* Responsive Pipeline Layout Helpers */

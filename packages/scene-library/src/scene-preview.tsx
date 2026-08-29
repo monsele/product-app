@@ -222,10 +222,12 @@ export function ScenePreviewPlayer({
   const [playbackError, setPlaybackError] = useState<string>();
   const [previewFrame, setPreviewFrame] = useState(0);
   const [isMuted, setIsMuted] = useState(muted);
+  const [isPlaying, setIsPlaying] = useState(false);
   useEffect(() => {
     setPlaybackError(undefined);
     setPreviewFrame(0);
     setIsMuted(muted);
+    setIsPlaying(false);
   }, [input, muted]);
   useEffect(() => {
     // Keep the seek control in step with playback; the player is the source of
@@ -234,8 +236,19 @@ export function ScenePreviewPlayer({
     if (player === null) return;
     const onFrameUpdate = (event: { detail: { frame: number } }): void =>
       setPreviewFrame(event.detail.frame);
+    const onPlay = (): void => setIsPlaying(true);
+    const onPause = (): void => setIsPlaying(false);
+    const onEnded = (): void => setIsPlaying(false);
     player.addEventListener("frameupdate", onFrameUpdate);
-    return () => player.removeEventListener("frameupdate", onFrameUpdate);
+    player.addEventListener("play", onPlay);
+    player.addEventListener("pause", onPause);
+    player.addEventListener("ended", onEnded);
+    return () => {
+      player.removeEventListener("frameupdate", onFrameUpdate);
+      player.removeEventListener("play", onPlay);
+      player.removeEventListener("pause", onPause);
+      player.removeEventListener("ended", onEnded);
+    };
   }, [input]);
   const result = parseScenePreviewInput(input);
   if (!result.ok)
@@ -293,22 +306,18 @@ export function ScenePreviewPlayer({
 
       <div aria-label="Scene preview controls" className="sp-transport">
         <button
-          className="sp-button"
-          aria-label="Play scene"
-          title="Play scene"
-          onClick={() => playerRef.current?.play()}
+          className="sp-button sp-button-primary"
+          aria-label={isPlaying ? "Pause scene" : "Play scene"}
+          title={isPlaying ? "Pause scene" : "Play scene"}
+          onClick={() => {
+            const player = playerRef.current;
+            if (player === null) return;
+            if (isPlaying) player.pause();
+            else player.play();
+          }}
           type="button"
         >
-          Play
-        </button>
-        <button
-          className="sp-button"
-          aria-label="Pause scene"
-          title="Pause scene"
-          onClick={() => playerRef.current?.pause()}
-          type="button"
-        >
-          Pause
+          {isPlaying ? "Pause" : "Play"}
         </button>
         <button
           className="sp-button"

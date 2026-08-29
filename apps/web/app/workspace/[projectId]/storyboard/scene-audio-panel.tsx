@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState, type JSX } from "react";
 import type { SceneAudioStatusResponse } from "@avlp/schemas";
+import { toast } from "../../../../components/ui/toast-provider";
+import { useTaskStatusNotification } from "../../../../lib/use-task-notification";
 
 const apiUrl = (path: string) =>
   `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}${path}`;
@@ -91,10 +93,18 @@ export function SceneAudioPanel({
     );
     return () => window.clearInterval(interval);
   }, [audio?.status, refresh]);
+  useTaskStatusNotification({
+    taskName: "Scene audio generation",
+    status: audio?.status,
+    successMessage: "Narration audio for this scene generated successfully.",
+    errorMessage: audio?.fitWarning || "Narration audio generation failed.",
+  });
+
   const generate = useCallback(async () => {
     setBusy(true);
     setMessage(null);
     try {
+      toast.info("Generating narration audio for scene...");
       const response = await fetch(apiUrl(`${base}/audio/generate`), {
         method: "POST",
         credentials: "include",
@@ -109,11 +119,12 @@ export function SceneAudioPanel({
       setAudio(payload as SceneAudioStatusResponse);
       onStatusChange?.(payload as SceneAudioStatusResponse);
     } catch (error) {
-      setMessage(
+      const errorMsg =
         error instanceof Error
           ? error.message
-          : "Unable to start narration audio generation.",
-      );
+          : "Unable to start narration audio generation.";
+      setMessage(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setBusy(false);
     }

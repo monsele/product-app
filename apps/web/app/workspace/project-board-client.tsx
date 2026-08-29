@@ -7,6 +7,7 @@ import { Field } from "../../components/ui/field";
 import { StatusLabel, type StatusType } from "../../components/ui/status-label";
 import { Menu } from "../../components/ui/menu";
 import { Notice } from "../../components/ui/notice";
+import { toast } from "../../components/ui/toast-provider";
 import { DeleteProjectDialog } from "./delete-project-dialog";
 import { getStageDetails, formatDateTime } from "./project-stage-utils";
 import {
@@ -72,9 +73,21 @@ export function ProjectBoardClient({
   // rather than guessing at a timeout.
   useEffect(() => {
     if (duplicating !== null) {
+      toast.info("Duplicating lesson...");
       duplicateFormRef.current?.requestSubmit();
     }
   }, [duplicating]);
+
+  useEffect(() => {
+    if (!error) return;
+    if (error === "title") {
+      toast.error("Please enter a valid lesson title before continuing.");
+    } else if (error === "duplicate") {
+      toast.error("The project could not be duplicated. Please try again.");
+    } else if (error === "delete") {
+      toast.error("The project could not be deleted. Please try again.");
+    }
+  }, [error]);
 
   const handleDuplicate = (projectId: string) => {
     setDuplicating({ id: projectId, key: createIdempotencyKey() });

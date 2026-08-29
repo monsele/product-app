@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   narrationBlockRevisionsResponseSchema,
   narrationResponseSchema,
@@ -25,6 +27,8 @@ import { Button } from "../../../../components/ui/button";
 import { Drawer } from "../../../../components/ui/drawer";
 import { Notice, type NoticeType } from "../../../../components/ui/notice";
 import { StatusLabel } from "../../../../components/ui/status-label";
+import { toast } from "../../../../components/ui/toast-provider";
+import { useTaskStatusNotification } from "../../../../lib/use-task-notification";
 import {
   ArrowClockwise,
   ArrowRight,
@@ -82,6 +86,7 @@ export function NarrationPanel({
   projectId: string;
   projectTitle?: string;
 }) {
+  const router = useRouter();
   const [view, setView] = useState<ViewState>({ kind: "loading" });
   const [pending, setPending] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -156,6 +161,26 @@ export function NarrationPanel({
       value.latestTransformJob.state === "retry_wait");
   const busy = pendingTransforms.size > 0 || transformInFlight || generating;
 
+  useTaskStatusNotification({
+    taskName: "Narration script generation",
+    status: value?.latestJob?.state,
+    successMessage: "Narration script generated successfully.",
+    errorMessage:
+      (value?.latestJob?.errorCode &&
+        narrationFailureMessage(value.latestJob.errorCode)) ||
+      "Narration generation failed.",
+  });
+
+  useTaskStatusNotification({
+    taskName: "Narration block rewrite",
+    status: value?.latestTransformJob?.state,
+    successMessage: "Narration block rewrite completed.",
+    errorMessage:
+      (value?.latestTransformJob?.errorCode &&
+        narrationFailureMessage(value.latestTransformJob.errorCode)) ||
+      "Narration block rewrite failed.",
+  });
+
   // Auto-select first block once loaded if none is selected
   useEffect(() => {
     if (value?.set && value.set.blocks.length > 0 && selectedBlockId === null) {
@@ -197,15 +222,17 @@ export function NarrationPanel({
         );
       setActionMessageType("info");
       setActionMessage("Narration generation started in the background.");
+      toast.info("Narration script generation started.");
       await refresh().catch(() => undefined);
     } catch (error) {
       setPending(false);
-      setActionMessageType("error");
-      setActionMessage(
+      const errorMsg =
         error instanceof Error
           ? error.message
-          : "Unable to start narration generation.",
-      );
+          : "Unable to start narration generation.";
+      setActionMessageType("error");
+      setActionMessage(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setSubmitting(false);
     }
@@ -233,13 +260,16 @@ export function NarrationPanel({
           );
         setEditing(null);
         setActionMessageType("success");
-        setActionMessage(`Narration ${successMessage.toLowerCase()}.`);
+        const msg = `Narration ${successMessage.toLowerCase()}.`;
+        setActionMessage(msg);
+        toast.success(msg);
         await refresh().catch(() => undefined);
       } catch (error) {
+        const errorMsg =
+          error instanceof Error ? error.message : "Unable to update narration.";
         setActionMessageType("error");
-        setActionMessage(
-          error instanceof Error ? error.message : "Unable to update narration.",
-        );
+        setActionMessage(errorMsg);
+        toast.error(errorMsg);
         await refresh().catch(() => undefined);
       } finally {
         setSubmitting(false);
@@ -778,14 +808,15 @@ export function NarrationPanel({
         <Button
           variant="primary"
           onClick={() => {
-            window.location.href = `/workspace/${encodeURIComponent(projectId)}/storyboard`;
+            router.push(`/workspace/${encodeURIComponent(projectId)}/storyboard`);
           }}
         >
           <span>Continue to storyboard</span>
           <ArrowRight size={16} weight="bold" />
         </Button>
-        <a
+        <Link
           href={`/workspace/${encodeURIComponent(projectId)}/outline`}
+          prefetch={true}
           style={{
             fontSize: "12px",
             color: "var(--color-text-muted)",
@@ -794,7 +825,7 @@ export function NarrationPanel({
           }}
         >
           Review the lesson outline
-        </a>
+        </Link>
       </div>
     </div>
   );

@@ -24,6 +24,8 @@ import { CandidateBanner } from "../../../../components/review-editor/candidate-
 import { Button } from "../../../../components/ui/button";
 import { Notice } from "../../../../components/ui/notice";
 import { StatusLabel } from "../../../../components/ui/status-label";
+import { toast } from "../../../../components/ui/toast-provider";
+import { useTaskStatusNotification } from "../../../../lib/use-task-notification";
 import {
   BookOpen,
   CheckCircle,
@@ -187,6 +189,16 @@ export function OutlinePanel({
   const value = view.kind === "ready" ? view.value : null;
   const generating = value !== null && isGenerating(value.state);
 
+  useTaskStatusNotification({
+    taskName: "Lesson outline generation",
+    status: value?.latestJob?.state,
+    successMessage: "Lesson outline generated successfully.",
+    errorMessage:
+      (value?.latestJob?.errorCode &&
+        outlineFailureMessage(value.latestJob.errorCode)) ||
+      "Outline generation failed.",
+  });
+
   useEffect(() => {
     if (!pending && !generating) return;
     const timer = window.setInterval(() => {
@@ -239,16 +251,19 @@ export function OutlinePanel({
           extractErrorMessage(payload, "Unable to start outline generation."),
         );
       await refresh().catch(() => undefined);
-      setActionMessage("Outline generation job started.");
+      const msg = "Outline generation job started.";
+      setActionMessage(msg);
       setActionMessageType("info");
+      toast.info("Lesson outline generation started.");
     } catch (error) {
       setPending(false);
-      setActionMessage(
+      const errorMsg =
         error instanceof Error
           ? error.message
-          : "Unable to start outline generation.",
-      );
+          : "Unable to start outline generation.";
+      setActionMessage(errorMsg);
       setActionMessageType("error");
+      toast.error(errorMsg);
     } finally {
       setSubmitting(false);
     }
@@ -285,14 +300,17 @@ export function OutlinePanel({
         setEditing(null);
         setAdding(emptyDraft());
         setIsAddingOpen(false);
-        setActionMessage(`Outline ${successMessage.toLowerCase()}.`);
+        const msg = `Outline ${successMessage.toLowerCase()}.`;
+        setActionMessage(msg);
         setActionMessageType("success");
+        toast.success(msg);
         await refresh().catch(() => undefined);
       } catch (error) {
-        setActionMessage(
-          error instanceof Error ? error.message : "Unable to update outline.",
-        );
+        const errorMsg =
+          error instanceof Error ? error.message : "Unable to update outline.";
+        setActionMessage(errorMsg);
         setActionMessageType("error");
+        toast.error(errorMsg);
         await refresh().catch(() => undefined);
       } finally {
         setSubmitting(false);

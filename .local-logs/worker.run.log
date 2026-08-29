@@ -1,0 +1,5 @@
+
+> @avlp/pipeline-worker@0.0.0 dev D:\Eronmonsele\Documents\repos\product-app\apps\pipeline-worker
+> tsx watch --env-file=../../.env src/main.ts
+
+{"timestamp":"2026-08-29T10:03:25.829Z","level":"info","event":"worker.started","fields":{"status":"ok","service":"pipeline-worker"}}

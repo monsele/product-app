@@ -7,12 +7,47 @@
    - Network:      http://172.21.176.1:3000
 
  ✓ Starting...
- ✓ Ready in 19.1s
+ ✓ Ready in 27.9s
  ○ Compiling /sign-in ...
- ✓ Compiled /sign-in in 18.7s (10512 modules)
- GET /sign-in 200 in 22614ms
+ ✓ Compiled /sign-in in 64.5s (10588 modules)
+ GET /sign-in 200 in 66825ms
+ GET /sign-in 200 in 136ms
+ GET /sign-in 200 in 123ms
+ GET /sign-in 200 in 90ms
+ GET /sign-in 200 in 99ms
+ GET /sign-in 200 in 2279ms
+ ○ Compiling /register ...
+ ✓ Compiled /register in 5.3s (10530 modules)
+ GET /register 200 in 6546ms
  ○ Compiling /middleware ...
- ✓ Compiled /middleware in 3.1s (158 modules)
+ ✓ Compiled /middleware in 4.8s (158 modules)
+ ○ Compiling /workspace ...
+ ✓ Compiled /workspace in 9s (10729 modules)
+ GET /workspace 200 in 10517ms
+ ○ Compiling /api/projects ...
+ ✓ Compiled /api/projects in 3.3s (10730 modules)
+ POST /api/projects 303 in 6069ms
+ ○ Compiling /workspace/[projectId]/upload ...
+ ✓ Compiled /workspace/[projectId]/upload in 21s (13885 modules)
+ GET /workspace/01a04cff-7d36-70c5-9530-e60687189306/upload 200 in 29921ms
+ ○ Compiling /workspace/[projectId]/review ...
+ ✓ Compiled /workspace/[projectId]/review in 11.2s (13886 modules)
+ GET /workspace/01a04cff-7d36-70c5-9530-e60687189306/review 200 in 20989ms
+ GET /workspace/01a04cff-7d36-70c5-9530-e60687189306/upload 200 in 175ms
+ GET /workspace/01a04cff-7d36-70c5-9530-e60687189306/review 200 in 114ms
+ ○ Compiling /workspace/[projectId]/configuration ...
+ ✓ Compiled /workspace/[projectId]/configuration in 6.1s (13898 modules)
+ GET /workspace/01a04cff-7d36-70c5-9530-e60687189306/configuration 200 in 7957ms
+ ○ Compiling /workspace/[projectId]/objectives ...
+ ✓ Compiled /workspace/[projectId]/objectives in 8.7s (13914 modules)
+ GET /workspace/01a04cff-7d36-70c5-9530-e60687189306/objectives 200 in 10677ms
+ ○ Compiling /workspace/[projectId]/outline ...
+ ✓ Compiled /workspace/[projectId]/outline in 3.5s (13900 modules)
+ GET /workspace/01a04cff-7d36-70c5-9530-e60687189306/outline 200 in 5793ms
+ ○ Compiling /workspace/[projectId]/narration ...
+ ✓ Compiled /workspace/[projectId]/narration in 7.5s (13843 modules)
+ GET /workspace/01a04cff-7d36-70c5-9530-e60687189306/narration 200 in 9154ms
  ○ Compiling /workspace/[projectId]/storyboard ...
- ✓ Compiled /workspace/[projectId]/storyboard in 7.1s (10801 modules)
- GET /workspace/01a047b2-3850-78a4-ac51-19b5477fd6eb/storyboard 200 in 11373ms
+ ✓ Compiled /workspace/[projectId]/storyboard in 15.9s (13979 modules)
+ GET /workspace/01a04cff-7d36-70c5-9530-e60687189306/storyboard 200 in 2079ms
+ GET /workspace/01a04cff-7d36-70c5-9530-e60687189306/storyboard 200 in 26394ms

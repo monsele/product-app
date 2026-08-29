@@ -1,6 +1,7 @@
 "use client";
 
 import { type JSX } from "react";
+import Link from "next/link";
 import { type LessonValidationRun, type ValidationIssue } from "@avlp/schemas";
 
 const labels: Record<string, string> = {
@@ -230,12 +231,13 @@ export function ValidationPanel({
                       Open affected scene
                     </button>
                   ) : issue.scopeType === "objective" ? (
-                    <a
+                    <Link
                       href={`/workspace/${encodeURIComponent(projectId)}/objectives`}
+                      prefetch={true}
                       style={{ color: "var(--color-brand, #A883FF)", fontSize: "12px", textDecoration: "none" }}
                     >
                       Review learning objectives
-                    </a>
+                    </Link>
                   ) : issue.scopeType === "lesson" ? (
                     <a href="#scenes" style={{ color: "var(--color-brand, #A883FF)", fontSize: "12px", textDecoration: "none" }}>
                       Review scene durations
