@@ -2,4 +2,11 @@
 > @avlp/pipeline-worker@0.0.0 dev D:\Eronmonsele\Documents\repos\product-app\apps\pipeline-worker
 > tsx watch --env-file=../../.env src/main.ts
 
-{"timestamp":"2026-08-29T10:03:25.829Z","level":"info","event":"worker.started","fields":{"status":"ok","service":"pipeline-worker"}}
+{"timestamp":"2026-08-30T15:20:14.955Z","level":"info","event":"worker.started","fields":{"status":"ok","service":"pipeline-worker"}}
+{"timestamp":"2026-08-30T15:25:23.081Z","level":"info","event":"queue.job_dispatched","fields":{"outboxEventId":"01a05346-79fa-73e4-bb21-6ef33646cd9a","jobId":"01a05346-79fa-7f05-82a1-6c08eddf139a","projectId":"01a04f2f-c90e-7310-a1ea-fd4240c81b7f","correlationId":"01a04f00-0000-7000-8000-0000000000fd","queueName":"pipeline","service":"pipeline-worker"}}
+4:41:53 PM [tsx] change in ./src\scene-audio-job.ts Restarting...
+{"timestamp":"2026-08-30T15:42:35.913Z","level":"info","event":"worker.started","fields":{"status":"ok","service":"pipeline-worker"}}
+{"timestamp":"2026-08-30T15:46:30.162Z","level":"info","event":"job.started","fields":{"jobId":"01a05359-ce7b-7081-b72a-3192a8947ff9","jobType":"tts.generate","projectId":"01a04f2f-c90e-7310-a1ea-fd4240c81b7f","correlationId":"01a04f00-0000-7000-8000-0000000000fc","attempt":1,"service":"pipeline-worker"}}
+{"timestamp":"2026-08-30T15:46:31.755Z","level":"info","event":"job.completed","fields":{"jobId":"01a05359-ce7b-7081-b72a-3192a8947ff9","jobType":"tts.generate","projectId":"01a04f2f-c90e-7310-a1ea-fd4240c81b7f","correlationId":"01a04f00-0000-7000-8000-0000000000fc","attempt":1,"status":"succeeded","errorClassification":"none","durationMs":1592,"service":"pipeline-worker"}}
+{"timestamp":"2026-08-30T15:46:31.812Z","level":"info","event":"job.started","fields":{"jobId":"01a05359-cf01-78ad-9663-03636278e471","jobType":"tts.generate","projectId":"01a04f2f-c90e-7310-a1ea-fd4240c81b7f","correlationId":"01a04f00-0000-7000-8000-0000000000fc","attempt":1,"service":"pipeline-worker"}}
+{"timestamp":"2026-08-30T15:46:31.965Z","level":"info","event":"job.completed","fields":{"jobId":"01a05359-cf01-78ad-9663-03636278e471","jobType":"tts.generate","projectId":"01a04f2f-c90e-7310-a1ea-fd4240c81b7f","correlationId":"01a04f00-0000-7000-8000-0000000000fc","attempt":1,"status":"succeeded","errorClassification":"none","durationMs":154,"service":"pipeline-worker"}}

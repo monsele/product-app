@@ -131,3 +131,15 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 - **Decisions and assumptions:** A version snapshots the working storyboard plus approved planning inputs. The portable LessonSpec uses the MVP default voice until voice configuration is introduced in ST-062. Hashes intentionally exclude event-specific citation ID/timestamp.
 - **Deviations from story/technical guide:** Restore UI/service remains out of scope for ST-061. Production render lifecycle remains ST-068; its existing render payload can now carry a lesson version ID.
 - **Known risks or follow-up:** Database integration cases run only when `TEST_DATABASE_URL` is available; add execution evidence in CI. Existing unrelated local log changes were preserved.
+
+## Follow-up (2026-08-29) — version creation was unreachable, then broken
+
+Two defects prevented this story's `POST /projects/:id/versions` from ever succeeding against a real database. Both are fixed.
+
+**1. No approved narration set could exist.** `loadState`/`ensureReady` in `apps/api/src/lesson-versions.ts` require an approved narration set, but nothing in the product ever set `narration_sets.status = 'approved'` — ST-050 explicitly deferred narration approval and no later story implemented it. Every save-version attempt would therefore fail with "The approved lesson is not ready to save as a version." Narration approval is now implemented; see the 2026-08-29 follow-up on ST-050.
+
+**2. `nextNumber` issued SQL PostgreSQL rejects.** It ran `select coalesce(max(version_number), 0)::int ... for update`, which fails with `FOR UPDATE is not allowed with aggregate functions` (SQLSTATE 0A000) on every call, in both `create` and `restore`. The lock has been removed: it could not have served its purpose anyway (a row lock cannot cover the empty-history case), and both callers already hold the per-project `pg_advisory_xact_lock(hashtext(projectId))` that serializes numbering. A comment records why.
+
+**Why it was not caught.** The API unit suites exercise these paths against an in-memory fake database that accepts any query shape, so invalid SQL passed 418 green tests. `.github/workflows/ci.yml` does provide a PostgreSQL service and `TEST_DATABASE_URL`, so the `*.integration.test.ts` files that exist do run in CI — the gap is that **this story shipped no `lesson-versions.integration.test.ts`**. Version creation, numbering, the content-hash idempotency path, and restore have no real-database coverage at all; `apps/api/src` has integration suites for outline, objectives, storyboard, source snapshot, and others, but none for versioning. Adding one is the open follow-up, and it would have caught this on the first run.
+
+Verification: reproduced and fixed against local PostgreSQL, then saved lesson version 1 (`reason: explicit_save`) for a real project through `PostgresLessonVersionsService.create`, with `projects.current_lesson_version_id` updated and the render workspace's gate cleared. `pnpm --filter @avlp/api lint/typecheck` pass; API suite 418 passed / 70 skipped.

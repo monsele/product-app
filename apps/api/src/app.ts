@@ -343,6 +343,7 @@ type NarrationApiService = Pick<
   NarrationService,
   | "generate"
   | "current"
+  | "approve"
   | "updateBlock"
   | "regenerateBlock"
   | "acceptCandidate"
@@ -1455,6 +1456,24 @@ class ProjectsController {
       ownerUserId: access.ownerUserId,
       projectId: access.projectId,
       idempotencyKey,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/narration/approve")
+  @HttpCode(200)
+  public async approveNarration(
+    @Param("projectId") projectId: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    return this.narration.approve({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      body: input,
       correlationId:
         request.correlationId ?? "00000000-0000-7000-8000-000000000000",
     });
@@ -3102,6 +3121,15 @@ const unavailableOutlineService: OutlineApiService = {
 };
 
 const unavailableNarrationService: NarrationApiService = {
+  approve: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Narration approval is unavailable.",
+        503,
+        true,
+      ),
+    ),
   generate: () =>
     Promise.reject(
       new PublicError(

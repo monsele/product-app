@@ -194,3 +194,15 @@ Fixes applied in response to the product code review:
 - **L2 — tracked, not a code fix.** The persisted draft is a `LessonStoryboard` envelope rather than a strictly-valid full `LessonSpec` because `voice` requires ST-062; full LessonSpec assembly lands at ST-060.
 
 Verification after fixes: schemas 186 passed, pipeline-worker 134 passed, provider-adapters 36 passed, api 258 passed, web 52 passed; `lint`/`typecheck`/`build` pass for all affected workspaces; `playwright test e2e/storyboard.spec.ts` — 2 passed.
+
+## Follow-up (2026-08-29) — narration approval landed
+
+This story deferred narration approval ("Narration approval does not exist yet, so the storyboard uses the current working narration set"). That deferral was never picked up by a later story, so no code path ever wrote `narration_sets.status = 'approved'`. Because `PostgresLessonVersionsService` requires an approved narration set, no lesson version could be saved and the whole delivery chain (render, exports, sharing) was unreachable in the running product. Closed out here:
+
+- `POST /projects/:id/narration/approve` (`narrationApproveInputSchema` → `{ expectedRevision }`) with `PostgresNarrationService.approve` (`apps/api/src/narration.ts`, `apps/api/src/app.ts`). Under the draft row lock it re-checks the same gates the read model reports: no narration generation or transform job in flight, expected revision match, not stale against the approved source/configuration/outline, every block grounded by a source ref or generated addition, and every approved outline section covered. It then promotes the draft, supersedes every other set (exactly one approved set per project), and writes a `narration.approved` audit event.
+- `NarrationResponse.canApprove` was hardcoded `false` since ST-048; it is now computed from the same conditions.
+- Approve footer on the narration workspace (`apps/web/app/workspace/[projectId]/narration/narration-panel.tsx`), mirroring the outline panel's approval footer.
+- Migration `0058_narration_approved_audit_event` registers the `narration.approved` audit enum value.
+- Tests: 8 service tests in `apps/api/src/narration-editor.test.ts` (approve + supersede + audit, `canApprove` true, revision conflict, no draft, uncovered outline section, ungrounded block, stale draft, job in flight) and 3 route tests in `apps/api/src/narration.test.ts` (owner 200, cross-tenant 404, untrusted origin 403).
+
+The forward-looking note in this story's Known risks is resolved with one clarification: approval promotes the draft row **in place**, so its ID does not change. Storyboards generated from a working draft therefore stay aligned — `lesson_specs.based_on_narration_set_id` continues to match the set that is now approved, and `ensureReady`'s alignment check in `lesson-versions.ts` passes without regeneration. The guide's `POST /projects/{id}/storyboard/approve` remains unimplemented; `workingStoryboard` accepts a draft lesson spec, so storyboard approval is still not required to version a lesson.

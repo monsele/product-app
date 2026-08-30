@@ -1,0 +1,29 @@
+• turbo 2.10.8
+
+   • Packages in scope: @avlp/pipeline-worker, @avlp/renderer, @avlp/web
+   • Running dev in 3 packages
+   • Remote caching disabled
+
+@avlp/pipeline-worker:dev: cache bypass, force executing 888dd25bfb5e184b
+@avlp/renderer:dev: cache bypass, force executing b020c85b6b09b54b
+@avlp/web:dev: cache bypass, force executing db4e69168d0e2907
+@avlp/pipeline-worker:dev: 
+@avlp/pipeline-worker:dev: > @avlp/pipeline-worker@0.0.0 dev D:\Eronmonsele\Documents\repos\product-app\apps\pipeline-worker
+@avlp/pipeline-worker:dev: > tsx watch --env-file=../../.env src/main.ts
+@avlp/pipeline-worker:dev: 
+@avlp/renderer:dev: 
+@avlp/renderer:dev: > @avlp/renderer@0.0.0 dev D:\Eronmonsele\Documents\repos\product-app\apps\renderer
+@avlp/renderer:dev: > tsx watch --env-file=../../.env src/main.ts
+@avlp/renderer:dev: 
+@avlp/web:dev: 
+@avlp/web:dev: > @avlp/web@0.0.0 dev D:\Eronmonsele\Documents\repos\product-app\apps\web
+@avlp/web:dev: > next dev
+@avlp/web:dev: 
+@avlp/web:dev:    ▲ Next.js 15.5.23
+@avlp/web:dev:    - Local:        http://localhost:3000
+@avlp/web:dev:    - Network:      http://192.168.0.192:3000
+@avlp/web:dev: 
+@avlp/web:dev:  ✓ Starting...
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T15:26:17.597Z","level":"info","event":"worker.started","fields":{"status":"ok","service":"pipeline-worker"}}
+@avlp/renderer:dev: {"timestamp":"2026-08-30T15:26:20.826Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
+@avlp/web:dev:  ✓ Ready in 24.7s

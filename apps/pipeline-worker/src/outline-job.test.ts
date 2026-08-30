@@ -420,6 +420,33 @@ describe("assertOutlineDeterministicChecks", () => {
     ).toThrow(/tolerance/);
   });
 
+  it("rejects an outline too short to be storyboarded", () => {
+    // A 300s lesson needs at least five items: each item becomes one narration
+    // block and each block lands in one scene of at most 60s.
+    const output = validOutput();
+    output.targetDurationSeconds = 300;
+    output.items = [
+      { ...output.items[0]!, estimatedSeconds: 60 },
+      { ...output.items[1]!, estimatedSeconds: 120 },
+      { ...output.items[3]!, estimatedSeconds: 60 },
+      { ...output.items[5]!, estimatedSeconds: 60 },
+    ];
+    const longerLesson = {
+      ...context,
+      params: outlineGenerationParamsSchema.parse({
+        ...jobParams,
+        targetDurationSeconds: 300,
+        includeRecallQuestions: false,
+      }),
+    };
+    expect(() =>
+      assertOutlineDeterministicChecks(output, pkg, longerLesson),
+    ).toThrow(OutlineDeterministicCheckError);
+    expect(() =>
+      assertOutlineDeterministicChecks(output, pkg, longerLesson),
+    ).toThrow(/needs at least 5/);
+  });
+
   it("rejects a missing operation context", () => {
     expect(() =>
       assertOutlineDeterministicChecks(validOutput(), pkg, undefined),

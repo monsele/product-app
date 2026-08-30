@@ -1041,3 +1041,147 @@ describe("PostgresNarrationService.current staleness", () => {
     });
   });
 });
+
+describe("PostgresNarrationService.approve", () => {
+  it("approves the working draft, supersedes other sets, and records an audit event", async () => {
+    const { database, sets, audits } = editorDatabase({
+      narrationSetRows: [
+        narrationSetRow(),
+        narrationSetRow({
+          id: "019ffbf1-eeee-7000-8000-000000000029",
+          status: "approved",
+          revision: 4,
+          idempotencyKey: "narration:key-old-approved",
+        }),
+      ],
+    });
+    const { service } = createService(database);
+    const result = await service.approve({
+      ownerUserId,
+      projectId,
+      body: { expectedRevision: 0 },
+      correlationId: "019ffbf1-eeee-7000-8000-000000000099",
+    });
+    expect(sets.find((row) => row.id === setA)?.status).toBe("approved");
+    expect(
+      sets.find((row) => row.id === "019ffbf1-eeee-7000-8000-000000000029")
+        ?.status,
+    ).toBe("superseded");
+    expect(result.state).toBe("approved");
+    expect(result.canApprove).toBe(false);
+    expect(audits).toHaveLength(1);
+    expect(audits[0]).toMatchObject({ eventType: "narration.approved" });
+  });
+
+  it("reports canApprove for a complete, current draft", async () => {
+    const { database } = editorDatabase();
+    const { service } = createService(database);
+    const result = await service.current({ ownerUserId, projectId });
+    expect(result.canApprove).toBe(true);
+  });
+
+  it("rejects a stale expected revision", async () => {
+    const { database } = editorDatabase();
+    const { service } = createService(database);
+    await expect(
+      service.approve({
+        ownerUserId,
+        projectId,
+        body: { expectedRevision: 3 },
+        correlationId: "019ffbf1-eeee-7000-8000-000000000099",
+      }),
+    ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
+  });
+
+  it("rejects approval when there is no draft to approve", async () => {
+    const { database } = editorDatabase({
+      narrationSetRows: [narrationSetRow({ status: "approved" })],
+    });
+    const { service } = createService(database);
+    await expect(
+      service.approve({
+        ownerUserId,
+        projectId,
+        body: { expectedRevision: 0 },
+        correlationId: "019ffbf1-eeee-7000-8000-000000000099",
+      }),
+    ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
+  });
+
+  it("rejects approval when an approved outline section has no narration", async () => {
+    const { database } = editorDatabase({
+      narrationBlockRows: [
+        narrationBlockRow({ outlineItemId: "019ffbf1-eeee-7000-8000-0000000000ff" }),
+      ],
+    });
+    const { service } = createService(database);
+    await expect(
+      service.approve({
+        ownerUserId,
+        projectId,
+        body: { expectedRevision: 0 },
+        correlationId: "019ffbf1-eeee-7000-8000-000000000099",
+      }),
+    ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
+  });
+
+  it("rejects approval when a block cites neither the source nor a generated addition", async () => {
+    const { database } = editorDatabase({
+      narrationBlockRows: [
+        narrationBlockRow({ sourceRefs: [], generatedAdditions: [] }),
+      ],
+    });
+    const { service } = createService(database);
+    await expect(
+      service.approve({
+        ownerUserId,
+        projectId,
+        body: { expectedRevision: 0 },
+        correlationId: "019ffbf1-eeee-7000-8000-000000000099",
+      }),
+    ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
+  });
+
+  it("rejects approval of a draft that is stale against the approved outline", async () => {
+    const { database } = editorDatabase({
+      narrationSetRows: [
+        narrationSetRow({ outlineSetContentHash: "c".repeat(64) }),
+      ],
+    });
+    const { service } = createService(database);
+    await expect(
+      service.approve({
+        ownerUserId,
+        projectId,
+        body: { expectedRevision: 0 },
+        correlationId: "019ffbf1-eeee-7000-8000-000000000099",
+      }),
+    ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
+  });
+
+  it("rejects approval while narration generation is still running", async () => {
+    const { database } = editorDatabase({
+      jobRows: [
+        {
+          id: "019ffbf1-eeee-7000-8000-000000000060",
+          projectId,
+          ownerUserId,
+          jobType: "narration.generate",
+          state: "running",
+          errorMetadata: null,
+          createdAt: new Date("2026-08-17T11:00:00.000Z"),
+          updatedAt: new Date("2026-08-17T11:00:00.000Z"),
+        },
+      ],
+    });
+    const { service } = createService(database);
+    await expect(
+      service.approve({
+        ownerUserId,
+        projectId,
+        body: { expectedRevision: 0 },
+        correlationId: "019ffbf1-eeee-7000-8000-000000000099",
+      }),
+    ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
+  });
+});

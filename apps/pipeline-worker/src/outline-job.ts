@@ -18,6 +18,7 @@ import {
 } from "@avlp/provider-adapters";
 import {
   lessonOutlineSetSchema,
+  minimumOutlineItemsForTarget,
   outlineDurationToleranceRatio,
   outlineGenerationParamsSchema,
   outlineOutputV1Schema,
@@ -45,7 +46,8 @@ export class OutlineDeterministicCheckError extends Error {
     | "UNSUPPORTED_SOURCE_BLOCK"
     | "INVALID_SEQUENCE"
     | "RECALL_QUESTION_MISSING"
-    | "DURATION_OUT_OF_TOLERANCE";
+    | "DURATION_OUT_OF_TOLERANCE"
+    | "ITEM_COUNT_TOO_LOW";
 
   public constructor(
     code: OutlineDeterministicCheckError["code"],
@@ -171,9 +173,10 @@ function collectPackageBlockIds(sourcePackage: SourcePackage): Set<string> {
  * Deterministic outline rules: every approved objective is covered, every
  * citation resolves to a block in the approved source package, the sequence
  * opens with a hook and closes with a summary with concepts and examples in
- * between, the optional recall question honors the configuration, and the
- * total estimated duration fits the configured tolerance. Throws on the first
- * violation; a valid draft must clear every rule.
+ * between, the optional recall question honors the configuration, the item
+ * count leaves the lesson storyboardable, and the total estimated duration fits
+ * the configured tolerance. Throws on the first violation; a valid draft must
+ * clear every rule.
  */
 export function assertOutlineDeterministicChecks(
   output: OutlineOutputV1,
@@ -249,6 +252,18 @@ export function assertOutlineDeterministicChecks(
     throw new OutlineDeterministicCheckError(
       "RECALL_QUESTION_MISSING",
       "The configuration requests a recall question.",
+    );
+  // Each item becomes exactly one narration block and every block lands in one
+  // scene of at most 60s, so too few items make the storyboard step impossible
+  // however the storyboard model splits them. Catch that here rather than after
+  // the outline has been approved and narrated.
+  const minimumItems = minimumOutlineItemsForTarget(
+    params.targetDurationSeconds,
+  );
+  if (output.items.length < minimumItems)
+    throw new OutlineDeterministicCheckError(
+      "ITEM_COUNT_TOO_LOW",
+      `The outline has ${output.items.length} items; a ${params.targetDurationSeconds}s lesson needs at least ${minimumItems} to be storyboarded.`,
     );
   const total = output.items.reduce(
     (sum, item) => sum + item.estimatedSeconds,

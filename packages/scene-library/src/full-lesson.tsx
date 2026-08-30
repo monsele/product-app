@@ -2,7 +2,7 @@
 
 import { Player, type PlayerRef } from "@remotion/player";
 import { Audio, interpolate, Sequence, useCurrentFrame } from "remotion";
-import { useEffect, useRef, useState, type JSX } from "react";
+import React, { useEffect, useRef, useState, type JSX } from "react";
 import { z } from "zod";
 import { sceneSpecSchema, type LessonSpec } from "@avlp/schemas";
 import { videoTheme } from "@avlp/design-system/video-theme";
@@ -329,6 +329,14 @@ export function FullLessonComposition({
   );
 }
 
+/** Frame index rendered as m:ss for the transport's elapsed/total readout. */
+function formatFrameAsTime(frameIndex: number, fps: number): string {
+  const totalSeconds = Math.max(0, Math.floor(frameIndex / fps));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
 export function FullLessonPreviewPlayer({
   input,
   onMediaError,
@@ -373,45 +381,14 @@ export function FullLessonPreviewPlayer({
     playerRef.current?.seekTo(safeFrame);
     setFrame(safeFrame);
   };
+  const activeIndex = timeline.findIndex(
+    (segment) => segment.sceneId === active?.sceneId,
+  );
+  const fps = videoTheme.canvas.fps;
+  const progress =
+    durationInFrames > 1 ? (frame / (durationInFrames - 1)) * 100 : 0;
   return (
-    <section aria-label="Full lesson preview player">
-      <p role="status">
-        Full lesson frame: {frame}; scene:{" "}
-        {active === undefined ? "complete" : active.sceneId}
-      </p>
-      {playbackError === undefined ? null : (
-        <p role="alert">{playbackError}</p>
-      )}
-      <div aria-label="Full lesson controls">
-        <button onClick={() => playerRef.current?.play()} type="button">
-          Play lesson
-        </button>
-        <button onClick={() => playerRef.current?.pause()} type="button">
-          Pause lesson
-        </button>
-        <label>
-          Seek lesson
-          <input
-            aria-label="Seek lesson"
-            max={durationInFrames - 1}
-            min={0}
-            onChange={(event) => seek(Number(event.currentTarget.value))}
-            type="range"
-            value={frame}
-          />
-        </label>
-      </div>
-      <nav aria-label="Lesson scenes">
-        {timeline.map((segment, index) => (
-          <button
-            key={segment.sceneId}
-            onClick={() => seek(segment.startFrame)}
-            type="button"
-          >
-            Scene {index + 1}
-          </button>
-        ))}
-      </nav>
+    <section aria-label="Full lesson preview player" className="sp-player">
       <Player
         acknowledgeRemotionLicense
         component={FullLessonComposition}
@@ -443,6 +420,77 @@ export function FullLessonPreviewPlayer({
         ref={playerRef}
         style={{ width: "100%" }}
       />
+
+      {playbackError === undefined ? null : (
+        <p className="sp-alert" role="alert">
+          {playbackError}
+        </p>
+      )}
+
+      <div className="sp-transport-stack">
+        <div aria-label="Full lesson controls" className="sp-transport">
+          <button
+            className="sp-button sp-button-primary"
+            onClick={() => playerRef.current?.play()}
+            title="Play lesson"
+            type="button"
+          >
+            Play lesson
+          </button>
+          <button
+            className="sp-button"
+            onClick={() => playerRef.current?.pause()}
+            title="Pause lesson"
+            type="button"
+          >
+            Pause lesson
+          </button>
+
+          <input
+            aria-label="Seek lesson"
+            className="sp-seek"
+            max={durationInFrames - 1}
+            min={0}
+            onChange={(event) => seek(Number(event.currentTarget.value))}
+            style={
+              { "--sp-progress": `${progress}%` } as React.CSSProperties
+            }
+            type="range"
+            value={frame}
+          />
+
+          <span aria-hidden className="sp-time">
+            {formatFrameAsTime(frame, fps)} /{" "}
+            {formatFrameAsTime(durationInFrames, fps)}
+          </span>
+        </div>
+
+        <nav aria-label="Lesson scenes" className="sp-scenes">
+          {timeline.map((segment, index) => (
+            <button
+              aria-current={index === activeIndex}
+              className="sp-scene"
+              key={segment.sceneId}
+              onClick={() => seek(segment.startFrame)}
+              type="button"
+            >
+              Scene {index + 1}
+            </button>
+          ))}
+        </nav>
+
+        <p className="sp-meta" role="status">
+          <span className="sp-meta-scene">
+            {active === undefined
+              ? "Lesson complete"
+              : `Scene ${activeIndex + 1} of ${timeline.length}`}
+          </span>
+          <span aria-hidden className="sp-meta-separator">
+            ·
+          </span>
+          <span className="sp-meta-frame">Full lesson frame: {frame}</span>
+        </p>
+      </div>
     </section>
   );
 }

@@ -1,0 +1,64 @@
+
+> @avlp/api@0.0.0 dev D:\Eronmonsele\Documents\repos\product-app\apps\api
+> tsx watch --env-file=../../.env src/main.ts
+
+node:net:1948
+    const ex = new UVExceptionWithHostPort(err, 'listen', address, port);
+               ^
+
+Error: listen EADDRINUSE: address already in use 0.0.0.0:3001
+    at Server.setupListenHandle [as _listen2] (node:net:1948:16)
+    at listenInCluster (node:net:2005:12)
+    at node:net:2214:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '0.0.0.0',
+  port: 3001
+}
+
+Node.js v24.14.0
+4:47:38 PM [tsx] change in ./src\lesson-validation.ts Rerunning...
+node:net:1948
+    const ex = new UVExceptionWithHostPort(err, 'listen', address, port);
+               ^
+
+Error: listen EADDRINUSE: address already in use 0.0.0.0:3001
+    at Server.setupListenHandle [as _listen2] (node:net:1948:16)
+    at listenInCluster (node:net:2005:12)
+    at node:net:2214:7
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  code: 'EADDRINUSE',
+  errno: -4091,
+  syscall: 'listen',
+  address: '0.0.0.0',
+  port: 3001
+}
+
+Node.js v24.14.0
+6:27:30 PM [tsx] change in ./..\..\packages\scene-library\dist\summary-scene.fixtures.js Rerunning...
+6:29:14 PM [tsx] change in ./..\..\packages\scene-library\dist\summary-scene.js Restarting...
+6:29:15 PM [tsx] change in ./..\..\packages\scene-library\dist\worked-example-scene.fixtures.js Process hasn't exited. Killing process...
+6:29:15 PM [tsx] change in ./..\..\packages\scene-library\dist\process-scene.fixtures.js Restarting...
+{"level":30,"time":1788111029132,"pid":18112,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1788111029133,"pid":18112,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.192:3001"}
+{"level":30,"time":1788111029133,"pid":18112,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.18.112.1:3001"}
+{"level":30,"time":1788111029133,"pid":18112,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+6:32:17 PM [tsx] change in ./..\..\packages\design-system\dist\index.js Restarting...
+6:32:27 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Restarting...
+6:32:27 PM [tsx] change in ./..\..\packages\scene-library\dist\scene-preview.js Restarting...
+6:32:28 PM [tsx] change in ./..\..\packages\scene-library\dist\index.js Restarting...
+{"level":30,"time":1788111223299,"pid":27920,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1788111223299,"pid":27920,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.192:3001"}
+{"level":30,"time":1788111223300,"pid":27920,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.18.112.1:3001"}
+{"level":30,"time":1788111223300,"pid":27920,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+6:36:39 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Restarting...
+6:36:40 PM [tsx] change in ./..\..\packages\scene-library\dist\index.js Restarting...
+6:37:13 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Restarting...
+6:37:13 PM [tsx] change in ./..\..\packages\scene-library\dist\scene-preview.js Restarting...
+6:37:13 PM [tsx] change in ./..\..\packages\scene-library\dist\index.js Restarting...
+{"level":30,"time":1788111478156,"pid":33800,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1788111478157,"pid":33800,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.192:3001"}
+{"level":30,"time":1788111478157,"pid":33800,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.18.112.1:3001"}
+{"level":30,"time":1788111478157,"pid":33800,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}

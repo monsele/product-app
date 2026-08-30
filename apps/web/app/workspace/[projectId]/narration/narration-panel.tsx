@@ -297,6 +297,16 @@ export function NarrationPanel({
     [editing, mutateNarration, value],
   );
 
+  const approveNarration = useCallback(() => {
+    if (value === null || value.set === null) return;
+    void mutateNarration(
+      "POST",
+      "/approve",
+      { expectedRevision: value.set.revision },
+      "approved",
+    );
+  }, [mutateNarration, value]);
+
   const regenerateBlock = useCallback(
     (blockId: string, mode: NarrationTransformMode) => {
       if (value === null || value.set === null) return;
@@ -384,6 +394,7 @@ export function NarrationPanel({
   const draft = view.value.set;
   const approved = view.value.approved;
   const warnings = narrationValidationWarnings(view.value.validation);
+  const isNarrationApproved = draft !== null && draft.status === "approved";
   const selectedBlock =
     draft?.blocks.find((b) => b.id === selectedBlockId) ?? draft?.blocks[0] ?? null;
 
@@ -393,7 +404,7 @@ export function NarrationPanel({
     statusBadge = <StatusLabel status="info" label="Generating…" size="compact" />;
   } else if (view.value.stale) {
     statusBadge = <StatusLabel status="warning" label="Outline changed" size="compact" />;
-  } else if (draft?.status === "approved") {
+  } else if (isNarrationApproved) {
     statusBadge = <StatusLabel status="success" label="Narration approved" size="compact" />;
   } else if (draft !== null) {
     statusBadge = <StatusLabel status="info" label="Draft ready" size="compact" />;
@@ -1154,6 +1165,62 @@ export function NarrationPanel({
               })}
             </ol>
           </section>
+
+          {/* Approval Footer */}
+          <div
+            style={{
+              marginTop: "16px",
+              padding: "20px",
+              maxWidth: "72ch",
+              backgroundColor: isNarrationApproved
+                ? "var(--color-surface-subtle)"
+                : "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-card)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "16px",
+            }}
+          >
+            <div>
+              <h4
+                style={{
+                  margin: "0 0 4px 0",
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  color: "var(--color-text)",
+                }}
+              >
+                {isNarrationApproved ? "Narration Approved" : "Ready to proceed?"}
+              </h4>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "13px",
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                {isNarrationApproved
+                  ? "This narration is approved and guides the storyboard. Editing creates a new draft."
+                  : "Approving confirms the spoken script and unlocks saving a lesson version for rendering."}
+              </p>
+            </div>
+
+            {!isNarrationApproved ? (
+              <Button
+                variant="primary"
+                onClick={() => approveNarration()}
+                disabled={!view.value.canApprove || submitting || generating}
+              >
+                <CheckCircle size={16} weight="bold" />
+                Approve narration
+              </Button>
+            ) : (
+              <StatusLabel status="success" label="Active approved narration" />
+            )}
+          </div>
 
           {/* Approved Narration Comparison (if another version was previously approved) */}
           {approved !== null && approved.id !== draft.id && (

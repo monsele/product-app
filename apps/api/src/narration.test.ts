@@ -151,6 +151,7 @@ describe("narration API", () => {
           status: "queued",
         }),
       ),
+      approve: vi.fn(async () => sampleResponse()),
       updateBlock: vi.fn(async () => sampleResponse()),
       acceptCandidate: vi.fn(async () => sampleResponse()),
       rejectCandidate: vi.fn(async () => sampleResponse()),
@@ -275,6 +276,51 @@ describe("narration API", () => {
         blockId: "019ffbf1-eeee-7000-8000-000000000001",
       }),
     );
+  });
+
+  it("approves the narration draft for the project owner", async () => {
+    const { fixture, server, narrationService } = await api();
+    const response = await server.inject({
+      method: "POST",
+      url: `/projects/${fixture.projectId}/narration/approve`,
+      cookies: { [sessionCookieName]: "owner" },
+      headers: { origin: "https://teacher.example.test" },
+      payload: { expectedRevision: 0 },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(narrationService.approve).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ownerUserId: fixture.ownerUserId,
+        projectId: fixture.projectId,
+        body: { expectedRevision: 0 },
+      }),
+    );
+  });
+
+  it("forbids approving another tenant's narration", async () => {
+    const { fixture, server, narrationService } = await api();
+    const response = await server.inject({
+      method: "POST",
+      url: `/projects/${fixture.projectId}/narration/approve`,
+      cookies: { [sessionCookieName]: "other" },
+      headers: { origin: "https://teacher.example.test" },
+      payload: { expectedRevision: 0 },
+    });
+    expect(response.statusCode).toBe(404);
+    expect(narrationService.approve).not.toHaveBeenCalled();
+  });
+
+  it("rejects narration approval from a non-trusted origin", async () => {
+    const { fixture, server, narrationService } = await api();
+    const response = await server.inject({
+      method: "POST",
+      url: `/projects/${fixture.projectId}/narration/approve`,
+      cookies: { [sessionCookieName]: "owner" },
+      headers: { origin: "https://evil.example.test" },
+      payload: { expectedRevision: 0 },
+    });
+    expect(response.statusCode).toBe(403);
+    expect(narrationService.approve).not.toHaveBeenCalled();
   });
 
   it("forbids editing another tenant's narration block", async () => {

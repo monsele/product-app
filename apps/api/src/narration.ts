@@ -34,6 +34,7 @@ import {
   narrationBlockRevisionsResponseSchema,
   narrationBlockTransformInputSchema,
   narrationBlockUpdateInputSchema,
+  narrationApproveInputSchema,
   narrationCandidateDecisionInputSchema,
   narrationGenerationParamsSchema,
   narrationGenerationResponseSchema,
@@ -123,6 +124,12 @@ export interface NarrationService {
   current(input: {
     ownerUserId: Identifier;
     projectId: Identifier;
+  }): Promise<NarrationResponse>;
+  approve(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    body: unknown;
+    correlationId: Identifier;
   }): Promise<NarrationResponse>;
   updateBlock(input: {
     ownerUserId: Identifier;
@@ -450,12 +457,146 @@ export class PostgresNarrationService implements NarrationService {
         !approval.stale &&
         approvedOutline !== undefined &&
         !generating,
-      canApprove: false,
+      canApprove:
+        !generating &&
+        set !== null &&
+        set.status === "draft" &&
+        !staleState.stale &&
+        validation.structurallyValid &&
+        validation.uncoveredOutlineItemIds.length === 0,
       canEdit: set !== null && set.status === "draft" && !generating,
       stale: staleState.stale,
       staleReason: staleState.staleReason,
       candidates,
       validation,
+    });
+  }
+
+  public async approve(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    body: unknown;
+    correlationId: Identifier;
+  }): Promise<NarrationResponse> {
+    const parsed = parseBoundary(narrationApproveInputSchema, input.body);
+    const timestamp = this.now();
+    const approval = await this.sourceApprovalStatus({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+    });
+    await this.database.transaction(async (transaction) => {
+      const [generationJob, transformJob] = await Promise.all([
+        this.latestGenerationJob(
+          input.ownerUserId,
+          input.projectId,
+          transaction,
+        ),
+        this.latestTransformJob(
+          input.ownerUserId,
+          input.projectId,
+          transaction,
+        ),
+      ]);
+      if (inFlight(generationJob) || inFlight(transformJob))
+        throw narrationApprovalInFlight();
+      const draft = await this.latestDraftRowForUpdate(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+      );
+      if (draft === undefined) throw narrationNothingToApprove();
+      if (draft.revision !== parsed.expectedRevision) throw narrationConflict();
+      const [configuration, approvedOutline] = await Promise.all([
+        this.loadConfiguration(transaction, input.ownerUserId, input.projectId),
+        this.latestApprovedOutlineSetRow(
+          transaction,
+          input.ownerUserId,
+          input.projectId,
+        ),
+      ]);
+      const approvedOutlineItems =
+        approvedOutline === undefined
+          ? []
+          : await this.loadOutlineItems(
+              transaction,
+              approvedOutline.id,
+              input.ownerUserId,
+              input.projectId,
+            );
+      const set = await this.assembleSet(draft, transaction);
+      // Approving binds this narration to the storyboard and every lesson
+      // version derived from it, so the same staleness and completeness gates
+      // the read model reports through `canApprove` are re-checked here under
+      // the draft row lock.
+      const staleState = this.computeStaleness({
+        set,
+        configuration,
+        approval,
+        approvedOutline,
+        approvedOutlineItems,
+      });
+      if (staleState.stale)
+        throw narrationStaleForApproval(staleState.staleReason);
+      const validation = this.computeValidation({
+        set,
+        configuration,
+        approvedOutlineItemIds: approvedOutlineItems.map((item) => item.id),
+      });
+      if (!validation.structurallyValid)
+        throw narrationNotApprovable(
+          "Every narration block must cite the reviewed source or record a generated addition before approval.",
+        );
+      if (validation.uncoveredOutlineItemIds.length > 0)
+        throw narrationNotApprovable(
+          "Write narration for every approved outline section before approving.",
+        );
+      const [approvedRow] = await transaction
+        .update(narrationSets)
+        .set({ status: "approved", updatedAt: timestamp })
+        .where(
+          and(
+            eq(narrationSets.id, draft.id),
+            eq(narrationSets.ownerUserId, input.ownerUserId),
+            eq(narrationSets.projectId, input.projectId),
+            eq(narrationSets.status, "draft"),
+            eq(narrationSets.revision, parsed.expectedRevision),
+          ),
+        )
+        .returning({ id: narrationSets.id });
+      if (approvedRow === undefined) throw narrationConflict();
+      // Exactly one approved set per project: any previously approved or
+      // abandoned draft set becomes history so `approvedSetRow` and lesson
+      // versioning always resolve the set the teacher just confirmed.
+      await transaction
+        .update(narrationSets)
+        .set({ status: "superseded", updatedAt: timestamp })
+        .where(
+          and(
+            eq(narrationSets.ownerUserId, input.ownerUserId),
+            eq(narrationSets.projectId, input.projectId),
+            sql`${narrationSets.status} <> 'superseded'`,
+            sql`${narrationSets.id} <> ${draft.id}`,
+          ),
+        );
+      await new PostgresAuditWriter(transaction).write({
+        ownerUserId: input.ownerUserId,
+        projectId: input.projectId,
+        actor: { type: "user", userId: input.ownerUserId },
+        eventType: "narration.approved",
+        target: { type: "narration_set", id: draft.id },
+        correlationId: input.correlationId,
+        metadata: {
+          blockCount: set.blocks.length,
+          totalEstimatedSeconds: set.totalEstimatedSeconds,
+          outlineSetId: draft.outlineSetId,
+          revision: parsed.expectedRevision,
+        },
+        occurredAt: timestamp,
+      });
+    });
+    return this.current({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
     });
   }
 
@@ -1474,8 +1615,11 @@ export class PostgresNarrationService implements NarrationService {
     return row;
   }
 
-  private async assembleSet(row: NarrationSetRow): Promise<LessonNarrationSet> {
-    const blockRows = await this.database
+  private async assembleSet(
+    row: NarrationSetRow,
+    executor: DatabaseExecutor = this.database,
+  ): Promise<LessonNarrationSet> {
+    const blockRows = await executor
       .select()
       .from(narrationBlocks)
       .where(
@@ -1681,6 +1825,46 @@ function nothingToEdit(): PublicError {
     "bad_request",
     "Generate narration before editing a block.",
     409,
+  );
+}
+
+function narrationNothingToApprove(): PublicError {
+  return new PublicError(
+    "bad_request",
+    "Generate narration before approving it.",
+    409,
+  );
+}
+
+function narrationApprovalInFlight(): PublicError {
+  return new PublicError(
+    "bad_request",
+    "Narration work is still running. Wait for it to finish before approving.",
+    409,
+  );
+}
+
+function narrationStaleForApproval(reason: string | null): PublicError {
+  return new PublicError(
+    "bad_request",
+    reason ??
+      "This narration is out of date with its approved inputs. Regenerate it before approving.",
+    409,
+  );
+}
+
+function narrationNotApprovable(message: string): PublicError {
+  return new PublicError("bad_request", message, 409);
+}
+
+function inFlight(
+  job: { state: GenerationJobState } | undefined,
+): boolean {
+  return (
+    job !== undefined &&
+    (job.state === "queued" ||
+      job.state === "running" ||
+      job.state === "retry_wait")
   );
 }
 

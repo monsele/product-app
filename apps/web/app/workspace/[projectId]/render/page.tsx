@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { ProjectStage } from "@avlp/schemas";
 import {
+  lessonValidationRunSchema,
   lessonVersionsResponseSchema,
   renderStatusResponseSchema,
 } from "@avlp/schemas";
@@ -44,20 +45,25 @@ export default async function RenderPage({
   const { projectId } = await params;
   const api = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
   const headers = { cookie: `avlp_session=${encodeURIComponent(token)}` };
-  const [projectResponse, renderResponse, versionsResponse] = await Promise.all([
-    fetch(`${api}/projects/${encodeURIComponent(projectId)}`, {
-      headers,
-      cache: "no-store",
-    }),
-    fetch(`${api}/projects/${encodeURIComponent(projectId)}/renders`, {
-      headers,
-      cache: "no-store",
-    }),
-    fetch(`${api}/projects/${encodeURIComponent(projectId)}/versions`, {
-      headers,
-      cache: "no-store",
-    }),
-  ]);
+  const [projectResponse, renderResponse, versionsResponse, validationResponse] =
+    await Promise.all([
+      fetch(`${api}/projects/${encodeURIComponent(projectId)}`, {
+        headers,
+        cache: "no-store",
+      }),
+      fetch(`${api}/projects/${encodeURIComponent(projectId)}/renders`, {
+        headers,
+        cache: "no-store",
+      }),
+      fetch(`${api}/projects/${encodeURIComponent(projectId)}/versions`, {
+        headers,
+        cache: "no-store",
+      }),
+      fetch(`${api}/projects/${encodeURIComponent(projectId)}/validation`, {
+        headers,
+        cache: "no-store",
+      }),
+    ]);
 
   const projectPayload: unknown = projectResponse.ok
     ? await projectResponse.json().catch(() => null)
@@ -97,6 +103,20 @@ export default async function RenderPage({
         .map((value) => value.data)
     : [];
   const versions = lessonVersionsResponseSchema.safeParse(versionsPayload);
+  // `latest` returns null until a validation has been run for the current
+  // lesson; anything unparseable is treated the same way, so the panel asks for
+  // preflight rather than offering a render the API would reject with a 409.
+  const validationPayload: unknown = validationResponse.ok
+    ? await validationResponse.json().catch(() => null)
+    : null;
+  const validationRun =
+    validationPayload !== null &&
+    typeof validationPayload === "object" &&
+    "run" in validationPayload
+      ? lessonValidationRunSchema.safeParse(
+          (validationPayload as { run: unknown }).run,
+        )
+      : null;
 
   const stageDetails = getStageDetails(project.stage);
   const stages = getPipelineStages(project.stage, "Deliver", projectId);
@@ -115,6 +135,11 @@ export default async function RenderPage({
         projectTitle={project.title}
         lessonVersionId={
           versions.success ? versions.data.currentVersionId : null
+        }
+        validation={
+          validationRun !== null && validationRun.success
+            ? validationRun.data
+            : null
         }
         initial={renders}
       />

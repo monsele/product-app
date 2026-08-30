@@ -13,7 +13,7 @@ export default function RootLayout({
 }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
-      <body>
+      <body suppressHydrationWarning>
         <Suspense fallback={null}>
           <NavigationProgressBar />
         </Suspense>

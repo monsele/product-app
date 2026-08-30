@@ -1,0 +1,84 @@
+
+> ai-visual-learning-platform@ dev D:\Eronmonsele\Documents\repos\product-app
+> turbo dev --parallel
+
+ WARNING  --parallel is deprecated and will be removed in a future major version. Instead, define task behavior in your turbo.json task definitions using `persistent` and `with`.
+• turbo 2.10.8
+
+   • Packages in scope: @avlp/api, @avlp/auth, @avlp/config, @avlp/database, @avlp/design-system, @avlp/evals, @avlp/jobs, @avlp/observability, @avlp/pipeline-worker, @avlp/provider-adapters, @avlp/renderer, @avlp/scene-library, @avlp/schemas, @avlp/storage, @avlp/test-fixtures, @avlp/web
+   • Running dev in 16 packages
+   • Remote caching disabled
+
+@avlp/api:dev: cache bypass, force executing 366b3829e745da76
+@avlp/web:dev: cache bypass, force executing db4e69168d0e2907
+@avlp/pipeline-worker:dev: cache bypass, force executing 888dd25bfb5e184b
+@avlp/renderer:dev: cache bypass, force executing b020c85b6b09b54b
+@avlp/pipeline-worker:dev: 
+@avlp/pipeline-worker:dev: > @avlp/pipeline-worker@0.0.0 dev D:\Eronmonsele\Documents\repos\product-app\apps\pipeline-worker
+@avlp/pipeline-worker:dev: > tsx watch --env-file=../../.env src/main.ts
+@avlp/pipeline-worker:dev: 
+@avlp/renderer:dev: 
+@avlp/renderer:dev: > @avlp/renderer@0.0.0 dev D:\Eronmonsele\Documents\repos\product-app\apps\renderer
+@avlp/renderer:dev: > tsx watch --env-file=../../.env src/main.ts
+@avlp/renderer:dev: 
+@avlp/web:dev: 
+@avlp/web:dev: > @avlp/web@0.0.0 dev D:\Eronmonsele\Documents\repos\product-app\apps\web
+@avlp/web:dev: > next dev
+@avlp/web:dev: 
+@avlp/api:dev: 
+@avlp/api:dev: > @avlp/api@0.0.0 dev D:\Eronmonsele\Documents\repos\product-app\apps\api
+@avlp/api:dev: > tsx watch --env-file=../../.env src/main.ts
+@avlp/api:dev: 
+@avlp/web:dev:  ⚠ Port 3000 is in use by process 3740, using available port 3001 instead.
+@avlp/web:dev:    ▲ Next.js 15.5.23
+@avlp/web:dev:    - Local:        http://localhost:3001
+@avlp/web:dev:    - Network:      http://192.168.0.192:3001
+@avlp/web:dev: 
+@avlp/web:dev:  ✓ Starting...
+@avlp/web:dev:  ✓ Ready in 31.8s
+@avlp/web:dev: <w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename 'D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\cache\webpack\client-development\0.pack.gz_' -> 'D:\Eronmonsele\Documents\repos\product-app\apps\web\.next\cache\webpack\client-development\0.pack.gz'
+@avlp/web:dev:  ○ Compiling /_not-found ...
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T15:20:15.160Z","level":"info","event":"worker.started","fields":{"status":"ok","service":"pipeline-worker"}}
+@avlp/renderer:dev: {"timestamp":"2026-08-30T15:20:36.252Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
+@avlp/api:dev: {"level":30,"time":1788103269198,"pid":23404,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+@avlp/api:dev: {"level":30,"time":1788103269199,"pid":23404,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.192:3001"}
+@avlp/api:dev: {"level":30,"time":1788103269199,"pid":23404,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.18.112.1:3001"}
+@avlp/api:dev: {"level":30,"time":1788103269199,"pid":23404,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+@avlp/web:dev:  ✓ Compiled /_not-found in 169s (10538 modules)
+@avlp/web:dev:  ○ Compiling /_error ...
+@avlp/web:dev:  ✓ Compiled /_error in 25s (10922 modules)
+@avlp/web:dev: Could not find files for /_error in .next/build-manifest.json
+@avlp/web:dev: Could not find files for /_error in .next/build-manifest.json
+@avlp/web:dev:  GET /health 404 in 196181ms
+@avlp/web:dev: Could not find files for /_error in .next/build-manifest.json
+@avlp/web:dev: Could not find files for /_error in .next/build-manifest.json
+@avlp/web:dev:  GET /health 404 in 985ms
+@avlp/api:dev: {"level":30,"time":1788103412840,"pid":23404,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1","req":{"method":"GET","url":"[REDACTED]","host":"127.0.0.1:3001","remoteAddress":"127.0.0.1","remotePort":55809},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T15:23:32.844Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a05344-cc6a-7044-bae2-8574b92a75f6","method":"GET","route":"/health","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788103412902,"pid":23404,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1","res":{"statusCode":200},"responseTime":60.64549999998417,"msg":"request completed"}
+@avlp/web:dev:  GET /health 404 in 62ms
+@avlp/web:dev: [?25h
+@avlp/api:dev: {"level":30,"time":1788103426258,"pid":23404,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2","req":{"method":"GET","url":"[REDACTED]","host":"127.0.0.1:3001","remoteAddress":"127.0.0.1","remotePort":55225},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T15:23:46.259Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a05345-00d3-77c1-8624-a4ee89927417","method":"GET","route":"/health","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788103426261,"pid":23404,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2","res":{"statusCode":200},"responseTime":2.6370999999926426,"msg":"request completed"}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T15:25:23.103Z","level":"info","event":"job.started","fields":{"jobId":"01a05346-79fa-7f05-82a1-6c08eddf139a","jobType":"grounding.check","projectId":"01a04f2f-c90e-7310-a1ea-fd4240c81b7f","correlationId":"01a04f00-0000-7000-8000-0000000000fd","attempt":1,"service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T15:25:23.440Z","level":"info","event":"job.completed","fields":{"jobId":"01a05346-79fa-7f05-82a1-6c08eddf139a","jobType":"grounding.check","projectId":"01a04f2f-c90e-7310-a1ea-fd4240c81b7f","correlationId":"01a04f00-0000-7000-8000-0000000000fd","attempt":1,"status":"succeeded","errorClassification":"none","durationMs":338,"service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: 4:41:53 PM [tsx] change in ./src\scene-audio-job.ts Restarting...
+@avlp/api:dev: 4:47:38 PM [tsx] change in ./src\lesson-validation.ts Rerunning...
+@avlp/api:dev: 6:27:29 PM [tsx] change in ./..\..\packages\scene-library\dist\layout.js Rerunning...
+@avlp/api:dev: 6:27:30 PM [tsx] change in ./..\..\packages\scene-library\dist\scene-registry.js Rerunning...
+@avlp/api:dev: 6:27:31 PM [tsx] change in ./..\..\packages\scene-library\dist\summary-scene.js Rerunning...
+@avlp/renderer:dev: 6:27:34 PM [tsx] change in ./..\..\packages\scene-library\dist\summary-scene.fixtures.js Restarting...
+@avlp/renderer:dev: 6:29:14 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Rerunning...
+@avlp/api:dev: 6:29:14 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Rerunning...
+@avlp/api:dev: 6:29:15 PM [tsx] change in ./..\..\packages\scene-library\dist\labelled-diagram-scene.fixtures.js Rerunning...
+@avlp/renderer:dev: 6:29:15 PM [tsx] change in ./..\..\packages\scene-library\dist\index.js Rerunning...
+@avlp/api:dev: 6:29:15 PM [tsx] change in ./..\..\packages\scene-library\dist\summary-scene.fixtures.js Rerunning...
+@avlp/api:dev: 6:32:17 PM [tsx] change in ./..\..\packages\design-system\dist\index.js Rerunning...
+@avlp/renderer:dev: 6:32:17 PM [tsx] change in ./..\..\packages\design-system\dist\index.js Rerunning...
+@avlp/renderer:dev: 6:32:27 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Rerunning...
+@avlp/api:dev: 6:32:27 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Rerunning...
+@avlp/api:dev: 6:32:27 PM [tsx] change in ./..\..\packages\scene-library\dist\scene-preview.js Rerunning...
+@avlp/renderer:dev: 6:32:27 PM [tsx] change in ./..\..\packages\scene-library\dist\scene-preview.js Rerunning...
+@avlp/renderer:dev: 6:32:28 PM [tsx] change in ./..\..\packages\scene-library\dist\index.js Rerunning...
+@avlp/api:dev: 6:32:28 PM [tsx] change in ./..\..\packages\scene-library\dist\summary-scene.fixtures.js Rerunning...

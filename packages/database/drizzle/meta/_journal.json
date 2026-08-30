@@ -407,6 +407,13 @@
       "when": 1787660000000,
       "tag": "0057_voice_configuration_audit_event",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1787663000000,
+      "tag": "0058_narration_approved_audit_event",
+      "breakpoints": true
     }
   ]
 }

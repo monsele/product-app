@@ -253,6 +253,111 @@ html, body {
   white-space: nowrap;
 }
 
+/* Full-lesson transport. The lesson player stacks two rows - the play
+   controls above, the per-scene jump list below - so it wraps them in
+   .sp-transport-stack instead of using .sp-transport on its own. */
+
+.sp-transport-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 14px;
+  background-color: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+}
+
+.sp-transport-stack .sp-transport {
+  padding: 0;
+  background-color: transparent;
+  border-top: 0;
+}
+
+/* Scene jump list. Scrolls sideways rather than wrapping, so the transport
+   keeps a predictable height inside a fixed-aspect preview frame. */
+.sp-scenes {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding-bottom: 2px;
+}
+
+.sp-scene {
+  font: var(--text-supporting);
+  font-weight: 500;
+  flex: 0 0 auto;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface-subtle);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color var(--motion-quick) var(--motion-easing),
+    border-color var(--motion-quick) var(--motion-easing),
+    color var(--motion-quick) var(--motion-easing),
+    transform var(--motion-instant) var(--motion-easing);
+}
+
+.sp-scene:hover {
+  background-color: var(--color-surface-brand);
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+}
+
+.sp-scene:active {
+  transform: scale(0.97);
+}
+
+/* The scene currently under the playhead. */
+.sp-scene[aria-current="true"] {
+  background-color: var(--color-surface-brand);
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+  font-weight: 600;
+}
+
+/* Which scene is playing, plus the frame counter the preview reports. */
+.sp-meta {
+  font: var(--text-supporting);
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sp-meta-scene {
+  color: var(--color-text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sp-meta-separator {
+  color: var(--color-border);
+}
+
+.sp-meta-frame {
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Playback failures surface above the transport rather than replacing the
+   video, so the frame the error refers to stays on screen. */
+.sp-alert {
+  font: var(--text-supporting);
+  margin: 0;
+  padding: 8px 14px;
+  color: var(--color-danger-text);
+  background-color: var(--color-danger-surface);
+  border-top: 1px solid var(--color-danger-line);
+}
+
 /* Frame readout for assistive technology; the compact counter beside it
    carries the same information visually. */
 .sp-status {

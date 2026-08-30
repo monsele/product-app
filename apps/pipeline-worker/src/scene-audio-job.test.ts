@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { DatabaseClient } from "@avlp/database";
 import type { JobMetadata } from "@avlp/jobs";
+import { narrationWordCountRange } from "@avlp/schemas";
 import { describe, expect, it, vi } from "vitest";
 import {
   createSceneAudioGenerationJobHandler,
@@ -105,6 +106,19 @@ describe("fixture TTS adapter", () => {
     expect(synthesizeFixtureAudio(text, 1.25).durationMs).toBeLessThan(
       synthesizeFixtureAudio(text, 0.75).durationMs,
     );
+  });
+  it("synthesizes on-budget narration to fit its planned scene duration", () => {
+    // The audio-fit rule in lesson validation allows 1.5s of drift, so the
+    // fixture must realize the same duration model the word budget assumes;
+    // otherwise every scene of every project fails preflight.
+    for (const plannedSeconds of [15, 30, 45, 60]) {
+      const words = narrationWordCountRange(plannedSeconds).target;
+      const text = Array.from({ length: words }, () => "word").join(" ");
+      const output = synthesizeFixtureAudio(text, 1);
+      expect(
+        Math.abs(output.durationMs - plannedSeconds * 1_000),
+      ).toBeLessThanOrEqual(1_500);
+    }
   });
   it("provides monotonic sentence timing that covers the full generated audio", () => {
     const output = synthesizeFixtureAudio(

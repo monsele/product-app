@@ -1023,6 +1023,7 @@ export const auditEventTypeValues = [
   "outline.edited",
   "outline.approved",
   "narration.edited",
+  "narration.approved",
   "narration.block_candidate_accepted",
   "narration.block_candidate_rejected",
   "narration.block_restored",

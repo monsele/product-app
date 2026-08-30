@@ -542,6 +542,24 @@ describe("PostgresOutlineService.current", () => {
     expect(result.canGenerate).toBe(true);
   });
 
+  it("warns when the outline has too few items for the lesson target", async () => {
+    const items = outlineItemRows();
+    items[1]!.kind = "summary";
+    const { database } = fakeDatabase({
+      configRows: [configRow({ targetDurationSeconds: 300 })],
+      approvedObjectiveSetRows: [approvedObjectiveSetRow()],
+      outlineSetRows: [outlineSetRow({ totalEstimatedSeconds: 300 })],
+      outlineItemRows: items,
+      outlineLinkRows: outlineLinkRows(),
+      jobRows: [jobRow()],
+    });
+    const { service } = createService(database, approvedStatus);
+    const result = await service.current({ ownerUserId, projectId });
+    expect(result.validation.structureWarning).toBe(
+      "The outline has 2 items; a 300 second lesson needs at least 5 to be storyboarded.",
+    );
+  });
+
   it("blocks generation while a job is running", async () => {
     const { database } = fakeDatabase({
       configRows: [configRow()],

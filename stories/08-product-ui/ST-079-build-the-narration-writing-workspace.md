@@ -180,3 +180,9 @@ Do not start this story until every dependency is marked **Done** in
   - Active block selection provides contextual info rail with real duration/word estimates, citations link to source drawer, and scoped rewrite actions (Shorten, Simplify, Expand, Regenerate).
 - **Known risks or follow-up:** None.
 - **Deviations from story or technical guide:** None.
+
+## Follow-up (2026-08-29) — approval footer added
+
+This story's Interfaces list assumed an existing narration "approval or continuation" API. None existed: `POST /projects/:id/narration/approve` was implemented on 2026-08-29 (see the follow-up on ST-050), so the workspace shipped with no way to advance the stage and `NarrationResponse.canApprove` pinned to `false`.
+
+`apps/web/app/workspace/[projectId]/narration/narration-panel.tsx` now closes the loop with an approval footer below the script column, matching the outline panel's pattern and this story's 72ch reading measure: "Approve narration" while a draft is eligible (disabled unless `canApprove`, and while submitting or generating), and an "Active approved narration" status label once approved. The existing status badge reuses the same derived `isNarrationApproved` value. Approval posts `{ expectedRevision }` through the panel's existing `mutateNarration` helper, so optimistic-conflict handling, toasts, and refresh behavior are unchanged. `@avlp/web` lint and typecheck pass; the panel's four Playwright viewport tests are unaffected (they render the loading state).

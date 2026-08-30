@@ -1,0 +1,18 @@
+• turbo 2.10.8
+
+   • Packages in scope: @avlp/api
+   • Running dev in 1 packages
+   • Remote caching disabled
+
+@avlp/api:dev: cache bypass, force executing 6febb3f1ba49310c
+@avlp/api:dev: 
+@avlp/api:dev: > @avlp/api@0.0.0 dev D:\Eronmonsele\Documents\repos\product-app\apps\api
+@avlp/api:dev: > tsx watch --env-file=../../.env src/main.ts
+@avlp/api:dev: 
+@avlp/api:dev: {"level":30,"time":1788103547676,"pid":14324,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+@avlp/api:dev: {"level":30,"time":1788103547676,"pid":14324,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.192:3001"}
+@avlp/api:dev: {"level":30,"time":1788103547676,"pid":14324,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.18.112.1:3001"}
+@avlp/api:dev: {"level":30,"time":1788103547676,"pid":14324,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+@avlp/api:dev: {"level":30,"time":1788103548089,"pid":14324,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1","req":{"method":"GET","url":"[REDACTED]","host":"127.0.0.1:3001","remoteAddress":"127.0.0.1","remotePort":65226},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T15:25:48.091Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a05346-dcba-796d-935c-cef9ba774086","method":"GET","route":"/health","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788103548096,"pid":14324,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1","res":{"statusCode":200},"responseTime":6.694600000002538,"msg":"request completed"}

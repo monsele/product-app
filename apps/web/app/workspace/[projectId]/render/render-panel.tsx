@@ -5,6 +5,7 @@ import {
   renderStatusResponseSchema,
   shareLinkCreatedResponseSchema,
   shareLinksResponseSchema,
+  type LessonValidationRun,
   type RenderStatusResponse,
   type ShareLink,
 } from "@avlp/schemas";
@@ -39,19 +40,68 @@ function formatBytes(bytes: number): string {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 }
 
+/** The API refuses a render without a passed, current validation run for this
+ * exact lesson version. Deriving the same answer here keeps the button honest
+ * instead of surfacing that refusal as a generic failed request. */
+function renderBlocker(
+  lessonVersionId: string | null,
+  validation: LessonValidationRun | null,
+): { message: string; detail: string | null } | null {
+  if (lessonVersionId === null)
+    return {
+      message: "Save an approved lesson version before rendering.",
+      detail: null,
+    };
+  if (validation === null)
+    return {
+      message: "Run lesson preflight validation before rendering.",
+      detail:
+        "Open Preview & preflight to check scene audio, captions, grounding, and timing.",
+    };
+  if (validation.stale)
+    return {
+      message: "Preflight validation is out of date for this lesson.",
+      detail:
+        "The lesson changed after the last validation run. Run preflight again before rendering.",
+    };
+  if (validation.status !== "passed") {
+    const blocking = validation.issues.filter(
+      (issue) => issue.severity === "error" || issue.acknowledgedAt === null,
+    );
+    const errors = blocking.filter((issue) => issue.severity === "error");
+    const summary = [...new Set(errors.map((issue) => issue.message))].slice(
+      0,
+      2,
+    );
+    return {
+      message: `Preflight validation found ${errors.length} blocking issue${
+        errors.length === 1 ? "" : "s"
+      }.`,
+      detail:
+        summary.length > 0
+          ? `${summary.join(" ")} Resolve them in Preview & preflight, then run validation again.`
+          : "Resolve them in Preview & preflight, then run validation again.",
+    };
+  }
+  return null;
+}
+
 export function RenderPanel({
   projectId,
   projectTitle = "Lesson Delivery",
   lessonVersionId,
+  validation = null,
   initial,
 }: {
   projectId: string;
   projectTitle?: string;
   lessonVersionId: string | null;
+  validation?: LessonValidationRun | null;
   initial: readonly RenderStatusResponse[];
 }): JSX.Element {
   const [renders, setRenders] =
     useState<readonly RenderStatusResponse[]>(initial);
+  const blocker = renderBlocker(lessonVersionId, validation);
   const [busy, setBusy] = useState(false);
   const [shareLinks, setShareLinks] = useState<readonly ShareLink[]>([]);
   const [shareBusy, setShareBusy] = useState(false);
@@ -504,12 +554,35 @@ export function RenderPanel({
                 captions into a 1080p MP4 master video.
               </p>
 
-              {lessonVersionId === null ? (
-                <div style={{ marginTop: "8px" }}>
+              {blocker !== null || lessonVersionId === null ? (
+                <div
+                  style={{
+                    marginTop: "8px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "10px",
+                  }}
+                >
                   <Notice
                     type="warning"
-                    message="Save an approved lesson version before rendering."
+                    {...(blocker?.detail == null
+                      ? {}
+                      : { title: blocker.message })}
+                    message={blocker?.detail ?? blocker?.message ?? ""}
                   />
+                  {blocker?.detail != null && (
+                    <a
+                      href={`/workspace/${encodeURIComponent(projectId)}/preview`}
+                      style={{
+                        fontSize: "13px",
+                        color: "var(--color-brand)",
+                        textDecoration: "underline",
+                      }}
+                    >
+                      Open Preview &amp; preflight &rarr;
+                    </a>
+                  )}
                 </div>
               ) : (
                 <div style={{ marginTop: "12px" }}>

@@ -24,6 +24,7 @@ import { PostgresAuditWriter } from "@avlp/observability";
 import {
   currentOutlineGenerationCompatibility,
   lessonOutlineSetSchema,
+  minimumOutlineItemsForTarget,
   modelCallJobPayloadSchema,
   outlineApproveInputSchema,
   outlineDurationToleranceRatio,
@@ -899,6 +900,11 @@ export class PostgresOutlineService implements OutlineService {
     }
     const hasHook = items.some((item) => item.kind === "hook");
     const hasSummary = items.some((item) => item.kind === "summary");
+    // Each item becomes exactly one narration block and every block lands in
+    // one scene of at most 60s, so an outline with too few items for the target
+    // can be approved and narrated but never storyboarded.
+    const minimumItems =
+      target === undefined ? 0 : minimumOutlineItemsForTarget(target);
     const structureWarning =
       !hasHook && !hasSummary
         ? "The outline has no hook or summary item."
@@ -906,7 +912,9 @@ export class PostgresOutlineService implements OutlineService {
           ? "The outline has no hook item."
           : !hasSummary
             ? "The outline has no summary item."
-            : null;
+            : items.length < minimumItems
+              ? `The outline has ${items.length} items; a ${target} second lesson needs at least ${minimumItems} to be storyboarded.`
+              : null;
     return {
       structurallyValid,
       durationStatus,

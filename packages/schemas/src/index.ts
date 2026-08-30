@@ -4572,6 +4572,14 @@ export const narrationResponseSchema = z
   .strict();
 export type NarrationResponse = z.infer<typeof narrationResponseSchema>;
 
+/** Boundary for approving the current draft narration set. */
+export const narrationApproveInputSchema = z
+  .object({
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type NarrationApproveInput = z.infer<typeof narrationApproveInputSchema>;
+
 // ---------------------------------------------------------------------------
 // ST-049 — Edit or regenerate individual narration blocks with dependency
 // invalidation
@@ -4888,6 +4896,17 @@ export const storyboardSceneCountMaximum = 50 as const;
 /** Per-scene duration bounds used by the deterministic duration allocator. */
 export const storyboardSceneMinimumSeconds = 3 as const;
 export const storyboardSceneMaximumSeconds = 60 as const;
+
+/**
+ * The fewest outline items a lesson target can be told in. Each outline item
+ * becomes exactly one narration block, every narration block belongs to
+ * exactly one scene, and a scene lasts at most `storyboardSceneMaximumSeconds`
+ * — so an outline with fewer items than this can never be storyboarded, no
+ * matter what the storyboard model proposes.
+ */
+export function minimumOutlineItemsForTarget(target: number): number {
+  return Math.ceil(target / storyboardSceneMaximumSeconds);
+}
 
 /** Maximum planned asset requirements the model may attach to one scene. */
 export const storyboardSceneMaximumAssetRequirements = 10 as const;

@@ -5,9 +5,30 @@ import {
   providerCompletionResponseSchema,
 } from "./contracts.js";
 
-/** Mirrors the storyboard scene duration bounds in `@avlp/schemas`. */
+/** Mirrors the storyboard scene bounds in `@avlp/schemas`. */
 const STORYBOARD_SCENE_MIN_SECONDS = 3;
 const STORYBOARD_SCENE_MAX_SECONDS = 60;
+const STORYBOARD_SCENE_COUNT_MIN = 3;
+const STORYBOARD_SCENE_COUNT_MAX = 50;
+
+/**
+ * Split the ordered narration blocks into `count` contiguous groups of as even
+ * a size as possible, so every block is covered exactly once and in order.
+ */
+function groupNarrationBlocks(
+  blockIds: readonly string[],
+  count: number,
+): string[][] {
+  const groups: string[][] = [];
+  let taken = 0;
+  for (let index = 0; index < count; index++) {
+    const remainingGroups = count - index;
+    const size = Math.ceil((blockIds.length - taken) / remainingGroups);
+    groups.push([...blockIds.slice(taken, taken + size)]);
+    taken += size;
+  }
+  return groups;
+}
 
 /** Trim and hard-cap a string so it satisfies a bounded-text schema field. */
 function clampText(value: string, max: number): string {
@@ -191,11 +212,7 @@ function generateSentencesForBlock(
   }
 
   return wordCounts.map((count, sentenceIdx) => ({
-    text: buildGroundedSentence(
-      count,
-      outlineIndex * 5 + sentenceIdx,
-      title,
-    ),
+    text: buildGroundedSentence(count, outlineIndex * 5 + sentenceIdx, title),
     sourceBlockIds: [srcBlock],
   }));
 }
@@ -302,7 +319,8 @@ function generateOutlineJson(text: string, allUuids: string[]): string {
 
   // Extract objective IDs from the prompt
   const objectiveMatches =
-    text.match(/"id":\s*"([^"]+)"/g) || text.match(/"objectiveId":\s*"([^"]+)"/g);
+    text.match(/"id":\s*"([^"]+)"/g) ||
+    text.match(/"objectiveId":\s*"([^"]+)"/g);
   let objectiveIds: string[] = [];
   if (objectiveMatches) {
     objectiveIds = objectiveMatches
@@ -330,67 +348,149 @@ function generateOutlineJson(text: string, allUuids: string[]): string {
   const b1 = fallbackBlocks[1] ?? b0;
   const b2 = fallbackBlocks[2] ?? b1;
 
-  const hookSec = Math.max(15, Math.floor(duration * 0.15));
-  const summarySec = Math.max(15, Math.floor(duration * 0.15));
-  const recallSec = includeRecall ? 15 : 0;
-  const remainingForConcepts = duration - hookSec - summarySec - recallSec;
-  const conceptSec = Math.max(15, Math.floor(remainingForConcepts * 0.55));
-  const exampleSec = duration - hookSec - conceptSec - summarySec - recallSec;
-
-  const items: Array<{
+  type OutlineItemDef = {
     kind: "hook" | "concept" | "example" | "summary" | "recall_question";
     title: string;
     description: string;
-    estimatedSeconds: number;
     sourceBlockIds: string[];
     objectiveIds: string[];
-  }> = [
-    {
-      kind: "hook",
-      title: `Introduction: The Wonder of ${title}`,
-      description: "Engage students with an intriguing question and overview.",
-      estimatedSeconds: hookSec,
-      sourceBlockIds: [b0],
-      objectiveIds: [objectiveIds[0]!],
-    },
-    {
+  };
+
+  const rawItems: OutlineItemDef[] = [];
+  rawItems.push({
+    kind: "hook",
+    title: `Introduction: The Wonder of ${title}`,
+    description: "Engage students with an intriguing question and overview.",
+    sourceBlockIds: [b0],
+    objectiveIds: [objectiveIds[0]!],
+  });
+
+  if (duration <= 180) {
+    rawItems.push({
       kind: "concept",
       title: `Core Concept: ${title} Principles`,
       description: "Core conceptual explanation and step-by-step breakdown.",
-      estimatedSeconds: conceptSec,
       sourceBlockIds:
         fallbackBlocks.length > 1 ? fallbackBlocks.slice(0, 2) : [b0],
-      objectiveIds: objectiveIds,
-    },
-    {
+      objectiveIds,
+    });
+    rawItems.push({
       kind: "example",
       title: `Applied Example: ${title} in Action`,
       description: "Concrete demonstration and real-world example.",
-      estimatedSeconds: exampleSec,
       sourceBlockIds: [b1],
       objectiveIds: [objectiveIds[1] ?? objectiveIds[0]!],
-    },
-  ];
+    });
+  } else if (duration <= 300) {
+    rawItems.push({
+      kind: "concept",
+      title: `Core Concept: Fundamentals of ${title}`,
+      description: "Foundational conceptual explanation and key definitions.",
+      sourceBlockIds: [b0],
+      objectiveIds,
+    });
+    rawItems.push({
+      kind: "concept",
+      title: `Mechanisms & Interactions in ${title}`,
+      description:
+        "In-depth breakdown of system mechanisms and component dynamics.",
+      sourceBlockIds: [b1],
+      objectiveIds,
+    });
+    rawItems.push({
+      kind: "example",
+      title: `Primary Case Study: ${title} in Practice`,
+      description: "Real-world scenario illustrating primary principles.",
+      sourceBlockIds: [b1],
+      objectiveIds: [objectiveIds[1] ?? objectiveIds[0]!],
+    });
+    rawItems.push({
+      kind: "example",
+      title: `Comparative Analysis: Practical Applications`,
+      description:
+        "Comparative example analyzing edge cases and observable outcomes.",
+      sourceBlockIds: [b2],
+      objectiveIds: [objectiveIds[2] ?? objectiveIds[0]!],
+    });
+  } else {
+    rawItems.push({
+      kind: "concept",
+      title: `Core Concept: Fundamentals of ${title}`,
+      description: "Foundational conceptual explanation and key definitions.",
+      sourceBlockIds: [b0],
+      objectiveIds,
+    });
+    rawItems.push({
+      kind: "concept",
+      title: `Primary Mechanisms of ${title}`,
+      description:
+        "Step-by-step examination of the underlying scientific process.",
+      sourceBlockIds: [b1],
+      objectiveIds,
+    });
+    rawItems.push({
+      kind: "concept",
+      title: `System Dynamics & Interactions`,
+      description:
+        "Detailed analysis of how components interact and regulate the system.",
+      sourceBlockIds: [b2],
+      objectiveIds,
+    });
+    rawItems.push({
+      kind: "example",
+      title: `Real-World Case Study`,
+      description: "In-depth case study demonstrating core behaviors.",
+      sourceBlockIds: [b1],
+      objectiveIds: [objectiveIds[1] ?? objectiveIds[0]!],
+    });
+    rawItems.push({
+      kind: "example",
+      title: `Applied Problem Solving`,
+      description: "Walkthrough of practical problems and observable data.",
+      sourceBlockIds: [b2],
+      objectiveIds: [objectiveIds[2] ?? objectiveIds[0]!],
+    });
+    rawItems.push({
+      kind: "concept",
+      title: `Advanced Implications & Insights`,
+      description:
+        "Synthesizing broader implications and real-world significance.",
+      sourceBlockIds: [b0],
+      objectiveIds,
+    });
+  }
 
   if (includeRecall) {
-    items.push({
+    rawItems.push({
       kind: "recall_question",
       title: "Knowledge Check",
       description: "Quick formative assessment check on core concepts.",
-      estimatedSeconds: recallSec,
       sourceBlockIds: [b2],
       objectiveIds: [objectiveIds[0]!],
     });
   }
 
-  items.push({
+  rawItems.push({
     kind: "summary",
     title: "Conclusion & Key Takeaways",
     description: "Recap the essential lessons and review main findings.",
-    estimatedSeconds: summarySec,
     sourceBlockIds: [b1],
-    objectiveIds: objectiveIds,
+    objectiveIds,
   });
+
+  const count = rawItems.length;
+  const baseSec = Math.floor(duration / count);
+  const durations = rawItems.map(() => baseSec);
+  let curSum = durations.reduce((a, b) => a + b, 0);
+  for (let i = 0; curSum < duration; i++) {
+    durations[i % count]! += 1;
+    curSum += 1;
+  }
+
+  const items = rawItems.map((item, idx) => ({
+    ...item,
+    estimatedSeconds: durations[idx]!,
+  }));
 
   const output = {
     schemaVersion: "outline-v1",
@@ -426,14 +526,15 @@ function generateNarrationJson(text: string, allUuids: string[]): string {
         Number(
           (item["budget"] as Record<string, unknown> | undefined)?.["target"],
         ) ||
-        Math.round(
-          ((Number(item["estimatedSeconds"]) || 30) / 60) * 140 * 0.8,
-        ),
+        Math.round(((Number(item["estimatedSeconds"]) || 30) / 60) * 140 * 0.8),
     }));
   }
 
   if (outlineItems.length === 0) {
-    const parsedOutline = extractJsonArray(text, "Approved outline items to narrate");
+    const parsedOutline = extractJsonArray(
+      text,
+      "Approved outline items to narrate",
+    );
     if (parsedOutline && parsedOutline.length > 0) {
       outlineItems = parsedOutline.map((item) => {
         const sec = Number(item["estimatedSeconds"]) || 30;
@@ -469,7 +570,9 @@ function generateNarrationJson(text: string, allUuids: string[]): string {
 
   if (outlineItems.length === 0) {
     outlineItems = (
-      allUuids.length > 0 ? allUuids.slice(0, 3) : ["019ffbf1-1111-7000-8000-000000000001"]
+      allUuids.length > 0
+        ? allUuids.slice(0, 3)
+        : ["019ffbf1-1111-7000-8000-000000000001"]
     ).map((id) => ({
       outlineItemId: id,
       estimatedSeconds: 30,
@@ -526,9 +629,8 @@ function generateNarrationBlockTransformJson(
   const modeMatch = text.match(
     /"mode":\s*"(simplify|shorten|expand|adjust_tone)"/,
   );
-  const mode = (
-    modeMatch ? modeMatch[1] : "simplify"
-  ) as "simplify" | "shorten" | "expand" | "adjust_tone";
+  const mode = (modeMatch ? modeMatch[1] : "simplify") as
+    "simplify" | "shorten" | "expand" | "adjust_tone";
 
   const outlineItemMatch = text.match(/"outlineItemId":\s*"([^"]+)"/);
   const outlineItemId = outlineItemMatch
@@ -622,12 +724,24 @@ function generateStoryboardJson(text: string, allUuids: string[]): string {
   const b0 = fallbackBlocks[0]!;
   const b1 = fallbackBlocks[1] ?? b0;
 
-  // One scene per approved narration block, in order, so the scenes partition
-  // the narration exactly (a deterministic storyboard-check requirement). The
-  // storyboard schema requires at least three scenes; the narration flow
-  // always produces at least a hook, a concept, and a summary block.
-  const sceneBlocks: string[][] = narrationBlockIds.map((id) => [id]);
-  const sceneCount = sceneBlocks.length;
+  // The scenes must partition the approved narration exactly (a deterministic
+  // storyboard-check requirement), so there can never be more scenes than
+  // narration blocks. Within that ceiling the count also has to leave the
+  // target duration reachable: every scene lasts 3-60s, so the target needs at
+  // least ceil(target / 60) scenes and at most floor(target / 3). Blocks are
+  // grouped in order when there are more of them than the duration allows.
+  const maximumScenes = Math.min(
+    STORYBOARD_SCENE_COUNT_MAX,
+    Math.floor(duration / STORYBOARD_SCENE_MIN_SECONDS),
+  );
+  const sceneCount = Math.max(
+    Math.min(STORYBOARD_SCENE_COUNT_MIN, narrationBlockIds.length),
+    Math.min(narrationBlockIds.length, maximumScenes),
+  );
+  const sceneBlocks: string[][] = groupNarrationBlocks(
+    narrationBlockIds,
+    sceneCount,
+  );
 
   const base = Math.max(
     STORYBOARD_SCENE_MIN_SECONDS,
@@ -739,10 +853,7 @@ function generateSceneRegenerationJson(
     /Regeneration mode:\s*(improve-visual|simplify|shorten|regenerate)/,
   );
   const mode = (modeMatch ? modeMatch[1] : "improve-visual") as
-    | "improve-visual"
-    | "simplify"
-    | "shorten"
-    | "regenerate";
+    "improve-visual" | "simplify" | "shorten" | "regenerate";
 
   // The regenerated scene must keep the current scene's narration assignment.
   const currentScene = extractJsonObject<Record<string, unknown>>(
@@ -788,23 +899,78 @@ function generateSceneRegenerationJson(
   return JSON.stringify(output);
 }
 
+/**
+ * Extracts the rendered `claims` prompt variable. Scanning for the matching
+ * bracket keeps claim text containing brackets or escaped quotes intact, which
+ * a non-greedy regex over the whole prompt would truncate.
+ */
+function extractClaimSummaries(
+  text: string,
+): { id: string; text: string; generatedAddition?: unknown }[] {
+  const start = text.indexOf('[{"id":"');
+  if (start === -1) return [];
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < text.length; index++) {
+    const character = text[index]!;
+    if (escaped) escaped = false;
+    else if (character === "\\") escaped = true;
+    else if (character === '"') inString = !inString;
+    else if (!inString && (character === "[" || character === "{")) depth++;
+    else if (!inString && (character === "]" || character === "}")) {
+      depth--;
+      if (depth === 0) {
+        try {
+          const parsed: unknown = JSON.parse(text.slice(start, index + 1));
+          return Array.isArray(parsed)
+            ? (parsed as { id: string; text: string }[])
+            : [];
+        } catch {
+          return [];
+        }
+      }
+    }
+  }
+  return [];
+}
+
+/**
+ * Answers every claim the operation context asked about, in the shape the
+ * grounding job's deterministic checks require: exactly one result per claim,
+ * spans inside the claim text, a real source block behind each supported span,
+ * and `generated_addition` for the claims that carry no source refs.
+ */
 function generateGroundingCheckJson(text: string, allUuids: string[]): string {
-  const claimId = allUuids[0] ?? "019ffbf1-5555-7000-8000-000000000001";
   const blockIds = extractBlockIds(text);
-  const b0 =
-    blockIds[0] ?? (allUuids[1] ?? "019ffbf1-2222-7000-8000-000000000001");
+  const sourceBlockId =
+    blockIds[0] ?? allUuids[0] ?? "019ffbf1-2222-7000-8000-000000000001";
+  const claims = extractClaimSummaries(text);
 
-  const output = {
-    schemaVersion: "grounding-claim-v1",
-    claimId,
-    status: "supported",
-    confidence: 0.95,
-    rationale: "Claim is directly supported by the cited source blocks.",
-    supportedSourceBlockIds: [b0],
-    unsupportedPhrases: [],
-  };
+  const results = claims.map((claim) => {
+    const base = {
+      schemaVersion: "grounding-claim-v1",
+      claimId: claim.id,
+      unsupportedSpans: [],
+    };
+    // A claim carries either sourceRefs or a generatedAddition, never both, and
+    // the job rejects any other pairing of status and provenance.
+    if (claim.generatedAddition !== undefined)
+      return { ...base, status: "generated_addition", supportedSpans: [] };
+    return {
+      ...base,
+      status: "supported",
+      supportedSpans: [
+        {
+          start: 0,
+          end: Math.max(1, (claim.text ?? "").length),
+          sourceBlockId,
+        },
+      ],
+    };
+  });
 
-  return JSON.stringify(output);
+  return JSON.stringify({ schemaVersion: "grounding-v1", results });
 }
 
 /**
@@ -884,10 +1050,7 @@ export class DynamicMockLanguageModelProvider implements LanguageModelProvider {
       fullText.includes("lesson outline")
     ) {
       jsonOutput = generateOutlineJson(fullText, allUuids);
-    } else if (
-      fullText.includes("grounding") ||
-      fullText.includes("claimId")
-    ) {
+    } else if (fullText.includes("grounding") || fullText.includes("claimId")) {
       jsonOutput = generateGroundingCheckJson(fullText, allUuids);
     } else {
       jsonOutput = "{}";

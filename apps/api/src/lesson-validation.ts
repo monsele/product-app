@@ -695,7 +695,11 @@ export class PostgresLessonValidationService implements LessonValidationService 
         })
         .onConflictDoNothing()
         .returning();
-      if (inserted !== undefined)
+      // `inserted` is the returned row set, so it is empty rather than
+      // undefined when onConflictDoNothing skips a concurrent identical run,
+      // and a lesson that passes cleanly produces no drafts at all. Drizzle
+      // rejects `values([])`, so both cases must skip the insert entirely.
+      if (inserted.length > 0 && drafts.length > 0)
         await tx.insert(validationIssues).values(
           drafts.map((draft) => ({
             id: createId(completedAt),

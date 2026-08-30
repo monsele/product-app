@@ -15,7 +15,11 @@ import {
   JobExecutionError,
   type RegisteredJobHandler,
 } from "@avlp/jobs";
-import { sceneAudioGenerationJobPayloadSchema } from "@avlp/schemas";
+import {
+  narrationPauseReservation,
+  narrationWordsPerMinute,
+  sceneAudioGenerationJobPayloadSchema,
+} from "@avlp/schemas";
 import { storageKeys, type ObjectStorage } from "@avlp/storage";
 import { and, eq, or } from "drizzle-orm";
 import {
@@ -72,9 +76,17 @@ export function synthesizeFixtureAudio(
   text: string,
   rate: number,
 ): SceneAudioSynthesis {
+  // Narration is written to `narrationWordCountRange`, which speaks at
+  // `narrationWordsPerMinute` and reserves `narrationPauseReservation` of the
+  // scene for pauses. Synthesizing at any other rate, or without returning that
+  // reserved time as silence, makes on-budget narration read as an audio-fit
+  // failure on every scene, so the fixture realizes the same duration model.
+  const spokenMs =
+    (text.trim().split(/\s+/).length / (narrationWordsPerMinute * rate)) *
+    60_000;
   const durationMs = Math.max(
     500,
-    Math.round((text.trim().split(/\s+/).length / (150 * rate)) * 60_000),
+    Math.round(spokenMs / (1 - narrationPauseReservation)),
   );
   const sampleRate = 8000;
   const count = Math.max(1, Math.round((sampleRate * durationMs) / 1000));
