@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useStageNavigation } from "../../../../lib/use-stage-navigation";
 import {
   narrationBlockRevisionsResponseSchema,
   narrationResponseSchema,
@@ -86,7 +86,7 @@ export function NarrationPanel({
   projectId: string;
   projectTitle?: string;
 }) {
-  const router = useRouter();
+  const stageNavigation = useStageNavigation();
   const [view, setView] = useState<ViewState>({ kind: "loading" });
   const [pending, setPending] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -818,13 +818,33 @@ export function NarrationPanel({
       >
         <Button
           variant="primary"
+          isLoading={stageNavigation.isNavigating}
+          disabled={stageNavigation.isNavigating}
           onClick={() => {
-            router.push(`/workspace/${encodeURIComponent(projectId)}/storyboard`);
+            stageNavigation.navigate(
+              `/workspace/${encodeURIComponent(projectId)}/storyboard`,
+            );
           }}
         >
-          <span>Continue to storyboard</span>
-          <ArrowRight size={16} weight="bold" />
+          <span>
+            {stageNavigation.isNavigating
+              ? "Opening storyboard…"
+              : "Continue to storyboard"}
+          </span>
+          {!stageNavigation.isNavigating && <ArrowRight size={16} weight="bold" />}
         </Button>
+        {stageNavigation.isNavigating && (
+          <span
+            aria-live="polite"
+            style={{
+              fontSize: "12px",
+              color: "var(--color-text-muted)",
+              textAlign: "center",
+            }}
+          >
+            Loading your scenes. This can take a few seconds.
+          </span>
+        )}
         <Link
           href={`/workspace/${encodeURIComponent(projectId)}/outline`}
           prefetch={true}

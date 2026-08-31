@@ -408,6 +408,18 @@ html, body {
   }
 }
 
+/* Shared loading spinner.
+
+   `will-change: transform` promotes the element to its own compositor layer so
+   the rotation is driven off the main thread. Without it the spin visibly
+   stalls while React renders an incoming route, which reads to users as a
+   frozen page. */
+.ui-spinner {
+  display: inline-flex;
+  animation: spin 0.8s linear infinite;
+  will-change: transform;
+}
+
 @keyframes progressGlow {
   0% {
     opacity: 0.8;
@@ -445,5 +457,14 @@ html, body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* The blanket reset above collapses every loop to a single iteration, which
+     stops loading spinners dead on their first rotation and makes a page that
+     is still working look hung. Progress feedback is essential, so spinners
+     keep looping here, just slowly enough to stay comfortable. */
+  .ui-spinner {
+    animation-duration: 1.6s !important;
+    animation-iteration-count: infinite !important;
   }
 }

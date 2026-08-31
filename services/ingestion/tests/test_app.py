@@ -175,7 +175,10 @@ class IngestionServiceTests(unittest.TestCase):
 
     @unittest.skipUnless(importlib.util.find_spec("docling"), "Docling is not installed")
     def test_pinned_docling_parses_golden_pdf_and_docx_inputs(self):
-        adapter = DefaultDoclingAdapter(max_parse_seconds=60)
+        # The warm worker pays model load once, so only the first convert needs the
+        # long startup budget; the per-conversion wall clock stays tight.
+        adapter = DefaultDoclingAdapter(max_parse_seconds=180)
+        self.addCleanup(adapter.shutdown)
         for media_type, content, suffix in [
             ("application/pdf", pdf_fixture(), ".pdf"),
             (
@@ -192,7 +195,36 @@ class IngestionServiceTests(unittest.TestCase):
                 self.assertIsInstance(markdown, str)
                 self.assertTrue(canonical)
                 self.assertTrue(markdown.strip())
-                self.assertEqual(warnings, [])
+                # Warnings are now real parser findings, not a hardcoded empty list.
+                self.assertIsInstance(warnings, list)
+                self.assertTrue(all(isinstance(warning, str) for warning in warnings))
+                self.assertLessEqual(len(warnings), 100)
+
+    @unittest.skipUnless(importlib.util.find_spec("docling"), "Docling is not installed")
+    def test_warm_worker_is_reused_across_conversions(self):
+        adapter = DefaultDoclingAdapter(max_parse_seconds=180)
+        self.addCleanup(adapter.shutdown)
+        with TemporaryDirectory() as workspace:
+            source = Path(workspace) / "fixture.pdf"
+            source.write_bytes(pdf_fixture())
+            adapter.convert(source)
+            self.assertTrue(adapter.warm)
+            first_worker = adapter._process.pid
+            adapter.convert(source)
+            self.assertTrue(adapter.warm)
+            self.assertEqual(adapter._process.pid, first_worker)
+
+    def test_the_configuration_hash_covers_the_parse_settings(self):
+        import app as ingestion_app
+
+        baseline = ingestion_app.configuration_hash(PARSER_VERSION)
+        original = ingestion_app.DOCLING_OCR_MODE
+        try:
+            ingestion_app.DOCLING_OCR_MODE = "always"
+            self.assertNotEqual(baseline, ingestion_app.configuration_hash(PARSER_VERSION))
+        finally:
+            ingestion_app.DOCLING_OCR_MODE = original
+        self.assertEqual(baseline, ingestion_app.configuration_hash(PARSER_VERSION))
 
 
 if __name__ == "__main__":

@@ -5,6 +5,19 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { CircleNotch } from "@phosphor-icons/react";
 import styles from "./navigation-progress-bar.module.css";
 
+/** Fired by buttons that navigate with `router.push` instead of an anchor. */
+const NAVIGATION_START_EVENT = "avlp:navigation-start";
+
+/**
+ * Announce a programmatic route change so the global progress bar and loading
+ * badge appear. The bar's own listener only sees anchor clicks, so a
+ * `router.push` from a button is otherwise invisible until the new page paints.
+ */
+export function startNavigationProgress(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(NAVIGATION_START_EVENT));
+}
+
 export function NavigationProgressBar(): React.JSX.Element | null {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -118,8 +131,10 @@ export function NavigationProgressBar(): React.JSX.Element | null {
     };
 
     window.addEventListener("click", handleClick, { capture: true });
+    window.addEventListener(NAVIGATION_START_EVENT, startProgress);
     return () => {
       window.removeEventListener("click", handleClick, { capture: true });
+      window.removeEventListener(NAVIGATION_START_EVENT, startProgress);
       clearTimers();
     };
   }, [startProgress, clearTimers]);
@@ -140,7 +155,7 @@ export function NavigationProgressBar(): React.JSX.Element | null {
 
       {showBadge && (
         <div className={styles.loadingBadge} role="status" aria-live="polite">
-          <span className={styles.spinner}>
+          <span className={`ui-spinner ${styles.spinner}`}>
             <CircleNotch size={14} weight="bold" />
           </span>
           <span>Loading page…</span>

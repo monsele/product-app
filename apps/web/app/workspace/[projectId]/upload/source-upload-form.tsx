@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { startNavigationProgress } from "../../../../components/layout/navigation-progress-bar";
 import {
   completeSourceUploadResponseSchema,
   sourceDocumentStatusResponseSchema,
@@ -95,6 +96,7 @@ export function SourceUploadForm({ projectId, onUploadSuccess }: SourceUploadFor
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const [openingReview, startOpeningReview] = useTransition();
 
   // Poll validation endpoint when in validating state
   useEffect(() => {
@@ -282,6 +284,13 @@ export function SourceUploadForm({ projectId, onUploadSuccess }: SourceUploadFor
 
   const isBusy = state.kind === "uploading" || state.kind === "validating";
   const isDone = state.kind === "complete" || state.kind === "duplicate";
+
+  // Warm the review route's RSC payload once the upload settles, so the
+  // "Review source" click is not the first request for it.
+  useEffect(() => {
+    if (!isDone) return;
+    router.prefetch(`/workspace/${projectId}/review`);
+  }, [isDone, projectId, router]);
 
   const getFileIcon = (fileName: string) => {
     if (fileName.toLowerCase().endsWith(".pdf")) {
@@ -559,11 +568,21 @@ export function SourceUploadForm({ projectId, onUploadSuccess }: SourceUploadFor
             <Button
               variant="primary"
               size="default"
+              isLoading={openingReview}
               onClick={() => {
-                router.push(`/workspace/${projectId}/review`);
+                startNavigationProgress();
+                startOpeningReview(() => {
+                  router.push(`/workspace/${projectId}/review`);
+                });
               }}
             >
-              Review source <ArrowRight size={16} weight="bold" />
+              {openingReview ? (
+                "Opening review…"
+              ) : (
+                <>
+                  Review source <ArrowRight size={16} weight="bold" />
+                </>
+              )}
             </Button>
           </div>
         </div>

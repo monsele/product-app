@@ -106,6 +106,25 @@
   flex-wrap: wrap;
   gap: 12px;
   align-items: flex-end;
+  /* Reserves the row the pending / validation hint sits in, so the button and
+     the input keep their baseline instead of jumping when the hint appears. */
+  padding-bottom: 20px;
+}
+
+.createAction {
+  position: relative;
+}
+
+.createActionHint {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-text-muted);
+  text-align: center;
+  white-space: nowrap;
 }
 
 .createField {
@@ -135,6 +154,15 @@
 .textInput:focus {
   background-color: var(--color-surface-raised);
   border-color: var(--color-focus);
+}
+
+.textInput:read-only {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.textInput:read-only:hover {
+  border-color: var(--color-border);
 }
 
 /* ---------- Empty state ---------- */

@@ -27,3 +27,116 @@
 @avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T15:26:17.597Z","level":"info","event":"worker.started","fields":{"status":"ok","service":"pipeline-worker"}}
 @avlp/renderer:dev: {"timestamp":"2026-08-30T15:26:20.826Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
 @avlp/web:dev:  ✓ Ready in 24.7s
+@avlp/web:dev:  ○ Compiling / ...
+@avlp/web:dev:  ✓ Compiled / in 42.3s (10487 modules)
+@avlp/web:dev:  GET / 200 in 42907ms
+@avlp/web:dev:  ○ Compiling /sign-in ...
+@avlp/web:dev:  ✓ Compiled /sign-in in 3.4s (10533 modules)
+@avlp/web:dev:  GET /sign-in 200 in 7091ms
+@avlp/web:dev:  ○ Compiling /register ...
+@avlp/web:dev:  ✓ Compiled /register in 1172ms (10535 modules)
+@avlp/web:dev:  GET /register 200 in 1583ms
+@avlp/web:dev:  ✓ Compiled /middleware in 264ms (158 modules)
+@avlp/pipeline-worker:dev: 4:41:53 PM [tsx] change in ./src\scene-audio-job.ts Restarting...
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T15:42:35.793Z","level":"info","event":"worker.started","fields":{"status":"ok","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T15:46:30.152Z","level":"info","event":"queue.job_dispatched","fields":{"outboxEventId":"01a05359-ce7b-7dee-9782-a33fe9f0b891","jobId":"01a05359-ce7b-7081-b72a-3192a8947ff9","projectId":"01a04f2f-c90e-7310-a1ea-fd4240c81b7f","correlationId":"01a04f00-0000-7000-8000-0000000000fc","queueName":"pipeline","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T15:46:30.166Z","level":"info","event":"queue.job_dispatched","fields":{"outboxEventId":"01a05359-ced9-713d-9527-1f297e2b2ace","jobId":"01a05359-ced9-771e-8bd1-747e78b8231c","projectId":"01a04f2f-c90e-7310-a1ea-fd4240c81b7f","correlationId":"01a04f00-0000-7000-8000-0000000000fc","queueName":"pipeline","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T15:46:30.195Z","level":"info","event":"queue.job_dispatched","fields":{"outboxEventId":"01a05359-cf01-7249-b448-bc035cedec51","jobId":"01a05359-cf01-78ad-9663-03636278e471","projectId":"01a04f2f-c90e-7310-a1ea-fd4240c81b7f","correlationId":"01a04f00-0000-7000-8000-0000000000fc","queueName":"pipeline","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T15:46:30.206Z","level":"info","event":"queue.job_dispatched","fields":{"outboxEventId":"01a05359-cf26-7200-b81b-5ef2bf91b264","jobId":"01a05359-cf26-7d83-9eac-3d181bf00456","projectId":"01a04f2f-c90e-7310-a1ea-fd4240c81b7f","correlationId":"01a04f00-0000-7000-8000-0000000000fc","queueName":"pipeline","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T15:46:30.211Z","level":"info","event":"job.started","fields":{"jobId":"01a05359-ced9-771e-8bd1-747e78b8231c","jobType":"tts.generate","projectId":"01a04f2f-c90e-7310-a1ea-fd4240c81b7f","correlationId":"01a04f00-0000-7000-8000-0000000000fc","attempt":1,"service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T15:46:31.761Z","level":"info","event":"job.completed","fields":{"jobId":"01a05359-ced9-771e-8bd1-747e78b8231c","jobType":"tts.generate","projectId":"01a04f2f-c90e-7310-a1ea-fd4240c81b7f","correlationId":"01a04f00-0000-7000-8000-0000000000fc","attempt":1,"status":"succeeded","errorClassification":"none","durationMs":1549,"service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T15:46:31.827Z","level":"info","event":"job.started","fields":{"jobId":"01a05359-cf26-7d83-9eac-3d181bf00456","jobType":"tts.generate","projectId":"01a04f2f-c90e-7310-a1ea-fd4240c81b7f","correlationId":"01a04f00-0000-7000-8000-0000000000fc","attempt":1,"service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T15:46:32.014Z","level":"info","event":"job.completed","fields":{"jobId":"01a05359-cf26-7d83-9eac-3d181bf00456","jobType":"tts.generate","projectId":"01a04f2f-c90e-7310-a1ea-fd4240c81b7f","correlationId":"01a04f00-0000-7000-8000-0000000000fc","attempt":1,"status":"succeeded","errorClassification":"none","durationMs":187,"service":"pipeline-worker"}}
+@avlp/web:dev:  ○ Compiling /workspace/[projectId]/storyboard ...
+@avlp/web:dev:  ✓ Compiled /workspace/[projectId]/storyboard in 38.8s (13907 modules)
+@avlp/web:dev:  GET /workspace/01a04f2f-c90e-7310-a1ea-fd4240c81b7f/storyboard 200 in 67434ms
+@avlp/web:dev:  ○ Compiling /workspace/[projectId]/preview ...
+@avlp/web:dev:  ✓ Compiled /workspace/[projectId]/preview in 3.5s (13921 modules)
+@avlp/web:dev:  GET /workspace/01a04f2f-c90e-7310-a1ea-fd4240c81b7f/preview 200 in 5391ms
+@avlp/web:dev:  ○ Compiling /workspace/[projectId]/render ...
+@avlp/web:dev:  ✓ Compiled /workspace/[projectId]/render in 3.4s (13939 modules)
+@avlp/web:dev:  GET /workspace/01a04f2f-c90e-7310-a1ea-fd4240c81b7f/render 200 in 5250ms
+@avlp/web:dev:  GET /workspace/01a04f2f-c90e-7310-a1ea-fd4240c81b7f/preview 200 in 202ms
+@avlp/web:dev:  GET /workspace/01a04f2f-c90e-7310-a1ea-fd4240c81b7f/storyboard 200 in 239ms
+@avlp/web:dev:  ○ Compiling /video-design-preview ...
+@avlp/web:dev:  ✓ Compiled /video-design-preview in 3.2s (13946 modules)
+@avlp/web:dev:  GET /video-design-preview 200 in 4715ms
+@avlp/web:dev:  GET /video-design-preview 200 in 124ms
+@avlp/web:dev:  ✓ Compiled in 3.7s (13961 modules)
+@avlp/web:dev:  GET /workspace/01a04f2f-c90e-7310-a1ea-fd4240c81b7f/storyboard 200 in 307ms
+@avlp/renderer:dev: 6:27:32 PM [tsx] change in ./..\..\packages\scene-library\dist\scene-registry.js Restarting...
+@avlp/web:dev:  ✓ Compiled in 16.5s (13946 modules)
+@avlp/web:dev:  GET /video-design-preview 200 in 1178ms
+@avlp/web:dev:  ✓ Compiled in 2.4s (13961 modules)
+@avlp/web:dev:  GET /workspace/01a04f2f-c90e-7310-a1ea-fd4240c81b7f/storyboard 200 in 283ms
+@avlp/renderer:dev: 6:29:14 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Restarting...
+@avlp/renderer:dev: 6:29:15 PM [tsx] change in ./..\..\packages\scene-library\dist\index.js Restarting...
+@avlp/web:dev:  ✓ Compiled in 7.8s (13946 modules)
+@avlp/web:dev:  GET /video-design-preview 200 in 1697ms
+@avlp/web:dev:  GET /video-design-preview 200 in 154ms
+@avlp/renderer:dev: {"timestamp":"2026-08-30T17:30:08.694Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
+@avlp/web:dev:  GET /video-design-preview 200 in 89ms
+@avlp/web:dev:  GET /video-design-preview 200 in 106ms
+@avlp/renderer:dev: 6:32:17 PM [tsx] change in ./..\..\packages\design-system\dist\index.js Restarting...
+@avlp/web:dev:  ✓ Compiled in 9.3s (13946 modules)
+@avlp/renderer:dev: 6:32:27 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Restarting...
+@avlp/renderer:dev: 6:32:27 PM [tsx] change in ./..\..\packages\scene-library\dist\scene-preview.js Restarting...
+@avlp/renderer:dev: 6:32:28 PM [tsx] change in ./..\..\packages\scene-library\dist\index.js Restarting...
+@avlp/web:dev:  ✓ Compiled in 6.8s (13946 modules)
+@avlp/renderer:dev: {"timestamp":"2026-08-30T17:33:21.698Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
+@avlp/web:dev:  ✓ Compiled in 6.1s (8607 modules)
+@avlp/web:dev:  ✓ Compiled in 5.8s (13961 modules)
+@avlp/renderer:dev: 6:36:39 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Restarting...
+@avlp/renderer:dev: 6:36:40 PM [tsx] change in ./..\..\packages\scene-library\dist\index.js Restarting...
+@avlp/web:dev:  ✓ Compiled in 6s (13946 modules)
+@avlp/web:dev:  ✓ Compiled in 828ms (5354 modules)
+@avlp/web:dev:  ✓ Compiled in 3.2s (13961 modules)
+@avlp/renderer:dev: 6:37:13 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Restarting...
+@avlp/renderer:dev: 6:37:13 PM [tsx] change in ./..\..\packages\scene-library\dist\index.js Restarting...
+@avlp/web:dev:  ✓ Compiled in 5s (13946 modules)
+@avlp/renderer:dev: {"timestamp":"2026-08-30T17:37:29.810Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
+@avlp/web:dev:  GET /video-design-preview 200 in 2720ms
+@avlp/web:dev:  GET /video-design-preview 200 in 91ms
+@avlp/web:dev:  GET /video-design-preview 200 in 129ms
+@avlp/web:dev:  GET /workspace/01a04f2f-c90e-7310-a1ea-fd4240c81b7f/storyboard 200 in 4165ms
+@avlp/web:dev:  GET /workspace/01a04f2f-c90e-7310-a1ea-fd4240c81b7f/preview 200 in 1648ms
+@avlp/web:dev:  ○ Compiling /workspace/[projectId]/review ...
+@avlp/web:dev:  ✓ Compiled /workspace/[projectId]/review in 80.2s (13966 modules)
+@avlp/web:dev:  GET /workspace/01a04f2f-c90e-7310-a1ea-fd4240c81b7f/review 200 in 85936ms
+@avlp/web:dev:  GET /workspace/01a04f2f-c90e-7310-a1ea-fd4240c81b7f/preview 200 in 22042ms
+@avlp/web:dev:  ○ Compiling /workspace/[projectId]/upload ...
+@avlp/web:dev:  ✓ Compiled /workspace/[projectId]/upload in 6.4s (13968 modules)
+@avlp/web:dev:  ○ Compiling /workspace/[projectId]/review ...
+@avlp/web:dev:  ✓ Compiled /workspace/[projectId]/review in 1718ms (8628 modules)
+@avlp/web:dev:  GET /workspace/01a04f2f-c90e-7310-a1ea-fd4240c81b7f/review 200 in 4094ms
+@avlp/web:dev:  GET /workspace/01a04f2f-c90e-7310-a1ea-fd4240c81b7f/upload 200 in 20614ms
+@avlp/web:dev:  GET /workspace/01a04f2f-c90e-7310-a1ea-fd4240c81b7f/storyboard 200 in 1391ms
+@avlp/web:dev:  ✓ Compiled in 16s (13974 modules)
+@avlp/web:dev:  ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+@avlp/web:dev:  ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+@avlp/web:dev:  ✓ Compiled in 6.6s (13984 modules)
+@avlp/web:dev:  GET /workspace/01a04f2f-c90e-7310-a1ea-fd4240c81b7f/storyboard 200 in 2814ms
+@avlp/web:dev:  GET /workspace/01a04f2f-c90e-7310-a1ea-fd4240c81b7f/upload 200 in 3084ms
+@avlp/web:dev:  GET /workspace/01a04f2f-c90e-7310-a1ea-fd4240c81b7f/storyboard 200 in 5915ms
+@avlp/web:dev:  GET /workspace/01a04f2f-c90e-7310-a1ea-fd4240c81b7f/upload 200 in 5867ms
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T18:51:29.782Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"pipeline","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T18:56:14.676Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T18:56:31.952Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T18:56:48.842Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T18:57:05.134Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T18:57:18.992Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T18:57:35.118Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T18:57:46.454Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T18:57:59.000Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T18:58:13.019Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T18:58:32.575Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T18:58:44.816Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T18:58:55.858Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T18:59:06.872Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T18:59:18.813Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T18:59:31.522Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T18:59:43.509Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T18:59:56.378Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T19:00:08.912Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T19:00:19.950Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+@avlp/pipeline-worker:dev: {"timestamp":"2026-08-30T19:00:30.990Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}

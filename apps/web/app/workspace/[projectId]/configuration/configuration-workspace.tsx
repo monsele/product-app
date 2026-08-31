@@ -14,6 +14,8 @@ import {
   type VoiceConfigurationResponse,
 } from "@avlp/schemas";
 import {
+  ArrowRight,
+  CheckCircle,
   Clock,
   Globe,
   Info,
@@ -28,7 +30,9 @@ import {
 } from "@phosphor-icons/react";
 import { Button } from "../../../../components/ui/button";
 import { Notice } from "../../../../components/ui/notice";
+import { toast } from "../../../../components/ui/toast-provider";
 import { StatusLabel } from "../../../../components/ui/status-label";
+import { useStageNavigation } from "../../../../lib/use-stage-navigation";
 import {
   ageBandLabels,
   ageBandOptions,
@@ -117,6 +121,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
     useState<VoiceConfiguration | null>(null);
 
   const [saveStatus, setSaveStatus] = useState<SaveStatus>({ kind: "idle" });
+  const stageNavigation = useStageNavigation();
 
   // Audio preview state
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
@@ -318,10 +323,9 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
     if (e) e.preventDefault();
 
     if (!validateLocalForm()) {
-      setSaveStatus({
-        kind: "failed",
-        message: "Please fill out all required fields before saving.",
-      });
+      const message = "Please fill out all required fields before saving.";
+      setSaveStatus({ kind: "failed", message });
+      toast.error(message);
       return;
     }
 
@@ -332,6 +336,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
     if (!lessonInput) return;
 
     setSaveStatus({ kind: "saving" });
+    const pendingToastId = toast.loading("Saving configuration...");
 
     try {
       // 1. Save Lesson Configuration
@@ -426,15 +431,30 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
         message: "Lesson and voice configuration saved successfully.",
       });
       setFieldErrors({});
+      toast.update(
+        pendingToastId,
+        "success",
+        "Lesson and voice configuration saved.",
+      );
     } catch (err: unknown) {
       const errorObj = err as { message?: string; isConflict?: boolean };
+      const message =
+        errorObj.message ??
+        "An error occurred while saving. Please check your connection and try again.";
       setSaveStatus({
         kind: "failed",
-        message:
-          errorObj.message ??
-          "An error occurred while saving. Please check your connection and try again.",
+        message,
         ...(errorObj.isConflict ? { isConflict: true } : {}),
       });
+      // A version conflict is recoverable by reloading, so offer that inline.
+      toast.update(
+        pendingToastId,
+        "error",
+        message,
+        errorObj.isConflict === true
+          ? { action: { label: "Reload", onClick: () => router.refresh() } }
+          : undefined,
+      );
     }
   };
 
@@ -533,6 +553,9 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
   const isFormDirty =
     hasConfigurationChanges(savedLessonConfig, lessonForm) ||
     hasVoiceChanges(savedVoiceConfig, voiceForm);
+  const isSaving = saveStatus.kind === "saving";
+  const isSavedAndClean =
+    savedLessonConfig !== null && !isFormDirty && !isSaving;
 
   const durationTarget =
     lessonForm.targetDurationSeconds === ""
@@ -625,7 +648,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
               message="Review and confirm the extracted source content before generating lessons to ensure grounded instruction."
               actionLabel="Go to review"
               onAction={() => {
-                router.push(`/workspace/${projectId}/review`);
+                stageNavigation.navigate(`/workspace/${projectId}/review`);
               }}
             />
           </div>
@@ -656,8 +679,8 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
           </div>
         )}
 
-        {/* Global Save Success Notice */}
-        {saveStatus.kind === "saved" && (
+        {/* Global Save Success Notice (hidden again as soon as the form is edited) */}
+        {saveStatus.kind === "saved" && !isFormDirty && (
           <div style={{ marginTop: "8px" }}>
             <Notice
               type="success"
@@ -666,6 +689,10 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
                 saveStatus.message ??
                 "Lesson configuration and voice preferences have been persisted."
               }
+              actionLabel="Continue to objectives"
+              onAction={() => {
+                stageNavigation.navigate(`/workspace/${projectId}/objectives`);
+              }}
             />
           </div>
         )}
@@ -1911,8 +1938,9 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
             >
               Setup summary
             </h2>
-            {isFormDirty && (
+            {isFormDirty ? (
               <span
+                aria-live="polite"
                 style={{
                   fontSize: "11px",
                   fontWeight: 600,
@@ -1925,7 +1953,26 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
               >
                 Unsaved changes
               </span>
-            )}
+            ) : savedLessonConfig ? (
+              <span
+                aria-live="polite"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: "var(--color-success-fg)",
+                  backgroundColor: "var(--color-success-bg)",
+                  border: "1px solid var(--color-success-border)",
+                  borderRadius: "var(--radius-pill)",
+                  padding: "2px 8px",
+                }}
+              >
+                <CheckCircle size={12} weight="fill" aria-hidden="true" />
+                All changes saved
+              </span>
+            ) : null}
           </div>
 
           {/* Key metrics list */}
@@ -2108,29 +2155,80 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
               type="button"
               variant="primary"
               size="large"
-              isLoading={saveStatus.kind === "saving"}
-              disabled={!isFormComplete || saveStatus.kind === "saving"}
+              isLoading={isSaving}
+              disabled={!isFormComplete || !isFormDirty || isSaving}
               onClick={() => void handleSave()}
               style={{ width: "100%" }}
+              {...(isSavedAndClean
+                ? { leftIcon: <CheckCircle size={18} weight="fill" /> }
+                : {})}
             >
-              {saveStatus.kind === "saving"
+              {isSaving
                 ? "Saving setup…"
-                : savedLessonConfig === null
-                  ? "Save setup"
-                  : "Save changes"}
+                : isSavedAndClean
+                  ? "Saved"
+                  : savedLessonConfig === null
+                    ? "Save setup"
+                    : "Save changes"}
             </Button>
 
-            {!isFormComplete && (
-              <span
+            {savedLessonConfig !== null && (
+              <Button
+                type="button"
+                variant="secondary"
+                size="large"
+                isLoading={stageNavigation.isNavigating}
+                disabled={isSaving || stageNavigation.isNavigating}
+                {...(stageNavigation.isNavigating
+                  ? {}
+                  : { rightIcon: <ArrowRight size={16} /> })}
+                onClick={() => {
+                  stageNavigation.navigate(`/workspace/${projectId}/objectives`);
+                }}
                 style={{
-                  fontSize: "12px",
-                  color: "var(--color-text-muted)",
-                  textAlign: "center",
+                  width: "100%",
+                  ...(isSavedAndClean
+                    ? {
+                        backgroundColor: "var(--color-surface)",
+                        color: "var(--color-brand)",
+                        borderColor: "var(--color-brand)",
+                      }
+                    : {}),
                 }}
               >
-                Fill all required fields to save setup.
-              </span>
+                {stageNavigation.isNavigating
+                  ? "Opening objectives…"
+                  : "Continue to objectives"}
+              </Button>
             )}
+
+            <span
+              aria-live="polite"
+              style={{
+                fontSize: "12px",
+                // Colour follows the message that actually renders, so the
+                // "fill in required fields" nudge stays neutral.
+                color: !isFormComplete
+                  ? "var(--color-text-muted)"
+                  : isFormDirty
+                    ? "var(--color-warning-fg)"
+                    : isSavedAndClean
+                      ? "var(--color-success-fg)"
+                      : "var(--color-text-muted)",
+                textAlign: "center",
+                minHeight: "16px",
+              }}
+            >
+              {!isFormComplete
+                ? "Fill all required fields to save setup."
+                : isSaving
+                  ? "Saving your changes…"
+                  : isFormDirty
+                    ? "You have unsaved changes."
+                    : isSavedAndClean
+                      ? "Everything on this page is saved."
+                      : ""}
+            </span>
           </div>
         </aside>
       </div>

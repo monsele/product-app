@@ -15,6 +15,7 @@ import {
   ArrowLeft,
   ShieldCheck,
 } from "@phosphor-icons/react";
+import { toast } from "../components/ui/toast-provider";
 import styles from "./auth.module.css";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -30,6 +31,8 @@ export function ForgotPasswordForm() {
     setMessage(undefined);
     setIsSubmitting(true);
     const form = new FormData(event.currentTarget);
+    const pendingToastId = toast.loading("Sending reset link...");
+
     try {
       const response = await fetch(`${apiUrl}/auth/password-reset/request`, {
         method: "POST",
@@ -37,14 +40,19 @@ export function ForgotPasswordForm() {
         body: JSON.stringify({ email: form.get("email") }),
       });
       if (!response.ok) {
-        setError("Unable to request a password reset. Please try again.");
+        const failure = "Unable to request a password reset. Please try again.";
+        setError(failure);
+        toast.update(pendingToastId, "error", failure);
         return;
       }
-      setMessage(
-        "If an account matches that email address, we sent password reset instructions.",
-      );
+      const confirmation =
+        "If an account matches that email address, we sent password reset instructions.";
+      setMessage(confirmation);
+      toast.update(pendingToastId, "success", "Check your inbox for the reset link.");
     } catch {
-      setError("Unable to reach the service. Please try again.");
+      const failure = "Unable to reach the service. Please try again.";
+      setError(failure);
+      toast.update(pendingToastId, "error", failure);
     } finally {
       setIsSubmitting(false);
     }
@@ -148,17 +156,21 @@ export function ResetPasswordForm({ token }: { token: string | undefined }) {
   async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (token === undefined) {
-      setError("This password reset link is invalid or has expired.");
+      const invalid = "This password reset link is invalid or has expired.";
+      setError(invalid);
+      toast.error(invalid);
       return;
     }
     const form = new FormData(event.currentTarget);
     const password = form.get("password");
     if (password !== form.get("passwordConfirmation")) {
       setError("Passwords do not match.");
+      toast.error("Passwords do not match.");
       return;
     }
     setError(undefined);
     setIsSubmitting(true);
+    const pendingToastId = toast.loading("Updating your password...");
     try {
       const response = await fetch(`${apiUrl}/auth/password-reset/confirm`, {
         method: "POST",
@@ -166,12 +178,17 @@ export function ResetPasswordForm({ token }: { token: string | undefined }) {
         body: JSON.stringify({ token, password }),
       });
       if (!response.ok) {
-        setError("This password reset link is invalid or has expired.");
+        const invalid = "This password reset link is invalid or has expired.";
+        setError(invalid);
+        toast.update(pendingToastId, "error", invalid);
         return;
       }
+      toast.update(pendingToastId, "success", "Password updated.");
       window.location.assign("/sign-in?passwordReset=1");
     } catch {
-      setError("Unable to reach the service. Please try again.");
+      const failure = "Unable to reach the service. Please try again.";
+      setError(failure);
+      toast.update(pendingToastId, "error", failure);
     } finally {
       setIsSubmitting(false);
     }

@@ -5,9 +5,10 @@
   z-index: 9999;
   display: flex;
   flex-direction: column-reverse;
-  gap: 10px;
-  max-width: 420px;
-  width: calc(100vw - 32px);
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 400px;
+  width: max-content;
   pointer-events: none;
 }
 
@@ -18,61 +19,103 @@
     left: 16px;
     width: auto;
     max-width: none;
+    align-items: stretch;
   }
 }
 
+/*
+ * Compact single-row bar in the Notion / Figma idiom: bare status glyph, one
+ * line of copy, action inline on the trailing edge. It only grows taller when
+ * a title or a long message genuinely needs the room.
+ */
 .toast {
   pointer-events: auto;
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: var(--radius-card);
+  align-items: center;
+  gap: 10px;
+  padding: 10px 10px 10px 14px;
+  min-height: 44px;
+  max-width: 400px;
+  border-radius: var(--radius-control);
   border: 1px solid var(--color-border);
   background-color: var(--color-surface-raised);
   color: var(--color-text);
   box-shadow: var(--shadow-elevation);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  transition: transform var(--motion-instant) var(--motion-easing),
-              box-shadow var(--motion-instant) var(--motion-easing);
+  transition: box-shadow var(--motion-quick) var(--motion-easing);
   position: relative;
   overflow: hidden;
+  cursor: default;
 }
 
 .toast:hover {
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.14);
+  box-shadow: 0 22px 48px rgba(43, 33, 56, 0.16);
 }
 
-.iconWrapper {
+.toast:active {
+  cursor: grabbing;
+}
+
+.icon {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-control);
-  margin-top: 1px;
 }
 
 .successIcon {
-  background-color: var(--color-success-bg);
   color: var(--color-success-fg);
 }
 
 .errorIcon {
-  background-color: var(--color-error-bg);
   color: var(--color-error-fg);
 }
 
 .warningIcon {
-  background-color: var(--color-warning-bg);
   color: var(--color-warning-fg);
 }
 
 .infoIcon {
-  background-color: var(--color-info-bg);
   color: var(--color-info-fg);
+}
+
+.loadingIcon {
+  color: var(--color-text-muted);
+}
+
+/*
+ * The shared --color-*-fg tokens are tuned for light surfaces only, and the
+ * glyph here sits bare on the toast rather than on its own tinted chip. Focus
+ * Studio therefore needs its own set to stay legible. Theming in this app is
+ * class-based, so this matches .theme-focus-studio rather than a media query.
+ */
+:global(.theme-focus-studio) .successIcon {
+  color: #6EE7B7;
+}
+
+:global(.theme-focus-studio) .errorIcon {
+  color: #FCA5A5;
+}
+
+:global(.theme-focus-studio) .warningIcon {
+  color: #F5C15E;
+}
+
+:global(.theme-focus-studio) .infoIcon {
+  color: #93C5FD;
+}
+
+:global(.theme-focus-studio) .toast:hover {
+  box-shadow: 0 22px 48px rgba(8, 4, 14, 0.48);
+}
+
+.spinning {
+  animation: toastSpin 900ms linear infinite;
+}
+
+@keyframes toastSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .content {
@@ -80,12 +123,12 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
 .title {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 18px;
   color: var(--color-text);
 }
@@ -93,54 +136,114 @@
 .message {
   font-size: 13px;
   line-height: 18px;
-  color: var(--color-text-muted);
-  word-break: break-word;
+  color: var(--color-text);
+  overflow-wrap: anywhere;
 }
 
+/* When a title carries the headline, the body drops to the muted tier. */
+.title + .message {
+  color: var(--color-text-muted);
+}
+
+/*
+ * Trailing text action rather than a stacked button. Keeps the toast one row
+ * tall and puts the follow-up where the eye already ends.
+ */
 .actionButton {
-  margin-top: 6px;
-  align-self: flex-start;
-  font-size: 12px;
+  flex-shrink: 0;
+  font-size: 13px;
   font-weight: 600;
-  padding: 4px 10px;
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--color-border);
-  background-color: var(--color-surface-subtle);
-  color: var(--color-text);
+  font-family: inherit;
+  padding: 4px 8px;
+  border-radius: 7px;
+  border: none;
+  background: none;
+  color: var(--color-brand);
   cursor: pointer;
-  transition: background-color var(--motion-quick) var(--motion-easing),
-              border-color var(--motion-quick) var(--motion-easing);
+  transition:
+    background-color var(--motion-quick) var(--motion-easing),
+    color var(--motion-quick) var(--motion-easing);
 }
 
 .actionButton:hover {
   background-color: var(--color-surface-brand);
-  border-color: var(--color-brand);
-  color: var(--color-brand);
+}
+
+.actionButton:active {
+  transform: scale(0.97);
+}
+
+.actionButton:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
 }
 
 .dismissButton {
+  flex-shrink: 0;
   background: none;
   border: none;
-  padding: 4px;
-  margin: -4px -4px 0 0;
+  padding: 5px;
   color: var(--color-text-muted);
   cursor: pointer;
-  border-radius: var(--radius-control);
+  border-radius: 7px;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0.7;
-  transition: opacity var(--motion-quick) var(--motion-easing),
-              background-color var(--motion-quick) var(--motion-easing);
+  opacity: 0.6;
+  transition:
+    opacity var(--motion-quick) var(--motion-easing),
+    background-color var(--motion-quick) var(--motion-easing);
+}
+
+.toast:hover .dismissButton {
+  opacity: 1;
 }
 
 .dismissButton:hover {
-  opacity: 1;
   background-color: var(--color-surface-subtle);
   color: var(--color-text);
 }
 
 .dismissButton:focus-visible {
+  opacity: 1;
   outline: 2px solid var(--color-focus);
   outline-offset: 1px;
+}
+
+/*
+ * Countdown hairline. It answers "how long until this disappears" and it
+ * freezes while the pointer rests on the toast, matching the paused JS timer.
+ */
+.progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: 100%;
+  transform-origin: left center;
+  background-color: var(--color-border);
+  animation-name: toastCountdown;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+.toast:hover .progress,
+.toast:focus-within .progress {
+  animation-play-state: paused;
+}
+
+@keyframes toastCountdown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinning,
+  .progress {
+    animation: none;
+  }
 }

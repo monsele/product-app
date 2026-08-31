@@ -13,12 +13,12 @@ function apiUrl(path: string): string {
 export default async function WorkspacePage({
   searchParams,
 }: {
-  searchParams: Promise<{ cursor?: string; error?: string }>;
+  searchParams: Promise<{ cursor?: string; error?: string; done?: string }>;
 }) {
   const token = (await cookies()).get("avlp_session")?.value;
   if (token === undefined) redirect("/sign-in");
 
-  const { cursor, error } = await searchParams;
+  const { cursor, error, done } = await searchParams;
   const query =
     cursor === undefined ? "" : `?cursor=${encodeURIComponent(cursor)}`;
 
@@ -57,6 +57,7 @@ export default async function WorkspacePage({
               projects={payload.items}
               nextCursor={payload.nextCursor}
               error={error}
+              done={done}
             />
           </div>
 

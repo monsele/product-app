@@ -14,6 +14,7 @@ import {
   ArrowRight,
   ShieldCheck,
 } from "@phosphor-icons/react";
+import { toast } from "../components/ui/toast-provider";
 import styles from "./auth.module.css";
 
 type AuthMode = "register" | "login";
@@ -40,6 +41,10 @@ export function AuthForm({
     setIsSubmitting(true);
 
     const form = new FormData(event.currentTarget);
+    const pendingToastId = toast.loading(
+      mode === "register" ? "Creating your account..." : "Signing you in...",
+    );
+
     try {
       const response = await fetch(
         `${apiUrl}/auth/${mode === "register" ? "register" : "login"}`,
@@ -57,12 +62,23 @@ export function AuthForm({
         const body = (await response.json().catch(() => null)) as {
           error?: { message?: string };
         } | null;
-        setError(body?.error?.message ?? "Unable to continue.");
+        const message = body?.error?.message ?? "Unable to continue.";
+        setError(message);
+        toast.update(pendingToastId, "error", message);
         return;
       }
+      toast.update(
+        pendingToastId,
+        "success",
+        mode === "register"
+          ? "Account created. Opening your workspace."
+          : "Signed in. Opening your workspace.",
+      );
       window.location.assign("/workspace");
     } catch {
-      setError("Unable to reach the service. Please try again.");
+      const message = "Unable to reach the service. Please try again.";
+      setError(message);
+      toast.update(pendingToastId, "error", message);
     } finally {
       setIsSubmitting(false);
     }

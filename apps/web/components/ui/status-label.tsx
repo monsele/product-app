@@ -43,7 +43,7 @@ export const StatusLabel: React.FC<StatusLabelProps> = ({
         return (
           <SpinnerGap
             weight="bold"
-            style={{ animation: "spin 1s linear infinite" }}
+            className="ui-spinner"
           />
         );
       case "blocked":

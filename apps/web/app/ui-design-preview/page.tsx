@@ -12,6 +12,7 @@ import { Dialog } from "../../components/ui/dialog";
 import { Drawer } from "../../components/ui/drawer";
 import { Menu } from "../../components/ui/menu";
 import { Tabs } from "../../components/ui/tabs";
+import { toast } from "../../components/ui/toast-provider";
 import { PageContainer } from "../../components/layout/page-container";
 import { AppHeader } from "../../components/layout/app-header";
 import { ProjectPipelineRail } from "../../components/layout/project-pipeline-rail";
@@ -206,6 +207,90 @@ export default function UIDesignPreviewPage() {
                   onAction={() => handleActionClick("Retrying...")}
                 />
                 <Notice type="info" title="Autosaved" message="Draft updated 2 minutes ago." />
+              </div>
+
+              <h2 style={{ fontSize: "18px", fontWeight: 600, margin: "16px 0 0 0" }}>
+                Toasts
+              </h2>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "13px",
+                  lineHeight: "20px",
+                  color: "var(--color-text-muted)",
+                  maxWidth: "600px",
+                }}
+              >
+                Transient confirmation for a submitted action. Hover a toast to hold
+                it open, or drag it to the right to dismiss it.
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+                <Button
+                  variant="secondary"
+                  size="compact"
+                  onClick={() => toast.success("Lesson configuration saved.")}
+                >
+                  Success
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="compact"
+                  onClick={() =>
+                    toast.error("Unable to reach the service. Please try again.")
+                  }
+                >
+                  Error
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="compact"
+                  onClick={() =>
+                    toast.warning("Scene 4 still has unverified claims.")
+                  }
+                >
+                  Warning
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="compact"
+                  onClick={() => toast.info("Narration generation started.")}
+                >
+                  Info
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="compact"
+                  onClick={() =>
+                    toast.success("Lesson deleted.", {
+                      action: {
+                        label: "Undo",
+                        onClick: () => toast.info("Restored."),
+                      },
+                    })
+                  }
+                >
+                  With action
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="compact"
+                  onClick={() =>
+                    void toast
+                      .promise(
+                        new Promise((resolve) =>
+                          globalThis.setTimeout(resolve, 1800),
+                        ),
+                        {
+                          loading: "Saving configuration...",
+                          success: "Lesson configuration saved.",
+                          error: "Could not save the configuration.",
+                        },
+                      )
+                      .catch(() => undefined)
+                  }
+                >
+                  Pending action
+                </Button>
               </div>
 
               <h2 style={{ fontSize: "18px", fontWeight: 600, margin: "16px 0 0 0" }}>Loading Skeletons</h2>

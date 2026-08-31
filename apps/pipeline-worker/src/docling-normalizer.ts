@@ -12,7 +12,7 @@ import {
 import { z } from "zod";
 
 /** Increment when a change can affect application-owned normalized output. */
-export const doclingNormalizerVersion = "1.0.0" as const;
+export const doclingNormalizerVersion = "1.1.0" as const;
 
 type CanonicalRecord = Record<string, unknown>;
 type Candidate = {
@@ -47,7 +47,30 @@ const ignoredKinds = new Set([
   "footer",
   "running_header",
   "running_footer",
+  "empty_value",
 ]);
+/**
+ * Docling `GroupLabel` values. Groups are containers for their children, so they
+ * carry reading order but never content of their own; emitting them as blocks
+ * produced an "unsupported" finding on every document.
+ */
+const containerKinds = new Set([
+  "unspecified",
+  "list",
+  "ordered_list",
+  "chapter",
+  "section",
+  "sheet",
+  "slide",
+  "form_area",
+  "key_value_area",
+  "comment_section",
+  "inline",
+  "picture_area",
+]);
+/** Docling `DocItemLabel` values that carry teacher-visible prose. */
+/** Docling still emits the deprecated `chart` label for some figures. */
+const figureKinds = ["picture", "figure", "image", "chart"];
 const supportedKinds = new Set([
   "text",
   "paragraph",
@@ -56,6 +79,20 @@ const supportedKinds = new Set([
   "formula",
   "equation",
   "caption",
+  "code",
+  "footnote",
+  "reference",
+  "checkbox_selected",
+  "checkbox_unselected",
+  "document_index",
+  "handwritten_text",
+  "grading_scale",
+  "marker",
+  "field_key",
+  "field_value",
+  "field_hint",
+  "field_heading",
+  "field_item",
 ]);
 
 function deterministicId(seed: string): Identifier {
@@ -135,6 +172,14 @@ function levelOf(value: CanonicalRecord, kind: string): number | undefined {
   return kind === "title" ? 1 : 2;
 }
 
+/** Docling links children and captions as `{ "$ref": "#/texts/0" }`, not as bare strings. */
+function pointerOf(value: unknown): string | undefined {
+  if (typeof value === "string") return value.startsWith("#/") ? value : undefined;
+  const item = record(value);
+  if (item === undefined) return undefined;
+  return string(item.$ref) ?? string(item.cref);
+}
+
 function flattenCanonical(canonical: CanonicalRecord): Candidate[] {
   const candidates: Candidate[] = [];
   const collections = [
@@ -160,32 +205,62 @@ function flattenCanonical(canonical: CanonicalRecord): Candidate[] {
         canonical,
       );
   };
+  const dereference = (value: unknown): unknown => {
+    const pointer = pointerOf(value);
+    return pointer === undefined ? value : resolveReference(pointer);
+  };
+  // A caption owned by a figure or table is emitted with its owner; emitting it
+  // again from the reading-order stream would duplicate the block.
+  const ownedCaptions = new Set<string>();
+  for (const name of ["pictures", "tables", "figures"]) {
+    const owners = canonical[name];
+    if (!Array.isArray(owners)) continue;
+    for (const owner of owners) {
+      const captions = record(owner)?.captions;
+      if (!Array.isArray(captions)) continue;
+      for (const caption of captions) {
+        const pointer = pointerOf(caption);
+        if (pointer !== undefined) ownedCaptions.add(pointer);
+      }
+    }
+  }
+  const captionOf = (item: CanonicalRecord): string | undefined => {
+    if (!Array.isArray(item.captions)) return undefined;
+    const parts = item.captions
+      .map((caption) => record(dereference(caption)))
+      .map((caption) => (caption === undefined ? undefined : textOf(caption)))
+      .filter((part): part is string => part !== undefined);
+    return parts.length === 0 ? undefined : parts.join(" ");
+  };
   const visit = (value: unknown): void => {
-    if (typeof value === "string") {
-      visit(resolveReference(value));
+    const target = dereference(value);
+    if (Array.isArray(target)) {
+      target.forEach(visit);
       return;
     }
-    if (Array.isArray(value)) {
-      value.forEach(visit);
-      return;
-    }
-    const item = record(value);
+    const item = record(target);
     if (item === undefined) return;
     if (visited.has(item)) return;
     visited.add(item);
     const kind = kindOf(item);
+    const selfReference = string(item.self_ref);
+    // Groups carry reading order for their children but no content of their own.
+    const isContainer =
+      containerKinds.has(kind) && textOf(item) === undefined;
     if (
-      textOf(item) !== undefined ||
-      "label" in item ||
-      "type" in item ||
-      "kind" in item ||
-      ["table", "picture", "figure", "image"].includes(kind)
+      !isContainer &&
+      !(selfReference !== undefined && ownedCaptions.has(selfReference)) &&
+      (textOf(item) !== undefined ||
+        "label" in item ||
+        "type" in item ||
+        "kind" in item ||
+        [...figureKinds, "table"].includes(kind))
     )
       candidates.push({
         kind,
         page: pageOf(item),
         order: candidates.length + 1,
-        text: textOf(item),
+        text: textOf(item) ?? captionOf(item),
         raw: item,
         level: levelOf(item, kind),
       });
@@ -280,15 +355,17 @@ export function extractDoclingFigureAssets(input: {
   const warnings: { figureId: Identifier; page: number; message: string }[] =
     [];
   for (const candidate of flattenCanonical(canonical)) {
-    if (!["picture", "figure", "image"].includes(candidate.kind)) continue;
+    if (!figureKinds.includes(candidate.kind)) continue;
     const figureId = deterministicId(
       `${input.artifactId}:figure:${candidate.page}:${candidate.order}`,
     );
+    // Docling embeds figure bytes as `image.uri` = "data:image/png;base64,...".
     const encoded = nestedString(candidate.raw, [
       "base64",
       "image_base64",
       "data_uri",
       "dataUrl",
+      "uri",
       "content",
       "image",
     ]);
@@ -317,6 +394,7 @@ export function extractDoclingFigureAssets(input: {
       body,
       parts?.[1] ??
         nestedString(candidate.raw, [
+          "mimetype",
           "mime_type",
           "mimeType",
           "content_type",
@@ -471,7 +549,7 @@ export function normalizeDoclingOutput(input: {
       section.pageEnd ?? section.pageStart,
       candidate.page,
     );
-    if (["picture", "figure", "image"].includes(candidate.kind)) {
+    if (figureKinds.includes(candidate.kind)) {
       const id = deterministicId(
         `${input.artifactId}:figure:${candidate.page}:${candidate.order}`,
       );

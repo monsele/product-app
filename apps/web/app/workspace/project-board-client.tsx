@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import type { ProjectSummary } from "@avlp/schemas";
 import { Button } from "../../components/ui/button";
 import { Field } from "../../components/ui/field";
@@ -28,6 +29,8 @@ export interface ProjectBoardClientProps {
   projects: ProjectSummary[];
   nextCursor?: string | undefined;
   error?: string | undefined;
+  /** Outcome of an action that redirected back here, e.g. "delete". */
+  done?: string | undefined;
 }
 
 function createIdempotencyKey(): string {
@@ -55,8 +58,10 @@ export function ProjectBoardClient({
   projects,
   nextCursor,
   error,
+  done,
 }: ProjectBoardClientProps) {
   const [projectTitle, setProjectTitle] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<{
     id: string;
     title: string;
@@ -68,6 +73,26 @@ export function ProjectBoardClient({
 
   const duplicateFormRef = useRef<HTMLFormElement>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Creating a lesson is a native form POST that ends in a redirect, so the
+  // button has to hold its pending state until the browser navigates away.
+  const handleCreateSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    if (isCreating) {
+      event.preventDefault();
+      return;
+    }
+    setIsCreating(true);
+  };
+
+  // Returning here via the back button can restore the page from bfcache with
+  // the pending flag still set, which would leave Create permanently disabled.
+  useEffect(() => {
+    const reset = (event: PageTransitionEvent) => {
+      if (event.persisted) setIsCreating(false);
+    };
+    window.addEventListener("pageshow", reset);
+    return () => window.removeEventListener("pageshow", reset);
+  }, []);
 
   // Submit once the hidden form has rendered with the target project's action,
   // rather than guessing at a timeout.
@@ -86,8 +111,18 @@ export function ProjectBoardClient({
       toast.error("The project could not be duplicated. Please try again.");
     } else if (error === "delete") {
       toast.error("The project could not be deleted. Please try again.");
+    } else if (error === "confirm-delete") {
+      toast.error("Deletion was not confirmed, so nothing was removed.");
     }
   }, [error]);
+
+  // Actions that redirect back to the board confirm themselves here, since a
+  // toast fired before the navigation would be discarded with the page.
+  useEffect(() => {
+    if (done === "delete") {
+      toast.success("Lesson deleted.");
+    }
+  }, [done]);
 
   const handleDuplicate = (projectId: string) => {
     setDuplicating({ id: projectId, key: createIdempotencyKey() });
@@ -201,7 +236,12 @@ export function ProjectBoardClient({
           </div>
         </div>
 
-        <form action="/api/projects" method="post" className={styles.createForm}>
+        <form
+          action="/api/projects"
+          method="post"
+          className={styles.createForm}
+          onSubmit={handleCreateSubmit}
+        >
           <div className={styles.createField}>
             <Field
               id="project-title"
@@ -223,19 +263,33 @@ export function ProjectBoardClient({
                 onChange={(e) => setProjectTitle(e.target.value)}
                 placeholder="e.g. Photosynthesis and Plant Cells"
                 className={styles.textInput}
+                /* readOnly, not disabled: a disabled field is dropped from the
+                   POST body, which submitted this form with an empty title. */
+                readOnly={isCreating}
               />
             </Field>
           </div>
 
-          <Button
-            type="submit"
-            variant="primary"
-            size="default"
-            leftIcon={<Plus weight="bold" />}
-            style={{ height: "42px" }}
-          >
-            Create lesson
-          </Button>
+          <div className={styles.createAction}>
+            <Button
+              type="submit"
+              variant="primary"
+              size="default"
+              isLoading={isCreating}
+              disabled={isCreating || projectTitle.trim().length === 0}
+              leftIcon={<Plus weight="bold" />}
+              style={{ height: "42px" }}
+            >
+              {isCreating ? "Creating lesson…" : "Create lesson"}
+            </Button>
+            <span aria-live="polite" className={styles.createActionHint}>
+              {isCreating
+                ? "Setting up your workspace…"
+                : projectTitle.trim().length === 0
+                  ? "Name your lesson to continue."
+                  : ""}
+            </span>
+          </div>
         </form>
       </section>
 
@@ -312,25 +366,25 @@ export function ProjectBoardClient({
                         </div>
 
                         <h3 className={styles.featuredTitle}>
-                          <a
+                          <Link
                             href={stageDetails.nextActionPath(
                               featuredProject.id,
                             )}
                             className={styles.titleLink}
                           >
                             {featuredProject.title}
-                          </a>
+                          </Link>
                         </h3>
                       </div>
 
                       <div className={styles.cardActions}>
-                        <a
+                        <Link
                           href={stageDetails.nextActionPath(featuredProject.id)}
                           className={styles.actionLinkPrimary}
                         >
                           {stageDetails.nextActionLabel}
                           <ArrowRight size={16} weight="bold" />
-                        </a>
+                        </Link>
 
                         {renderRecordMenu(
                           featuredProject,
@@ -346,12 +400,12 @@ export function ProjectBoardClient({
                           <strong>Operation issue:</strong> Failed during{" "}
                           <code>{featuredProject.latestFailedOperation}</code>.
                         </div>
-                        <a
+                        <Link
                           href={stageDetails.nextActionPath(featuredProject.id)}
                           className={styles.actionLinkDestructive}
                         >
                           Resolve issue
-                        </a>
+                        </Link>
                       </div>
                     )}
 
@@ -426,12 +480,12 @@ export function ProjectBoardClient({
                         </div>
 
                         <h3 className={styles.projectTitle}>
-                          <a
+                          <Link
                             href={details.nextActionPath(project.id)}
                             className={styles.titleLink}
                           >
                             {project.title}
-                          </a>
+                          </Link>
                         </h3>
 
                         <span className={styles.metaText}>
@@ -459,13 +513,13 @@ export function ProjectBoardClient({
                       </div>
 
                       <div className={styles.cardFooter}>
-                        <a
+                        <Link
                           href={details.nextActionPath(project.id)}
                           className={`${styles.actionLinkSecondary} ${styles.actionLinkCompact}`}
                         >
                           {details.nextActionLabel}
                           <ArrowRight size={14} weight="bold" />
-                        </a>
+                        </Link>
                       </div>
                     </li>
                   );
@@ -476,13 +530,13 @@ export function ProjectBoardClient({
 
           {nextCursor ? (
             <div className={styles.pagination}>
-              <a
+              <Link
                 href={`/workspace?cursor=${encodeURIComponent(nextCursor)}`}
                 className={styles.actionLinkSecondary}
                 style={{ width: "auto" }}
               >
                 Load more lessons
-              </a>
+              </Link>
             </div>
           ) : (
             projects.length > 0 && (

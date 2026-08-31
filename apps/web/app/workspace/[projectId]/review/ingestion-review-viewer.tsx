@@ -50,6 +50,7 @@ import {
   buildFigureUpdateInput,
   type FigureSelectionAction,
 } from "./source-figure-controls";
+import { toast } from "../../../../components/ui/toast-provider";
 
 type State =
   | { kind: "loading" }
@@ -176,14 +177,14 @@ export function IngestionReviewViewer({
         throw new Error(message);
       }
       await refreshApproval();
+      toast.success("Source content confirmed.");
     } catch (error) {
-      setApprovalState({
-        kind: "failed",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Unable to confirm the source content.",
-      });
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to confirm the source content.";
+      setApprovalState({ kind: "failed", message });
+      toast.error(message);
     }
   }, [projectId, refreshApproval]);
 
@@ -359,11 +360,14 @@ export function IngestionReviewViewer({
         if (!parsed.success) throw new Error("Unable to update the section.");
         setSelections((prev) => ({ ...prev, [sectionId]: parsed.data }));
       } catch (error) {
-        setSelectionError(
+        // Toggles are high-frequency, so only the failure is worth a toast:
+        // a successful toggle already shows in the row itself.
+        const message =
           error instanceof Error
             ? error.message
-            : "Unable to update the section selection.",
-        );
+            : "Unable to update the section selection.";
+        setSelectionError(message);
+        toast.error(message);
       }
     },
     [projectId, selections],
@@ -525,6 +529,10 @@ export function IngestionReviewViewer({
           };
         });
       } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unable to update the figure inclusion.";
         setSectionStates((prev) => {
           const existing = prev[sectionId];
           return {
@@ -534,13 +542,12 @@ export function IngestionReviewViewer({
               ...(existing?.detail === undefined
                 ? {}
                 : { detail: existing.detail }),
-              error:
-                error instanceof Error
-                  ? error.message
-                  : "Unable to update the figure inclusion.",
+              error: message,
             },
           };
         });
+        // The figure row error can sit off-screen inside a collapsed section.
+        toast.error(message);
       }
     },
     [projectId],
@@ -600,7 +607,7 @@ export function IngestionReviewViewer({
         >
           <ArrowsClockwise
             weight="bold"
-            style={{ animation: "spin 1s linear infinite" }}
+            className="ui-spinner"
           />
           <span>Loading document review…</span>
         </div>
@@ -1570,7 +1577,7 @@ export function IngestionReviewViewer({
                           >
                             <ArrowsClockwise
                               weight="bold"
-                              style={{ animation: "spin 1s linear infinite" }}
+                              className="ui-spinner"
                             />
                             <span>Loading section content…</span>
                           </div>
@@ -1758,7 +1765,7 @@ function ApprovalPanel({
           fontSize: "13px",
         }}
       >
-        <ArrowsClockwise weight="bold" style={{ animation: "spin 1s linear infinite" }} />
+        <ArrowsClockwise weight="bold" className="ui-spinner" />
         <span>Checking approval status…</span>
       </div>
     );
@@ -1777,7 +1784,7 @@ function ApprovalPanel({
           fontWeight: 600,
         }}
       >
-        <ArrowsClockwise weight="bold" style={{ animation: "spin 1s linear infinite" }} />
+        <ArrowsClockwise weight="bold" className="ui-spinner" />
         <span>Confirming source snapshot…</span>
       </div>
     );

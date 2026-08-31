@@ -16,3 +16,211 @@
 @avlp/api:dev: {"level":30,"time":1788103548089,"pid":14324,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1","req":{"method":"GET","url":"[REDACTED]","host":"127.0.0.1:3001","remoteAddress":"127.0.0.1","remotePort":65226},"msg":"incoming request"}
 @avlp/api:dev: {"timestamp":"2026-08-30T15:25:48.091Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a05346-dcba-796d-935c-cef9ba774086","method":"GET","route":"/health","service":"api"}}
 @avlp/api:dev: {"level":30,"time":1788103548096,"pid":14324,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1","res":{"statusCode":200},"responseTime":6.694600000002538,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788103595650,"pid":14324,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":63418},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T15:26:35.652Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a05347-9683-7590-81d1-9de711db78a4","method":"GET","route":"/health","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788103595684,"pid":14324,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2","res":{"statusCode":200},"responseTime":33.69680000000517,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788103658196,"pid":14324,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-3","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":56479},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T15:27:38.197Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a05348-8ad4-7564-b7e0-59ef62c392bf","method":"POST","route":"/auth/register","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788103658200,"pid":14324,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-3","res":{"statusCode":403},"responseTime":3.8755999999993946,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788103658496,"pid":14324,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-4","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":55590},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T15:27:38.497Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a05348-8c01-79f6-88c2-083427ff783e","method":"POST","route":"/auth/login","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788103658498,"pid":14324,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-4","res":{"statusCode":403},"responseTime":1.8317000000097323,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788103666385,"pid":14324,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-5","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58127},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T15:27:46.385Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a05348-aad1-71a8-b308-a6eec98db620","method":"POST","route":"/auth/register","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788103666604,"pid":14324,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-5","res":{"statusCode":201},"responseTime":219.12039999998524,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788103666927,"pid":14324,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-6","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58130},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T15:27:46.927Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a05348-acef-75ab-a50b-aad6f6e723fd","method":"POST","route":"/auth/login","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788103666975,"pid":14324,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-6","res":{"statusCode":201},"responseTime":47.89380000001984,"msg":"request completed"}
+@avlp/api:dev: 4:47:38 PM [tsx] change in ./src\lesson-validation.ts Restarting...
+@avlp/api:dev: {"level":30,"time":1788104886240,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+@avlp/api:dev: {"level":30,"time":1788104886240,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.192:3001"}
+@avlp/api:dev: {"level":30,"time":1788104886240,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.18.112.1:3001"}
+@avlp/api:dev: {"level":30,"time":1788104886240,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+@avlp/api:dev: {"level":30,"time":1788110207297,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":51190},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:16:47.300Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053ac-7942-7af3-a5c9-f2c98a6d3463","method":"GET","route":"/projects/:projectId","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110207406,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1","res":{"statusCode":200},"responseTime":108.33339999988675,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110238705,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":64507},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:17:18.706Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053ac-f3f1-7dd5-8afc-de6904d4269f","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:17:18.707Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053ac-f3f3-7dba-9fe3-39eb013ea433","method":"GET","route":"/projects/:projectId/validation","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110238707,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-3","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":54157},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:17:18.709Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053ac-f3f5-7e44-9a80-7dfea164dbbe","method":"GET","route":"/projects/:projectId/storyboard","service":"api"}}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:17:18.710Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053ac-f3f6-7bf8-aaef-87a34d95a810","method":"GET","route":"/projects/:projectId/versions","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110238708,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-4","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":51052},"msg":"incoming request"}
+@avlp/api:dev: {"level":30,"time":1788110238710,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-5","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57595},"msg":"incoming request"}
+@avlp/api:dev: {"level":30,"time":1788110239092,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2","res":{"statusCode":200},"responseTime":386.93240000028163,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110239433,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-5","res":{"statusCode":200},"responseTime":722.8645999999717,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110239500,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-3","res":{"statusCode":200},"responseTime":792.9123999997973,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110239539,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-4","res":{"statusCode":200},"responseTime":829.8640000000596,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110239574,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-6","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":51052},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:17:19.575Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053ac-f757-77fb-8cbf-871b8f81607b","method":"GET","route":"/projects/:projectId/storyboard/scenes","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110239654,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-6","res":{"statusCode":200},"responseTime":79.0453000003472,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110239747,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-7","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":51052},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:17:19.749Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053ac-f804-7e01-b38f-0c308c55f205","method":"GET","route":"/projects/:projectId/storyboard/scenes/:sceneId","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110240139,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-7","res":{"statusCode":200},"responseTime":391.09999999962747,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110240221,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-8","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":51052},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:17:20.222Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053ac-f9de-7ce6-9549-b5486990d6ae","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110240229,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-9","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":54157},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:17:20.229Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053ac-f9e5-785b-88a2-22a473b88bf2","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110240243,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-8","res":{"statusCode":200},"responseTime":21.610999999567866,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110240245,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-9","res":{"statusCode":200},"responseTime":16.03249999973923,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110263402,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-a","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":51190},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:17:43.403Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053ad-546b-7564-b6c0-1914ceb1cd39","method":"GET","route":"/projects/:projectId","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110263409,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-b","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":54618},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:17:43.409Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053ad-5471-7ca9-ae94-d507aeb5692b","method":"GET","route":"/projects/:projectId/preview-manifest","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110263522,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-a","res":{"statusCode":200},"responseTime":119.12019999977201,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110263650,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-b","res":{"statusCode":200},"responseTime":240.96549999993294,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110264772,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-c","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":54157},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:17:44.773Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053ad-59c5-779d-b23b-4cdca1c6076d","method":"GET","route":"/projects/:projectId/preview-manifest","service":"api"}}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:17:44.775Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053ad-59c6-7980-a743-82caf66e957b","method":"GET","route":"/projects/:projectId/validation","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110264774,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-d","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":51052},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:17:44.776Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053ad-59c8-71c5-8012-152baa160207","method":"GET","route":"/projects/:projectId/preview-manifest","service":"api"}}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:17:44.777Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053ad-59c9-763b-bc41-f045df5386e9","method":"GET","route":"/projects/:projectId/validation","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110264775,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-e","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57595},"msg":"incoming request"}
+@avlp/api:dev: {"level":30,"time":1788110264777,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-f","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":64507},"msg":"incoming request"}
+@avlp/api:dev: {"level":30,"time":1788110265076,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-e","res":{"statusCode":200},"responseTime":300.80260000005364,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110265079,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-c","res":{"statusCode":200},"responseTime":306.7927999999374,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110265085,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-d","res":{"statusCode":200},"responseTime":310.54650000017136,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110265088,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-f","res":{"statusCode":200},"responseTime":311.09960000030696,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110373148,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-g","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57610},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:19:33.149Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053af-011c-7288-bf7d-9e04eb205a80","method":"GET","route":"/projects/:projectId","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110373150,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-h","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57611},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:19:33.150Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053af-011e-73ae-8810-d0d5e547847b","method":"GET","route":"/projects/:projectId/renders","service":"api"}}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:19:33.152Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053af-011f-7170-96e0-a69441f7fe4b","method":"GET","route":"/projects/:projectId/versions","service":"api"}}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:19:33.154Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053af-0121-72bb-81a9-a85243f2e533","method":"GET","route":"/projects/:projectId/validation","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110373151,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-i","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57612},"msg":"incoming request"}
+@avlp/api:dev: {"level":30,"time":1788110373153,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-j","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57613},"msg":"incoming request"}
+@avlp/api:dev: {"level":30,"time":1788110373258,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-h","res":{"statusCode":200},"responseTime":108.27610000036657,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110373265,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-g","res":{"statusCode":200},"responseTime":117.26480000000447,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110373284,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-i","res":{"statusCode":200},"responseTime":132.40320000052452,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110373348,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-j","res":{"statusCode":200},"responseTime":195.07360000070184,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110373898,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-k","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":59732},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:19:33.898Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053af-040a-789b-ad53-d70f81ba8dc9","method":"GET","route":"/projects/:projectId/share-links","service":"api"}}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:19:33.900Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053af-040b-769c-b978-8f70e7da0c1a","method":"GET","route":"/projects/:projectId/share-links","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110373899,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-l","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":49637},"msg":"incoming request"}
+@avlp/api:dev: {"level":30,"time":1788110373972,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-l","res":{"statusCode":200},"responseTime":72.94890000019222,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110373973,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-k","res":{"statusCode":200},"responseTime":75.01809999998659,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110381596,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-m","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":59732},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:19:41.596Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053af-221c-7838-af3a-d918a469600d","method":"GET","route":"/projects/:projectId/renders","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110381607,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-m","res":{"statusCode":200},"responseTime":10.960399999283254,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110389622,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-n","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":59732},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:19:49.623Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053af-4177-7435-bf66-ae3800308aa3","method":"GET","route":"/projects/:projectId/renders","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110389633,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-n","res":{"statusCode":200},"responseTime":10.036800000816584,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110390591,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-o","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57610},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:19:50.591Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053af-453f-7771-a2df-176078c4f8d1","method":"GET","route":"/projects/:projectId","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110390593,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-p","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57611},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:19:50.593Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053af-4541-7326-bc54-e8652c808a28","method":"GET","route":"/projects/:projectId/preview-manifest","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110390604,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-o","res":{"statusCode":200},"responseTime":13.739299999549985,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110390654,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-p","res":{"statusCode":200},"responseTime":61.571700000204146,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110391063,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-q","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":59732},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:19:51.064Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053af-4717-76a1-9c4d-35a01ea179bc","method":"GET","route":"/projects/:projectId/preview-manifest","service":"api"}}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:19:51.066Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053af-471a-7bcc-90da-3e0562c733cf","method":"GET","route":"/projects/:projectId/validation","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110391066,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-r","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":49637},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:19:51.068Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053af-471c-7c93-95b9-7c5e5eee8a95","method":"GET","route":"/projects/:projectId/preview-manifest","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110391068,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-s","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":64996},"msg":"incoming request"}
+@avlp/api:dev: {"level":30,"time":1788110391370,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-t","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":61993},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:19:51.370Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053af-484a-7b6f-bbc0-3f5c6b8ca67a","method":"GET","route":"/projects/:projectId/validation","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110391571,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-s","res":{"statusCode":200},"responseTime":502.8920999998227,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110391573,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-q","res":{"statusCode":200},"responseTime":509.63940000068396,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110391575,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-r","res":{"statusCode":200},"responseTime":509.059299999848,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110391650,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-t","res":{"statusCode":200},"responseTime":280.1833999995142,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110462358,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-u","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":51400},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:21:02.359Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053b0-5d96-71aa-bc2a-343dedca05c9","method":"GET","route":"/projects/:projectId","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110462458,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-u","res":{"statusCode":200},"responseTime":99.7050000000745,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110463007,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-v","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50396},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:21:03.008Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053b0-601f-76d5-a42a-0fc7f041fab8","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:21:03.010Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053b0-6021-7b47-b960-2dfd2856e5d0","method":"GET","route":"/projects/:projectId/validation","service":"api"}}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:21:03.011Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053b0-6023-7e48-9279-d370b84e7f78","method":"GET","route":"/projects/:projectId/storyboard","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110463009,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-w","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":61503},"msg":"incoming request"}
+@avlp/api:dev: {"level":30,"time":1788110463011,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-x","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":63555},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:21:03.013Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053b0-6024-7975-9f30-07f256d5d36c","method":"GET","route":"/projects/:projectId/versions","service":"api"}}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:21:03.014Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053b0-6026-7cf8-9fc5-61b2f25b67e8","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:21:03.016Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053b0-6027-7ca7-b94f-66b1f729d9f0","method":"GET","route":"/projects/:projectId/validation","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110463012,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-y","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57447},"msg":"incoming request"}
+@avlp/api:dev: {"level":30,"time":1788110463014,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-z","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57297},"msg":"incoming request"}
+@avlp/api:dev: {"level":30,"time":1788110463015,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-10","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":62904},"msg":"incoming request"}
+@avlp/api:dev: {"level":30,"time":1788110463063,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-v","res":{"statusCode":200},"responseTime":55.678999999538064,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110463064,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-11","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50396},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:21:03.064Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053b0-6058-7bbf-a7a7-a540e3ee9439","method":"GET","route":"/projects/:projectId/storyboard","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110463260,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-z","res":{"statusCode":200},"responseTime":246.54119999986142,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110463262,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-12","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57297},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:21:03.262Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053b0-611e-7de5-b278-69fbb1b61cbf","method":"GET","route":"/projects/:projectId/versions","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110463346,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-y","res":{"statusCode":200},"responseTime":333.15749999973923,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110463375,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-12","res":{"statusCode":200},"responseTime":113.6191999996081,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110463427,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-x","res":{"statusCode":200},"responseTime":416.0605000006035,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110463444,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-11","res":{"statusCode":200},"responseTime":380.4181000003591,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110463449,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-13","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50396},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:21:03.450Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053b0-61d9-78ce-a9fc-b9fd11937346","method":"GET","route":"/projects/:projectId/storyboard/scenes","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110463484,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-14","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":63555},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:21:03.485Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053b0-61fc-73e0-9eda-983bbaabed59","method":"GET","route":"/projects/:projectId/storyboard/scenes/:sceneId","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110463491,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-10","res":{"statusCode":200},"responseTime":475.68209999985993,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110463630,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-13","res":{"statusCode":200},"responseTime":181.19579999987036,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110463648,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-14","res":{"statusCode":200},"responseTime":163.97010000050068,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110463704,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-15","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":63555},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:21:03.705Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053b0-62d8-7614-bebb-566e55b564f1","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110463706,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-16","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50396},"msg":"incoming request"}
+@avlp/api:dev: {"timestamp":"2026-08-30T17:21:03.707Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a053b0-62db-7e7b-998e-8af0d8f3ea1e","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+@avlp/api:dev: {"level":30,"time":1788110463723,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-15","res":{"statusCode":200},"responseTime":18.8105999995023,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110463727,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-16","res":{"statusCode":200},"responseTime":20.286199999973178,"msg":"request completed"}
+@avlp/api:dev: {"level":30,"time":1788110463777,"pid":31880,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-w","res":{"statusCode":200},"responseTime":767.9654000001028,"msg":"request completed"}
+@avlp/api:dev: 6:27:31 PM [tsx] change in ./..\..\packages\scene-library\dist\scene-registry.js Restarting...
+@avlp/api:dev: 6:29:14 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Restarting...
+@avlp/api:dev: 6:29:15 PM [tsx] change in ./..\..\packages\scene-library\dist\index.js Restarting...
+@avlp/api:dev: node:net:1948
+@avlp/api:dev:     const ex = new UVExceptionWithHostPort(err, 'listen', address, port);
+@avlp/api:dev:                ^
+@avlp/api:dev: 
+@avlp/api:dev: Error: listen EADDRINUSE: address already in use 0.0.0.0:3001
+@avlp/api:dev:     at Server.setupListenHandle [as _listen2] (node:net:1948:16)
+@avlp/api:dev:     at listenInCluster (node:net:2005:12)
+@avlp/api:dev:     at node:net:2214:7
+@avlp/api:dev:     at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+@avlp/api:dev:   code: 'EADDRINUSE',
+@avlp/api:dev:   errno: -4091,
+@avlp/api:dev:   syscall: 'listen',
+@avlp/api:dev:   address: '0.0.0.0',
+@avlp/api:dev:   port: 3001
+@avlp/api:dev: }
+@avlp/api:dev: 
+@avlp/api:dev: Node.js v24.14.0
+@avlp/api:dev: 6:32:17 PM [tsx] change in ./..\..\packages\design-system\dist\index.js Rerunning...
+@avlp/api:dev: 6:32:27 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Restarting...
+@avlp/api:dev: 6:32:27 PM [tsx] change in ./..\..\packages\scene-library\dist\scene-preview.js Restarting...
+@avlp/api:dev: 6:32:28 PM [tsx] change in ./..\..\packages\scene-library\dist\index.js Restarting...
+@avlp/api:dev: node:net:1948
+@avlp/api:dev:     const ex = new UVExceptionWithHostPort(err, 'listen', address, port);
+@avlp/api:dev:                ^
+@avlp/api:dev: 
+@avlp/api:dev: Error: listen EADDRINUSE: address already in use 0.0.0.0:3001
+@avlp/api:dev:     at Server.setupListenHandle [as _listen2] (node:net:1948:16)
+@avlp/api:dev:     at listenInCluster (node:net:2005:12)
+@avlp/api:dev:     at node:net:2214:7
+@avlp/api:dev:     at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+@avlp/api:dev:   code: 'EADDRINUSE',
+@avlp/api:dev:   errno: -4091,
+@avlp/api:dev:   syscall: 'listen',
+@avlp/api:dev:   address: '0.0.0.0',
+@avlp/api:dev:   port: 3001
+@avlp/api:dev: }
+@avlp/api:dev: 
+@avlp/api:dev: Node.js v24.14.0
+@avlp/api:dev: 6:36:39 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Rerunning...
+@avlp/api:dev: 6:36:40 PM [tsx] change in ./..\..\packages\scene-library\dist\index.js Restarting...
+@avlp/api:dev: 6:37:13 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Restarting...
+@avlp/api:dev: 6:37:13 PM [tsx] change in ./..\..\packages\scene-library\dist\index.js Restarting...
+@avlp/api:dev: node:net:1948
+@avlp/api:dev:     const ex = new UVExceptionWithHostPort(err, 'listen', address, port);
+@avlp/api:dev:                ^
+@avlp/api:dev: 
+@avlp/api:dev: Error: listen EADDRINUSE: address already in use 0.0.0.0:3001
+@avlp/api:dev:     at Server.setupListenHandle [as _listen2] (node:net:1948:16)
+@avlp/api:dev:     at listenInCluster (node:net:2005:12)
+@avlp/api:dev:     at node:net:2214:7
+@avlp/api:dev:     at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+@avlp/api:dev:   code: 'EADDRINUSE',
+@avlp/api:dev:   errno: -4091,
+@avlp/api:dev:   syscall: 'listen',
+@avlp/api:dev:   address: '0.0.0.0',
+@avlp/api:dev:   port: 3001
+@avlp/api:dev: }
+@avlp/api:dev: 
+@avlp/api:dev: Node.js v24.14.0

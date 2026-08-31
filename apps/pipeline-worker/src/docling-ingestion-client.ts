@@ -69,18 +69,44 @@ export class HttpDoclingIngestionClient implements DoclingIngestionClient {
           configurationHash: configHash,
           processingTimeMs: 120,
           markdown: `# Source Document Overview\n\nThe source document content has been extracted and normalized for document ${request.sourceDocumentId}.`,
+          // Shaped exactly like `DoclingDocument.export_to_dict()` so local work
+          // exercises the same reference-following path as the real parser.
           canonicalJson: {
-            pages: [{ page_no: 1, size: { width: 612, height: 792 } }],
-            body: [
+            pages: { "1": { page_no: 1, size: { width: 612, height: 792 } } },
+            body: {
+              self_ref: "#/body",
+              label: "unspecified",
+              name: "_root_",
+              children: [{ $ref: "#/texts/0" }, { $ref: "#/texts/1" }],
+            },
+            groups: [],
+            texts: [
               {
-                label: "title",
+                self_ref: "#/texts/0",
+                label: "section_header",
+                level: 1,
                 text: "Source Document Overview",
-                prov: [{ page_no: 1, bbox: { l: 72, t: 72, r: 540, b: 100 } }],
+                orig: "Source Document Overview",
+                prov: [
+                  {
+                    page_no: 1,
+                    bbox: { l: 72, t: 72, r: 540, b: 100 },
+                    charspan: [0, 24],
+                  },
+                ],
               },
               {
-                label: "paragraph",
+                self_ref: "#/texts/1",
+                label: "text",
                 text: "The uploaded source document has been extracted and prepared for teacher lesson review.",
-                prov: [{ page_no: 1, bbox: { l: 72, t: 120, r: 540, b: 200 } }],
+                orig: "The uploaded source document has been extracted and prepared for teacher lesson review.",
+                prov: [
+                  {
+                    page_no: 1,
+                    bbox: { l: 72, t: 120, r: 540, b: 200 },
+                    charspan: [0, 86],
+                  },
+                ],
               },
             ],
             tables: [],

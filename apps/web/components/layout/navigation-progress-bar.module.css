@@ -46,8 +46,6 @@
 }
 
 .spinner {
-  display: inline-flex;
-  animation: spin 1s linear infinite;
   color: var(--color-brand, #795290);
 }
 
@@ -66,9 +64,6 @@
   .progressBar {
     animation: none;
     box-shadow: none;
-  }
-  .spinner {
-    animation: none;
   }
   .loadingBadge {
     animation: none;

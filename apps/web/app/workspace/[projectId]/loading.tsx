@@ -62,11 +62,8 @@ export default function WorkspaceStageLoading(): React.JSX.Element {
             aria-live="polite"
           >
             <span
-              style={{
-                display: "inline-flex",
-                animation: "spin 1s linear infinite",
-                color: "var(--color-brand, #795290)",
-              }}
+              className="ui-spinner"
+              style={{ color: "var(--color-brand, #795290)" }}
             >
               <CircleNotch size={14} weight="bold" />
             </span>

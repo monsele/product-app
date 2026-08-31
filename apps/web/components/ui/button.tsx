@@ -81,14 +81,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         {isLoading ? (
           <span
             aria-hidden="true"
+            className="ui-spinner"
             style={{
-              display: "inline-block",
               width: "14px",
               height: "14px",
               border: "2px solid currentColor",
               borderRightColor: "transparent",
               borderRadius: "50%",
-              animation: "spin 0.6s linear infinite",
             }}
           />
         ) : leftIcon ? (

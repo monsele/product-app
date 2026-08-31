@@ -1,7 +1,10 @@
 import { createId } from "@avlp/config";
 import { readFile } from "node:fs/promises";
 import { describe, expect, it } from "vitest";
-import { normalizeDoclingOutput } from "./docling-normalizer.js";
+import {
+  extractDoclingFigureAssets,
+  normalizeDoclingOutput,
+} from "./docling-normalizer.js";
 
 const artifactId = createId(new Date("2026-08-15T09:00:00.000Z"));
 const sourceDocumentId = createId(new Date("2026-08-15T09:00:01.000Z"));
@@ -192,5 +195,117 @@ describe("Docling normalized-document adapter", () => {
         }),
       ]),
     );
+  });
+  it("follows Docling body references and ignores container groups", () => {
+    // Real Docling output links children as `{ "$ref": ... }` and wraps them in
+    // groups whose labels are container labels, not content labels.
+    const canonical = {
+      body: {
+        self_ref: "#/body",
+        label: "unspecified",
+        name: "_root_",
+        children: [{ $ref: "#/texts/0" }, { $ref: "#/groups/0" }],
+      },
+      groups: [
+        {
+          self_ref: "#/groups/0",
+          label: "list",
+          name: "list",
+          children: [{ $ref: "#/texts/1" }, { $ref: "#/texts/2" }],
+        },
+      ],
+      texts: [
+        {
+          self_ref: "#/texts/0",
+          label: "section_header",
+          level: 1,
+          text: "Water cycle",
+          prov: [{ page_no: 1 }],
+        },
+        {
+          self_ref: "#/texts/1",
+          label: "list_item",
+          text: "Evaporation",
+          prov: [{ page_no: 1 }],
+        },
+        {
+          self_ref: "#/texts/2",
+          label: "list_item",
+          text: "Condensation",
+          prov: [{ page_no: 1 }],
+        },
+      ],
+    };
+    const normalized = normalizeDoclingOutput({
+      artifactId,
+      sourceDocumentId,
+      pageCount: 1,
+      canonicalJson: canonical,
+    });
+    expect(normalized.sections.map((section) => section.heading)).toEqual([
+      "Water cycle",
+    ]);
+    expect(normalized.blocks.map((block) => block.kind)).toEqual([
+      "list",
+      "list",
+    ]);
+    expect(normalized.warnings).toEqual([]);
+  });
+
+  it("reads embedded figure bytes and owner captions from Docling floating items", () => {
+    // A 1x1 PNG, the smallest byte sequence that still carries a real header.
+    const png =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+    const canonical = {
+      body: {
+        self_ref: "#/body",
+        label: "unspecified",
+        children: [{ $ref: "#/pictures/0" }, { $ref: "#/texts/0" }],
+      },
+      texts: [
+        {
+          self_ref: "#/texts/0",
+          label: "caption",
+          text: "Figure 1: The water cycle.",
+          prov: [{ page_no: 1 }],
+        },
+      ],
+      pictures: [
+        {
+          self_ref: "#/pictures/0",
+          label: "picture",
+          prov: [{ page_no: 1 }],
+          captions: [{ $ref: "#/texts/0" }],
+          image: {
+            mimetype: "image/png",
+            dpi: 72,
+            size: { width: 1, height: 1 },
+            uri: `data:image/png;base64,${png}`,
+          },
+        },
+      ],
+    };
+    const normalized = normalizeDoclingOutput({
+      artifactId,
+      sourceDocumentId,
+      pageCount: 1,
+      canonicalJson: canonical,
+    });
+    const figure = normalized.figures[0]!;
+    expect(figure.altText).toBe("Figure 1: The water cycle.");
+    expect(figure.asset).toMatchObject({
+      contentType: "image/png",
+      width: 1,
+      height: 1,
+    });
+    // The caption belongs to the figure, so it is not also a standalone block.
+    expect(normalized.blocks.filter((block) => block.kind === "caption")).toHaveLength(1);
+    expect(normalized.warnings).toEqual([]);
+    const assets = extractDoclingFigureAssets({
+      artifactId,
+      canonicalJson: canonical,
+    }).assets;
+    expect(assets).toHaveLength(1);
+    expect(assets[0]!.contentType).toBe("image/png");
   });
 });

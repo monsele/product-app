@@ -35,11 +35,13 @@ export async function POST(
   const parsed = response.ok
     ? projectDeleteResponseSchema.safeParse(payload)
     : undefined;
+  // The redirect carries the outcome so the board can confirm it in a toast:
+  // a client-side toast would not survive this navigation.
   return NextResponse.redirect(
     new URL(
       !response.ok || parsed === undefined || !parsed.success
         ? "/workspace?error=delete"
-        : "/workspace",
+        : "/workspace?done=delete",
       request.url,
     ),
     303,

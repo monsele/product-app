@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { startNavigationProgress } from "../../../../components/layout/navigation-progress-bar";
 import {
   ingestionRetryResponseSchema,
   projectIngestionStatusResponseSchema,
@@ -25,6 +26,96 @@ type State =
 
 function apiUrl(path: string): string {
   return `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}${path}`;
+}
+
+const activeJobStates = new Set(["queued", "running", "retry_wait"]);
+
+/** Extraction is still running, so the panel keeps polling and shows progress. */
+export function isIngestionActive(
+  value: ProjectIngestionStatusResponse,
+): boolean {
+  return (
+    value.latestJob !== null && activeJobStates.has(value.latestJob.state)
+  );
+}
+
+/** The worker's own reported progress; never an invented animation. */
+export function ingestionProgressPercent(
+  value: ProjectIngestionStatusResponse,
+): number | null {
+  const job = value.latestJob;
+  if (job === null || !activeJobStates.has(job.state)) return null;
+  return Math.round(Math.min(1, Math.max(0, job.progress)) * 100);
+}
+
+type QualityFinding = NonNullable<
+  ProjectIngestionStatusResponse["quality"]
+>["findings"][number];
+
+export type FindingSummary = {
+  readonly code: QualityFinding["code"];
+  readonly severity: QualityFinding["severity"];
+  readonly count: number;
+  readonly label: string;
+  readonly pages: string;
+};
+
+const findingLabels: Readonly<Record<QualityFinding["code"], string>> = {
+  unknown_block: "Content the parser could not classify",
+  low_ocr_quality: "Low-confidence text from a scanned page",
+  missing_caption: "Figure or table without a caption",
+  malformed_table: "Incomplete table structure",
+  malformed_media: "Figure image could not be read",
+  uncertain_reading_order: "Uncertain reading order",
+  duplicate_reading_order: "Repeated reading order",
+  parser_failure: "The document could not be parsed",
+};
+
+/**
+ * One row per finding kind. A long document can produce hundreds of findings;
+ * listing them individually buried the ones a teacher can act on.
+ */
+export function summarizeFindings(
+  findings: readonly QualityFinding[],
+): FindingSummary[] {
+  const groups = new Map<
+    string,
+    { finding: QualityFinding; count: number; first: number; last: number }
+  >();
+  for (const finding of findings) {
+    const key = `${finding.severity}:${finding.code}`;
+    const group = groups.get(key);
+    const last = finding.pageEnd ?? finding.pageStart;
+    if (group === undefined)
+      groups.set(key, {
+        finding,
+        count: 1,
+        first: finding.pageStart,
+        last,
+      });
+    else {
+      group.count += 1;
+      group.first = Math.min(group.first, finding.pageStart);
+      group.last = Math.max(group.last, last);
+    }
+  }
+  return [...groups.values()]
+    .sort(
+      (left, right) =>
+        Number(right.finding.severity === "blocking") -
+          Number(left.finding.severity === "blocking") ||
+        right.count - left.count,
+    )
+    .map((group) => ({
+      code: group.finding.code,
+      severity: group.finding.severity,
+      count: group.count,
+      label: findingLabels[group.finding.code],
+      pages:
+        group.first === group.last
+          ? `page ${group.first}`
+          : `pages ${group.first}–${group.last}`,
+    }));
 }
 
 export function ingestionStatusMessage(
@@ -65,12 +156,19 @@ export function getIngestionStatusBadge(value: ProjectIngestionStatusResponse): 
   return { status: "info", label: "Ingestion pending" };
 }
 
+function elapsedLabel(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  return `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, "0")}s`;
+}
+
 export function IngestionStatusPanel({ projectId }: { projectId: string }) {
   const [state, setState] = useState<State>({ kind: "loading" });
   const router = useRouter();
+  const [openingReview, startOpeningReview] = useTransition();
   const [retrying, setRetrying] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
-  const refresh = async (): Promise<void> => {
+  const refresh = async (): Promise<ProjectIngestionStatusResponse | undefined> => {
     try {
       const response = await fetch(
         apiUrl(`/projects/${encodeURIComponent(projectId)}/ingestion`),
@@ -83,18 +181,33 @@ export function IngestionStatusPanel({ projectId }: { projectId: string }) {
       if (parsed === undefined || !parsed.success)
         throw new Error("Unable to refresh document status.");
       setState({ kind: "ready", value: parsed.data });
+      return parsed.data;
     } catch {
       setState({
         kind: "failed",
         message: "We could not refresh document status. Please try again.",
       });
+      return undefined;
     }
   };
 
+  // Extraction is a background job: poll while it runs, then stop. The previous
+  // fixed 2s interval kept firing forever once the document was already ready.
   useEffect(() => {
-    void refresh();
-    const timer = window.setInterval(() => void refresh(), 2_000);
-    return () => window.clearInterval(timer);
+    let cancelled = false;
+    let timer: number | undefined;
+    const tick = async (): Promise<void> => {
+      const value = await refresh();
+      if (cancelled) return;
+      const active = value === undefined || isIngestionActive(value);
+      // A settled document still gets a slow refresh so a retry elsewhere lands.
+      timer = window.setTimeout(() => void tick(), active ? 2_000 : 30_000);
+    };
+    void tick();
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+    };
   }, [projectId]);
 
   const retry = async (): Promise<void> => {
@@ -158,7 +271,32 @@ export function IngestionStatusPanel({ projectId }: { projectId: string }) {
     value?.quality?.status === "ready" ||
     value?.quality?.status === "review_required";
 
+  // Warm the review route's RSC payload as soon as the action becomes
+  // available, so the click itself is not the first request for it.
+  useEffect(() => {
+    if (!isReadyForReview) return;
+    router.prefetch(`/workspace/${projectId}/review`);
+  }, [isReadyForReview, projectId, router]);
+
   const badge = value ? getIngestionStatusBadge(value) : null;
+  const active = value !== undefined && isIngestionActive(value);
+  const progress = value === undefined ? null : ingestionProgressPercent(value);
+  const findings =
+    value?.quality == null ? [] : summarizeFindings(value.quality.findings);
+
+  // Extraction can take minutes; a stalled panel with no elapsed time reads as broken.
+  useEffect(() => {
+    if (!active) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const timer = window.setInterval(
+      () => setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1_000)),
+      1_000,
+    );
+    return () => window.clearInterval(timer);
+  }, [active]);
 
   return (
     <section
@@ -248,6 +386,49 @@ export function IngestionStatusPanel({ projectId }: { projectId: string }) {
             </p>
           </div>
 
+          {active && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              <div
+                role="progressbar"
+                aria-label="Document extraction progress"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                {...(progress === null ? {} : { "aria-valuenow": progress })}
+                style={{
+                  height: "6px",
+                  borderRadius: "999px",
+                  backgroundColor: "var(--color-surface-subtle)",
+                  border: "1px solid var(--color-border)",
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    height: "100%",
+                    width: `${progress ?? 0}%`,
+                    backgroundColor: "var(--color-brand)",
+                    transition: "width 400ms ease",
+                  }}
+                />
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: "12px",
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                <span>
+                  {progress === null
+                    ? "Waiting for a worker"
+                    : `${progress}% complete`}
+                </span>
+                <span>{elapsedLabel(elapsedSeconds)} elapsed</span>
+              </div>
+            </div>
+          )}
+
           {/* Quality Score & Findings */}
           {value.quality !== null && (
             <div
@@ -276,7 +457,7 @@ export function IngestionStatusPanel({ projectId }: { projectId: string }) {
                 </span>
               </div>
 
-              {value.quality.findings && value.quality.findings.length > 0 && (
+              {findings.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "4px" }}>
                   <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text-muted)" }}>
                     Items to check in review:
@@ -284,17 +465,46 @@ export function IngestionStatusPanel({ projectId }: { projectId: string }) {
                   <ul
                     style={{
                       margin: 0,
-                      paddingLeft: "20px",
+                      padding: 0,
+                      listStyle: "none",
                       fontSize: "13px",
                       color: "var(--color-text-muted)",
                       display: "flex",
                       flexDirection: "column",
-                      gap: "4px",
+                      gap: "6px",
                     }}
                   >
-                    {value.quality.findings.map((finding, index) => (
-                      <li key={`${finding.code}-${finding.pageStart}-${index}`}>
-                        {finding.message}
+                    {findings.map((finding) => (
+                      <li
+                        key={`${finding.severity}-${finding.code}`}
+                        style={{ display: "flex", alignItems: "baseline", gap: "8px" }}
+                      >
+                        <span
+                          data-severity={finding.severity}
+                          style={{
+                            flex: "0 0 auto",
+                            minWidth: "24px",
+                            textAlign: "center",
+                            padding: "1px 6px",
+                            borderRadius: "999px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            color:
+                              finding.severity === "blocking"
+                                ? "var(--color-error-fg)"
+                                : "var(--color-warning-fg)",
+                            backgroundColor:
+                              finding.severity === "blocking"
+                                ? "var(--color-error-bg)"
+                                : "var(--color-warning-bg)",
+                          }}
+                        >
+                          {finding.count}
+                        </span>
+                        <span>
+                          {finding.label}
+                          <span style={{ opacity: 0.7 }}> · {finding.pages}</span>
+                        </span>
                       </li>
                     ))}
                   </ul>
@@ -308,11 +518,21 @@ export function IngestionStatusPanel({ projectId }: { projectId: string }) {
             {isReadyForReview && (
               <Button
                 variant="primary"
+                isLoading={openingReview}
                 onClick={() => {
-                  router.push(`/workspace/${projectId}/review`);
+                  startNavigationProgress();
+                  startOpeningReview(() => {
+                    router.push(`/workspace/${projectId}/review`);
+                  });
                 }}
               >
-                Review source <ArrowRight size={16} weight="bold" />
+                {openingReview ? (
+                  "Opening review…"
+                ) : (
+                  <>
+                    Review source <ArrowRight size={16} weight="bold" />
+                  </>
+                )}
               </Button>
             )}
 
