@@ -40,6 +40,7 @@ function sampleList(revision: number): StoryboardSceneListResponse {
         status: {
           assets: "none",
           audio: "not_generated",
+          captions: "not_generated",
           validation: "ok",
           stale: false,
         },
@@ -86,6 +87,7 @@ function sampleDetail() {
     status: {
       assets: "none",
       audio: "not_generated",
+      captions: "not_generated",
       validation: "ok",
       stale: false,
     },
@@ -348,10 +350,7 @@ describe("teacher asset query", () => {
     vi.stubGlobal("fetch", fetch);
 
     await expect(
-      deleteTeacherAsset(
-        projectId,
-        "019ffbf1-a001-7000-8000-000000000001",
-      ),
+      deleteTeacherAsset(projectId, "019ffbf1-a001-7000-8000-000000000001"),
     ).resolves.toBeUndefined();
     expect(String(request?.input)).toContain(
       `/projects/${projectId}/teacher-assets/019ffbf1-a001-7000-8000-000000000001`,

@@ -116,7 +116,7 @@ function input(source = storyboard()) {
           audio: {
             contentHash: sourceHash,
             durationMs: scene.durationSeconds * 1000,
-            fitWarning: null,
+            fitWarning: null as string | null,
             status: "ready" as const,
           },
           captions: {
@@ -205,6 +205,46 @@ describe("deterministic lesson validation", () => {
       expect.objectContaining({
         code: "narration_duration_mismatch",
         fieldPath: "scenes.0.narrationBlockIds",
+        severity: "error",
+      }),
+    );
+  });
+
+  it("treats audio shorter than its scene as padding, not a blocking issue", () => {
+    const fixture = input();
+    const sceneId = fixture.storyboard.scenes[0]!.stableSceneId;
+    const media = fixture.mediaByStableSceneId.get(sceneId)!;
+    // 36s scene, 29s of narration audio: the composition holds the visuals and
+    // plays trailing silence, so this must not block rendering.
+    fixture.mediaByStableSceneId.set(sceneId, {
+      ...media,
+      audio: {
+        ...media.audio!,
+        durationMs: 29_000,
+        fitWarning:
+          "Narration audio differs from the planned scene duration by more than one second.",
+      },
+    });
+    expect(evaluateLessonValidation(fixture)).not.toContainEqual(
+      expect.objectContaining({
+        code: "audio_duration_mismatch",
+        sceneId,
+      }),
+    );
+  });
+
+  it("blocks audio that overruns its scene and would be cut off", () => {
+    const fixture = input();
+    const sceneId = fixture.storyboard.scenes[0]!.stableSceneId;
+    const media = fixture.mediaByStableSceneId.get(sceneId)!;
+    fixture.mediaByStableSceneId.set(sceneId, {
+      ...media,
+      audio: { ...media.audio!, durationMs: 40_000, fitWarning: null },
+    });
+    expect(evaluateLessonValidation(fixture)).toContainEqual(
+      expect.objectContaining({
+        code: "audio_duration_mismatch",
+        fieldPath: "scenes.0.audio.durationMs",
         severity: "error",
       }),
     );

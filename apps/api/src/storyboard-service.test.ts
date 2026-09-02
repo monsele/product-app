@@ -7,6 +7,8 @@ import {
 } from "@avlp/config";
 import {
   auditEvents,
+  captionCues,
+  captionTracks,
   jobs,
   lessonConfigurations,
   lessonOutlineItems,
@@ -16,6 +18,7 @@ import {
   narrationSets,
   outboxEvents,
   scenes,
+  sceneAudio,
   type DatabaseClient,
 } from "@avlp/database";
 import {
@@ -364,6 +367,9 @@ type FakeDbOptions = {
   narrationBlockRows?: unknown[];
   lessonSpecRows?: unknown[];
   sceneRows?: unknown[];
+  sceneAudioRows?: unknown[];
+  captionTrackRows?: unknown[];
+  captionCueRows?: unknown[];
   jobRows?: unknown[];
 };
 
@@ -378,6 +384,9 @@ function fakeDatabase(options: FakeDbOptions = {}) {
     if (table === narrationBlocks) return options.narrationBlockRows ?? [];
     if (table === lessonSpecs) return options.lessonSpecRows ?? [];
     if (table === scenes) return options.sceneRows ?? [];
+    if (table === sceneAudio) return options.sceneAudioRows ?? [];
+    if (table === captionTracks) return options.captionTrackRows ?? [];
+    if (table === captionCues) return options.captionCueRows ?? [];
     if (table === jobs) {
       const rows = options.jobRows ?? [];
       if (rows.length > 0) return rows;
@@ -742,6 +751,7 @@ describe("PostgresStoryboardService.scenes", () => {
     expect(response.scenes[0]!.status).toEqual({
       assets: "none",
       audio: "not_generated",
+      captions: "not_generated",
       validation: "warning",
       stale: true,
     });
@@ -780,6 +790,50 @@ describe("PostgresStoryboardService.scenes", () => {
     const response = await service.scenes({ ownerUserId, projectId });
     expect(response.scenes[0]!.status.assets).toBe("missing_required");
     expect(response.scenes[1]!.status.assets).toBe("resolved");
+  });
+
+  it("projects current audio and caption readiness instead of reporting every scene as missing", async () => {
+    const sceneRowA = {
+      id: "019ffbf1-eeee-7000-8000-000000000050",
+      stableSceneId: storyboardPayload().scenes[0]!.stableSceneId,
+    };
+    const sceneRowB = {
+      id: "019ffbf1-eeee-7000-8000-000000000051",
+      stableSceneId: storyboardPayload().scenes[1]!.stableSceneId,
+    };
+    const audioId = "019ffbf1-eeee-7000-8000-000000000060";
+    const trackId = "019ffbf1-eeee-7000-8000-000000000061";
+    const { database } = fakeDatabase({
+      ...fixtureOptions,
+      sceneRows: [sceneRowA, sceneRowB],
+      sceneAudioRows: [
+        {
+          id: audioId,
+          sceneId: sceneRowA.id,
+          status: "ready",
+          updatedAt: new Date("2026-08-18T10:05:00.000Z"),
+        },
+      ],
+      captionTrackRows: [
+        {
+          id: trackId,
+          sceneAudioId: audioId,
+          status: "ready",
+          updatedAt: new Date("2026-08-18T10:05:00.000Z"),
+        },
+      ],
+      captionCueRows: [{ trackId }],
+    });
+    const { service } = createService(database, approvedStatus);
+    const response = await service.scenes({ ownerUserId, projectId });
+    expect(response.scenes[0]!.status).toMatchObject({
+      audio: "ready",
+      captions: "ready",
+    });
+    expect(response.scenes[1]!.status).toMatchObject({
+      audio: "not_generated",
+      captions: "not_generated",
+    });
   });
 
   it("projects an error validation status when the draft is structurally invalid", async () => {

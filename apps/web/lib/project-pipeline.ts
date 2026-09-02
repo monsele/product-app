@@ -1,5 +1,8 @@
 import type { ProjectStage } from "@avlp/schemas";
-import type { StageId, StageState } from "../components/layout/project-pipeline-rail";
+import type {
+  StageId,
+  StageState,
+} from "../components/layout/project-pipeline-rail";
 
 export interface PipelineStageConfig {
   id: StageId;
@@ -37,8 +40,9 @@ export function getProjectStageIndex(stage: ProjectStage): number {
     case "narration_storyboard_review":
       return 6; // Storyboard (covers both Narration and Storyboard)
     case "audio_generation":
-    case "ready_for_validation":
       return 6; // Storyboard
+    case "ready_for_validation":
+      return 6; // Storyboard until authoritative validation passes
     case "ready_to_render":
       return 7; // Preview
     case "rendering":
@@ -52,7 +56,8 @@ export function getProjectStageIndex(stage: ProjectStage): number {
 export function getPipelineStages(
   projectStage: ProjectStage,
   currentStageId?: StageId | undefined,
-  projectIdOrNavigate?: string | ((id: StageId, path: string) => void) | undefined,
+  projectIdOrNavigate?:
+    string | ((id: StageId, path: string) => void) | undefined,
   onNavigateExplicit?: ((id: StageId, path: string) => void) | undefined,
 ): StageState[] {
   const maxReachedIndex = getProjectStageIndex(projectStage);
@@ -74,7 +79,7 @@ export function getPipelineStages(
       status = "current";
     } else if (index < activeIndex || index < maxReachedIndex) {
       status = "completed";
-    } else if (index <= Math.max(maxReachedIndex, activeIndex + 1)) {
+    } else if (index <= maxReachedIndex) {
       status = "available";
     } else {
       status = "blocked";

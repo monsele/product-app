@@ -107,6 +107,7 @@ describe("voice configuration API", () => {
         jobId: fixture.projectId,
         durationMs: null,
         fitWarning: null,
+        failureCode: null,
         captions: [],
         retryable: false,
       }),
@@ -116,8 +117,30 @@ describe("voice configuration API", () => {
         jobId: null,
         durationMs: null,
         fitWarning: null,
+        failureCode: "TTS_GENERATION_FAILED",
         captions: [],
         retryable: true,
+      }),
+    };
+    const audioWithBatch = {
+      ...audio,
+      generateAll: async () => ({
+        totalScenes: 1,
+        readyScenes: 0,
+        pendingScenes: 1,
+        failedScenes: 0,
+        scenes: [
+          {
+            sceneId: fixture.projectId,
+            status: "queued" as const,
+            jobId: fixture.projectId,
+            durationMs: null,
+            fitWarning: null,
+            failureCode: null,
+            captions: [],
+            retryable: false,
+          },
+        ],
       }),
     };
     app = await createApp({
@@ -126,7 +149,7 @@ describe("voice configuration API", () => {
         new InMemoryOwnerScopedProjectRepository([fixture.project]),
       ),
       voiceConfigurationService: service,
-      sceneAudioService: audio,
+      sceneAudioService: audioWithBatch,
       trustedOrigin: "https://teacher.example.test",
     });
     const server = app.getHttpAdapter().getInstance();
@@ -168,5 +191,28 @@ describe("voice configuration API", () => {
       payload: { idempotencyKey: "audio-request-1" },
     });
     expect(queued.statusCode).toBe(202);
+    const batch = await server.inject({
+      method: "POST",
+      url: `/projects/${fixture.projectId}/audio/generate`,
+      cookies: { [sessionCookieName]: "owner" },
+      headers: {
+        origin: "https://teacher.example.test",
+        "content-type": "application/json",
+      },
+      payload: { idempotencyKey: "lesson-audio-request-1" },
+    });
+    expect(batch.statusCode).toBe(202);
+    expect(batch.json()).toMatchObject({ totalScenes: 1, pendingScenes: 1 });
+    const untrustedBatch = await server.inject({
+      method: "POST",
+      url: `/projects/${fixture.projectId}/audio/generate`,
+      cookies: { [sessionCookieName]: "owner" },
+      headers: {
+        origin: "https://attacker.example.test",
+        "content-type": "application/json",
+      },
+      payload: { idempotencyKey: "lesson-audio-request-2" },
+    });
+    expect(untrustedBatch.statusCode).toBe(403);
   });
 });

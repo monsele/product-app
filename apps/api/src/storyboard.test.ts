@@ -187,6 +187,7 @@ describe("storyboard API", () => {
             status: {
               assets: "none",
               audio: "not_generated",
+              captions: "not_generated",
               validation: "ok",
               stale: false,
             },
@@ -199,6 +200,7 @@ describe("storyboard API", () => {
         status: {
           assets: "none",
           audio: "not_generated",
+          captions: "not_generated",
           validation: "ok",
           stale: false,
         },

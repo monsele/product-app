@@ -4,15 +4,15 @@ import { videoTheme } from "@avlp/design-system/video-theme";
 
 /**
  * A scene can only be truthfully previewed when every one of its asset
- * bindings has a resolved manifest entry. Until the preview-manifest endpoint
- * lands (ST-065), storyboard scenes never carry resolved media, so any scene
- * with asset bindings must show an explicit "unavailable" state instead of a
- * broken preview player.
+ * The storyboard detail response does not carry signed media URLs. A scene
+ * with planned or bound assets must therefore show an explicit unavailable
+ * state instead of passing an empty manifest to the preview validator. The
+ * full Preview route owns signed-media loading through preview-manifest.
  */
 export function canPreviewScene(
   detail: StoryboardSceneDetailResponse,
 ): boolean {
-  return detail.scene.scene.assetBindings.length === 0;
+  return detail.status.assets === "none";
 }
 
 /**

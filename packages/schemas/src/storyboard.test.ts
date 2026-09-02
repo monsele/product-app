@@ -633,7 +633,7 @@ describe("scene regeneration schemas", () => {
     expect(currentSceneRegenerationCompatibility.promptId).toBe(
       "scene-regeneration",
     );
-    expect(currentSceneRegenerationCompatibility.promptVersion).toBe("v1");
+    expect(currentSceneRegenerationCompatibility.promptVersion).toBe("v2");
   });
 
   it("accepts the queued scene-regeneration response", () => {
@@ -759,6 +759,7 @@ describe("ST-054 storyboard scene list and detail read model", () => {
       status: {
         assets: "planned",
         audio: "not_generated",
+        captions: "not_generated",
         validation: "ok",
         stale: false,
       },
@@ -785,6 +786,7 @@ describe("ST-054 storyboard scene list and detail read model", () => {
         status: {
           assets: "none",
           audio: "not_generated",
+          captions: "not_generated",
           validation: "warning",
           stale: true,
         },

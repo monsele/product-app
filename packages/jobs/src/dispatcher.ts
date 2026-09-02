@@ -1,4 +1,4 @@
-import { clearTimeout, setTimeout } from "node:timers";
+import { waitForPoll } from "./poll.js";
 import type { ClaimedOutboxEvent } from "./repository.js";
 import type { StructuredLogger } from "@avlp/observability";
 
@@ -102,22 +102,6 @@ function safelyNotify(notification: () => void): void {
   } catch {
     // Diagnostic telemetry must not alter outbox delivery behavior.
   }
-}
-
-function waitForPoll(milliseconds: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    if (signal.aborted) {
-      resolve();
-      return;
-    }
-    const finish = () => {
-      clearTimeout(timer);
-      signal.removeEventListener("abort", finish);
-      resolve();
-    };
-    const timer = setTimeout(finish, milliseconds);
-    signal.addEventListener("abort", finish, { once: true });
-  });
 }
 
 export async function runOutboxDispatcher(

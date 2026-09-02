@@ -126,10 +126,12 @@ describeWithPostgres("PostgreSQL job repository", () => {
       await repository.heartbeat(lease, 1_000, new Date(now.getTime() + 500)),
     ).toBe(true);
     expect(
-      await repository.requeueStaleJobs(10, new Date(now.getTime() + 1_000)),
+      (await repository.requeueStaleJobs(10, new Date(now.getTime() + 1_000)))
+        .requeued,
     ).toHaveLength(0);
     expect(
-      await repository.requeueStaleJobs(10, new Date(now.getTime() + 1_501)),
+      (await repository.requeueStaleJobs(10, new Date(now.getTime() + 1_501)))
+        .requeued,
     ).toHaveLength(1);
 
     const [stored] = await database!.client

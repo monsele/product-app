@@ -16,6 +16,7 @@ import styles from "./storyboard.module.css";
 import {
   sceneAssetStatusLabel,
   sceneAudioStatusLabel,
+  sceneCaptionStatusLabel,
   sceneValidationStatusLabel,
 } from "./storyboard-input";
 
@@ -320,6 +321,7 @@ export function SceneList({
             <p className={styles.sceneMeta}>
               {sceneAssetStatusLabel(scene.status.assets)} ·{" "}
               {sceneAudioStatusLabel(scene.status.audio)} ·{" "}
+              {sceneCaptionStatusLabel(scene.status.captions)} ·{" "}
               {sceneValidationStatusLabel(scene.status.validation)}
               {sceneStale ? (
                 <span role="status" className={styles.staleFlag}>

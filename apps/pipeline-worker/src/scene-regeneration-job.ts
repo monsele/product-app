@@ -40,6 +40,7 @@ import {
   type SceneRegenerationParams,
   type SourcePackage,
 } from "@avlp/schemas";
+import { validateScene } from "@avlp/scene-library";
 import { and, eq } from "drizzle-orm";
 import {
   createModelCallGenerationHandler,
@@ -60,6 +61,7 @@ export class SceneRegenerationDeterministicCheckError extends Error {
     | "NARRATION_ASSIGNMENT_CHANGED"
     | "SCENE_UNGROUNDED"
     | "UNSUPPORTED_SOURCE_BLOCK"
+    | "SCENE_TEXT_OVERFLOW"
     | "DURATION_OUT_OF_BOUNDS";
 
   public constructor(
@@ -384,6 +386,27 @@ export function assertSceneRegenerationChecks(
         "UNSUPPORTED_SOURCE_BLOCK",
         `The regenerated scene cites unsupported source block ${blockId}.`,
       );
+  const layoutScene = sceneSpecSchema.parse({
+    id: operationContext.currentScene.scene.id,
+    order: operationContext.currentScene.scene.order,
+    narration: operationContext.currentScene.scene.narration,
+    durationSeconds: operationContext.currentScene.durationSeconds,
+    onScreenText: output.scene.onScreenText,
+    transition: output.scene.transition,
+    assetBindings: operationContext.currentScene.scene.assetBindings,
+    sourceRefs: [],
+    generatedAdditions: output.scene.generatedAdditions,
+    template: output.scene.template,
+    visual: output.scene.visual,
+  });
+  const overflow = validateScene(layoutScene).find(
+    (issue) => issue.code === "text_overflow",
+  );
+  if (overflow !== undefined)
+    throw new SceneRegenerationDeterministicCheckError(
+      "SCENE_TEXT_OVERFLOW",
+      `${overflow.fieldPath} exceeds the readable layout capacity.`,
+    );
   if (
     output.scene.estimatedSeconds < storyboardSceneMinimumSeconds ||
     output.scene.estimatedSeconds > storyboardSceneMaximumSeconds

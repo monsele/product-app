@@ -1,0 +1,102 @@
+Job execution error: JobExecutionError: Together rejected the provider request.
+    at handler (D:\Eronmonsele\Documents\repos\product-app\apps\pipeline-worker\src\model-call.ts:548:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async executeJobDelivery (D:\Eronmonsele\Documents\repos\product-app\packages\jobs\src\worker.ts:138:7)
+    at async D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\bullmq@5.81.3\node_modules\bullmq\dist\cjs\classes\worker.js:612:32 {
+  classification: 'terminal',
+  code: 'PROVIDER_REQUEST_REJECTED',
+  details: undefined
+}
+Job execution error: JobExecutionError: The Together provider request could not be completed.
+    at handler (D:\Eronmonsele\Documents\repos\product-app\apps\pipeline-worker\src\model-call.ts:548:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async executeJobDelivery (D:\Eronmonsele\Documents\repos\product-app\packages\jobs\src\worker.ts:138:7)
+    at async D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\bullmq@5.81.3\node_modules\bullmq\dist\cjs\classes\worker.js:612:32 {
+  classification: 'retryable',
+  code: 'PROVIDER_TRANSPORT_FAILED',
+  details: undefined
+}
+Job execution error: JobExecutionError: The Together provider request could not be completed.
+    at handler (D:\Eronmonsele\Documents\repos\product-app\apps\pipeline-worker\src\model-call.ts:548:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async executeJobDelivery (D:\Eronmonsele\Documents\repos\product-app\packages\jobs\src\worker.ts:138:7)
+    at async D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\bullmq@5.81.3\node_modules\bullmq\dist\cjs\classes\worker.js:612:32 {
+  classification: 'retryable',
+  code: 'PROVIDER_TRANSPORT_FAILED',
+  details: undefined
+}
+D:\Eronmonsele\Documents\repos\product-app\apps\pipeline-worker\src\runtime.ts:16
+  StaleJobReaper,
+  ^
+SyntaxError: The requested module '@avlp/jobs' does not provide an export named 'StaleJobReaper'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:319:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:422:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async bootstrap (D:\Eronmonsele\Documents\repos\product-app\apps\pipeline-worker\src\main.ts:11:35)
+
+Node.js v24.14.0
+Job execution error: JobExecutionError: The model output failed deterministic checks.
+    at handler (D:\Eronmonsele\Documents\repos\product-app\apps\pipeline-worker\src\model-call.ts:442:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async executeJobDelivery (D:\Eronmonsele\Documents\repos\product-app\packages\jobs\src\worker.ts:138:7)
+    at async D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\bullmq@5.81.3\node_modules\bullmq\dist\cjs\classes\worker.js:612:32 {
+  classification: 'terminal',
+  code: 'MODEL_OUTPUT_DETERMINISTIC_FAILURE',
+  details: undefined
+}
+Job execution error: JobExecutionError: The model output failed deterministic checks.
+    at handler (D:\Eronmonsele\Documents\repos\product-app\apps\pipeline-worker\src\model-call.ts:442:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async executeJobDelivery (D:\Eronmonsele\Documents\repos\product-app\packages\jobs\src\worker.ts:138:7)
+    at async D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\bullmq@5.81.3\node_modules\bullmq\dist\cjs\classes\worker.js:612:32 {
+  classification: 'terminal',
+  code: 'MODEL_OUTPUT_DETERMINISTIC_FAILURE',
+  details: undefined
+}
+node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package '@avlp/scene-library' imported from D:\Eronmonsele\Documents\repos\product-app\apps\pipeline-worker\src\scene-regeneration-job.ts
+Did you mean to import "file:///D:/Eronmonsele/Documents/repos/product-app/packages/scene-library/dist/index.js"?
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:991:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:719:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveBaseSync (file:///D:/Eronmonsele/Documents/repos/product-app/node_modules/.pnpm/tsx@4.23.10/node_modules/tsx/dist/register-DdgZzFJi.mjs:2:10932)
+    at resolveDirectorySync (file:///D:/Eronmonsele/Documents/repos/product-app/node_modules/.pnpm/tsx@4.23.10/node_modules/tsx/dist/register-DdgZzFJi.mjs:2:12238)
+    at resolveTsPathsSync (file:///D:/Eronmonsele/Documents/repos/product-app/node_modules/.pnpm/tsx@4.23.10/node_modules/tsx/dist/register-DdgZzFJi.mjs:2:13445) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.14.0
+Job execution error: JobExecutionError: The scene audio could not be generated.
+    at <anonymous> (D:\Eronmonsele\Documents\repos\product-app\apps\pipeline-worker\src\scene-audio-job.ts:483:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async executeJobDelivery (D:\Eronmonsele\Documents\repos\product-app\packages\jobs\src\worker.ts:138:7)
+    at async D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\bullmq@5.81.3\node_modules\bullmq\dist\cjs\classes\worker.js:612:32 {
+  classification: 'retryable',
+  code: 'TTS_GENERATION_FAILED',
+  details: undefined
+}
+Job execution error: JobExecutionError: The scene audio could not be generated.
+    at <anonymous> (D:\Eronmonsele\Documents\repos\product-app\apps\pipeline-worker\src\scene-audio-job.ts:483:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async executeJobDelivery (D:\Eronmonsele\Documents\repos\product-app\packages\jobs\src\worker.ts:138:7)
+    at async D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\bullmq@5.81.3\node_modules\bullmq\dist\cjs\classes\worker.js:612:32 {
+  classification: 'retryable',
+  code: 'TTS_GENERATION_FAILED',
+  details: undefined
+}
+Job execution error: JobExecutionError: The scene audio could not be generated.
+    at <anonymous> (D:\Eronmonsele\Documents\repos\product-app\apps\pipeline-worker\src\scene-audio-job.ts:483:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async executeJobDelivery (D:\Eronmonsele\Documents\repos\product-app\packages\jobs\src\worker.ts:138:7)
+    at async D:\Eronmonsele\Documents\repos\product-app\node_modules\.pnpm\bullmq@5.81.3\node_modules\bullmq\dist\cjs\classes\worker.js:612:32 {
+  classification: 'retryable',
+  code: 'TTS_GENERATION_FAILED',
+  details: undefined
+}

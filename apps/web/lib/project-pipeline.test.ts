@@ -28,8 +28,35 @@ describe("project-pipeline stage mapping", () => {
     expect(getProjectStageIndex("objectives_review")).toBe(3);
     expect(getProjectStageIndex("outline_review")).toBe(4);
     expect(getProjectStageIndex("narration_storyboard_review")).toBe(6);
+    expect(getProjectStageIndex("audio_generation")).toBe(6);
+    expect(getProjectStageIndex("ready_for_validation")).toBe(6);
     expect(getProjectStageIndex("ready_to_render")).toBe(7);
     expect(getProjectStageIndex("completed")).toBe(8);
+  });
+
+  it("keeps Preview blocked until every scene has audio and captions", () => {
+    const editing = getPipelineStages(
+      "narration_storyboard_review",
+      "Storyboard",
+    );
+    expect(editing.find((stage) => stage.id === "Preview")?.status).toBe(
+      "blocked",
+    );
+    const generating = getPipelineStages("audio_generation", "Storyboard");
+    expect(generating.find((stage) => stage.id === "Preview")?.status).toBe(
+      "blocked",
+    );
+    const awaitingValidation = getPipelineStages(
+      "ready_for_validation",
+      "Storyboard",
+    );
+    expect(
+      awaitingValidation.find((stage) => stage.id === "Preview")?.status,
+    ).toBe("blocked");
+    const ready = getPipelineStages("ready_to_render", "Storyboard");
+    expect(ready.find((stage) => stage.id === "Preview")?.status).toBe(
+      "available",
+    );
   });
 
   it("computes stage statuses correctly for active objectives review", () => {

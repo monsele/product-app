@@ -9,6 +9,7 @@ import {
   defineJobHandler,
   JobExecutionError,
   type JobHandler,
+  type JobMetadata,
   type RegisteredJobHandler,
 } from "@avlp/jobs";
 import {
@@ -221,6 +222,16 @@ export async function loadApprovedSourceSnapshot(input: {
   return { status: "ok", snapshot: sourceSnapshotSchema.parse(row.payload) };
 }
 
+/**
+ * A rule an accepted generation still violates. Operations return these from
+ * their deterministic checks for guidance a reviewer weighs — pacing, house
+ * style — as opposed to invariants the pipeline depends on, which throw.
+ */
+export type DeterministicWarning = {
+  code: string;
+  message: string;
+};
+
 export type ModelCallHandlerOptions<T> = {
   jobType: string;
   payloadVersion: number;
@@ -240,11 +251,16 @@ export type ModelCallHandlerOptions<T> = {
   auditWriter?: Pick<ReturnType<typeof createAuditWriter>, "write">;
   pricing?: ModelPricingTable;
   maxRepairs?: number;
+  /**
+   * Throws to reject the generation outright; may instead return warnings for
+   * rules the draft may violate while remaining usable, which are reported on
+   * the completed job rather than discarding the work.
+   */
   deterministicChecks?: (
     value: T,
     sourcePackage: SourcePackage,
     operationContext: unknown,
-  ) => void;
+  ) => readonly DeterministicWarning[] | void;
   renderVariables?: (input: {
     sourcePackage: SourcePackage;
     params: ModelCallParams;
@@ -419,13 +435,15 @@ export function createModelCallGenerationHandler<T>(
           ? {}
           : { maxRepairs: options.maxRepairs }),
       });
+      let warnings: readonly DeterministicWarning[] = [];
       try {
-        options.deterministicChecks?.(
-          structured.value,
-          sourcePackage,
-          operationContext?.context,
-        );
-      } catch {
+        warnings =
+          options.deterministicChecks?.(
+            structured.value,
+            sourcePackage,
+            operationContext?.context,
+          ) ?? [];
+      } catch (error) {
         await recordFailedCall({
           context,
           payload,
@@ -439,10 +457,15 @@ export function createModelCallGenerationHandler<T>(
           usageMeter,
           ...(pricing === undefined ? {} : { pricing }),
         });
+        // The rule that rejected the output is the only actionable part of
+        // this failure: without it a caller cannot tell an uncited source
+        // block from an over-long sentence, and the generation is already
+        // discarded. Provider text never enters the details.
         throw new JobExecutionError(
           "terminal",
           "MODEL_OUTPUT_DETERMINISTIC_FAILURE",
           "The model output failed deterministic checks.",
+          deterministicFailureDetails(error),
         );
       }
       const record = buildSucceededRecord({
@@ -522,6 +545,14 @@ export function createModelCallGenerationHandler<T>(
         outputUnits: record.outputUnits,
         estimatedCostUsd: record.estimatedCostUsd,
         ...(candidateId === undefined ? {} : { candidateId }),
+        ...(warnings.length === 0
+          ? {}
+          : {
+              warnings: warnings.map((warning) => ({
+                code: warning.code,
+                message: warning.message,
+              })),
+            }),
       };
     } catch (error) {
       if (error instanceof JobExecutionError) throw error;
@@ -580,6 +611,21 @@ export function createModelCallGenerationHandler<T>(
     modelCallJobPayloadSchema,
     handler,
   );
+}
+
+/**
+ * Extracts the reportable part of a deterministic-check failure: the rule code
+ * carried by operation-specific check errors, plus the message identifying the
+ * offending block. Both are authored by this repository's checks, never by the
+ * provider, so neither can leak model or source text into job metadata.
+ */
+function deterministicFailureDetails(error: unknown): JobMetadata | undefined {
+  if (!(error instanceof Error)) return undefined;
+  const reason = (error as { code?: unknown }).code;
+  return {
+    ...(typeof reason === "string" && reason.length > 0 ? { reason } : {}),
+    message: error.message.slice(0, 500),
+  };
 }
 
 function buildSucceededRecord<T>(input: {

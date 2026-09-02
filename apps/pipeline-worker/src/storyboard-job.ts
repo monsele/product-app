@@ -43,6 +43,7 @@ import {
   type StoryboardGenerationParams,
   type StoryboardOutputV1,
 } from "@avlp/schemas";
+import { validateScene } from "@avlp/scene-library";
 import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import {
@@ -68,6 +69,7 @@ export class StoryboardDeterministicCheckError extends Error {
     | "BLOCK_ASSIGNED_MULTIPLE_TIMES"
     | "BLOCK_ORDER_VIOLATED"
     | "OUTLINE_ITEM_UNCOVERED"
+    | "SCENE_TEXT_OVERFLOW"
     | "DURATION_UNREACHABLE";
 
   public constructor(
@@ -450,6 +452,27 @@ export function assertStoryboardDeterministicChecks(
           "UNSUPPORTED_SOURCE_BLOCK",
           `scenes[${sceneIndex}] cites unsupported source block ${blockId}.`,
         );
+    const layoutScene = sceneSpecSchema.parse({
+      id: "019ffbf1-ffff-7000-8000-000000000099",
+      order: sceneIndex + 1,
+      narration: "Layout check.",
+      durationSeconds: storyboardSceneMinimumSeconds,
+      onScreenText: scene.onScreenText,
+      transition: scene.transition,
+      assetBindings: [],
+      sourceRefs: [],
+      generatedAdditions: scene.generatedAdditions,
+      template: scene.template,
+      visual: scene.visual,
+    });
+    const overflow = validateScene(layoutScene).find(
+      (issue) => issue.code === "text_overflow",
+    );
+    if (overflow !== undefined)
+      throw new StoryboardDeterministicCheckError(
+        "SCENE_TEXT_OVERFLOW",
+        `scenes[${sceneIndex}] ${overflow.fieldPath} exceeds the readable layout capacity.`,
+      );
   }
   if (assigned.length !== orderedBlockIds.length)
     throw new StoryboardDeterministicCheckError(

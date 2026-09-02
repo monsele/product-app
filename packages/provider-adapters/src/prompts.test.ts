@@ -66,9 +66,9 @@ describe("prompt registry", () => {
     }
   });
 
-  it("renders the storyboard v1 prompt with the template catalog and narration", () => {
+  it("renders the latest storyboard prompt with layout preflight guidance", () => {
     const registry = new StaticPromptRegistry(repositoryPrompts);
-    const definition = registry.get("storyboard", "v1");
+    const definition = registry.latest("storyboard");
     expect(definition.kind).toBe("storyboard");
     expect(definition.templateCatalogVersion).toBe("mvp-default");
     const { system, user } = renderPrompt(definition, {
@@ -81,9 +81,11 @@ describe("prompt registry", () => {
     expect(system).toContain("storyboard planner");
     expect(system).toContain("pixel coordinates");
     expect(system).toContain("Return ONLY a JSON object");
+    expect(definition.version).toBe("v2");
     expect(user).toContain("storyboard-v1");
     expect(user).toContain("narrationBlockIds");
     expect(user).toContain("assetRequirements");
+    expect(user).toContain("Layout preflight rules");
     expect(user).not.toContain("{{templateCatalog}}");
     expect(user).not.toContain("{{narration}}");
     expect(user).not.toContain("{{outline}}");

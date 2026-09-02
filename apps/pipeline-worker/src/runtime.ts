@@ -12,7 +12,10 @@ import {
   redisConnectionFromUrl,
   registerJobConsumer,
   runOutboxDispatcher,
+  runStaleJobReaper,
+  StaleJobReaper,
   StructuredOutboxTelemetry,
+  StructuredStaleJobTelemetry,
   type RegisteredJobHandler,
   type JobPublisher,
 } from "@avlp/jobs";
@@ -39,9 +42,11 @@ import { createDocumentValidationJobHandler } from "./document-validation-job.js
 import { HttpDoclingIngestionClient } from "./docling-ingestion-client.js";
 import { createDocumentIngestionJobHandler } from "./document-ingestion-job.js";
 import {
-  mockPricing,
   DynamicMockLanguageModelProvider,
   MockIllustrationProvider,
+  TogetherIllustrationProvider,
+  TogetherLanguageModelProvider,
+  togetherPricing,
   repositoryPrompts,
   StaticPromptRegistry,
   type LanguageModelProvider,
@@ -60,6 +65,8 @@ import { createGroundingCheckJobHandler } from "./grounding-check-job.js";
 import { createProjectAssetValidationJobHandler } from "./project-asset-validation-job.js";
 import { createIllustrationGenerationJobHandler } from "./illustration-generation-job.js";
 import { createSceneAudioGenerationJobHandler } from "./scene-audio-job.js";
+import { TogetherKokoroTtsProvider } from "./together-tts.js";
+import { TogetherWhisperAlignmentProvider } from "./together-alignment.js";
 
 function processAbortSignal(): { signal: AbortSignal; dispose: () => void } {
   const controller = new AbortController();
@@ -106,10 +113,16 @@ async function createStorage(
 }
 
 function createLanguageModelProvider(
-  _environmentInput: Record<string, string | undefined>,
+  environment: ReturnType<typeof parseWorkerEnvironment>,
 ): LanguageModelProvider {
-  // When no external LLM API key is configured, fallback to the intelligent dynamic mock provider.
-  return new DynamicMockLanguageModelProvider();
+  if (environment.TOGETHER_API_KEY === undefined)
+    return new DynamicMockLanguageModelProvider();
+  return new TogetherLanguageModelProvider({
+    apiKey: environment.TOGETHER_API_KEY,
+    baseUrl: environment.TOGETHER_API_BASE_URL,
+    requestTimeoutMs: environment.TOGETHER_REQUEST_TIMEOUT_MS,
+    maxRetries: environment.TOGETHER_MAX_RETRIES,
+  });
 }
 
 function createMalwareScanner(
@@ -167,7 +180,39 @@ export async function runPipelineWorker(
         createStorage(environmentInput));
       const languageModelProvider =
         options.languageModelProvider ??
-        createLanguageModelProvider(environmentInput);
+        createLanguageModelProvider(workerEnvironment);
+      const illustrationProvider =
+        workerEnvironment.TOGETHER_API_KEY === undefined
+          ? undefined
+          : new TogetherIllustrationProvider({
+              apiKey: workerEnvironment.TOGETHER_API_KEY,
+              baseUrl: workerEnvironment.TOGETHER_API_BASE_URL,
+              model: workerEnvironment.TOGETHER_IMAGE_MODEL,
+              costUsdPerImage: workerEnvironment.TOGETHER_IMAGE_COST_USD,
+              requestTimeoutMs: workerEnvironment.TOGETHER_REQUEST_TIMEOUT_MS,
+              maxRetries: workerEnvironment.TOGETHER_MAX_RETRIES,
+            });
+      const ttsProvider =
+        workerEnvironment.TOGETHER_API_KEY === undefined
+          ? undefined
+          : new TogetherKokoroTtsProvider({
+              apiKey: workerEnvironment.TOGETHER_API_KEY,
+              baseUrl: workerEnvironment.TOGETHER_API_BASE_URL,
+              model: workerEnvironment.TOGETHER_TTS_MODEL,
+              defaultVoice: workerEnvironment.TOGETHER_TTS_VOICE,
+              requestTimeoutMs: workerEnvironment.TOGETHER_REQUEST_TIMEOUT_MS,
+              maxRetries: workerEnvironment.TOGETHER_MAX_RETRIES,
+            });
+      const alignmentProvider =
+        workerEnvironment.TOGETHER_API_KEY === undefined
+          ? undefined
+          : new TogetherWhisperAlignmentProvider({
+              apiKey: workerEnvironment.TOGETHER_API_KEY,
+              baseUrl: workerEnvironment.TOGETHER_API_BASE_URL,
+              model: workerEnvironment.TOGETHER_ALIGNMENT_MODEL,
+              requestTimeoutMs: workerEnvironment.TOGETHER_REQUEST_TIMEOUT_MS,
+              maxRetries: workerEnvironment.TOGETHER_MAX_RETRIES,
+            });
       const malwareScanner =
         options.malwareScanner ??
         createMalwareScanner(
@@ -197,7 +242,7 @@ export async function runPipelineWorker(
         createIllustrationGenerationJobHandler({
           database: database.client,
           storage,
-          provider: new MockIllustrationProvider({
+          provider: illustrationProvider ?? new MockIllustrationProvider({
             providerCallId: "local-illustration-fixture",
             mediaType: "image/png",
             bytes: new Uint8Array([
@@ -238,7 +283,7 @@ export async function runPipelineWorker(
           quotaGuard: generationQuotaGuard({
             "ai.objectives": { maxCallsPerHour: 20 },
           }),
-          pricing: mockPricing,
+          pricing: togetherPricing,
         }),
         createOutlineGenerationJobHandler({
           database: database.client,
@@ -247,7 +292,7 @@ export async function runPipelineWorker(
           quotaGuard: generationQuotaGuard({
             "ai.outline": { maxCallsPerHour: 20 },
           }),
-          pricing: mockPricing,
+          pricing: togetherPricing,
         }),
         createNarrationGenerationJobHandler({
           database: database.client,
@@ -256,7 +301,7 @@ export async function runPipelineWorker(
           quotaGuard: generationQuotaGuard({
             "ai.narration": { maxCallsPerHour: 20 },
           }),
-          pricing: mockPricing,
+          pricing: togetherPricing,
         }),
         createNarrationBlockTransformJobHandler({
           database: database.client,
@@ -265,7 +310,7 @@ export async function runPipelineWorker(
           quotaGuard: generationQuotaGuard({
             "ai.narration": { maxCallsPerHour: 20 },
           }),
-          pricing: mockPricing,
+          pricing: togetherPricing,
         }),
         createStoryboardGenerationJobHandler({
           database: database.client,
@@ -274,7 +319,7 @@ export async function runPipelineWorker(
           quotaGuard: generationQuotaGuard({
             "ai.storyboard": { maxCallsPerHour: 20 },
           }),
-          pricing: mockPricing,
+          pricing: togetherPricing,
         }),
         createSceneRegenerationJobHandler({
           database: database.client,
@@ -285,7 +330,7 @@ export async function runPipelineWorker(
               maxCallsPerHour: workerEnvironment.MAX_REGENERATIONS_PER_HOUR,
             },
           }),
-          pricing: mockPricing,
+          pricing: togetherPricing,
         }),
         createGroundingCheckJobHandler({
           database: database.client,
@@ -294,11 +339,13 @@ export async function runPipelineWorker(
           quotaGuard: generationQuotaGuard({
             "ai.grounding": { maxCallsPerHour: 20 },
           }),
-          pricing: mockPricing,
+          pricing: togetherPricing,
         }),
         createSceneAudioGenerationJobHandler({
           database: database.client,
           storage,
+          ...(ttsProvider === undefined ? {} : { provider: ttsProvider }),
+          ...(alignmentProvider === undefined ? {} : { alignmentProvider }),
         }),
       ];
     }
@@ -326,14 +373,30 @@ export async function runPipelineWorker(
     const dispatcher = new OutboxDispatcher(repository, publisher, {
       telemetry: new StructuredOutboxTelemetry(logger),
     });
-    logger.info("worker.started", health());
-    await runOutboxDispatcher(dispatcher, {
-      signal,
-      onCycleError: () =>
-        logger.error("queue.dispatch_cycle_failed", {
-          queueName: "all",
-        }),
+    const reaper = new StaleJobReaper(repository, {
+      telemetry: new StructuredStaleJobTelemetry(logger),
     });
+    logger.info("worker.started", health());
+    // The dispatcher delivers new work and the reaper recovers work whose
+    // worker died mid-flight; both run for the life of the process, so a
+    // failure in either must bring the worker down rather than leave one
+    // half of the queue lifecycle silently unattended.
+    await Promise.all([
+      runOutboxDispatcher(dispatcher, {
+        signal,
+        onCycleError: () =>
+          logger.error("queue.dispatch_cycle_failed", {
+            queueName: "all",
+          }),
+      }),
+      runStaleJobReaper(reaper, {
+        signal,
+        onCycleError: () =>
+          logger.error("queue.lease_sweep_failed", {
+            queueName: "all",
+          }),
+      }),
+    ]);
   } finally {
     processSignal?.dispose();
     const shutdown = await Promise.allSettled([

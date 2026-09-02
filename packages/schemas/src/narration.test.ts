@@ -357,11 +357,11 @@ describe("narration response schema", () => {
 });
 
 describe("narration generation compatibility", () => {
-  it("targets the narration v2 prompt with the mock model", () => {
+  it("targets the narration v2 prompt with the Together model", () => {
     expect(currentNarrationGenerationCompatibility).toMatchObject({
       promptId: "narration",
       promptVersion: "v2",
-      model: "mock-model-1",
+      model: "Qwen/Qwen3.8-Flash",
     });
   });
 });
@@ -504,11 +504,11 @@ describe("narration transform contracts", () => {
     ).toThrow();
   });
 
-  it("targets the narration-block v1 prompt with the mock model", () => {
+  it("targets the narration-block v1 prompt with the Together model", () => {
     expect(currentNarrationTransformCompatibility).toMatchObject({
       promptId: "narration-block",
       promptVersion: "v1",
-      model: "mock-model-1",
+      model: "Qwen/Qwen3.8-Flash",
     });
   });
 });

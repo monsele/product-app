@@ -25,6 +25,17 @@ import { FullLessonPreview } from "./workspace/[projectId]/preview/preview-playe
 import { RenderPanel } from "./workspace/[projectId]/render/render-panel.js";
 import SharedLessonPage from "./share/[token]/page.js";
 
+// Objectives/Outline panels call useRouter() to refresh the server-rendered
+// pipeline rail after approval. These suites use renderToStaticMarkup, which
+// has no app-router context, so the hook needs a stub.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    refresh: () => undefined,
+    push: () => undefined,
+    replace: () => undefined,
+  }),
+}));
+
 // Common mock fixtures
 const sampleProjectId = "01989a3d-8e00-7000-8000-000000000001";
 const sampleScene1 = createDefaultStoryboardSceneSpec("hook", {

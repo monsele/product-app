@@ -185,7 +185,11 @@ export async function runApi(input: {
       voiceConfigurationService: new PostgresVoiceConfigurationService(
         database.client,
       ),
-      sceneAudioService: new SceneAudioService(database.client),
+      sceneAudioService: new SceneAudioService(
+        database.client,
+        undefined,
+        storage,
+      ),
       previewManifestService: new PreviewManifestService(
         database.client,
         storage,

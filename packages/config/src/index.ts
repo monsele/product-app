@@ -1,6 +1,6 @@
-import { createHash, randomBytes } from "node:crypto";
 import { z, ZodError } from "zod";
 import { identifierSchema, type Identifier } from "./identifiers.js";
+import { randomBytes, sha256 } from "./crypto.js";
 
 const utcTimestampPattern =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
@@ -18,7 +18,7 @@ export function createId(now = new Date()): Identifier {
   }
   bytes[6] = (bytes[6]! & 0x0f) | 0x70;
   bytes[8] = (bytes[8]! & 0x3f) | 0x80;
-  const hex = bytes.toString("hex");
+  const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
@@ -63,7 +63,7 @@ export function computeNarrationBlockContentHash(input: {
       generated: input.generated,
     }),
   );
-  return createHash("sha256").update(canonical).digest("hex");
+  return sha256(canonical);
 }
 
 /**
@@ -81,7 +81,7 @@ export function computeNarrationSetContentHash(
       blocks: blocks.map((block) => ({ contentHash: block.contentHash })),
     }),
   );
-  return createHash("sha256").update(canonical).digest("hex");
+  return sha256(canonical);
 }
 
 /**
@@ -116,7 +116,7 @@ export function computeLessonStoryboardSceneContentHash(input: {
       assetBindings: input.assetBindings,
     }),
   );
-  return createHash("sha256").update(canonical).digest("hex");
+  return sha256(canonical);
 }
 
 /**
@@ -145,7 +145,7 @@ export function computeLessonStoryboardContentHash(input: {
       })),
     }),
   );
-  return createHash("sha256").update(canonical).digest("hex");
+  return sha256(canonical);
 }
 
 export const paginationSchema = z.object({
@@ -384,10 +384,42 @@ export const ingestionServiceEnvironmentSchema = z.object({
   INGESTION_SERVICE_URL: z.string().url().optional(),
   INGESTION_SERVICE_TOKEN: z.string().min(32).optional(),
 });
+
+/** Together model IDs selected for the current production provider wiring. */
+export const togetherModelDefaults = {
+  llm: "Qwen/Qwen3.8-Flash",
+  tts: "hexgrad/Kokoro-82M",
+  image: "prunaai/p-image-ideogram",
+  alignment: "openai/whisper-large-v3",
+} as const;
+
+export const togetherTtsProviderOptions = {
+  providerId: "together",
+  outputFormat: "wav",
+} as const;
+
+const togetherEnvironmentSchema = z.object({
+  TOGETHER_API_KEY: z.preprocess(
+    (value) =>
+      typeof value === "string" && value.trim().length === 0
+        ? undefined
+        : value,
+    z.string().trim().min(1).optional(),
+  ),
+  TOGETHER_API_BASE_URL: z.string().url().default("https://api.together.ai/v1"),
+  TOGETHER_TTS_MODEL: z.string().trim().min(1).max(200).default(togetherModelDefaults.tts),
+  TOGETHER_TTS_VOICE: z.string().trim().min(1).max(100).default("af_bella"),
+  TOGETHER_ALIGNMENT_MODEL: z.string().trim().min(1).max(200).default(togetherModelDefaults.alignment),
+  TOGETHER_IMAGE_MODEL: z.string().trim().min(1).max(200).default(togetherModelDefaults.image),
+  TOGETHER_IMAGE_COST_USD: z.coerce.number().finite().nonnegative().default(0.00225),
+  TOGETHER_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(300_000).default(60_000),
+  TOGETHER_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
+});
 export const apiEnvironmentSchema = baseEnvironmentSchema
   .merge(databaseEnvironmentSchema)
   .merge(redisEnvironmentSchema)
   .merge(storageEnvironmentObjectSchema)
+  .merge(togetherEnvironmentSchema)
   .extend({
     PORT: z.coerce.number().int().positive().max(65535).default(3001),
     AUTH_SESSION_SECRET: z.string().min(32),
@@ -478,6 +510,7 @@ export const workerEnvironmentSchema = baseEnvironmentSchema
   .merge(storageEnvironmentObjectSchema)
   .merge(malwareScannerEnvironmentSchema)
   .merge(ingestionServiceEnvironmentSchema)
+  .merge(togetherEnvironmentSchema)
   .merge(
     z.object({
       MAX_REGENERATIONS_PER_HOUR: z.coerce
@@ -522,6 +555,15 @@ export const workerEnvironmentSchema = baseEnvironmentSchema
         code: z.ZodIssueCode.custom,
         path: ["INGESTION_SERVICE_TOKEN"],
         message: "INGESTION_SERVICE_TOKEN is required in production.",
+      });
+    if (
+      value.NODE_ENV === "production" &&
+      value.TOGETHER_API_KEY === undefined
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["TOGETHER_API_KEY"],
+        message: "TOGETHER_API_KEY is required in production.",
       });
   });
 export const webEnvironmentSchema = baseEnvironmentSchema.extend({

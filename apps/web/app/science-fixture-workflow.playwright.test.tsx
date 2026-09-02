@@ -1,7 +1,7 @@
 import { chromium, type Browser, type Page } from "@playwright/test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
   canonicalFivePageScienceDocument,
   canonicalScienceLesson,
@@ -21,6 +21,17 @@ import { NarrationPanel } from "./workspace/[projectId]/narration/narration-pane
 import { StoryboardPanel } from "./workspace/[projectId]/storyboard/storyboard-panel.js";
 import { FullLessonPreview } from "./workspace/[projectId]/preview/preview-player.js";
 import { RenderPanel } from "./workspace/[projectId]/render/render-panel.js";
+
+// Objectives/Outline panels call useRouter() to refresh the server-rendered
+// pipeline rail after approval. These suites use renderToStaticMarkup, which
+// has no app-router context, so the hook needs a stub.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    refresh: () => undefined,
+    push: () => undefined,
+    replace: () => undefined,
+  }),
+}));
 
 describe("Science Fixture Complete End-to-End Workflow (Playwright)", () => {
   let browser: Browser;

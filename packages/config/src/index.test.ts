@@ -16,6 +16,15 @@ import {
   storageEnvironmentSchema,
   toApiErrorEnvelope,
 } from "./index.js";
+import { sha256 } from "./crypto.js";
+
+describe("browser-safe crypto helpers", () => {
+  it("produces standard SHA-256 digests", () => {
+    expect(sha256("abc")).toBe(
+      "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    );
+  });
+});
 
 describe("parseEnvironment", () => {
   it("accepts required service connection values", () => {

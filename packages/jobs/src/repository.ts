@@ -71,6 +71,16 @@ const administrativeJobCommandSchema = z.object({
   correlationId: identifierSchema,
 });
 
+/**
+ * The outcome of one stale-lease sweep: jobs handed back to the queue for
+ * another attempt, and jobs whose retry budget was already spent and are now
+ * terminally failed. Both are reported so an abandoned job is never silent.
+ */
+export type StaleLeaseSweep = {
+  requeued: JobRow[];
+  failed: JobRow[];
+};
+
 export function staleLeaseAction(
   job: Pick<JobRow, "state" | "leaseExpiresAt" | "attempts" | "maxAttempts">,
   now = new Date(),
@@ -497,7 +507,7 @@ export class PostgresJobRepository implements JobExecutionRepository {
   public async requeueStaleJobs(
     limit: number,
     now = new Date(),
-  ): Promise<JobRow[]> {
+  ): Promise<StaleLeaseSweep> {
     return inTransaction(this.client, async (transaction) => {
       const stale = await transaction
         .select()
@@ -507,9 +517,10 @@ export class PostgresJobRepository implements JobExecutionRepository {
         .limit(limit)
         .for("update", { skipLocked: true });
       const requeued: JobRow[] = [];
+      const failed: JobRow[] = [];
       for (const staleJob of stale) {
         if (staleLeaseAction(staleJob, now) === "fail") {
-          await transaction
+          const [abandoned] = await transaction
             .update(jobs)
             .set({
               state: "failed",
@@ -524,7 +535,9 @@ export class PostgresJobRepository implements JobExecutionRepository {
               leaseExpiresAt: null,
               updatedAt: now,
             })
-            .where(and(eq(jobs.id, staleJob.id), eq(jobs.state, "running")));
+            .where(and(eq(jobs.id, staleJob.id), eq(jobs.state, "running")))
+            .returning();
+          if (abandoned !== undefined) failed.push(abandoned);
           continue;
         }
         const [updated] = await transaction
@@ -546,7 +559,7 @@ export class PostgresJobRepository implements JobExecutionRepository {
           );
         requeued.push(updated);
       }
-      return requeued;
+      return { requeued, failed };
     });
   }
 

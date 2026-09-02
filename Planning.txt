@@ -1,0 +1,5 @@
+Large Language Models (LLM) — Planning & Grounding-Qwen 3.8 Flash
+
+ Text-to-Speech (TTS) & Audio Alignment Models - Kokoro 82M
+
+ Scene Illustration / Image Generation Models- P-image Ideogram

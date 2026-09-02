@@ -1,8 +1,19 @@
 import { chromium } from "@playwright/test";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ObjectivesPanel } from "./objectives-panel.js";
+
+// The panel calls useRouter() to refresh the server-rendered pipeline rail
+// after approval. These tests render it with renderToStaticMarkup, which has
+// no app-router context, so the hook needs a stub.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    refresh: () => undefined,
+    push: () => undefined,
+    replace: () => undefined,
+  }),
+}));
 
 describe("ObjectivesPanel (Playwright)", () => {
   it(

@@ -1,3 +1,4 @@
+import { togetherModelDefaults } from "@avlp/config";
 import { identifierSchema, type Identifier } from "@avlp/config/identifiers";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
@@ -109,6 +110,37 @@ export const illustrationGenerationResponseSchema = z
 export type IllustrationGenerationResponse = z.infer<
   typeof illustrationGenerationResponseSchema
 >;
+/**
+ * Result of queueing illustrations for every required-but-unbound asset slot in
+ * a lesson. The hourly cap is usually smaller than a full storyboard's needs, so
+ * this reports a partial run honestly rather than failing the whole request:
+ * `queued` covers what was accepted and `skipped` what the cap deferred.
+ */
+export const lessonIllustrationGenerationResponseSchema = z
+  .object({
+    totalMissing: z.number().int().nonnegative().max(1_000),
+    queued: z.number().int().nonnegative().max(1_000),
+    skipped: z.number().int().nonnegative().max(1_000),
+    rateLimited: z.boolean(),
+    requests: z
+      .array(
+        z
+          .object({
+            sceneId: identifierSchema,
+            slot: z.string().trim().min(1).max(64),
+            candidateId: identifierSchema,
+            jobId: identifierSchema,
+            status: z.literal("queued"),
+          })
+          .strict(),
+      )
+      .max(1_000),
+  })
+  .strict();
+export type LessonIllustrationGenerationResponse = z.infer<
+  typeof lessonIllustrationGenerationResponseSchema
+>;
+
 export const illustrationGenerationJobPayloadSchema = z
   .object({
     schemaVersion: z.literal(1),
@@ -3280,6 +3312,7 @@ export const sceneAudioStatusResponseSchema = z
     jobId: identifierSchema.nullable(),
     durationMs: z.number().int().positive().nullable(),
     fitWarning: z.string().nullable(),
+    failureCode: z.string().trim().min(1).max(100).nullable(),
     captions: z
       .array(
         z
@@ -3299,6 +3332,50 @@ export const sceneAudioStatusResponseSchema = z
   .strict();
 export type SceneAudioStatusResponse = z.infer<
   typeof sceneAudioStatusResponseSchema
+>;
+
+/**
+ * Short-lived signed playback for one scene's narration audio. The URL is
+ * minted per request so the storyboard can play a scene without the caller
+ * ever seeing a storage key.
+ */
+export const sceneAudioPlaybackResponseSchema = z
+  .object({
+    sceneId: identifierSchema,
+    url: z.string().url(),
+    contentType: z.string().trim().min(1).max(100),
+    durationMs: z.number().int().positive().nullable(),
+    expiresAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type SceneAudioPlaybackResponse = z.infer<
+  typeof sceneAudioPlaybackResponseSchema
+>;
+
+/** One explicit teacher action may queue every incomplete scene, while each
+ * scene keeps its own independently retryable TTS job and status record. */
+export const lessonAudioGenerationResponseSchema = z
+  .object({
+    totalScenes: z.number().int().positive().max(50),
+    readyScenes: z.number().int().nonnegative().max(50),
+    pendingScenes: z.number().int().nonnegative().max(50),
+    failedScenes: z.number().int().nonnegative().max(50),
+    scenes: z.array(sceneAudioStatusResponseSchema).min(1).max(50),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (
+      value.readyScenes + value.pendingScenes + value.failedScenes !==
+      value.totalScenes
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["totalScenes"],
+        message: "The lesson audio summary must account for every scene.",
+      });
+  });
+export type LessonAudioGenerationResponse = z.infer<
+  typeof lessonAudioGenerationResponseSchema
 >;
 export const lessonVersionsResponseSchema = z
   .object({
@@ -3789,7 +3866,7 @@ export const currentObjectiveGenerationCompatibility =
   objectiveGenerationCompatibilitySchema.parse({
     promptId: "objectives",
     promptVersion: "v2",
-    model: "mock-model-1",
+    model: togetherModelDefaults.llm,
   });
 
 /** Latest objectives generation job surfaced for the review UI. */
@@ -4102,7 +4179,7 @@ export const currentOutlineGenerationCompatibility =
   outlineGenerationCompatibilitySchema.parse({
     promptId: "outline",
     promptVersion: "v2",
-    model: "mock-model-1",
+    model: togetherModelDefaults.llm,
   });
 
 /** Latest outline generation job surfaced for the review route. */
@@ -4482,7 +4559,7 @@ export const currentNarrationGenerationCompatibility =
   narrationGenerationCompatibilitySchema.parse({
     promptId: "narration",
     promptVersion: "v2",
-    model: "mock-model-1",
+    model: togetherModelDefaults.llm,
   });
 
 /** Latest narration generation job surfaced for the review route. */
@@ -4863,7 +4940,7 @@ export const currentNarrationTransformCompatibility =
   narrationTransformCompatibilitySchema.parse({
     promptId: "narration-block",
     promptVersion: "v1",
-    model: "mock-model-1",
+    model: togetherModelDefaults.llm,
   });
 
 /** The prompt/model the API uses for grounding checks now. */
@@ -4881,7 +4958,7 @@ export const currentGroundingCompatibility = groundingCompatibilitySchema.parse(
   {
     promptId: "grounding",
     promptVersion: "v2",
-    model: "mock-model-1",
+    model: togetherModelDefaults.llm,
   },
 );
 
@@ -5691,8 +5768,8 @@ export type SceneRegenerationCompatibility = z.infer<
 export const currentSceneRegenerationCompatibility =
   sceneRegenerationCompatibilitySchema.parse({
     promptId: "scene-regeneration",
-    promptVersion: "v1",
-    model: "mock-model-1",
+    promptVersion: "v2",
+    model: togetherModelDefaults.llm,
   });
 
 /**
@@ -5734,8 +5811,8 @@ export type StoryboardGenerationCompatibility = z.infer<
 export const currentStoryboardGenerationCompatibility =
   storyboardGenerationCompatibilitySchema.parse({
     promptId: "storyboard",
-    promptVersion: "v1",
-    model: "mock-model-1",
+    promptVersion: "v2",
+    model: togetherModelDefaults.llm,
   });
 
 /** Latest storyboard generation job surfaced for the review route. */
@@ -5905,16 +5982,36 @@ export type StoryboardSceneAssetStatus = z.infer<
   typeof storyboardSceneAssetStatusSchema
 >;
 
-/**
- * Audio-readiness projection for one storyboard scene. Audio generation lands
- * in ST-063; until then every scene reports `not_generated`.
- */
-export const storyboardSceneAudioStatusValues = ["not_generated"] as const;
+/** Audio-readiness projection for one current storyboard scene. */
+export const storyboardSceneAudioStatusValues = [
+  "not_generated",
+  "queued",
+  "generating",
+  "ready",
+  "stale",
+  "failed",
+] as const;
 export const storyboardSceneAudioStatusSchema = z.enum(
   storyboardSceneAudioStatusValues,
 );
 export type StoryboardSceneAudioStatus = z.infer<
   typeof storyboardSceneAudioStatusSchema
+>;
+
+/** Caption readiness is projected separately so ready audio can never hide a
+ * missing or interrupted caption write. */
+export const storyboardSceneCaptionStatusValues = [
+  "not_generated",
+  "pending",
+  "ready",
+  "stale",
+  "failed",
+] as const;
+export const storyboardSceneCaptionStatusSchema = z.enum(
+  storyboardSceneCaptionStatusValues,
+);
+export type StoryboardSceneCaptionStatus = z.infer<
+  typeof storyboardSceneCaptionStatusSchema
 >;
 
 /** Validation-readiness projection for one storyboard scene. */
@@ -5935,6 +6032,7 @@ export const storyboardSceneStatusSchema = z
   .object({
     assets: storyboardSceneAssetStatusSchema,
     audio: storyboardSceneAudioStatusSchema,
+    captions: storyboardSceneCaptionStatusSchema,
     validation: storyboardSceneValidationStatusSchema,
     stale: z.boolean(),
   })

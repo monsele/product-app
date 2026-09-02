@@ -16,6 +16,7 @@ import {
   outlineObjectiveLinks,
   parsedDocuments,
   projectAssets,
+  projects,
   sceneAudio,
   scenes,
   sourceSnapshots,
@@ -491,12 +492,16 @@ export function evaluateLessonValidation(
             details: { status: media.audio.status },
           }),
         );
-      if (
-        media.audio.fitWarning !== null ||
-        media.audio.durationMs === null ||
-        Math.abs(media.audio.durationMs - scene.durationSeconds * 1000) >
-          durationToleranceMs
-      )
+      // Audio shorter than the planned scene is padded with trailing silence:
+      // the composition wraps <Audio> in a Sequence fixed to the scene duration,
+      // so playback simply ends early and the visuals hold. Only an overrun is a
+      // defect, because the Sequence cuts the audio off at the scene boundary.
+      const plannedDurationMs = scene.durationSeconds * 1000;
+      const overrunMs =
+        media.audio.durationMs === null
+          ? null
+          : media.audio.durationMs - plannedDurationMs;
+      if (overrunMs === null || overrunMs > durationToleranceMs)
         issues.push(
           issue("audio_duration_mismatch", {
             severity: "error",
@@ -504,10 +509,13 @@ export function evaluateLessonValidation(
             scopeId: sceneId,
             sceneId,
             fieldPath: `scenes.${sceneIndex}.audio.durationMs`,
-            message: "Scene audio does not fit the planned scene duration.",
+            message:
+              overrunMs === null
+                ? "Scene audio duration is unknown."
+                : "Scene audio is longer than the planned scene duration and would be cut off.",
             details: {
               audioDurationMs: media.audio.durationMs,
-              plannedDurationMs: scene.durationSeconds * 1000,
+              plannedDurationMs,
             },
           }),
         );
@@ -668,7 +676,10 @@ export class PostgresLessonValidationService implements LessonValidationService 
         ),
       )
       .limit(1);
-    if (cached !== undefined) return this.readRun(cached, false);
+    if (cached !== undefined) {
+      await this.advanceReadyProject(cached.status, input);
+      return this.readRun(cached, false);
+    }
     const startedAt = this.now();
     const drafts = evaluateLessonValidation(assembled.input);
     const runId = createId(startedAt);
@@ -730,9 +741,28 @@ export class PostgresLessonValidationService implements LessonValidationService 
         .limit(1);
       if (concurrent === undefined)
         throw new Error("Validation run could not be persisted.");
+      await this.advanceReadyProject(concurrent.status, input);
       return this.readRun(concurrent, false);
     }
+    await this.advanceReadyProject(created.status, input);
     return this.readRun(created, false);
+  }
+
+  private async advanceReadyProject(
+    status: (typeof validationRuns.$inferSelect)["status"],
+    input: { ownerUserId: Identifier; projectId: Identifier },
+  ): Promise<void> {
+    if (status !== "passed") return;
+    await this.database
+      .update(projects)
+      .set({ stage: "ready_to_render", updatedAt: this.now() })
+      .where(
+        and(
+          eq(projects.id, input.projectId),
+          eq(projects.ownerUserId, input.ownerUserId),
+          eq(projects.stage, "ready_for_validation"),
+        ),
+      );
   }
 
   public async latest(input: {

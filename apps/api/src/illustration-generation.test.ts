@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
-import { type Identifier } from "@avlp/config";
+import { describe, expect, it, vi } from "vitest";
+import { PublicError, type Identifier } from "@avlp/config";
 import { type DatabaseClient } from "@avlp/database";
+import { createDefaultStoryboardSceneSpec } from "@avlp/schemas";
 import { IllustrationGenerationService } from "./illustration-generation.js";
 
 const ownerUserId = "019ffbf1-aaaa-7000-8000-000000000001" as Identifier;
@@ -121,5 +122,117 @@ describe("IllustrationGenerationService.request", () => {
       status: "queued",
     });
     expect(inserts).toHaveLength(2);
+  });
+
+  it("queues one illustration per required slot that has no binding", async () => {
+    // hook needs 1 slot, comparison needs 2, definition needs none.
+    const sceneRows = [
+      {
+        stableSceneId: "019ffbf1-eeee-7000-8000-000000000101",
+        revision: 3,
+        order: 1,
+        assetRequirements: [{ slot: "subject", purpose: "Anchor image." }],
+        sceneJson: createDefaultStoryboardSceneSpec("hook", {
+          id: "019ffbf1-eeee-7000-8000-000000000101" as Identifier,
+          order: 1,
+          durationSeconds: 20,
+        }),
+      },
+      {
+        stableSceneId: "019ffbf1-eeee-7000-8000-000000000102",
+        revision: 1,
+        order: 2,
+        assetRequirements: [],
+        sceneJson: createDefaultStoryboardSceneSpec("definition", {
+          id: "019ffbf1-eeee-7000-8000-000000000102" as Identifier,
+          order: 2,
+          durationSeconds: 20,
+        }),
+      },
+      {
+        stableSceneId: "019ffbf1-eeee-7000-8000-000000000103",
+        revision: 7,
+        order: 3,
+        assetRequirements: [
+          { slot: "left-subject-image", purpose: "Left." },
+          { slot: "right-subject-image", purpose: "Right." },
+        ],
+        sceneJson: createDefaultStoryboardSceneSpec("comparison", {
+          id: "019ffbf1-eeee-7000-8000-000000000103" as Identifier,
+          order: 3,
+          durationSeconds: 20,
+        }),
+      },
+    ];
+    const { database } = fakeDatabase([sceneRows], []);
+    const service = new IllustrationGenerationService(database);
+    const request = vi
+      .fn()
+      .mockResolvedValue({ candidateId, jobId, status: "queued" });
+    service.request = request as unknown as typeof service.request;
+
+    const result = await service.generateMissing({
+      ownerUserId,
+      projectId,
+      correlationId,
+    });
+
+    expect(result.totalMissing).toBe(3);
+    expect(result.queued).toBe(3);
+    expect(result.skipped).toBe(0);
+    expect(result.rateLimited).toBe(false);
+    // The scene's own current revision must be used, not a guess.
+    expect(request.mock.calls[0]?.[0]).toMatchObject({
+      sceneId: "019ffbf1-eeee-7000-8000-000000000101",
+      body: expect.objectContaining({ expectedSceneRevision: 3 }),
+    });
+    expect(
+      request.mock.calls.map((call) => (call[0] as { slot: string }).slot),
+    ).toEqual(["subject", "left-subject-image", "right-subject-image"]);
+  });
+
+  it("reports a partial run instead of failing when the hourly cap is hit", async () => {
+    const sceneRows = [
+      {
+        stableSceneId: "019ffbf1-eeee-7000-8000-000000000104",
+        revision: 1,
+        order: 1,
+        assetRequirements: [
+          { slot: "left-subject-image", purpose: "Left." },
+          { slot: "right-subject-image", purpose: "Right." },
+        ],
+        sceneJson: createDefaultStoryboardSceneSpec("comparison", {
+          id: "019ffbf1-eeee-7000-8000-000000000104" as Identifier,
+          order: 1,
+          durationSeconds: 20,
+        }),
+      },
+    ];
+    const { database } = fakeDatabase([sceneRows], []);
+    const service = new IllustrationGenerationService(database);
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce({ candidateId, jobId, status: "queued" })
+      .mockRejectedValueOnce(
+        new PublicError(
+          "rate_limited",
+          "This project has reached its illustration-generation limit.",
+          429,
+        ),
+      );
+    service.request = request as unknown as typeof service.request;
+
+    const result = await service.generateMissing({
+      ownerUserId,
+      projectId,
+      correlationId,
+    });
+
+    expect(result).toMatchObject({
+      totalMissing: 2,
+      queued: 1,
+      skipped: 1,
+      rateLimited: true,
+    });
   });
 });

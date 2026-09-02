@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   objectivesResponseSchema,
   outlineResponseSchema,
@@ -27,6 +29,7 @@ import { StatusLabel } from "../../../../components/ui/status-label";
 import { toast } from "../../../../components/ui/toast-provider";
 import { useTaskStatusNotification } from "../../../../lib/use-task-notification";
 import {
+  ArrowRight,
   BookOpen,
   CheckCircle,
   Clock,
@@ -269,13 +272,15 @@ export function OutlinePanel({
     }
   }, [projectId, refresh]);
 
+  const router = useRouter();
+
   const mutate = useCallback(
     async (
       method: string,
       path: string,
       body: unknown,
       successMessage: string,
-    ) => {
+    ): Promise<boolean> => {
       setActionMessage(null);
       setSubmitting(true);
       try {
@@ -305,6 +310,7 @@ export function OutlinePanel({
         setActionMessageType("success");
         toast.success(msg);
         await refresh().catch(() => undefined);
+        return true;
       } catch (error) {
         const errorMsg =
           error instanceof Error ? error.message : "Unable to update outline.";
@@ -312,6 +318,7 @@ export function OutlinePanel({
         setActionMessageType("error");
         toast.error(errorMsg);
         await refresh().catch(() => undefined);
+        return false;
       } finally {
         setSubmitting(false);
       }
@@ -460,8 +467,13 @@ export function OutlinePanel({
       "/approve",
       { expectedRevision: value.set.revision },
       "approved",
-    );
-  }, [mutate, value]);
+    ).then((ok) => {
+      // Approval moves the project to narration_storyboard_review. The pipeline
+      // rail is rendered by the server component from project.stage, so without
+      // this the Narration step stays blocked until a manual reload.
+      if (ok) router.refresh();
+    });
+  }, [mutate, router, value]);
 
   if (view.kind === "loading") {
     return (
@@ -1041,7 +1053,42 @@ export function OutlinePanel({
                   Approve outline
                 </Button>
               ) : (
-                <StatusLabel status="success" label="Active approved outline" />
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <StatusLabel
+                    status="success"
+                    label="Active approved outline"
+                  />
+                  <Link
+                    href={`/workspace/${encodeURIComponent(projectId)}/narration`}
+                    prefetch={true}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "9px 18px",
+                      backgroundColor: "var(--color-brand)",
+                      color: "var(--color-on-brand)",
+                      borderRadius: "var(--radius-control)",
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      textDecoration: "none",
+                      cursor: "pointer",
+                      boxShadow: "var(--shadow-elevation)",
+                      transition:
+                        "opacity var(--motion-quick) var(--motion-easing)",
+                    }}
+                  >
+                    <span>Proceed to narration</span>
+                    <ArrowRight weight="bold" size={16} />
+                  </Link>
+                </div>
               )}
             </div>
           </div>

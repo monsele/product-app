@@ -6,6 +6,7 @@ const sceneId = "019ffbf1-6151-738a-b087-6775ff97568c";
 
 function detailWithBindings(
   assetBindings: StoryboardSceneDetailResponse["scene"]["scene"]["assetBindings"],
+  assetRequirements: StoryboardSceneDetailResponse["scene"]["assetRequirements"] = [],
 ): StoryboardSceneDetailResponse {
   return {
     sceneRevision: 0,
@@ -16,7 +17,7 @@ function detailWithBindings(
       template: "definition",
       durationSeconds: 30,
       narrationBlockIds: ["019ffbf1-6131-738a-b087-6775ff97568c"],
-      assetRequirements: [],
+      assetRequirements,
       scene: {
         id: sceneId,
         order: 1,
@@ -32,8 +33,14 @@ function detailWithBindings(
       },
     },
     status: {
-      assets: assetBindings.length > 0 ? "resolved" : "none",
+      assets:
+        assetBindings.length > 0
+          ? "resolved"
+          : assetRequirements.length > 0
+            ? "planned"
+            : "none",
       audio: "not_generated",
+      captions: "not_generated",
       validation: "ok",
       stale: false,
     },
@@ -52,6 +59,17 @@ describe("canPreviewScene", () => {
       slot: "visual-example",
     };
     expect(canPreviewScene(detailWithBindings([binding]))).toBe(false);
+  });
+
+  it("blocks a scene with planned assets before a binding exists", () => {
+    expect(
+      canPreviewScene(
+        detailWithBindings(
+          [],
+          [{ slot: "visual-example", purpose: "A supporting illustration." }],
+        ),
+      ),
+    ).toBe(false);
   });
 });
 

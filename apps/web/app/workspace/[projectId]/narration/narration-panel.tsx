@@ -393,7 +393,13 @@ export function NarrationPanel({
 
   const draft = view.value.set;
   const approved = view.value.approved;
-  const warnings = narrationValidationWarnings(view.value.validation);
+  // Before anything is generated the API reports every approved outline item as
+  // uncovered (narration.ts computeValidation, set === null). That is correct as
+  // data -- it gates canApprove -- but as a notice it tells the teacher to
+  // "regenerate" something they never generated. The empty state already says
+  // what to do, so only surface validation warnings once a draft exists.
+  const warnings =
+    draft === null ? [] : narrationValidationWarnings(view.value.validation);
   const isNarrationApproved = draft !== null && draft.status === "approved";
   const selectedBlock =
     draft?.blocks.find((b) => b.id === selectedBlockId) ?? draft?.blocks[0] ?? null;

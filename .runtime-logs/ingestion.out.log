@@ -1,0 +1,2 @@
+INFO:     127.0.0.1:55962 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61037 - "POST /v1/ingestion-jobs HTTP/1.1" 200 OK

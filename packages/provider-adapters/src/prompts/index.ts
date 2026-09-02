@@ -9,7 +9,9 @@ import { objectivesPromptV2 } from "./objectives/v2.js";
 import { outlinePromptV1 } from "./outline/v1.js";
 import { outlinePromptV2 } from "./outline/v2.js";
 import { sceneRegenerationPromptV1 } from "./scene-regeneration/v1.js";
+import { sceneRegenerationPromptV2 } from "./scene-regeneration/v2.js";
 import { storyboardPromptV1 } from "./storyboard/v1.js";
+import { storyboardPromptV2 } from "./storyboard/v2.js";
 
 /**
  * The repository's versioned prompt files. Every prompt change must bump a
@@ -24,7 +26,9 @@ export const repositoryPrompts: readonly PromptDefinition[] = [
   narrationPromptV2,
   narrationBlockPromptV1,
   storyboardPromptV1,
+  storyboardPromptV2,
   sceneRegenerationPromptV1,
+  sceneRegenerationPromptV2,
   groundingPromptV1,
   groundingPromptV2,
 ];

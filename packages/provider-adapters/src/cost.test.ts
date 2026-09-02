@@ -15,6 +15,16 @@ describe("cost estimation", () => {
     expect(cost).toBe(2); // 0.5 + 1.5
   });
 
+  it("includes the selected Together LLM pricing", () => {
+    expect(
+      estimateCostUsd({
+        model: "Qwen/Qwen3.8-Flash",
+        inputTokens: 1_000_000,
+        outputTokens: 1_000_000,
+      }),
+    ).toBe(0.62);
+  });
+
   it("accepts an explicit pricing table", () => {
     const pricing: ModelPricingTable = {
       custom: { inputUsdPerMillionTokens: 2, outputUsdPerMillionTokens: 4 },

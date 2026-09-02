@@ -132,6 +132,9 @@ importers:
       '@avlp/provider-adapters':
         specifier: workspace:*
         version: link:../../packages/provider-adapters
+      '@avlp/scene-library':
+        specifier: workspace:*
+        version: link:../../packages/scene-library
       '@avlp/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas

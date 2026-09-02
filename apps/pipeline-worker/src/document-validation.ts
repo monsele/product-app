@@ -19,10 +19,7 @@ const malwareScanResponseSchema = z
   .strict();
 
 export class PassThroughMalwareScanner implements MalwareScanner {
-  public async scan(_input: {
-    bytes: Uint8Array;
-    sha256: string;
-  }): Promise<MalwareScanResult> {
+  public async scan(): Promise<MalwareScanResult> {
     return { status: "safe" };
   }
 }

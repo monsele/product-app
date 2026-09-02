@@ -305,7 +305,9 @@ type ProjectAssetApiService = Pick<
 type IllustrationGenerationApiService = Pick<
   IllustrationGenerationService,
   "request" | "list" | "reject"
->;
+> & {
+  generateMissing?: IllustrationGenerationService["generateMissing"];
+};
 type IngestionStatusApiService = Pick<
   IngestionStatusService,
   "status" | "retry"
@@ -380,7 +382,10 @@ type VoiceConfigurationApiService = Pick<
   VoiceConfigurationService,
   "get" | "save"
 >;
-type SceneAudioApiService = Pick<SceneAudioService, "generate" | "status">;
+type SceneAudioApiService = Pick<SceneAudioService, "generate" | "status"> & {
+  generateAll?: SceneAudioService["generateAll"];
+  playback?: SceneAudioService["playback"];
+};
 type PreviewManifestApiService = Pick<PreviewManifestService, "get">;
 type LessonValidationApiService = Pick<
   LessonValidationService,
@@ -867,6 +872,29 @@ class ProjectsController {
     });
   }
 
+  @Post(":projectId/audio/generate")
+  @HttpCode(202)
+  public async generateLessonAudio(
+    @Param("projectId") projectId: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    if (this.sceneAudio.generateAll === undefined)
+      throw new PublicError(
+        "internal_error",
+        "Lesson audio generation is unavailable.",
+        503,
+        true,
+      );
+    return this.sceneAudio.generateAll({
+      ...assertAuthorizedProject(request, projectId),
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
   @Get(":projectId/scenes/:sceneId/audio-status")
   public async sceneAudioStatus(
     @Param("projectId") projectId: string,
@@ -875,6 +903,21 @@ class ProjectsController {
   ): Promise<unknown> {
     return this.sceneAudio.status({
       ...assertAuthorizedProject(request, projectId),
+      sceneId: identifierSchema.parse(sceneId),
+    });
+  }
+
+  @Get(":projectId/scenes/:sceneId/audio")
+  public async sceneAudioPlayback(
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    if (this.sceneAudio.playback === undefined)
+      throw new PublicError("not_found", "Audio playback is unavailable.", 404);
+    return this.sceneAudio.playback({
+      ...access,
       sceneId: identifierSchema.parse(sceneId),
     });
   }
@@ -1801,6 +1844,29 @@ class ProjectsController {
       sceneId: sceneId.data,
       slot,
       body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/illustrations/generate-missing")
+  @HttpCode(202)
+  public async generateMissingIllustrations(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    if (this.illustrations.generateMissing === undefined)
+      throw new PublicError(
+        "internal_error",
+        "Illustration generation is unavailable.",
+        503,
+        true,
+      );
+    return this.illustrations.generateMissing({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
       correlationId:
         request.correlationId ?? "00000000-0000-7000-8000-000000000000",
     });
@@ -3444,6 +3510,15 @@ const unavailableVoiceConfigurationService: VoiceConfigurationApiService = {
 };
 const unavailableSceneAudioService: SceneAudioApiService = {
   generate: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Audio generation is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  generateAll: () =>
     Promise.reject(
       new PublicError(
         "internal_error",

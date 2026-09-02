@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   objectivesResponseSchema,
   type LearningObjective,
@@ -21,6 +23,7 @@ import { StatusLabel } from "../../../../components/ui/status-label";
 import { toast } from "../../../../components/ui/toast-provider";
 import { useTaskStatusNotification } from "../../../../lib/use-task-notification";
 import {
+  ArrowRight,
   BookOpen,
   CheckCircle,
   PencilSimple,
@@ -192,13 +195,15 @@ export function ObjectivesPanel({
     }
   }, [projectId, refresh]);
 
+  const router = useRouter();
+
   const mutate = useCallback(
     async (
       method: string,
       path: string,
       body: unknown,
       successMessage: string,
-    ) => {
+    ): Promise<boolean> => {
       setActionMessage(null);
       setSubmitting(true);
       try {
@@ -231,6 +236,7 @@ export function ObjectivesPanel({
         setActionMessageType("success");
         toast.success(msg);
         await refresh().catch(() => undefined);
+        return true;
       } catch (error) {
         const errorMsg =
           error instanceof Error
@@ -240,6 +246,7 @@ export function ObjectivesPanel({
         setActionMessageType("error");
         toast.error(errorMsg);
         await refresh().catch(() => undefined);
+        return false;
       } finally {
         setSubmitting(false);
       }
@@ -349,8 +356,13 @@ export function ObjectivesPanel({
       "/approve",
       { expectedRevision: value.set.revision },
       "approved",
-    );
-  }, [mutate, value]);
+    ).then((ok) => {
+      // Approval moves the project to outline_review. The pipeline rail is
+      // rendered by the server component from project.stage, so without this
+      // the Outline step stays blocked until a manual reload.
+      if (ok) router.refresh();
+    });
+  }, [mutate, router, value]);
 
   if (view.kind === "loading") {
     return (
@@ -1054,7 +1066,39 @@ export function ObjectivesPanel({
                   Approve objectives
                 </Button>
               ) : (
-                <StatusLabel status="success" label="Active approved set" />
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <StatusLabel status="success" label="Active approved set" />
+                  <Link
+                    href={`/workspace/${encodeURIComponent(projectId)}/outline`}
+                    prefetch={true}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "9px 18px",
+                      backgroundColor: "var(--color-brand)",
+                      color: "var(--color-on-brand)",
+                      borderRadius: "var(--radius-control)",
+                      fontSize: "14px",
+                      fontWeight: 600,
+                      textDecoration: "none",
+                      cursor: "pointer",
+                      boxShadow: "var(--shadow-elevation)",
+                      transition:
+                        "opacity var(--motion-quick) var(--motion-easing)",
+                    }}
+                  >
+                    <span>Proceed to lesson outline</span>
+                    <ArrowRight weight="bold" size={16} />
+                  </Link>
+                </div>
               )}
             </div>
           </div>

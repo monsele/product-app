@@ -547,6 +547,15 @@ describe("assertSceneRegenerationChecks", () => {
     );
   });
 
+  it("rejects a regenerated scene whose combined text exceeds the layout budget", () => {
+    const output = sceneOutput({
+      onScreenText: Array.from({ length: 12 }, () => "Key"),
+    });
+    expect(() => assertSceneRegenerationChecks(output, pkg, context)).toThrow(
+      /readable layout capacity/,
+    );
+  });
+
   it("rejects an out-of-bounds duration", () => {
     const output = sceneOutput({ estimatedSeconds: 2 });
     expect(() => assertSceneRegenerationChecks(output, pkg, context)).toThrow(

@@ -10,6 +10,7 @@ import {
   type Identifier,
 } from "@avlp/config";
 import {
+  captionCues,
   captionTracks,
   extractedFigures,
   figureInclusionOverlays,
@@ -80,6 +81,8 @@ import {
   type StoryboardResponse,
   type StoryboardSceneDetailResponse,
   type StoryboardSceneEditResponse,
+  type StoryboardSceneAudioStatus,
+  type StoryboardSceneCaptionStatus,
   type StoryboardSceneListResponse,
   type StoryboardSceneStatus,
   type StoryboardValidation,
@@ -1016,6 +1019,12 @@ export class PostgresStoryboardService implements StoryboardService {
         storyboard.basedOnNarrationSetId,
       ),
     });
+    const mediaBySceneId = await projectSceneMediaStatuses(
+      this.database,
+      input.ownerUserId,
+      input.projectId,
+      workingRow.id,
+    );
     return storyboardSceneListResponseSchema.parse({
       revision: storyboard.revision,
       stale: stale.stale,
@@ -1023,7 +1032,12 @@ export class PostgresStoryboardService implements StoryboardService {
       totalDurationSeconds: storyboard.totalDurationSeconds,
       targetDurationSeconds: storyboard.targetDurationSeconds,
       scenes: storyboard.scenes.map((scene) =>
-        projectSceneListEntry(scene, stale.stale, validation),
+        projectSceneListEntry(
+          scene,
+          stale.stale,
+          validation,
+          mediaBySceneId.get(scene.stableSceneId),
+        ),
       ),
     });
   }
@@ -1098,6 +1112,14 @@ export class PostgresStoryboardService implements StoryboardService {
       input.sceneId,
     );
     if (sceneRow === undefined) throw sceneNotFound();
+    const media = (
+      await projectSceneMediaStatuses(
+        this.database,
+        input.ownerUserId,
+        input.projectId,
+        workingRow.id,
+      )
+    ).get(currentScene.stableSceneId);
     return storyboardSceneDetailResponseSchema.parse({
       scene: currentScene,
       sceneRevision: sceneRow.revision,
@@ -1105,6 +1127,7 @@ export class PostgresStoryboardService implements StoryboardService {
         stale.stale,
         validation,
         projectSceneAssetStatus(currentScene),
+        media,
       ),
     });
   }
@@ -2779,10 +2802,12 @@ function projectSceneStatus(
   stale: boolean,
   validation: StoryboardValidation,
   assets: StoryboardSceneStatus["assets"],
+  media: SceneMediaStatus | undefined,
 ): StoryboardSceneStatus {
   return {
     assets,
-    audio: "not_generated",
+    audio: media?.audio ?? "not_generated",
+    captions: media?.captions ?? "not_generated",
     validation:
       assets === "missing_required" || !validation.structurallyValid
         ? "error"
@@ -2797,6 +2822,7 @@ function projectSceneListEntry(
   scene: LessonStoryboardScene,
   stale: boolean,
   validation: StoryboardValidation,
+  media: SceneMediaStatus | undefined,
 ) {
   return {
     sceneId: scene.stableSceneId,
@@ -2810,8 +2836,119 @@ function projectSceneListEntry(
       stale,
       validation,
       projectSceneAssetStatus(scene),
+      media,
     ),
   };
+}
+
+type SceneMediaStatus = {
+  audio: StoryboardSceneAudioStatus;
+  captions: StoryboardSceneCaptionStatus;
+};
+
+async function projectSceneMediaStatuses(
+  database: DatabaseExecutor,
+  ownerUserId: Identifier,
+  projectId: Identifier,
+  lessonSpecId: string,
+): Promise<Map<string, SceneMediaStatus>> {
+  const sceneRows = await database
+    .select({ id: scenes.id, stableSceneId: scenes.stableSceneId })
+    .from(scenes)
+    .where(
+      and(
+        eq(scenes.ownerUserId, ownerUserId),
+        eq(scenes.projectId, projectId),
+        eq(scenes.lessonSpecId, lessonSpecId),
+      ),
+    );
+  const sceneIds = sceneRows.map((scene) => scene.id);
+  if (sceneIds.length === 0) return new Map();
+  const audioRows = await database
+    .select()
+    .from(sceneAudio)
+    .where(
+      and(
+        eq(sceneAudio.ownerUserId, ownerUserId),
+        eq(sceneAudio.projectId, projectId),
+        inArray(sceneAudio.sceneId, sceneIds),
+      ),
+    )
+    .orderBy(desc(sceneAudio.updatedAt));
+  const latestAudioBySceneId = new Map<
+    string,
+    typeof sceneAudio.$inferSelect
+  >();
+  for (const audio of audioRows)
+    if (!latestAudioBySceneId.has(audio.sceneId))
+      latestAudioBySceneId.set(audio.sceneId, audio);
+  const audioIds = [...latestAudioBySceneId.values()].map((audio) => audio.id);
+  const trackRows =
+    audioIds.length === 0
+      ? []
+      : await database
+          .select()
+          .from(captionTracks)
+          .where(
+            and(
+              eq(captionTracks.ownerUserId, ownerUserId),
+              eq(captionTracks.projectId, projectId),
+              inArray(captionTracks.sceneAudioId, audioIds),
+            ),
+          )
+          .orderBy(desc(captionTracks.updatedAt));
+  const latestTrackByAudioId = new Map<
+    string,
+    typeof captionTracks.$inferSelect
+  >();
+  for (const track of trackRows)
+    if (!latestTrackByAudioId.has(track.sceneAudioId))
+      latestTrackByAudioId.set(track.sceneAudioId, track);
+  const trackIds = [...latestTrackByAudioId.values()].map((track) => track.id);
+  const cueRows =
+    trackIds.length === 0
+      ? []
+      : await database
+          .select({ trackId: captionCues.trackId })
+          .from(captionCues)
+          .where(
+            and(
+              eq(captionCues.ownerUserId, ownerUserId),
+              eq(captionCues.projectId, projectId),
+              inArray(captionCues.trackId, trackIds),
+            ),
+          );
+  const tracksWithCues = new Set(cueRows.map((cue) => cue.trackId));
+  const result = new Map<string, SceneMediaStatus>();
+  for (const scene of sceneRows) {
+    const audio = latestAudioBySceneId.get(scene.id);
+    if (audio === undefined) {
+      result.set(scene.stableSceneId, {
+        audio: "not_generated",
+        captions: "not_generated",
+      });
+      continue;
+    }
+    const track = latestTrackByAudioId.get(audio.id);
+    const captions: StoryboardSceneCaptionStatus =
+      audio.status === "queued" || audio.status === "generating"
+        ? "pending"
+        : audio.status === "failed"
+          ? "failed"
+          : audio.status === "stale"
+            ? "stale"
+            : track?.status === "ready" && tracksWithCues.has(track.id)
+              ? "ready"
+              : track?.status === "queued" || track?.status === "generating"
+                ? "pending"
+                : track?.status === "failed"
+                  ? "failed"
+                  : track?.status === "stale"
+                    ? "stale"
+                    : "not_generated";
+    result.set(scene.stableSceneId, { audio: audio.status, captions });
+  }
+  return result;
 }
 
 function jobErrorCode(errorMetadata: unknown): string | null {

@@ -496,7 +496,7 @@ describe("ST-053 Grounding Check Schemas", () => {
     it("has correct current values", () => {
       expect(currentGroundingCompatibility.promptId).toBe("grounding");
       expect(currentGroundingCompatibility.promptVersion).toBe("v2");
-      expect(currentGroundingCompatibility.model).toBe("mock-model-1");
+      expect(currentGroundingCompatibility.model).toBe("Qwen/Qwen3.8-Flash");
     });
   });
 });

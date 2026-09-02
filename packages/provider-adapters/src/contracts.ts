@@ -70,6 +70,7 @@ export const illustrationRequestSchema = z.object({
 export type IllustrationRequest = z.infer<typeof illustrationRequestSchema>;
 export const illustrationResponseSchema = z.object({
   providerId: z.string().trim().min(1).max(100),
+  model: z.string().trim().min(1).max(200).optional(),
   providerCallId: z.string().trim().min(1).max(200),
   mediaType: z.literal("image/png"),
   bytes: z.instanceof(Uint8Array),
@@ -77,6 +78,8 @@ export const illustrationResponseSchema = z.object({
   height: z.number().int().positive().max(8_000),
   units: z.number().positive(),
   costUsd: z.number().nonnegative(),
+  latencyMs: z.number().int().nonnegative().optional(),
+  retryCount: z.number().int().min(0).max(20).optional(),
   moderation: z.object({
     status: z.enum(["approved", "rejected"]),
     code: z.string().trim().min(1).max(100),
@@ -85,6 +88,7 @@ export const illustrationResponseSchema = z.object({
 export type IllustrationResponse = z.infer<typeof illustrationResponseSchema>;
 export interface IllustrationProvider {
   readonly providerId: string;
+  readonly model?: string;
   generate(request: IllustrationRequest): Promise<IllustrationResponse>;
 }
 

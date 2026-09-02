@@ -43,8 +43,8 @@ import { resolveObjectiveSourceRefs as resolveSourceRefs } from "./objectives-jo
 /**
  * Deterministic narration rule failure. The job classifies this as a terminal
  * deterministic failure so uncovered outline items, invalid citations, copied
- * passages, over-long sentences, or out-of-budget narration are never silently
- * accepted as a draft.
+ * passages, or over-long sentences are never silently accepted as a draft.
+ * Pacing is deliberately not in this set: see {@link NarrationDeterministicWarning}.
  */
 export class NarrationDeterministicCheckError extends Error {
   public readonly code:
@@ -52,7 +52,7 @@ export class NarrationDeterministicCheckError extends Error {
     | "UNSUPPORTED_SOURCE_BLOCK"
     | "SENTENCE_TOO_LONG"
     | "LONG_COPIED_PASSAGE"
-    | "WORD_COUNT_OUT_OF_BUDGET";
+    | "TARGET_DURATION_MISMATCH";
 
   public constructor(
     code: NarrationDeterministicCheckError["code"],
@@ -63,6 +63,16 @@ export class NarrationDeterministicCheckError extends Error {
     this.code = code;
   }
 }
+
+/**
+ * A narration rule the draft violates without being wrong: pacing guidance the
+ * teacher reviews rather than a correctness invariant the pipeline depends on.
+ * Reported on the completed job so the signal survives the downgrade.
+ */
+export type NarrationDeterministicWarning = {
+  code: "WORD_COUNT_OUT_OF_BUDGET";
+  message: string;
+};
 
 /** Approved outline items and configuration available to narration checks. */
 export type NarrationOperationContext = {
@@ -232,17 +242,23 @@ function longestCopiedWordRun(sentence: string, sourceText: string): number {
 
 /**
  * Deterministic narration rules: every approved outline item has exactly one
- * block, every block word count fits its item's duration budget, the set total
- * fits the lesson duration, every sentence stays within the sentence-length
- * ceiling, no sentence copies a long passage from the source, every citation
- * resolves to a block in the approved source package, and generated additions
- * never cite source blocks (schema-enforced). Throws on the first violation.
+ * block, every sentence stays within the sentence-length ceiling, no sentence
+ * copies a long passage from the source, every citation resolves to a block in
+ * the approved source package, and generated additions never cite source blocks
+ * (schema-enforced). Throws on the first violation of those.
+ *
+ * Word-count budgets are returned as warnings instead. They express pacing
+ * preference, not correctness: the review route already surfaces them without
+ * blocking approval, and a teacher can regenerate a single block. Failing the
+ * whole job for them discarded five good blocks over one, and denied the
+ * per-block repair flow the draft exists to support.
  */
 export function assertNarrationDeterministicChecks(
   output: NarrationOutputV1,
   sourcePackage: SourcePackage,
   operationContext: NarrationOperationContext | undefined,
-): void {
+): NarrationDeterministicWarning[] {
+  const warnings: NarrationDeterministicWarning[] = [];
   if (operationContext === undefined)
     throw new NarrationDeterministicCheckError(
       "OUTLINE_ITEM_UNCOVERED",
@@ -250,7 +266,7 @@ export function assertNarrationDeterministicChecks(
     );
   if (output.targetDurationSeconds !== operationContext.params.targetDurationSeconds)
     throw new NarrationDeterministicCheckError(
-      "WORD_COUNT_OUT_OF_BUDGET",
+      "TARGET_DURATION_MISMATCH",
       "The narration target duration must match the lesson configuration.",
     );
   const valid = collectPackageBlockIds(sourcePackage);
@@ -280,10 +296,10 @@ export function assertNarrationDeterministicChecks(
     );
     const budget = narrationWordCountRange(item.estimatedSeconds);
     if (words < budget.min || words > budget.max)
-      throw new NarrationDeterministicCheckError(
-        "WORD_COUNT_OUT_OF_BUDGET",
-        `blocks[${blockIndex}] has ${words} words; the ${item.estimatedSeconds}s outline item requires ${budget.min}-${budget.max}.`,
-      );
+      warnings.push({
+        code: "WORD_COUNT_OUT_OF_BUDGET",
+        message: `blocks[${blockIndex}] has ${words} words; the ${item.estimatedSeconds}s outline item suggests ${budget.min}-${budget.max}.`,
+      });
     for (const [sentenceIndex, sentence] of block.sentences.entries()) {
       const sentenceWords = countWords(sentence.text);
       if (sentenceWords > narrationSentenceMaximumWords)
@@ -330,10 +346,11 @@ export function assertNarrationDeterministicChecks(
   );
   const totalBudget = narrationWordCountRange(coveredSeconds);
   if (totalWords < totalBudget.min || totalWords > totalBudget.max)
-    throw new NarrationDeterministicCheckError(
-      "WORD_COUNT_OUT_OF_BUDGET",
-      `The narration totals ${totalWords} words; the covered ${coveredSeconds}s of outline time requires ${totalBudget.min}-${totalBudget.max}.`,
-    );
+    warnings.push({
+      code: "WORD_COUNT_OUT_OF_BUDGET",
+      message: `The narration totals ${totalWords} words; the covered ${coveredSeconds}s of outline time suggests ${totalBudget.min}-${totalBudget.max}.`,
+    });
+  return warnings;
 }
 
 /**

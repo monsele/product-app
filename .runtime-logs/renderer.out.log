@@ -1,0 +1,16 @@
+
+> @avlp/renderer@0.0.0 dev D:\Eronmonsele\Documents\repos\product-app\apps\renderer
+> tsx watch --env-file=../../.env src/main.ts
+
+{"timestamp":"2026-09-01T09:26:33.608Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
+11:26:54 AM [tsx] change in ./..\..\packages\jobs\dist\repository.js Restarting...
+11:26:55 AM [tsx] change in ./..\..\packages\jobs\dist\index.js Process hasn't exited. Killing process...
+{"timestamp":"2026-09-01T10:27:21.694Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
+1:31:35 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Restarting...
+1:31:35 PM [tsx] change in ./..\..\packages\scene-library\dist\summary-scene.fixtures.js Process hasn't exited. Killing process...
+{"timestamp":"2026-09-01T12:35:04.985Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
+1:37:05 PM [tsx] change in ./..\..\packages\schemas\dist\index.js Restarting...
+{"timestamp":"2026-09-01T12:37:15.655Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
+D:\Eronmonsele\Documents\repos\product-app\apps\renderer:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @avlp/renderer@0.0.0 dev: `tsx watch --env-file=../../.env src/main.ts`
+Exit status 4294967295

@@ -4,6 +4,7 @@ import type {
   StoryboardGenerationState,
   StoryboardSceneAssetStatus,
   StoryboardSceneAudioStatus,
+  StoryboardSceneCaptionStatus,
   StoryboardSceneValidationStatus,
   StoryboardValidation,
 } from "@avlp/schemas";
@@ -32,6 +33,33 @@ export function sceneAudioStatusLabel(
   switch (status) {
     case "not_generated":
       return "No audio generated";
+    case "queued":
+      return "Audio queued";
+    case "generating":
+      return "Audio generating";
+    case "ready":
+      return "Audio ready";
+    case "stale":
+      return "Audio outdated";
+    case "failed":
+      return "Audio failed";
+  }
+}
+
+export function sceneCaptionStatusLabel(
+  status: StoryboardSceneCaptionStatus,
+): string {
+  switch (status) {
+    case "not_generated":
+      return "No captions";
+    case "pending":
+      return "Captions pending";
+    case "ready":
+      return "Captions ready";
+    case "stale":
+      return "Captions outdated";
+    case "failed":
+      return "Captions failed";
   }
 }
 

@@ -1,11 +1,18 @@
 import { createHash } from "node:crypto";
-import { createId, PublicError, type Identifier } from "@avlp/config";
+import {
+  createId,
+  PublicError,
+  togetherTtsProviderOptions,
+  type Identifier,
+} from "@avlp/config";
 import {
   captionCues,
   captionTracks,
   jobs,
+  lessonSpecs,
   outboxEvents,
   pronunciationEntries,
+  projects,
   sceneAudio,
   scenes,
   voiceConfigurations,
@@ -14,17 +21,30 @@ import {
 import { createIdempotencyKey, createJobEnvelope } from "@avlp/jobs";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
+  lessonAudioGenerationResponseSchema,
   sceneAudioGenerationInputSchema,
   sceneAudioGenerationJobPayloadSchema,
+  sceneAudioPlaybackResponseSchema,
   sceneAudioStatusResponseSchema,
+  type LessonAudioGenerationResponse,
+  type SceneAudioPlaybackResponse,
   type SceneAudioStatusResponse,
 } from "@avlp/schemas";
-import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
+import { storageKeySchema, type ObjectStorage } from "@avlp/storage";
+import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
-const maxGenerationsPerHour = 30;
-const maxConcurrentGenerations = 5;
-const provider = { providerId: "fixture-v1", outputFormat: "wav" } as const;
+// A single explicit command must be able to cover the largest storyboard.
+// Provider-side concurrency remains serialized by the worker.
+const maxGenerationsPerHour = 50;
+// BullMQ controls actual provider concurrency. This limit bounds durable queued
+// work and must accommodate one complete 50-scene storyboard.
+const maxConcurrentGenerations = 50;
+const provider =
+  process.env.TOGETHER_API_KEY?.trim() === undefined ||
+  process.env.TOGETHER_API_KEY.trim().length === 0
+    ? ({ providerId: "fixture-v1", outputFormat: "wav" } as const)
+    : togetherTtsProviderOptions;
 const hash = (value: unknown) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
 
@@ -59,7 +79,162 @@ export class SceneAudioService {
   public constructor(
     private readonly database: DatabaseClient,
     private readonly now: () => Date = () => new Date(),
+    private readonly storage?: Pick<ObjectStorage, "createSignedDownload">,
   ) {}
+
+  /**
+   * Mint a short-lived signed URL so a teacher can listen to one scene's
+   * narration before rendering. Ownership is enforced by the row lookup, and
+   * the storage key never leaves the API.
+   */
+  public async playback(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    sceneId: Identifier;
+  }): Promise<SceneAudioPlaybackResponse> {
+    if (this.storage === undefined)
+      throw new PublicError(
+        "internal_error",
+        "Audio playback is unavailable.",
+        503,
+        true,
+      );
+    const [row] = await this.database
+      .select()
+      .from(sceneAudio)
+      .where(
+        and(
+          eq(sceneAudio.ownerUserId, input.ownerUserId),
+          eq(sceneAudio.projectId, input.projectId),
+          eq(sceneAudio.sceneId, input.sceneId),
+        ),
+      )
+      .limit(1);
+    if (
+      row === undefined ||
+      row.status !== "ready" ||
+      row.storageKey === null
+    )
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    const expiresInSeconds = 300;
+    const signed = await this.storage.createSignedDownload({
+      key: storageKeySchema.parse(row.storageKey),
+      expiresInSeconds,
+    });
+    return sceneAudioPlaybackResponseSchema.parse({
+      sceneId: input.sceneId,
+      url: signed.url,
+      contentType: row.contentType ?? "audio/wav",
+      durationMs: row.durationMs,
+      expiresAt: signed.expiresAt.toISOString(),
+    });
+  }
+  public async generateAll(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    body: unknown;
+    correlationId: Identifier;
+  }): Promise<LessonAudioGenerationResponse> {
+    const command = parseBoundary(sceneAudioGenerationInputSchema, input.body);
+    const findSpec = async (status: "draft" | "approved") =>
+      (
+        await this.database
+          .select({ id: lessonSpecs.id })
+          .from(lessonSpecs)
+          .where(
+            and(
+              eq(lessonSpecs.ownerUserId, input.ownerUserId),
+              eq(lessonSpecs.projectId, input.projectId),
+              eq(lessonSpecs.status, status),
+            ),
+          )
+          .orderBy(desc(lessonSpecs.generatedAt))
+          .limit(1)
+      )[0];
+    const spec = (await findSpec("draft")) ?? (await findSpec("approved"));
+    if (spec === undefined)
+      throw new PublicError(
+        "not_found",
+        "Generate a storyboard before generating lesson audio.",
+        404,
+      );
+    const sceneRows = await this.database
+      .select({ stableSceneId: scenes.stableSceneId })
+      .from(scenes)
+      .where(
+        and(
+          eq(scenes.ownerUserId, input.ownerUserId),
+          eq(scenes.projectId, input.projectId),
+          eq(scenes.lessonSpecId, spec.id),
+        ),
+      )
+      .orderBy(asc(scenes.order));
+    if (sceneRows.length === 0)
+      throw new PublicError(
+        "bad_request",
+        "The current storyboard has no scenes to generate.",
+        409,
+      );
+    const recent = await this.database
+      .select({ id: jobs.id })
+      .from(jobs)
+      .where(
+        and(
+          eq(jobs.ownerUserId, input.ownerUserId),
+          eq(jobs.projectId, input.projectId),
+          eq(jobs.jobType, "tts.generate"),
+          gte(jobs.createdAt, new Date(this.now().getTime() - 3_600_000)),
+        ),
+      );
+    if (recent.length + sceneRows.length > maxGenerationsPerHour)
+      throw new PublicError(
+        "rate_limited",
+        "Generating every scene would exceed this project's hourly audio limit. Retry when the current window resets.",
+        429,
+      );
+
+    const results: SceneAudioStatusResponse[] = [];
+    for (const scene of sceneRows) {
+      results.push(
+        await this.generate({
+          ...input,
+          sceneId: scene.stableSceneId as Identifier,
+          body: {
+            idempotencyKey: `batch:${hash({
+              request: command.idempotencyKey,
+              sceneId: scene.stableSceneId,
+            })}`,
+          },
+        }),
+      );
+    }
+    await this.database
+      .update(projects)
+      .set({ stage: "audio_generation", updatedAt: this.now() })
+      .where(
+        and(
+          eq(projects.id, input.projectId),
+          eq(projects.ownerUserId, input.ownerUserId),
+          eq(projects.stage, "narration_storyboard_review"),
+        ),
+      );
+    return lessonAudioGenerationResponseSchema.parse({
+      totalScenes: results.length,
+      readyScenes: results.filter((item) => item.status === "ready").length,
+      pendingScenes: results.filter(
+        (item) => item.status === "queued" || item.status === "generating",
+      ).length,
+      failedScenes: results.filter(
+        (item) => item.status === "failed" || item.status === "stale",
+      ).length,
+      scenes: results,
+    });
+  }
+
   public async generate(input: {
     ownerUserId: Identifier;
     projectId: Identifier;
@@ -150,8 +325,27 @@ export class SceneAudioService {
         )
         .limit(1);
       const action = sceneAudioRequestAction(matchingAudio?.status);
-      if (action === "reuse" && matchingAudio !== undefined)
-        return response(scene.stableSceneId as Identifier, matchingAudio);
+      if (action === "reuse" && matchingAudio !== undefined) {
+        const [readyCue] = await tx
+          .select({ id: captionCues.id })
+          .from(captionTracks)
+          .innerJoin(captionCues, eq(captionCues.trackId, captionTracks.id))
+          .where(
+            and(
+              eq(captionTracks.sceneAudioId, matchingAudio.id),
+              eq(captionTracks.ownerUserId, input.ownerUserId),
+              eq(captionTracks.projectId, input.projectId),
+              eq(captionTracks.status, "ready"),
+              eq(captionCues.ownerUserId, input.ownerUserId),
+              eq(captionCues.projectId, input.projectId),
+            ),
+          )
+          .limit(1);
+        // A legacy/interrupted completion may have audio but no captions. Queue
+        // the same durable job path so the worker repairs it from saved timing.
+        if (readyCue !== undefined)
+          return response(scene.stableSceneId as Identifier, matchingAudio);
+      }
       if (action === "in_flight" && matchingAudio !== undefined)
         return response(scene.stableSceneId as Identifier, matchingAudio);
       const idempotencyKey = createIdempotencyKey({
@@ -348,6 +542,7 @@ export class SceneAudioService {
         jobId: null,
         durationMs: null,
         fitWarning: null,
+        failureCode: null,
         captions: [],
         retryable: false,
       });
@@ -384,6 +579,7 @@ function response(
     jobId: row.jobId as Identifier | null,
     durationMs: row.durationMs,
     fitWarning: row.fitWarning,
+    failureCode: row.failureCode,
     captions,
     retryable: row.status === "failed" || row.status === "stale",
   });

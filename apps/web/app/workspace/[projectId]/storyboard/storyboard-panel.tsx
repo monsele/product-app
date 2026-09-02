@@ -10,6 +10,8 @@ import {
   lessonVersionsResponseSchema,
   lessonVersionDetailSchema,
   lessonValidationRunSchema,
+  lessonAudioGenerationResponseSchema,
+  lessonIllustrationGenerationResponseSchema,
   type LessonValidationRun,
   type ProjectAsset,
   type SceneTemplate,
@@ -130,7 +132,11 @@ export function StoryboardPanel({
     null,
   );
   const [validationBusy, setValidationBusy] = useState(false);
-  const [teacherAssets, setTeacherAssets] = useState<readonly ProjectAsset[]>([]);
+  const [illustrationBatchBusy, setIllustrationBatchBusy] = useState(false);
+  const [audioBatchBusy, setAudioBatchBusy] = useState(false);
+  const [teacherAssets, setTeacherAssets] = useState<readonly ProjectAsset[]>(
+    [],
+  );
   const [mobileTab, setMobileTab] = useState<MobileViewTab>("preview");
   const reduceMotion = useReducedMotion();
 
@@ -527,6 +533,133 @@ export function StoryboardPanel({
   }, [projectId, revision]);
 
   const listScenes = sceneList.kind === "ready" ? sceneList.value.scenes : [];
+  const pendingMedia = listScenes.some(
+    (scene) =>
+      scene.status.audio === "queued" ||
+      scene.status.audio === "generating" ||
+      scene.status.captions === "pending",
+  );
+
+  useEffect(() => {
+    if (!audioBatchBusy && !pendingMedia) return;
+    const refreshMedia = async (): Promise<void> => {
+      try {
+        const next = await fetchStoryboardSceneList(projectId);
+        setSceneList({ kind: "ready", value: next });
+        const stillPending = next.scenes.some(
+          (scene) =>
+            scene.status.audio === "queued" ||
+            scene.status.audio === "generating" ||
+            scene.status.captions === "pending",
+        );
+        if (!stillPending) {
+          setAudioBatchBusy(false);
+          setDetailAttempt((current) => current + 1);
+          void runValidation();
+        }
+      } catch {
+        // Keep the last durable projection visible and retry on the next poll.
+      }
+    };
+    const timer = window.setInterval(() => void refreshMedia(), 3_000);
+    return () => window.clearInterval(timer);
+  }, [audioBatchBusy, pendingMedia, projectId, runValidation]);
+
+  const generateMissingIllustrations = useCallback(async () => {
+    setActionMessage(null);
+    setIllustrationBatchBusy(true);
+    try {
+      const response = await fetch(
+        apiUrl(
+          `/projects/${encodeURIComponent(projectId)}/illustrations/generate-missing`,
+        ),
+        {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+          headers: { "content-type": "application/json" },
+        },
+      );
+      const payload: unknown = await response.json().catch(() => null);
+      const parsed =
+        lessonIllustrationGenerationResponseSchema.safeParse(payload);
+      if (!response.ok || !parsed.success)
+        throw new Error(
+          extractErrorMessage(
+            payload,
+            "Unable to start illustration generation for the missing slots.",
+          ),
+        );
+      const { totalMissing, queued, skipped, rateLimited } = parsed.data;
+      const message =
+        totalMissing === 0
+          ? "Every required asset slot already has an illustration."
+          : rateLimited
+            ? `Queued ${queued} illustration${queued === 1 ? "" : "s"}; ${skipped} left because this project hit its hourly limit. Try the rest later.`
+            : `Queued ${queued} illustration${queued === 1 ? "" : "s"} for review.`;
+      setActionMessage(message);
+      if (rateLimited) toast.warning(message);
+      else toast.info(message);
+      invalidateStoryboardSceneList(projectId);
+      const next = await fetchStoryboardSceneList(projectId);
+      setSceneList({ kind: "ready", value: next });
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to start illustration generation.";
+      setActionMessage(message);
+      toast.error(message);
+    } finally {
+      setIllustrationBatchBusy(false);
+    }
+  }, [projectId]);
+
+  const generateLessonAudio = useCallback(async () => {
+    setActionMessage(null);
+    setAudioBatchBusy(true);
+    try {
+      const response = await fetch(
+        apiUrl(`/projects/${encodeURIComponent(projectId)}/audio/generate`),
+        {
+          method: "POST",
+          credentials: "include",
+          cache: "no-store",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            idempotencyKey: globalThis.crypto.randomUUID(),
+          }),
+        },
+      );
+      const payload: unknown = await response.json().catch(() => null);
+      const parsed = lessonAudioGenerationResponseSchema.safeParse(payload);
+      if (!response.ok || !parsed.success)
+        throw new Error(
+          extractErrorMessage(
+            payload,
+            "Unable to start audio and caption generation for every scene.",
+          ),
+        );
+      invalidateStoryboardSceneList(projectId);
+      const next = await fetchStoryboardSceneList(projectId);
+      setSceneList({ kind: "ready", value: next });
+      const message = `Audio and captions started for ${parsed.data.pendingScenes} scene${parsed.data.pendingScenes === 1 ? "" : "s"}; ${parsed.data.readyScenes} already complete.`;
+      setActionMessage(message);
+      toast.info(message);
+      if (parsed.data.pendingScenes === 0) {
+        setAudioBatchBusy(false);
+        void runValidation();
+      }
+    } catch (error) {
+      setAudioBatchBusy(false);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to generate audio and captions for every scene.";
+      setActionMessage(message);
+      toast.error(message);
+    }
+  }, [projectId, runValidation]);
 
   // Keep selection synced with URL hash / fallback to scene 0
   useEffect(() => {
@@ -690,11 +823,42 @@ export function StoryboardPanel({
     ? buildScenePreviewInput(selectedDetail, undefined)
     : null;
 
-  const totalDuration = listScenes.reduce((acc, s) => acc + s.durationSeconds, 0);
+  const totalDuration = listScenes.reduce(
+    (acc, s) => acc + s.durationSeconds,
+    0,
+  );
+  const missingAudioCount = listScenes.filter(
+    (scene) => scene.status.audio !== "ready",
+  ).length;
+  const missingCaptionCount = listScenes.filter(
+    (scene) => scene.status.captions !== "ready",
+  ).length;
+  const missingAssetCount = listScenes.filter(
+    (scene) => scene.status.assets === "missing_required",
+  ).length;
+  const invalidSceneCount = listScenes.filter(
+    (scene) => scene.status.validation === "error",
+  ).length;
+  const validationReady =
+    validation !== null && !validation.stale && validation.status === "passed";
+  const mediaReady =
+    listScenes.length > 0 &&
+    missingAudioCount === 0 &&
+    missingCaptionCount === 0;
+  const canOpenPreview =
+    storyboard !== null &&
+    value?.stale !== true &&
+    mediaReady &&
+    missingAssetCount === 0 &&
+    invalidSceneCount === 0 &&
+    validationReady;
 
   if (view.kind === "loading")
     return (
-      <section aria-labelledby="storyboard-heading" className={styles.stateShell}>
+      <section
+        aria-labelledby="storyboard-heading"
+        className={styles.stateShell}
+      >
         <h2 id="storyboard-heading">Storyboard</h2>
         <p role="status">Loading the storyboard…</p>
       </section>
@@ -702,7 +866,10 @@ export function StoryboardPanel({
 
   if (view.kind === "failed")
     return (
-      <section aria-labelledby="storyboard-heading" className={styles.stateShell}>
+      <section
+        aria-labelledby="storyboard-heading"
+        className={styles.stateShell}
+      >
         <h2 id="storyboard-heading">Storyboard</h2>
         <p role="alert" className={styles.stateError}>
           {view.message}
@@ -737,8 +904,12 @@ export function StoryboardPanel({
             {listScenes.length > 0 ? (
               <span>
                 {" "}
-                · <strong className="tabular-nums">{listScenes.length}</strong> scenes ·{" "}
-                <strong className="tabular-nums">{totalDuration}s</strong> total duration
+                · <strong className="tabular-nums">
+                  {listScenes.length}
+                </strong>{" "}
+                scenes ·{" "}
+                <strong className="tabular-nums">{totalDuration}s</strong> total
+                duration
               </span>
             ) : null}
           </p>
@@ -760,16 +931,66 @@ export function StoryboardPanel({
             </button>
           ) : null}
 
-          <Link
-            href={`/workspace/${encodeURIComponent(projectId)}/preview`}
-            prefetch={true}
-            className={`${styles.button} ${styles.buttonPrimary}`}
-          >
-            Preview lesson
-            <ArrowRightIcon size={16} weight="bold" aria-hidden />
-          </Link>
+          {storyboard !== null ? (
+            <button
+              type="button"
+              onClick={() => void generateMissingIllustrations()}
+              disabled={illustrationBatchBusy || generating || editing}
+              className={`${styles.button} ${styles.buttonSecondary}`}
+            >
+              {illustrationBatchBusy
+                ? "Queueing illustrations…"
+                : "Generate missing illustrations"}
+            </button>
+          ) : null}
+
+          {storyboard !== null && !mediaReady ? (
+            <button
+              type="button"
+              onClick={() => void generateLessonAudio()}
+              disabled={
+                audioBatchBusy || pendingMedia || view.value.stale || generating
+              }
+              className={`${styles.button} ${styles.buttonPrimary}`}
+            >
+              {audioBatchBusy || pendingMedia
+                ? "Generating audio & captions…"
+                : "Generate all audio & captions"}
+            </button>
+          ) : storyboard !== null && !validationReady ? (
+            <button
+              type="button"
+              onClick={() => void runValidation()}
+              disabled={validationBusy}
+              className={`${styles.button} ${styles.buttonPrimary}`}
+            >
+              {validationBusy ? "Running final checks…" : "Run final checks"}
+            </button>
+          ) : canOpenPreview ? (
+            <Link
+              href={`/workspace/${encodeURIComponent(projectId)}/preview`}
+              prefetch={true}
+              className={`${styles.button} ${styles.buttonPrimary}`}
+            >
+              Preview lesson
+              <ArrowRightIcon size={16} weight="bold" aria-hidden />
+            </Link>
+          ) : null}
         </div>
       </header>
+
+      {storyboard !== null && !canOpenPreview ? (
+        <div role="status" className={`${styles.alert} ${styles.alertInfo}`}>
+          Complete before Preview: {missingAudioCount} scene audio,{" "}
+          {missingCaptionCount} caption track
+          {missingCaptionCount === 1 ? "" : "s"}, {missingAssetCount} required
+          asset{missingAssetCount === 1 ? "" : "s"}, and {invalidSceneCount}{" "}
+          invalid scene{invalidSceneCount === 1 ? "" : "s"} remaining.
+          {mediaReady && !validationReady
+            ? " Run final checks to finish this stage."
+            : ""}
+        </div>
+      ) : null}
 
       {view.value.stale ? (
         <div role="status" className={`${styles.alert} ${styles.alertWarning}`}>
@@ -799,7 +1020,11 @@ export function StoryboardPanel({
       ) : null}
 
       {warnings.map((warning) => (
-        <p key={warning} role="alert" className={`${styles.alert} ${styles.alertError}`}>
+        <p
+          key={warning}
+          role="alert"
+          className={`${styles.alert} ${styles.alertError}`}
+        >
           {warning}
         </p>
       ))}
@@ -807,15 +1032,17 @@ export function StoryboardPanel({
       {view.value.approved !== null &&
       view.value.approved.id !== storyboard?.id ? (
         <p role="status" className={styles.noteMuted}>
-          An approved storyboard still guides production until you review this draft.
+          An approved storyboard still guides production until you review this
+          draft.
         </p>
       ) : null}
 
       {storyboard === null ? (
         <div role="status" className={styles.emptyState}>
           <p>
-            Confirm the reviewed source, save the lesson configuration, approve the
-            lesson outline, and generate narration before generating a storyboard.
+            Confirm the reviewed source, save the lesson configuration, approve
+            the lesson outline, and generate narration before generating a
+            storyboard.
           </p>
         </div>
       ) : (
@@ -907,7 +1134,9 @@ export function StoryboardPanel({
                         handleDeleteScene(selectedSceneId);
                     }}
                     disabled={
-                      editing || selectedSceneId === null || listScenes.length <= 1
+                      editing ||
+                      selectedSceneId === null ||
+                      listScenes.length <= 1
                     }
                     className={`${styles.button} ${styles.buttonDanger} ${styles.buttonCompact}`}
                   >
@@ -927,7 +1156,10 @@ export function StoryboardPanel({
                     ))}
                   </div>
                 ) : sceneList.kind === "failed" ? (
-                  <p role="alert" className={`${styles.scrollerNote} ${styles.stateError}`}>
+                  <p
+                    role="alert"
+                    className={`${styles.scrollerNote} ${styles.stateError}`}
+                  >
                     {sceneList.message}
                   </p>
                 ) : (
@@ -947,7 +1179,10 @@ export function StoryboardPanel({
               className={`${styles.centerCanvas} ${mobileTab === "preview" ? "" : styles.regionHidden}`}
             >
               {editorMessage !== null ? (
-                <p role="status" className={`${styles.alert} ${styles.alertInfo}`}>
+                <p
+                  role="status"
+                  className={`${styles.alert} ${styles.alertInfo}`}
+                >
                   {editorMessage}
                 </p>
               ) : null}
@@ -966,11 +1201,16 @@ export function StoryboardPanel({
                   </div>
 
                   <span className={`${styles.stageMeta} tabular-nums`}>
-                    {selectedDetail ? `${selectedDetail.scene.durationSeconds}s` : ""}
+                    {selectedDetail
+                      ? `${selectedDetail.scene.durationSeconds}s`
+                      : ""}
                   </span>
                 </div>
 
-                <section aria-label="Selected scene preview" className={styles.canvas}>
+                <section
+                  aria-label="Selected scene preview"
+                  className={styles.canvas}
+                >
                   {selectedSceneId === null ? (
                     <p role="status" className={styles.canvasNote}>
                       Select a scene to see its detail.
@@ -1062,7 +1302,10 @@ export function StoryboardPanel({
                   <p>Loading the selected scene…</p>
                 </div>
               ) : detail.kind === "failed" ? (
-                <section aria-label="Selected scene detail" className={styles.inspectorState}>
+                <section
+                  aria-label="Selected scene detail"
+                  className={styles.inspectorState}
+                >
                   <p role="alert" className={styles.stateError}>
                     {detail.message}
                   </p>
@@ -1081,33 +1324,33 @@ export function StoryboardPanel({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
                 >
-                <SceneDetailPanel
-                  projectId={projectId}
-                  detail={detail.value}
-                  lessonSpecId={storyboard.id}
-                  lessonSpecRevision={storyboard.revision}
-                  sceneCandidates={view.value.sceneCandidates}
-                  generating={generating}
-                  onChanged={onStoryboardChanged}
-                  onScenePending={markScenePending}
-                  onSceneDone={markSceneDone}
-                  validation={validation}
-                  validationBusy={validationBusy}
-                  onRunValidation={() => void runValidation()}
-                  onAcknowledgeValidation={(id, hash) =>
-                    void acknowledgeValidation(id, hash)
-                  }
-                  onNavigateScene={(sId) => {
-                    if (sId !== null) selectScene(sId);
-                  }}
-                  versionMetadata={versionMetadata}
-                  versionPreview={versionPreview}
-                  restoringVersionId={restoringVersionId}
-                  savingVersion={savingVersion}
-                  onSaveVersion={() => void saveVersion()}
-                  onPreviewVersion={(vId) => void previewVersion(vId)}
-                  onRestoreVersion={(vId) => void restoreVersion(vId)}
-                />
+                  <SceneDetailPanel
+                    projectId={projectId}
+                    detail={detail.value}
+                    lessonSpecId={storyboard.id}
+                    lessonSpecRevision={storyboard.revision}
+                    sceneCandidates={view.value.sceneCandidates}
+                    generating={generating}
+                    onChanged={onStoryboardChanged}
+                    onScenePending={markScenePending}
+                    onSceneDone={markSceneDone}
+                    validation={validation}
+                    validationBusy={validationBusy}
+                    onRunValidation={() => void runValidation()}
+                    onAcknowledgeValidation={(id, hash) =>
+                      void acknowledgeValidation(id, hash)
+                    }
+                    onNavigateScene={(sId) => {
+                      if (sId !== null) selectScene(sId);
+                    }}
+                    versionMetadata={versionMetadata}
+                    versionPreview={versionPreview}
+                    restoringVersionId={restoringVersionId}
+                    savingVersion={savingVersion}
+                    onSaveVersion={() => void saveVersion()}
+                    onPreviewVersion={(vId) => void previewVersion(vId)}
+                    onRestoreVersion={(vId) => void restoreVersion(vId)}
+                  />
                 </motion.div>
               )}
             </aside>

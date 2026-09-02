@@ -355,18 +355,23 @@ describe("assertNarrationDeterministicChecks", () => {
     ).toThrow(/maximum is/);
   });
 
-  it("rejects a word count outside the outline item's budget", () => {
+  it("warns without rejecting a word count outside the outline item's budget", () => {
     const output = validOutput();
-    output.blocks[0]!.sentences = [{ text: words(300), sourceBlockIds: [blockA] }];
-    expect(() =>
-      assertNarrationDeterministicChecks(output, pkg, context),
-    ).toThrow(NarrationDeterministicCheckError);
-    expect(() =>
-      assertNarrationDeterministicChecks(output, pkg, context),
-    ).toThrow(/requires/);
+    output.blocks[0]!.sentences = [
+      { text: words(35), sourceBlockIds: [blockA] },
+      { text: words(35), sourceBlockIds: [blockA] },
+    ];
+    expect(assertNarrationDeterministicChecks(output, pkg, context)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "WORD_COUNT_OUT_OF_BUDGET",
+          message: expect.stringContaining("blocks[0]"),
+        }),
+      ]),
+    );
   });
 
-  it("rejects a total word count outside the covered-outline budget", () => {
+  it("warns without rejecting a total word count outside the covered-outline budget", () => {
     const output = validOutput();
     output.blocks[0]!.sentences = [
       { text: words(33), sourceBlockIds: [blockA] },
@@ -375,12 +380,21 @@ describe("assertNarrationDeterministicChecks", () => {
       { text: words(25), sourceBlockIds: [blockB] },
       { text: words(25), sourceBlockIds: [blockB] },
     ];
-    expect(() =>
-      assertNarrationDeterministicChecks(output, pkg, context),
-    ).toThrow(NarrationDeterministicCheckError);
-    expect(() =>
-      assertNarrationDeterministicChecks(output, pkg, context),
-    ).toThrow(/totals/);
+    const warnings = assertNarrationDeterministicChecks(output, pkg, context);
+    expect(warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "WORD_COUNT_OUT_OF_BUDGET",
+          message: expect.stringContaining("totals"),
+        }),
+      ]),
+    );
+  });
+
+  it("returns no warnings for narration that fits every budget", () => {
+    expect(assertNarrationDeterministicChecks(validOutput(), pkg, context)).toEqual(
+      [],
+    );
   });
 
   it("rejects a target duration that does not match the configuration", () => {
@@ -702,5 +716,48 @@ describe("narration generation job", () => {
       "The model output failed deterministic checks",
     );
     expect(error).toMatchObject({ code: "MODEL_OUTPUT_DETERMINISTIC_FAILURE" });
+    // The rule that rejected the draft must survive into job metadata; a bare
+    // code leaves an uncited block indistinguishable from an over-long one.
+    expect(error).toMatchObject({
+      details: {
+        reason: "OUTLINE_ITEM_UNCOVERED",
+        message: expect.stringContaining(itemB),
+      },
+    });
+  });
+
+  it("reports word-count warnings on a narration draft it still accepts", async () => {
+    const snapshot = sampleSnapshot();
+    const output = validOutput();
+    output.blocks[0]!.sentences = [
+      { text: words(35), sourceBlockIds: [blockA] },
+      { text: words(35), sourceBlockIds: [blockA] },
+    ];
+    const provider = new MockLanguageModelProvider({
+      model: "mock-model-1",
+      completion: jsonCompletion(output),
+    });
+    const database = fakeDatabase({
+      snapshot,
+      outlineSetRow: approvedOutlineSetRow(),
+      outlineItemRows: outlineItemRows(),
+    });
+    const handler = createNarrationGenerationJobHandler({
+      database: database as never,
+      provider,
+      promptRegistry: new StaticPromptRegistry(repositoryPrompts),
+      quotaGuard: new InMemoryQuotaGuard([]),
+      pricing: mockPricing,
+      now: () => new Date("2026-08-17T10:00:00.000Z"),
+    });
+    const result = await execute(handler, jobPayload());
+    expect(result.outcome).toBe("succeeded");
+    if (result.outcome !== "succeeded") throw new Error("unreachable");
+    expect(result.metadata.candidateId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(result.metadata.warnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "WORD_COUNT_OUT_OF_BUDGET" }),
+      ]),
+    );
   });
 });

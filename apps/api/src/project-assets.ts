@@ -34,7 +34,7 @@ import {
   StorageObjectNotFoundError,
   type ObjectStorage,
 } from "@avlp/storage";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import sharp from "sharp";
 import { z } from "zod";
 
@@ -456,6 +456,11 @@ export class ProjectAssetService {
           eq(projectAssets.ownerUserId, ownerUserId),
           eq(projectAssets.projectId, projectId),
           eq(projectAssets.status, "active"),
+          // Accepted AI illustrations also become active assets, but they carry
+          // no derived thumbnail and are not teacher uploads. Without this they
+          // enter toResponse(), which throws on the missing thumbnail and would
+          // also mislabel their provenance.
+          eq(projectAssets.provenance, "teacher_uploaded"),
           isNull(projectAssets.deletedAt),
         ),
       )
@@ -464,7 +469,12 @@ export class ProjectAssetService {
     return projectAssetListResponseSchema.parse({ assets });
   }
 
-  /** Signs an AI candidate only after tenant-scoped asset lookup. */
+  /**
+   * Signs an AI candidate only after tenant-scoped asset lookup. Accepting a
+   * candidate promotes its asset from pending_review to active, so both states
+   * must resolve -- otherwise the scene's candidate list 404s permanently the
+   * moment a teacher accepts one.
+   */
   public async reviewPreview(
     ownerUserId: Identifier,
     projectId: Identifier,
@@ -472,7 +482,7 @@ export class ProjectAssetService {
   ): Promise<string> {
     const [asset] = await this.database.select({ storageKey: projectAssets.storageKey })
       .from(projectAssets)
-      .where(and(eq(projectAssets.id, assetId), eq(projectAssets.ownerUserId, ownerUserId), eq(projectAssets.projectId, projectId), eq(projectAssets.provenance, "ai_generated"), eq(projectAssets.status, "pending_review"), isNull(projectAssets.deletedAt)))
+      .where(and(eq(projectAssets.id, assetId), eq(projectAssets.ownerUserId, ownerUserId), eq(projectAssets.projectId, projectId), eq(projectAssets.provenance, "ai_generated"), inArray(projectAssets.status, ["pending_review", "active"]), isNull(projectAssets.deletedAt)))
       .limit(1);
     if (asset === undefined) throw new PublicError("not_found", "The requested resource was not found.", 404);
     return (await this.storage.createSignedDownload({ key: storageKeySchema.parse(asset.storageKey) })).url;

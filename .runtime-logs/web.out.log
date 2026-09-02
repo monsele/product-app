@@ -1,0 +1,60 @@
+
+> @avlp/web@0.0.0 dev D:\Eronmonsele\Documents\repos\product-app\apps\web
+> next dev
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.192:3000
+
+ ✓ Starting...
+ ✓ Ready in 37s
+ ○ Compiling / ...
+ ✓ Compiled / in 25.1s (10487 modules)
+ GET / 200 in 103ms
+ ○ Compiling /sign-in ...
+ ✓ Compiled /sign-in in 4.1s (10529 modules)
+ GET /sign-in 200 in 7071ms
+ ○ Compiling /register ...
+ ✓ Compiled /register in 2.4s (10531 modules)
+ GET /register 200 in 3184ms
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 3.5s (158 modules)
+ ○ Compiling /workspace ...
+ ✓ Compiled /workspace in 6s (10713 modules)
+ GET /workspace 200 in 7202ms
+ ○ Compiling /api/projects ...
+ ✓ Compiled /api/projects in 2.2s (10732 modules)
+ POST /api/projects 303 in 3192ms
+ ○ Compiling /workspace/[projectId]/upload ...
+ ✓ Compiled /workspace/[projectId]/upload in 5.7s (13891 modules)
+ GET /workspace/01a05c4e-0b77-77e9-a5d5-97b2cf6a0407/upload 200 in 43046ms
+ ○ Compiling /workspace/[projectId]/review ...
+ ✓ Compiled /workspace/[projectId]/review in 6.9s (13892 modules)
+ GET /workspace/01a05c4e-0b77-77e9-a5d5-97b2cf6a0407/review 200 in 16390ms
+ ○ Compiling /workspace/[projectId]/configuration ...
+ ✓ Compiled /workspace/[projectId]/configuration in 6.4s (13906 modules)
+ GET /workspace/01a05c4e-0b77-77e9-a5d5-97b2cf6a0407/configuration 200 in 8150ms
+ ○ Compiling /workspace/[projectId]/objectives ...
+ ✓ Compiled /workspace/[projectId]/objectives in 3.8s (13922 modules)
+ GET /workspace/01a05c4e-0b77-77e9-a5d5-97b2cf6a0407/objectives 200 in 5593ms
+ GET /workspace/01a05c4e-0b77-77e9-a5d5-97b2cf6a0407/review 200 in 6812ms
+ GET /workspace/01a05c4e-0b77-77e9-a5d5-97b2cf6a0407/review 200 in 917ms
+ GET /workspace/01a05c4e-0b77-77e9-a5d5-97b2cf6a0407/objectives 200 in 186ms
+ ○ Compiling /workspace/[projectId]/outline ...
+ ✓ Compiled /workspace/[projectId]/outline in 27.1s (13908 modules)
+ GET /workspace/01a05c4e-0b77-77e9-a5d5-97b2cf6a0407/outline 200 in 30271ms
+ ○ Compiling /workspace/[projectId]/narration ...
+ ✓ Compiled /workspace/[projectId]/narration in 9.8s (13849 modules)
+ GET /workspace/01a05c4e-0b77-77e9-a5d5-97b2cf6a0407/narration 200 in 11825ms
+ ○ Compiling /workspace/[projectId]/storyboard ...
+ ✓ Compiled /workspace/[projectId]/storyboard in 17.3s (13957 modules)
+ GET /workspace/01a05c4e-0b77-77e9-a5d5-97b2cf6a0407/storyboard 200 in 48201ms
+ ✓ Compiled in 26.3s (13949 modules)
+ ✓ Compiled in 11.3s (13949 modules)
+ ✓ Compiled in 18.2s (13949 modules)
+ ○ Compiling /workspace/[projectId]/preview ...
+ ✓ Compiled /workspace/[projectId]/preview in 25s (14011 modules)
+ GET /workspace/01a05c4e-0b77-77e9-a5d5-97b2cf6a0407/preview 200 in 57673ms
+D:\Eronmonsele\Documents\repos\product-app\apps\web:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @avlp/web@0.0.0 dev: `next dev`
+Exit status 4294967295

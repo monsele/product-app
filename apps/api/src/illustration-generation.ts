@@ -1,4 +1,8 @@
-import { createId, PublicError, type Identifier } from "@avlp/config";
+import {
+  createId,
+  PublicError,
+  type Identifier,
+} from "@avlp/config";
 import {
   illustrationGenerationCandidates,
   jobs,
@@ -13,13 +17,22 @@ import {
   illustrationCandidateDecisionInputSchema,
   illustrationGenerationJobPayloadSchema,
   illustrationGenerationResponseSchema,
+  lessonIllustrationGenerationResponseSchema,
   sceneAssetSlotRequirement,
+  sceneSpecSchema,
   sceneTemplateSchema,
   type IllustrationGenerationResponse,
+  type LessonIllustrationGenerationResponse,
 } from "@avlp/schemas";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { z } from "zod";
 
 export const defaultMaximumIllustrationsPerHour = 10;
+
+/** Shape of the persisted `scenes.asset_requirements` column. */
+const sceneAssetRequirementsSchema = z.array(
+  z.object({ slot: z.string().trim().min(1).max(64) }).passthrough(),
+);
 
 /** Queues only bounded, explicitly requested scene illustration generation. */
 export class IllustrationGenerationService {
@@ -28,6 +41,105 @@ export class IllustrationGenerationService {
     private readonly now: () => Date = () => new Date(),
     private readonly maximumIllustrationsPerHour = defaultMaximumIllustrationsPerHour,
   ) {}
+
+  /**
+   * Queue an illustration for every required asset slot in the lesson that has
+   * no binding yet, so a teacher does not have to click through each scene.
+   *
+   * Each slot goes through `request` so the per-slot revision check, template
+   * validation, idempotency key and rate-limit accounting stay identical to the
+   * single-slot path. The hourly cap is typically lower than the number of
+   * empty slots, so hitting it stops the run and is reported as `skipped`
+   * rather than failing -- the already-queued work is real and worth keeping.
+   */
+  public async generateMissing(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    correlationId: Identifier;
+  }): Promise<LessonIllustrationGenerationResponse> {
+    const sceneRows = await this.database
+      .select({
+        stableSceneId: scenes.stableSceneId,
+        revision: scenes.revision,
+        sceneJson: scenes.sceneJson,
+        assetRequirements: scenes.assetRequirements,
+        order: scenes.order,
+      })
+      .from(scenes)
+      .where(
+        and(
+          eq(scenes.ownerUserId, input.ownerUserId),
+          eq(scenes.projectId, input.projectId),
+        ),
+      )
+      .orderBy(scenes.order);
+
+    const missing: { sceneId: Identifier; slot: string; revision: number }[] =
+      [];
+    for (const row of sceneRows) {
+      const parsed = sceneSpecSchema.safeParse(row.sceneJson);
+      if (!parsed.success) continue;
+      const bound = new Set(
+        parsed.data.assetBindings.map((binding) => binding.slot),
+      );
+      // Enumerate the storyboard's own persisted requirements -- the exact set
+      // the `asset_required` validation rule checks against. The template
+      // defaults in requiredSceneAssetSlots() are a different, narrower notion
+      // and would miss the slots the planner actually asked for.
+      const requirements = sceneAssetRequirementsSchema.safeParse(
+        row.assetRequirements,
+      );
+      if (!requirements.success) continue;
+      for (const requirement of requirements.data)
+        if (!bound.has(requirement.slot))
+          missing.push({
+            sceneId: row.stableSceneId as Identifier,
+            slot: requirement.slot,
+            revision: row.revision,
+          });
+    }
+
+    const requests: LessonIllustrationGenerationResponse["requests"] = [];
+    let rateLimited = false;
+    for (const entry of missing) {
+      if (rateLimited) break;
+      try {
+        const queued = await this.request({
+          ownerUserId: input.ownerUserId,
+          projectId: input.projectId,
+          sceneId: entry.sceneId,
+          slot: entry.slot,
+          correlationId: input.correlationId,
+          body: {
+            useCase: "conceptual-supporting-illustration",
+            expectedSceneRevision: entry.revision,
+            idempotencyKey: createId(this.now()),
+          },
+        });
+        requests.push({
+          sceneId: entry.sceneId,
+          slot: entry.slot,
+          candidateId: queued.candidateId,
+          jobId: queued.jobId,
+          status: "queued",
+        });
+      } catch (error: unknown) {
+        if (error instanceof PublicError && error.code === "rate_limited") {
+          rateLimited = true;
+          break;
+        }
+        throw error;
+      }
+    }
+
+    return lessonIllustrationGenerationResponseSchema.parse({
+      totalMissing: missing.length,
+      queued: requests.length,
+      skipped: missing.length - requests.length,
+      rateLimited,
+      requests,
+    });
+  }
 
   public async request(input: {
     ownerUserId: Identifier;
@@ -137,7 +249,11 @@ export class IllustrationGenerationService {
           slot: input.slot,
           status: "queued",
           promptVersion: "v1",
-          provider: "mock-illustration",
+          provider:
+            process.env.TOGETHER_API_KEY?.trim() === undefined ||
+            process.env.TOGETHER_API_KEY.trim().length === 0
+              ? "mock-illustration"
+              : "together",
           moderationStatus: "pending",
           idempotencyKey,
         })

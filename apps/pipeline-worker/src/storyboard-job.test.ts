@@ -404,6 +404,19 @@ describe("assertStoryboardDeterministicChecks", () => {
     ).toThrow(StoryboardDeterministicCheckError);
   });
 
+  it("rejects a scene whose combined text exceeds the renderer layout budget", () => {
+    const output = validOutput();
+    output.scenes[0] = sceneOutput(
+      [blockA],
+      "hook",
+      { question: "Where does the water go?" },
+      { onScreenText: Array.from({ length: 12 }, () => "Key") },
+    );
+    expect(() =>
+      assertStoryboardDeterministicChecks(output, pkg, context),
+    ).toThrow(/readable layout capacity/);
+  });
+
   it("rejects an ungrounded scene", () => {
     const output = validOutput();
     output.scenes[1] = sceneOutput([blockB], "definition", {
