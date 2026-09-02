@@ -13,6 +13,13 @@ import {
 } from "./scene-registry.js";
 import { secondsToFrames } from "./timing.js";
 
+/** Object storage in local dev is signed against a plain-HTTP loopback
+ * endpoint (see OBJECT_STORAGE_ALLOW_INSECURE_ENDPOINT), mirroring the
+ * isLocalEndpoint allowance in @avlp/storage. Any non-loopback host still
+ * must be HTTPS. */
+const LOOPBACK_HTTP_URL_PATTERN =
+  /^http:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\/[^\s]*$/i;
+
 export const narrationTrackSchema = z.discriminatedUnion("kind", [
   z
     .object({
@@ -62,7 +69,8 @@ export const fullLessonCompositionPropsSchema = z
               .refine(
                 (value) =>
                   /^https:\/\/[^\s]+$/i.test(value) ||
-                  /^\/catalog\/[a-z0-9/_-]+\.svg$/i.test(value),
+                  /^\/catalog\/[a-z0-9/_-]+\.svg$/i.test(value) ||
+                  LOOPBACK_HTTP_URL_PATTERN.test(value),
                 "Assets must be signed HTTPS URLs or approved catalog paths.",
               ),
           })

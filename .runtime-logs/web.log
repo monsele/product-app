@@ -1,0 +1,36 @@
+
+> @avlp/web@0.0.0 dev D:\Eronmonsele\Documents\repos\product-app\apps\web
+> next dev
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.192:3000
+
+ ✓ Starting...
+ ✓ Ready in 34.2s
+ ○ Compiling / ...
+ ✓ Compiled / in 9.9s (10487 modules)
+ GET / 200 in 11692ms
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 1507ms (158 modules)
+ ○ Compiling /workspace/[projectId]/preview ...
+ ✓ Compiled /workspace/[projectId]/preview in 9.2s (13860 modules)
+ GET /workspace/01a05e38-d90b-759e-8b20-9b4fb86ca64b/preview 200 in 12591ms
+ ○ Compiling /workspace/[projectId]/render ...
+ ✓ Compiled /workspace/[projectId]/render in 5.1s (13880 modules)
+ GET /workspace/01a05e38-d90b-759e-8b20-9b4fb86ca64b/render 200 in 7430ms
+ GET /workspace/01a05e38-d90b-759e-8b20-9b4fb86ca64b/render 200 in 1174ms
+ GET /workspace/01a05e38-d90b-759e-8b20-9b4fb86ca64b/preview 200 in 578ms
+ ○ Compiling /workspace/[projectId]/storyboard ...
+ ✓ Compiled /workspace/[projectId]/storyboard in 6.3s (13925 modules)
+ GET /workspace/01a05e38-d90b-759e-8b20-9b4fb86ca64b/storyboard 200 in 8342ms
+ GET /workspace/01a05e38-d90b-759e-8b20-9b4fb86ca64b/preview 200 in 412ms
+ GET /workspace/01a05e38-d90b-759e-8b20-9b4fb86ca64b/render 200 in 318ms
+ GET /workspace/01a05e38-d90b-759e-8b20-9b4fb86ca64b/storyboard 200 in 96ms
+ GET /workspace/01a05e38-d90b-759e-8b20-9b4fb86ca64b/preview 200 in 579ms
+ GET /workspace/01a05e38-d90b-759e-8b20-9b4fb86ca64b/render 200 in 293ms
+ GET /workspace/01a05e38-d90b-759e-8b20-9b4fb86ca64b/render 200 in 1033ms
+ GET /workspace/01a05e38-d90b-759e-8b20-9b4fb86ca64b/render 200 in 742ms
+ GET /workspace/01a05e38-d90b-759e-8b20-9b4fb86ca64b/preview 200 in 489ms
+ GET /workspace/01a05e38-d90b-759e-8b20-9b4fb86ca64b/render 200 in 301ms
+ ✓ Compiled in 8.4s (13925 modules)

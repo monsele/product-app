@@ -368,13 +368,18 @@ export function createSceneAudioGenerationJobHandler(input: {
           contentHash: audio.contentHash!,
           extension: provider.outputFormat,
         });
+        const audioBytes = new Uint8Array(output.bytes);
+        const audioChecksumSha256 = createHash("sha256")
+          .update(audioBytes)
+          .digest("hex");
         const stored = await input.storage.putBytes({
           key,
-          body: new Uint8Array(output.bytes),
+          body: audioBytes,
           contentType: provider.contentType,
           metadata: {
             "scene-audio-id": audio.id,
             "content-hash": audio.contentHash!,
+            sha256: audioChecksumSha256,
           },
         });
         alignmentAttempted = output.timing.length === 0;
@@ -404,7 +409,7 @@ export function createSceneAudioGenerationJobHandler(input: {
             .set({
               status: "ready",
               storageKey: key,
-              checksumSha256: stored.checksumSha256 ?? null,
+              checksumSha256: stored.checksumSha256 ?? audioChecksumSha256,
               contentType: provider.contentType,
               durationMs: output.durationMs,
               timing: aligned.timing,

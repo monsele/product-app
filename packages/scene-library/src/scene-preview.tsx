@@ -13,6 +13,13 @@ import {
 import { getSceneFrameTiming } from "./timing.js";
 import { videoTheme } from "@avlp/design-system/video-theme";
 
+/** Object storage in local dev is signed against a plain-HTTP loopback
+ * endpoint (see OBJECT_STORAGE_ALLOW_INSECURE_ENDPOINT), mirroring the
+ * isLocalEndpoint allowance in @avlp/storage. Any non-loopback host still
+ * must be HTTPS. */
+const LOOPBACK_HTTP_URL_PATTERN =
+  /^http:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\/[^\s]*$/i;
+
 const fixtureOrSignedUrlSchema = z
   .string()
   .min(1)
@@ -22,7 +29,8 @@ const fixtureOrSignedUrlSchema = z
       /^\/assets\/[a-z0-9/_-]+\.(png|jpe?g|webp|mp3|wav|m4a)$/i.test(value) ||
       /^data:(image\/(png|jpeg|webp)|audio\/(mpeg|wav|mp4));base64,[a-z0-9+/=]+$/i.test(
         value,
-      ),
+      ) ||
+      LOOPBACK_HTTP_URL_PATTERN.test(value),
     "Media URLs must be HTTPS signed URLs or approved local fixtures.",
   );
 

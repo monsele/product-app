@@ -1015,15 +1015,29 @@ export function RenderPanel({
                     {busy ? "Retrying…" : "Retry render"}
                   </Button>
                 ) : (
-                  <span
-                    style={{
-                      fontSize: "13px",
-                      color: "var(--color-text-muted)",
-                    }}
-                  >
-                    Terminal failure. Please check preflight validation issues
-                    or edit the storyboard.
-                  </span>
+                  <>
+                    {lessonVersionId !== null && (
+                      <Button
+                        type="button"
+                        variant="primary"
+                        disabled={busy}
+                        onClick={() => void submit(base, { lessonVersionId })}
+                        leftIcon={<ArrowClockwise weight="bold" />}
+                      >
+                        {busy ? "Starting render…" : "Start new render"}
+                      </Button>
+                    )}
+                    <span
+                      style={{
+                        fontSize: "13px",
+                        color: "var(--color-text-muted)",
+                      }}
+                    >
+                      Terminal failure. If the affected asset was
+                      regenerated, start a new render; otherwise check
+                      preflight validation issues or edit the storyboard.
+                    </span>
+                  </>
                 )}
               </div>
             </div>
