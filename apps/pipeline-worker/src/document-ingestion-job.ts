@@ -252,7 +252,7 @@ async function restageFigureAssets(input: {
         body: Uint8Array.from(asset.body),
         contentType: asset.contentType,
         metadata: {
-          "checksum-sha256": asset.checksumSha256,
+          sha256: asset.checksumSha256,
           "parser-version": input.parserVersion,
         },
       });
@@ -526,7 +526,7 @@ export function createDocumentIngestionJobHandler(
                 body: Uint8Array.from(asset.body),
                 contentType: asset.contentType,
                 metadata: {
-                  "checksum-sha256": asset.checksumSha256,
+                  sha256: asset.checksumSha256,
                   "parser-version": parsed.parserVersion,
                 },
               });

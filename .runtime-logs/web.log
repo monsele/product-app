@@ -34,3 +34,6 @@
  GET /workspace/01a05e38-d90b-759e-8b20-9b4fb86ca64b/preview 200 in 489ms
  GET /workspace/01a05e38-d90b-759e-8b20-9b4fb86ca64b/render 200 in 301ms
  ✓ Compiled in 8.4s (13925 modules)
+ GET /workspace/01a05e38-d90b-759e-8b20-9b4fb86ca64b/render 200 in 1732ms
+ GET /workspace/01a05e38-d90b-759e-8b20-9b4fb86ca64b/render 200 in 821ms
+ GET /workspace/01a05e38-d90b-759e-8b20-9b4fb86ca64b/render 200 in 886ms

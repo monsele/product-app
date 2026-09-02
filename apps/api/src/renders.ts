@@ -722,6 +722,7 @@ export class PostgresRenderService implements RenderService {
           completedAt: null,
           errorClassification: null,
           errorMetadata: null,
+          correlationId: input.correlationId,
           updatedAt: now,
         })
         .where(eq(jobs.id, row.job.id));

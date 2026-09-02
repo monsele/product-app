@@ -95,7 +95,7 @@ export class ExportService {
   ): Promise<{ expiresAt: string; url: string }> {
     const [row] = await this.database
       .select({
-        render: { id: renderJobs.id },
+        render: { id: renderJobs.id, jobId: renderJobs.jobId },
         video: renderedVideos,
         version: lessonVersions,
       })
@@ -133,7 +133,9 @@ export class ExportService {
       projectId: input.projectId,
       object: {
         kind: "render_video",
-        renderJobId: row.render.id as Identifier,
+        // storageKeys.renderVideo is keyed by the underlying job's id (as
+        // written in render-worker.ts), not the render_jobs row's own id.
+        renderJobId: row.render.jobId as Identifier,
       },
       expiresInSeconds,
       downloadFileName:

@@ -263,6 +263,7 @@ describe("version-bound exports", () => {
 
   it("only signs a verified completed tenant-scoped video and audits the download", async () => {
     const data = fixture();
+    const jobId = createId(new Date(data.at.getTime() + 6));
     const createSignedDownload = vi.fn().mockResolvedValue({
       url: "https://storage.example.test/signed",
       method: "GET",
@@ -272,7 +273,7 @@ describe("version-bound exports", () => {
         [
           [
             {
-              render: { id: data.lessonVersionId },
+              render: { id: data.lessonVersionId, jobId },
               video: {
                 id: data.lessonVersionId,
                 storageKey:
@@ -305,7 +306,7 @@ describe("version-bound exports", () => {
       data.ownerUserId,
       expect.objectContaining({
         projectId: data.projectId,
-        object: { kind: "render_video", renderJobId: data.lessonVersionId },
+        object: { kind: "render_video", renderJobId: jobId },
         expiresInSeconds: 300,
         downloadFileName: "states-of-matter-v2.mp4",
       }),

@@ -150,6 +150,9 @@ export function createIllustrationGenerationJobHandler(input: {
           assetId,
           extension: "png",
         });
+        const imageChecksumSha256 = createHash("sha256")
+          .update(result.bytes)
+          .digest("hex");
         await input.storage.putBytes({
           key: storageKey,
           body: result.bytes,
@@ -157,6 +160,7 @@ export function createIllustrationGenerationJobHandler(input: {
           metadata: {
             "candidate-id": candidate.id,
             provenance: "ai-generated",
+            sha256: imageChecksumSha256,
           },
         });
         await input.database.transaction(async (transaction) => {
@@ -167,7 +171,7 @@ export function createIllustrationGenerationJobHandler(input: {
             mediaType: "image/png",
             originalName: "generated-illustration.png",
             sizeBytes: result.bytes.byteLength,
-            sha256: createHash("sha256").update(result.bytes).digest("hex"),
+            sha256: imageChecksumSha256,
             width: metadata.width,
             height: metadata.height,
             storageKey,

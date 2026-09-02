@@ -102,6 +102,10 @@ async function createStorage(
     forcePathStyle: environment.OBJECT_STORAGE_FORCE_PATH_STYLE,
     maxUploadBytes: environment.MAX_UPLOAD_BYTES,
     defaultSignedUrlTtlSeconds: environment.SIGNED_URL_TTL_SECONDS,
+    // hydrateProductionComposition signs render-input media for 3600s so the
+    // URL survives the whole render pipeline; the storage default cap (900s)
+    // is otherwise too low for that request.
+    maxSignedUrlTtlSeconds: 3_600,
     region: environment.OBJECT_STORAGE_REGION,
     runtimeEnvironment: environment.NODE_ENV,
   });
