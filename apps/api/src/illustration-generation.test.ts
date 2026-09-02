@@ -235,4 +235,98 @@ describe("IllustrationGenerationService.request", () => {
       rateLimited: true,
     });
   });
+
+  it("never queues generation for a grounding-critical diagram slot", async () => {
+    // A labelled diagram's `diagram` slot carries the scene's factual visual.
+    // Bulk generation must skip it and still report it as missing.
+    const sceneRows = [
+      {
+        stableSceneId: "019ffbf1-eeee-7000-8000-000000000105",
+        revision: 2,
+        order: 1,
+        assetRequirements: [{ slot: "subject", purpose: "Anchor image." }],
+        sceneJson: createDefaultStoryboardSceneSpec("hook", {
+          id: "019ffbf1-eeee-7000-8000-000000000105" as Identifier,
+          order: 1,
+          durationSeconds: 20,
+        }),
+      },
+      {
+        stableSceneId: "019ffbf1-eeee-7000-8000-000000000106",
+        revision: 4,
+        order: 2,
+        assetRequirements: [{ slot: "diagram", purpose: "The diagram." }],
+        sceneJson: createDefaultStoryboardSceneSpec("labelled-diagram", {
+          id: "019ffbf1-eeee-7000-8000-000000000106" as Identifier,
+          order: 2,
+          durationSeconds: 20,
+        }),
+      },
+    ];
+    const { database } = fakeDatabase([sceneRows], []);
+    const service = new IllustrationGenerationService(database);
+    const request = vi
+      .fn()
+      .mockResolvedValue({ candidateId, jobId, status: "queued" });
+    service.request = request as unknown as typeof service.request;
+
+    const result = await service.generateMissing({
+      ownerUserId,
+      projectId,
+      correlationId,
+    });
+
+    expect(result).toMatchObject({
+      totalMissing: 2,
+      queued: 1,
+      skipped: 1,
+      rateLimited: false,
+    });
+    expect(
+      request.mock.calls.map((call) => (call[0] as { slot: string }).slot),
+    ).toEqual(["subject"]);
+  });
+
+  it("skips a slot the template does not declare instead of aborting the run", async () => {
+    // `request` rejects an undeclared slot with a 400. Reaching it would throw
+    // out of the whole bulk run, losing the slots that follow.
+    const sceneRows = [
+      {
+        stableSceneId: "019ffbf1-eeee-7000-8000-000000000107",
+        revision: 1,
+        order: 1,
+        assetRequirements: [
+          { slot: "not-a-real-slot", purpose: "Planner invented this." },
+          { slot: "subject", purpose: "Anchor image." },
+        ],
+        sceneJson: createDefaultStoryboardSceneSpec("hook", {
+          id: "019ffbf1-eeee-7000-8000-000000000107" as Identifier,
+          order: 1,
+          durationSeconds: 20,
+        }),
+      },
+    ];
+    const { database } = fakeDatabase([sceneRows], []);
+    const service = new IllustrationGenerationService(database);
+    const request = vi
+      .fn()
+      .mockResolvedValue({ candidateId, jobId, status: "queued" });
+    service.request = request as unknown as typeof service.request;
+
+    const result = await service.generateMissing({
+      ownerUserId,
+      projectId,
+      correlationId,
+    });
+
+    expect(result).toMatchObject({
+      totalMissing: 2,
+      queued: 1,
+      skipped: 1,
+      rateLimited: false,
+    });
+    expect(
+      request.mock.calls.map((call) => (call[0] as { slot: string }).slot),
+    ).toEqual(["subject"]);
+  });
 });

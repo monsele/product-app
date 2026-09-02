@@ -1,5 +1,5 @@
 {
-  "story_count": 71,
+  "story_count": 90,
   "generated_at_utc": "2026-08-06T23:30:52.947417+00:00",
   "stories": [
     {
@@ -677,6 +677,158 @@
         "E21"
       ],
       "prd_user_stories": ["E21-US1", "E21-US2", "E21-US3"]
+    },
+    {
+      "id": "ST-072",
+      "title": "Establish Product UI Foundations and Visual Test Harness",
+      "phase": "08",
+      "depends_on": ["ST-071"],
+      "epics": [],
+      "prd_user_stories": []
+    },
+    {
+      "id": "ST-073",
+      "title": "Build the Application Shell and Authentication UI",
+      "phase": "08",
+      "depends_on": ["ST-025", "ST-026", "ST-027", "ST-072"],
+      "epics": ["E1", "E2"],
+      "prd_user_stories": ["E1-US1", "E1-US2", "E1-US3", "E1-US4"]
+    },
+    {
+      "id": "ST-074",
+      "title": "Build the Teacher Workspace Project Board",
+      "phase": "08",
+      "depends_on": ["ST-028", "ST-029", "ST-073"],
+      "epics": ["E2"],
+      "prd_user_stories": ["E2-US1", "E2-US2", "E2-US3", "E2-US4"]
+    },
+    {
+      "id": "ST-075",
+      "title": "Restyle Source Intake and Ingestion Status",
+      "phase": "08",
+      "depends_on": ["ST-030", "ST-031", "ST-032", "ST-033", "ST-034", "ST-035", "ST-036", "ST-074"],
+      "epics": ["E3", "E4", "E21"],
+      "prd_user_stories": ["E3-US1", "E3-US2", "E3-US3", "E4-US1", "E4-US4", "E21-US1", "E21-US3"]
+    },
+    {
+      "id": "ST-076",
+      "title": "Build the Ingestion Review Workspace",
+      "phase": "08",
+      "depends_on": ["ST-037", "ST-038", "ST-039", "ST-040", "ST-075"],
+      "epics": ["E5", "E19"],
+      "prd_user_stories": ["E5-US1", "E5-US2", "E5-US3", "E5-US4", "E19-US1"]
+    },
+    {
+      "id": "ST-077",
+      "title": "Restyle Lesson and Voice Configuration",
+      "phase": "08",
+      "depends_on": ["ST-041", "ST-062", "ST-076"],
+      "epics": ["E6", "E14"],
+      "prd_user_stories": ["E6-US1", "E6-US2", "E6-US3", "E14-US1"]
+    },
+    {
+      "id": "ST-078",
+      "title": "Build Objectives and Outline Review Editors",
+      "phase": "08",
+      "depends_on": ["ST-045", "ST-047", "ST-052", "ST-060", "ST-077"],
+      "epics": ["E7", "E8", "E19", "E20"],
+      "prd_user_stories": ["E7-US1", "E7-US2", "E8-US1", "E8-US2", "E19-US1", "E20-US1"]
+    },
+    {
+      "id": "ST-079",
+      "title": "Build the Narration Writing Workspace",
+      "phase": "08",
+      "depends_on": ["ST-049", "ST-053", "ST-060", "ST-078"],
+      "epics": ["E9", "E19", "E20"],
+      "prd_user_stories": ["E9-US1", "E9-US2", "E19-US1", "E19-US2", "E20-US1"]
+    },
+    {
+      "id": "ST-080",
+      "title": "Build the Focus Studio Storyboard Workspace",
+      "phase": "08",
+      "depends_on": ["ST-051", "ST-053", "ST-061", "ST-063", "ST-067", "ST-079"],
+      "epics": ["E10", "E12", "E13", "E14", "E16", "E19", "E20"],
+      "prd_user_stories": ["E10-US2", "E12-US1", "E12-US2", "E12-US3", "E12-US4", "E13-US1", "E13-US2", "E13-US3", "E14-US2", "E16-US2", "E19-US1", "E19-US2", "E20-US1", "E20-US2"]
+    },
+    {
+      "id": "ST-081",
+      "title": "Build the Lesson Preview and Preflight Experience",
+      "phase": "08",
+      "depends_on": ["ST-064", "ST-065", "ST-067", "ST-080"],
+      "epics": ["E14", "E15", "E16"],
+      "prd_user_stories": ["E14-US3", "E15-US2", "E16-US1", "E16-US2"]
+    },
+    {
+      "id": "ST-082",
+      "title": "Build Render, Delivery, and Public Playback UI",
+      "phase": "08",
+      "depends_on": ["ST-068", "ST-069", "ST-070", "ST-081"],
+      "epics": ["E17", "E18", "E21"],
+      "prd_user_stories": ["E17-US1", "E17-US2", "E17-US3", "E18-US1", "E18-US2", "E18-US3", "E21-US1", "E21-US2", "E21-US3"]
+    },
+    {
+      "id": "ST-083",
+      "title": "Complete Cross-Screen UI Quality and Accessibility Hardening",
+      "phase": "08",
+      "depends_on": ["ST-082"],
+      "epics": [],
+      "prd_user_stories": []
+    },
+    {
+      "id": "ST-084",
+      "title": "Reconcile Scene Durations With Measured Audio Before Real TTS Adoption",
+      "phase": "09",
+      "depends_on": ["ST-060", "ST-063", "ST-064", "ST-066", "ST-068"],
+      "epics": ["E14", "E15"],
+      "prd_user_stories": []
+    },
+    {
+      "id": "ST-085",
+      "title": "Introduce Visual Role and Enforce Provenance at Asset Binding",
+      "phase": "05",
+      "depends_on": ["ST-057", "ST-058", "ST-059"],
+      "epics": ["E13", "E21"],
+      "prd_user_stories": []
+    },
+    {
+      "id": "ST-086",
+      "title": "Replace Fixed Diagram Callout Anchors with Automatic Layout",
+      "phase": "01",
+      "depends_on": ["ST-011", "ST-018"],
+      "epics": ["E11", "E13"],
+      "prd_user_stories": []
+    },
+    {
+      "id": "ST-087",
+      "title": "Pilot Graph-Based Deterministic Motion for Process and Cause-Effect Scenes",
+      "phase": "01",
+      "depends_on": ["ST-011", "ST-014", "ST-017", "ST-086"],
+      "epics": ["E11"],
+      "prd_user_stories": []
+    },
+    {
+      "id": "ST-088",
+      "title": "Add Editorial Scene-Monotony Validation as a Versioned Advisory Rule",
+      "phase": "04",
+      "depends_on": ["ST-050", "ST-066"],
+      "epics": ["E16", "E19"],
+      "prd_user_stories": []
+    },
+    {
+      "id": "ST-089",
+      "title": "Add Contact-Sheet Candidate Review for Generated Illustrations",
+      "phase": "08",
+      "depends_on": ["ST-059", "ST-085"],
+      "epics": ["E13"],
+      "prd_user_stories": []
+    },
+    {
+      "id": "ST-090",
+      "title": "Constrain Provider Adapters per Job and Forbid Silent Fallback",
+      "phase": "09",
+      "depends_on": ["ST-006", "ST-059"],
+      "epics": ["E21"],
+      "prd_user_stories": []
     }
   ]
 }

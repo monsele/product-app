@@ -76,6 +76,7 @@ export class IllustrationGenerationService {
 
     const missing: { sceneId: Identifier; slot: string; revision: number }[] =
       [];
+    let guarded = 0;
     for (const row of sceneRows) {
       const parsed = sceneSpecSchema.safeParse(row.sceneJson);
       if (!parsed.success) continue;
@@ -90,13 +91,32 @@ export class IllustrationGenerationService {
         row.assetRequirements,
       );
       if (!requirements.success) continue;
-      for (const requirement of requirements.data)
-        if (!bound.has(requirement.slot))
-          missing.push({
-            sceneId: row.stableSceneId as Identifier,
-            slot: requirement.slot,
-            revision: row.revision,
-          });
+      for (const requirement of requirements.data) {
+        if (bound.has(requirement.slot)) continue;
+        // Interim guard ahead of ST-085. Bulk generation must never target a
+        // grounding-critical slot: `diagram` carries the factual visual of a
+        // labelled-diagram scene, so an invented illustration there would
+        // stand in for content the learner is expected to trust. A slot the
+        // template does not declare is guarded for the same reason -- its role
+        // cannot be established here, and `request` rejects it anyway, which
+        // would otherwise abort the whole run rather than skip one slot.
+        const slotRequirement = sceneAssetSlotRequirement(
+          parsed.data.template,
+          requirement.slot,
+        );
+        if (
+          slotRequirement === undefined ||
+          slotRequirement.bindingRole === "diagram"
+        ) {
+          guarded += 1;
+          continue;
+        }
+        missing.push({
+          sceneId: row.stableSceneId as Identifier,
+          slot: requirement.slot,
+          revision: row.revision,
+        });
+      }
     }
 
     const requests: LessonIllustrationGenerationResponse["requests"] = [];
@@ -132,10 +152,14 @@ export class IllustrationGenerationService {
       }
     }
 
+    // Guarded slots are still missing an asset, so they count toward the total
+    // the teacher is shown; they are reported as skipped rather than silently
+    // dropped from it.
+    const totalMissing = missing.length + guarded;
     return lessonIllustrationGenerationResponseSchema.parse({
-      totalMissing: missing.length,
+      totalMissing,
       queued: requests.length,
-      skipped: missing.length - requests.length,
+      skipped: totalMissing - requests.length,
       rateLimited,
       requests,
     });
