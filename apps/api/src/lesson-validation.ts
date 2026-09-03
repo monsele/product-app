@@ -30,6 +30,9 @@ import {
   sourceSnapshotSchema,
   lessonValidationRulesetVersion,
   lessonValidationRunInputSchema,
+  sceneAudioFitToleranceMs,
+  sceneNarrationPlanToleranceMs,
+  reconciledLessonDurationToleranceSeconds,
   validationIssueAcknowledgementInputSchema,
   lessonValidationRunSchema,
   validationIssueSchema,
@@ -46,9 +49,14 @@ import { approvedAssetById } from "./approved-assets.js";
 import { resolveSourceRefsAgainstSnapshot } from "./source-snapshot.js";
 
 const sceneLibraryVersion = "mvp-v1";
-const durationToleranceMs = 1_500;
+const durationToleranceMs = sceneAudioFitToleranceMs;
+/**
+ * Audio that underruns its scene is padded with trailing silence, so a teacher
+ * may accept the gap; audio that overruns would be cut off and never can be.
+ */
 const acknowledgeableWarningCodes = new Set<ValidationIssueCode>([
   "grounding_recheck_required",
+  "audio_duration_mismatch",
 ]);
 
 type IssueDraft = Readonly<{
@@ -285,7 +293,20 @@ export function evaluateLessonValidation(
     (sum, storyboardScene) => sum + storyboardScene.durationSeconds,
     0,
   );
-  if (total !== input.storyboard.targetDurationSeconds)
+  // Scene durations are re-timed from measured audio (ST-084), so the total can
+  // no longer be an exact equality: a conforming TTS engine lands inside a band
+  // around each planned duration, never on it, and those per-scene deviations do
+  // not cancel across the lesson. The band therefore scales with the scene
+  // count, and stays at least as wide as the storyboard-time allocator band so a
+  // not-yet-reconciled draft is judged exactly as before.
+  const lessonToleranceSeconds = reconciledLessonDurationToleranceSeconds(
+    input.storyboard.targetDurationSeconds,
+    input.storyboard.scenes.length,
+  );
+  if (
+    Math.abs(total - input.storyboard.targetDurationSeconds) >
+    lessonToleranceSeconds
+  )
     issues.push(
       issue("lesson_duration_mismatch", {
         severity: "error",
@@ -293,10 +314,11 @@ export function evaluateLessonValidation(
         scopeId: null,
         sceneId: null,
         fieldPath: "targetDurationSeconds",
-        message: "Scene durations must equal the configured lesson duration.",
+        message: `Scene durations total ${total}s, outside the ${lessonToleranceSeconds}s tolerance of the ${input.storyboard.targetDurationSeconds}s lesson duration.`,
         details: {
           actualSeconds: total,
           expectedSeconds: input.storyboard.targetDurationSeconds,
+          toleranceSeconds: lessonToleranceSeconds,
         },
       }),
     );
@@ -373,10 +395,14 @@ export function evaluateLessonValidation(
       (total, duration) => total + (duration ?? 0),
       0,
     );
+    // Both sides of this comparison are planning estimates, and reconciliation
+    // moves the scene duration onto measured audio afterwards. The band is the
+    // audio-fit tolerance so a scene re-timed within it stays consistent here.
     if (
       narrationDurations.length === 0 ||
       narrationDurations.some((duration) => duration === undefined) ||
-      Math.abs(plannedNarrationSeconds - scene.durationSeconds) > 1
+      Math.abs(plannedNarrationSeconds - scene.durationSeconds) * 1000 >
+        sceneNarrationPlanToleranceMs
     )
       issues.push(
         issue("narration_duration_mismatch", {
@@ -390,6 +416,7 @@ export function evaluateLessonValidation(
           details: {
             narrationSeconds: plannedNarrationSeconds,
             sceneDurationSeconds: scene.durationSeconds,
+            toleranceMs: sceneNarrationPlanToleranceMs,
           },
         }),
       );
@@ -492,16 +519,19 @@ export function evaluateLessonValidation(
             details: { status: media.audio.status },
           }),
         );
-      // Audio shorter than the planned scene is padded with trailing silence:
-      // the composition wraps <Audio> in a Sequence fixed to the scene duration,
-      // so playback simply ends early and the visuals hold. Only an overrun is a
-      // defect, because the Sequence cuts the audio off at the scene boundary.
+      // The rule is asymmetric because the two directions are not equally
+      // recoverable. Audio shorter than the planned scene is padded with
+      // trailing silence: the composition wraps <Audio> in a Sequence fixed to
+      // the scene duration, so playback ends early and the visuals hold, which
+      // a teacher may knowingly accept. Audio longer than the scene is cut off
+      // at the Sequence boundary and no acknowledgement can make that correct.
       const plannedDurationMs = scene.durationSeconds * 1000;
-      const overrunMs =
+      const driftMs =
         media.audio.durationMs === null
           ? null
           : media.audio.durationMs - plannedDurationMs;
-      if (overrunMs === null || overrunMs > durationToleranceMs)
+      const sceneLabel = `Scene ${sceneIndex + 1}`;
+      if (driftMs === null)
         issues.push(
           issue("audio_duration_mismatch", {
             severity: "error",
@@ -509,14 +539,50 @@ export function evaluateLessonValidation(
             scopeId: sceneId,
             sceneId,
             fieldPath: `scenes.${sceneIndex}.audio.durationMs`,
-            message:
-              overrunMs === null
-                ? "Scene audio duration is unknown."
-                : "Scene audio is longer than the planned scene duration and would be cut off.",
+            message: `${sceneLabel}: the synthesized audio duration is unknown, so its fit cannot be checked.`,
+            details: {
+              audioDurationMs: null,
+              direction: null,
+              plannedDurationMs,
+              toleranceMs: durationToleranceMs,
+            },
+          }),
+        );
+      else if (driftMs > durationToleranceMs)
+        issues.push(
+          issue("audio_duration_mismatch", {
+            severity: "error",
+            scopeType: "audio",
+            scopeId: sceneId,
+            sceneId,
+            fieldPath: `scenes.${sceneIndex}.audio.durationMs`,
+            message: `${sceneLabel}: the narration audio is ${(driftMs / 1000).toFixed(1)}s longer than the scene and would be cut off.`,
             details: {
               audioDurationMs: media.audio.durationMs,
+              direction: "overrun",
+              overrunMs: driftMs,
               plannedDurationMs,
+              toleranceMs: durationToleranceMs,
             },
+          }),
+        );
+      else if (-driftMs > durationToleranceMs)
+        issues.push(
+          issue("audio_duration_mismatch", {
+            severity: "warning",
+            scopeType: "audio",
+            scopeId: sceneId,
+            sceneId,
+            fieldPath: `scenes.${sceneIndex}.audio.durationMs`,
+            message: `${sceneLabel}: the narration audio ends ${(-driftMs / 1000).toFixed(1)}s before the scene does, which plays as trailing silence.`,
+            details: {
+              audioDurationMs: media.audio.durationMs,
+              direction: "underrun",
+              plannedDurationMs,
+              toleranceMs: durationToleranceMs,
+              underrunMs: -driftMs,
+            },
+            acknowledgeable: true,
           }),
         );
     }

@@ -2,6 +2,9 @@ import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createDefaultStoryboardSceneSpec,
+  reconcileSceneDurations,
+  sceneAudioFitToleranceMs,
+  storyboardDurationToleranceSeconds,
   type LessonStoryboard,
 } from "@avlp/schemas";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
@@ -115,7 +118,9 @@ function input(source = storyboard()) {
         {
           audio: {
             contentHash: sourceHash,
-            durationMs: scene.durationSeconds * 1000,
+            // Nullable in the contract: a provider may return audio whose
+            // duration was never measured, and preflight must block on it.
+            durationMs: scene.durationSeconds * 1000 as number | null,
             fitWarning: null as string | null,
             status: "ready" as const,
           },
@@ -210,44 +215,132 @@ describe("deterministic lesson validation", () => {
     );
   });
 
-  it("treats audio shorter than its scene as padding, not a blocking issue", () => {
+  function withSceneAudioDurationMs(durationMs: number | null) {
     const fixture = input();
     const sceneId = fixture.storyboard.scenes[0]!.stableSceneId;
     const media = fixture.mediaByStableSceneId.get(sceneId)!;
-    // 36s scene, 29s of narration audio: the composition holds the visuals and
-    // plays trailing silence, so this must not block rendering.
     fixture.mediaByStableSceneId.set(sceneId, {
       ...media,
-      audio: {
-        ...media.audio!,
-        durationMs: 29_000,
-        fitWarning:
-          "Narration audio differs from the planned scene duration by more than one second.",
-      },
+      audio: { ...media.audio!, durationMs, fitWarning: null },
     });
-    expect(evaluateLessonValidation(fixture)).not.toContainEqual(
+    return { fixture, sceneId };
+  }
+
+  function audioFitIssues(fixture: ReturnType<typeof input>, sceneId: string) {
+    return evaluateLessonValidation(fixture).filter(
+      (issue) =>
+        issue.code === "audio_duration_mismatch" && issue.sceneId === sceneId,
+    );
+  }
+
+  it("treats audio shorter than its scene as an acknowledgeable warning", () => {
+    // 36s scene, 29s of narration audio: the composition holds the visuals and
+    // plays trailing silence, so a teacher may accept the gap. It must be
+    // visible, because nothing else tells them the scene ends in silence.
+    const { fixture, sceneId } = withSceneAudioDurationMs(29_000);
+    expect(audioFitIssues(fixture, sceneId)).toEqual([
       expect.objectContaining({
         code: "audio_duration_mismatch",
-        sceneId,
+        fieldPath: "scenes.0.audio.durationMs",
+        severity: "warning",
+        acknowledgeable: true,
+        details: expect.objectContaining({
+          direction: "underrun",
+          underrunMs: 7_000,
+        }),
       }),
-    );
+    ]);
   });
 
   it("blocks audio that overruns its scene and would be cut off", () => {
-    const fixture = input();
-    const sceneId = fixture.storyboard.scenes[0]!.stableSceneId;
-    const media = fixture.mediaByStableSceneId.get(sceneId)!;
-    fixture.mediaByStableSceneId.set(sceneId, {
-      ...media,
-      audio: { ...media.audio!, durationMs: 40_000, fitWarning: null },
-    });
-    expect(evaluateLessonValidation(fixture)).toContainEqual(
+    const { fixture, sceneId } = withSceneAudioDurationMs(40_000);
+    expect(audioFitIssues(fixture, sceneId)).toEqual([
       expect.objectContaining({
         code: "audio_duration_mismatch",
         fieldPath: "scenes.0.audio.durationMs",
         severity: "error",
+        acknowledgeable: false,
+        details: expect.objectContaining({
+          direction: "overrun",
+          overrunMs: 4_000,
+        }),
       }),
-    );
+    ]);
+  });
+
+  it("names the scene in both audio-fit directions so preflight is actionable", () => {
+    for (const durationMs of [29_000, 40_000]) {
+      const { fixture, sceneId } = withSceneAudioDurationMs(durationMs);
+      expect(audioFitIssues(fixture, sceneId)[0]!.message).toContain("Scene 1");
+    }
+  });
+
+  it("raises no audio-fit issue on either side of the tolerance boundary", () => {
+    // A conforming engine lands near, not on, the planned duration. Both
+    // boundary values are inside the band, so neither may produce an issue.
+    for (const durationMs of [
+      36_000 - sceneAudioFitToleranceMs,
+      36_000 + sceneAudioFitToleranceMs,
+    ]) {
+      const { fixture, sceneId } = withSceneAudioDurationMs(durationMs);
+      expect(audioFitIssues(fixture, sceneId)).toEqual([]);
+    }
+  });
+
+  it("raises the matching issue one millisecond outside each boundary", () => {
+    const under = withSceneAudioDurationMs(36_000 - sceneAudioFitToleranceMs - 1);
+    expect(audioFitIssues(under.fixture, under.sceneId)).toEqual([
+      expect.objectContaining({ severity: "warning", acknowledgeable: true }),
+    ]);
+    const over = withSceneAudioDurationMs(36_000 + sceneAudioFitToleranceMs + 1);
+    expect(audioFitIssues(over.fixture, over.sceneId)).toEqual([
+      expect.objectContaining({ severity: "error", acknowledgeable: false }),
+    ]);
+  });
+
+  it("blocks a scene whose audio duration was never measured", () => {
+    const { fixture, sceneId } = withSceneAudioDurationMs(null);
+    expect(audioFitIssues(fixture, sceneId)).toEqual([
+      expect.objectContaining({
+        severity: "error",
+        details: expect.objectContaining({ direction: null }),
+      }),
+    ]);
+  });
+
+  it("accepts a lesson total inside the target tolerance and rejects it outside", () => {
+    // Reconciled scene durations follow measured audio, so the total drifts off
+    // the configured target. The band is the same one the allocator is held to.
+    const target = 180;
+    const tolerance = storyboardDurationToleranceSeconds(target);
+    const withTotalDrift = (driftSeconds: number) => {
+      const source = storyboard();
+      const first = source.scenes[0]!;
+      const scenes = [
+        {
+          ...first,
+          durationSeconds: first.durationSeconds + driftSeconds,
+          scene: {
+            ...first.scene,
+            durationSeconds: first.scene.durationSeconds + driftSeconds,
+          },
+        },
+        ...source.scenes.slice(1),
+      ];
+      const fixture = input({ ...source, scenes } as LessonStoryboard);
+      return evaluateLessonValidation(fixture).filter(
+        (issue) => issue.code === "lesson_duration_mismatch",
+      );
+    };
+    expect(withTotalDrift(tolerance)).toEqual([]);
+    expect(withTotalDrift(-tolerance)).toEqual([]);
+    expect(withTotalDrift(tolerance + 1)).toEqual([
+      expect.objectContaining({
+        code: "lesson_duration_mismatch",
+        severity: "error",
+        details: expect.objectContaining({ toleranceSeconds: tolerance }),
+      }),
+    ]);
   });
 
   it("strips persistence-only fields from strict validation issue responses", () => {
@@ -460,6 +553,136 @@ describe("validation API", () => {
         issueId,
         projectId: fixture.projectId,
         body: { inputHash: sourceHash },
+      }),
+    );
+  });
+});
+
+describe("audio to reconciliation to preflight", () => {
+  const plannedSeconds = 36;
+
+  /**
+   * The lesson a teacher actually has: narration written exactly to budget,
+   * scenes re-timed onto the audio a conforming provider produced, and the
+   * narration plan still holding the durations it was written against.
+   */
+  function reconciledFixture(measuredMsByIndex: readonly number[]) {
+    const source = storyboard(measuredMsByIndex.length);
+    const outcomes = reconcileSceneDurations(
+      source.scenes.map((scene, index) => ({
+        stableSceneId: scene.stableSceneId,
+        durationSeconds: scene.durationSeconds,
+        measuredAudioDurationMs: measuredMsByIndex[index]!,
+      })),
+    );
+    const scenes = source.scenes.map((scene, index) => {
+      const applied = outcomes[index]!.appliedDurationSeconds;
+      return {
+        ...scene,
+        durationSeconds: applied,
+        scene: { ...scene.scene, durationSeconds: applied },
+      };
+    });
+    const reconciled = {
+      ...source,
+      scenes,
+      totalDurationSeconds: scenes.reduce(
+        (sum, scene) => sum + scene.durationSeconds,
+        0,
+      ),
+    } as LessonStoryboard;
+    const fixture = input(reconciled);
+    // The narration plan is not re-written by reconciliation: it still holds
+    // the durations the script was budgeted against, not the measured ones.
+    fixture.narrationDurationSecondsByBlockId = new Map(
+      source.scenes.map((scene) => [
+        scene.narrationBlockIds[0]!,
+        plannedSeconds,
+      ]),
+    );
+    for (const [index, scene] of reconciled.scenes.entries()) {
+      const media = fixture.mediaByStableSceneId.get(scene.stableSceneId)!;
+      fixture.mediaByStableSceneId.set(scene.stableSceneId, {
+        ...media,
+        audio: {
+          ...media.audio!,
+          durationMs: measuredMsByIndex[index]!,
+          fitWarning: null,
+        },
+        captions: {
+          ...media.captions!,
+          cues: [{ startMs: 0, endMs: measuredMsByIndex[index]! }],
+        },
+      });
+    }
+    return fixture;
+  }
+
+  it("passes preflight for on-budget narration drifting the full tolerance either way", () => {
+    // The worst a conforming provider can do on every scene at once. This is
+    // the case that used to produce one blocking error per scene with no
+    // remedy available to the teacher.
+    for (const driftMs of [-sceneAudioFitToleranceMs, sceneAudioFitToleranceMs])
+      expect(
+        evaluateLessonValidation(
+          reconciledFixture(
+            Array.from({ length: 5 }, () => plannedSeconds * 1_000 + driftMs),
+          ),
+        ).filter((issue) => issue.severity === "error"),
+      ).toEqual([]);
+  });
+
+  it("passes preflight across the whole band of per-scene drift", () => {
+    for (let driftMs = -1_500; driftMs <= 1_500; driftMs += 100) {
+      const measured = Array.from({ length: 5 }, (_, index) =>
+        // Alternating directions, so the lesson total drifts as well as the
+        // individual scenes rather than the errors cancelling out.
+        index % 2 === 0
+          ? plannedSeconds * 1_000 + driftMs
+          : plannedSeconds * 1_000 - driftMs,
+      );
+      expect(
+        evaluateLessonValidation(reconciledFixture(measured)).filter(
+          (issue) => issue.severity === "error",
+        ),
+      ).toEqual([]);
+    }
+  });
+
+  it("still blocks a scene whose audio cannot fit the per-scene maximum", () => {
+    // 75s of audio clamps to the 60s scene ceiling, so the overrun survives
+    // reconciliation and must name the offending scene.
+    const measured = Array.from({ length: 5 }, (_, index) =>
+      index === 2 ? 75_000 : plannedSeconds * 1_000,
+    );
+    const errors = evaluateLessonValidation(
+      reconciledFixture(measured),
+    ).filter((issue) => issue.severity === "error");
+    expect(errors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: "audio_duration_mismatch",
+          details: expect.objectContaining({ direction: "overrun" }),
+          message: expect.stringContaining("Scene 3"),
+        }),
+      ]),
+    );
+    expect(
+      errors.every((issue) => issue.sceneId !== null || issue.code === "lesson_duration_mismatch"),
+    ).toBe(true);
+  });
+
+  it("reports a scene whose audio underruns the per-scene minimum as an acknowledgeable warning", () => {
+    const measured = Array.from({ length: 5 }, (_, index) =>
+      index === 1 ? 900 : plannedSeconds * 1_000,
+    );
+    const issues = evaluateLessonValidation(reconciledFixture(measured));
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: "audio_duration_mismatch",
+        severity: "warning",
+        acknowledgeable: true,
+        details: expect.objectContaining({ direction: "underrun" }),
       }),
     );
   });

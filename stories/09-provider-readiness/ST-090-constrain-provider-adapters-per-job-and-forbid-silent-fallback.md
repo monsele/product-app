@@ -2,7 +2,7 @@
 story_id: ST-090
 title: "Constrain Provider Adapters per Job and Forbid Silent Fallback"
 phase: "09 — Provider Readiness"
-status: Draft
+status: Ready
 priority: should-have
 epics: ["E21"]
 prd_user_stories: []

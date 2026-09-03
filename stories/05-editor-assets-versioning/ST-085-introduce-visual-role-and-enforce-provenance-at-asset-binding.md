@@ -2,7 +2,7 @@
 story_id: ST-085
 title: "Introduce Visual Role and Enforce Provenance at Asset Binding"
 phase: "05 — Storyboard Editing, Assets, and Versions"
-status: Draft
+status: Ready
 priority: must-have
 epics: ["E13", "E21"]
 prd_user_stories: []

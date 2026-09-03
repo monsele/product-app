@@ -2,7 +2,7 @@
 story_id: ST-086
 title: "Replace Fixed Diagram Callout Anchors with Automatic Layout"
 phase: "01 — Visual Runtime Proof"
-status: Draft
+status: Ready
 priority: must-have
 epics: ["E11", "E13"]
 prd_user_stories: []

@@ -2,7 +2,7 @@
 story_id: ST-089
 title: "Add Contact-Sheet Candidate Review for Generated Illustrations"
 phase: "08 - Product UI"
-status: Draft
+status: Ready
 priority: should-have
 epics: ["E13"]
 prd_user_stories: []

@@ -6983,11 +6983,153 @@ export function sceneEditInvalidation(
 }
 
 // ---------------------------------------------------------------------------
+// ST-084 — measured-audio duration reconciliation
+// ---------------------------------------------------------------------------
+
+/**
+ * Per-scene audio-fit tolerance, shared by the validation engine, the audio
+ * job's fit warning, and reconciliation so the three cannot drift apart.
+ * Scene durations are planned from a word budget before any audio exists, so
+ * a conforming TTS engine is expected to land inside this band rather than on
+ * the predicted duration exactly.
+ */
+export const sceneAudioFitToleranceMs = 1_500 as const;
+
+/**
+ * Worst-case residual left by rounding a measured duration to whole seconds,
+ * which is what reconciliation applies to a scene.
+ */
+export const sceneDurationRoundingMs = 500 as const;
+
+/**
+ * How far a scene's duration may sit from the narration plan it was written
+ * against. Both sides are planning estimates and reconciliation moves the
+ * scene onto measured audio afterwards, so the band is the audio-fit
+ * tolerance widened by the rounding reconciliation introduces. A tighter band
+ * would reject a scene that every other rule considers correctly timed.
+ */
+export const sceneNarrationPlanToleranceMs =
+  sceneAudioFitToleranceMs + sceneDurationRoundingMs;
+
+/**
+ * Lesson-duration tolerance once scenes have been re-timed from measured audio
+ * (ST-084). Reconciliation moves each scene independently: a conforming TTS
+ * engine may run up to `sceneAudioFitToleranceMs` long on every scene, and
+ * rounding the measurement to whole seconds adds up to `sceneDurationRoundingMs`
+ * more, in the same direction. Those per-scene movements do not cancel, so the
+ * lesson total can sit that far from the planned sum times the scene count even
+ * though every scene individually passes the audio-fit rule. The planned
+ * durations sum exactly to the target, so this is the largest lesson-total error
+ * a fully conforming lesson can show, and blocking it would name no defect a
+ * teacher could act on — redistributing the slack is the recorded follow-up, not
+ * a reason to fail preflight here. Never tighter than the storyboard-time band,
+ * which still governs a not-yet-reconciled draft.
+ */
+export function reconciledLessonDurationToleranceSeconds(
+  target: number,
+  sceneCount: number,
+): number {
+  const perSceneSeconds =
+    (sceneAudioFitToleranceMs + sceneDurationRoundingMs) / 1_000;
+  return Math.max(
+    storyboardDurationToleranceSeconds(target),
+    Math.ceil(Math.max(0, sceneCount) * perSceneSeconds),
+  );
+}
+
+/** Which side of its planned duration a scene's measured audio landed on. */
+export const sceneAudioFitDirectionSchema = z.enum(["overrun", "underrun"]);
+export type SceneAudioFitDirection = z.infer<
+  typeof sceneAudioFitDirectionSchema
+>;
+
+/** Why reconciliation could not apply the measured duration verbatim. */
+export const sceneDurationClampReasonSchema = z.enum([
+  "scene_minimum",
+  "scene_maximum",
+]);
+export type SceneDurationClampReason = z.infer<
+  typeof sceneDurationClampReasonSchema
+>;
+
+/** The auditable outcome of reconciling one scene against its measured audio. */
+export const sceneDurationReconciliationSchema = z
+  .object({
+    stableSceneId: identifierSchema,
+    previousDurationSeconds: z.number().int().positive(),
+    measuredAudioDurationMs: z.number().int().nonnegative(),
+    appliedDurationSeconds: z
+      .number()
+      .int()
+      .min(storyboardSceneMinimumSeconds)
+      .max(storyboardSceneMaximumSeconds),
+    clampReason: sceneDurationClampReasonSchema.nullable(),
+    /** True when the clamped duration still cannot contain the audio. */
+    unfittable: z.boolean(),
+  })
+  .strict();
+export type SceneDurationReconciliation = z.infer<
+  typeof sceneDurationReconciliationSchema
+>;
+
+/**
+ * Deterministic re-timing of scenes from measured audio. Speech is the hard
+ * constraint and visuals are elastic, so a scene takes the duration its audio
+ * actually needs, never the reverse. Rounding to whole seconds leaves at most
+ * 500ms of residual drift, well inside `sceneAudioFitToleranceMs`; a scene
+ * whose audio cannot fit the per-scene bounds is reported as `unfittable`
+ * rather than silently truncated. The same measured input always produces the
+ * same output, which is what makes re-running reconciliation a no-op.
+ */
+export function reconcileSceneDurations(
+  scenes: readonly {
+    stableSceneId: string;
+    durationSeconds: number;
+    measuredAudioDurationMs: number;
+  }[],
+): readonly SceneDurationReconciliation[] {
+  return scenes.map((scene) => {
+    const rounded = Math.round(scene.measuredAudioDurationMs / 1_000);
+    const applied = Math.min(
+      storyboardSceneMaximumSeconds,
+      Math.max(storyboardSceneMinimumSeconds, rounded),
+    );
+    const clampReason: SceneDurationClampReason | null =
+      rounded < storyboardSceneMinimumSeconds
+        ? "scene_minimum"
+        : rounded > storyboardSceneMaximumSeconds
+          ? "scene_maximum"
+          : null;
+    return {
+      stableSceneId: scene.stableSceneId as Identifier,
+      previousDurationSeconds: scene.durationSeconds,
+      measuredAudioDurationMs: scene.measuredAudioDurationMs,
+      appliedDurationSeconds: applied,
+      clampReason,
+      unfittable:
+        scene.measuredAudioDurationMs - applied * 1_000 >
+        sceneAudioFitToleranceMs,
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
 // ST-066 — deterministic lesson quality validation
 // ---------------------------------------------------------------------------
 
-/** Versioned deterministic rules that decide whether a lesson can be rendered. */
-export const lessonValidationRulesetVersion = "1" as const;
+/**
+ * Versioned deterministic rules that decide whether a lesson can be rendered.
+ *
+ * - `"1"` — initial ruleset.
+ * - `"2"` — ST-084: `audio_duration_mismatch` became asymmetric (overrun is an
+ *   error, underrun an acknowledgeable warning); `lesson_duration_mismatch`
+ *   moved from exact equality to a scene-count-aware band; the
+ *   `narration_duration_mismatch` band widened to the audio-fit tolerance plus
+ *   reconciliation rounding. The version participates in the render-authorization
+ *   input hash, so bumping it forces re-validation of runs that passed under the
+ *   old rules.
+ */
+export const lessonValidationRulesetVersion = "2" as const;
 
 export const validationSeveritySchema = z.enum(["error", "warning", "info"]);
 export type ValidationSeverity = z.infer<typeof validationSeveritySchema>;

@@ -22,6 +22,7 @@ import { ProviderCallError } from "@avlp/provider-adapters";
 import {
   narrationPauseReservation,
   narrationWordsPerMinute,
+  sceneAudioFitToleranceMs,
   sceneAudioGenerationJobPayloadSchema,
 } from "@avlp/schemas";
 import { storageKeys, type ObjectStorage } from "@avlp/storage";
@@ -31,6 +32,7 @@ import {
   captionContentHash,
   segmentCaptions,
 } from "./captions.js";
+import { reconcileLessonSceneDurations } from "./duration-reconciliation.js";
 
 export const sceneAudioGenerationJobType = "tts.generate";
 export type SceneAudioTiming = {
@@ -113,9 +115,18 @@ export function synthesizeFixtureAudio(
   const spokenMs =
     (text.trim().split(/\s+/).length / (narrationWordsPerMinute * rate)) *
     60_000;
+  const modelledMs = spokenMs / (1 - narrationPauseReservation);
+  // A real engine's prosody, punctuation, and phoneme lengths never reduce to a
+  // word count, so a fixture that realizes the planning model exactly would let
+  // the tolerance and reconciliation paths rot until the first real provider
+  // arrives. The jitter is seeded from the narration text so the same input
+  // always yields the same audio -- content-addressed identity and job
+  // idempotency both depend on that -- and stays inside the audio-fit
+  // tolerance so on-budget narration still passes preflight before it is
+  // reconciled.
   const durationMs = Math.max(
     500,
-    Math.round(spokenMs / (1 - narrationPauseReservation)),
+    Math.round(modelledMs + fixtureDurationJitterMs(text, modelledMs)),
   );
   const sampleRate = 8000;
   const count = Math.max(1, Math.round((sampleRate * durationMs) / 1000));
@@ -158,6 +169,25 @@ export function synthesizeFixtureAudio(
   });
   return { bytes, durationMs, timing };
 }
+const fixtureDurationJitterRatio = 0.08;
+const fixtureDurationJitterCeilingMs = 1_200;
+
+/** Deterministic, bounded drift seeded by the narration text alone. */
+export function fixtureDurationJitterMs(
+  text: string,
+  modelledMs: number,
+): number {
+  const seed = createHash("sha256").update(text.trim()).digest();
+  // Two bytes give 65536 steps mapped onto [-1, 1); a single byte would make
+  // the drift visibly quantized on short scenes.
+  const unit = ((seed[0]! << 8) | seed[1]!) / 32_768 - 1;
+  const bounded = Math.min(
+    fixtureDurationJitterCeilingMs,
+    Math.abs(modelledMs) * fixtureDurationJitterRatio,
+  );
+  return unit * bounded;
+}
+
 export const fixtureSceneAudioTtsProvider: SceneAudioTtsProvider = {
   providerId: "fixture-v1",
   outputFormat: "wav",
@@ -200,7 +230,7 @@ export function createSceneAudioGenerationJobHandler(input: {
         );
       if (audio.status === "ready") {
         if (await hasReadyCaptions(input.database, audio.id, context)) {
-          await advanceProjectMediaStage(input.database, context, now());
+          await advanceOrRetry(input.database, context, now());
           return { status: "ready", reused: true };
         }
         const timing = persistedTiming(audio.timing, audio.durationMs);
@@ -228,7 +258,7 @@ export function createSceneAudioGenerationJobHandler(input: {
             now,
           });
         });
-        await advanceProjectMediaStage(input.database, context, now());
+        await advanceOrRetry(input.database, context, now());
         return { status: "ready", reused: true, captionsRepaired: true };
       }
       const [claimed] = await input.database
@@ -343,7 +373,7 @@ export function createSceneAudioGenerationJobHandler(input: {
               now,
             });
           });
-          await advanceProjectMediaStage(input.database, context, now());
+          await advanceOrRetry(input.database, context, now());
           return { status: "ready", reused: true, captionsRepaired: true };
         }
         if (
@@ -400,8 +430,9 @@ export function createSceneAudioGenerationJobHandler(input: {
               );
         const warning =
           audio.plannedDurationMs !== null &&
-          Math.abs(output.durationMs - audio.plannedDurationMs) > 1000
-            ? "Narration audio differs from the planned scene duration by more than one second."
+          Math.abs(output.durationMs - audio.plannedDurationMs) >
+            sceneAudioFitToleranceMs
+            ? "Narration audio differs from the planned scene duration by more than the audio-fit tolerance."
             : null;
         await input.database.transaction(async (tx) => {
           const [completed] = await tx
@@ -511,13 +542,21 @@ export function createSceneAudioGenerationJobHandler(input: {
           .where(eq(sceneAudio.id, audio.id))
           .limit(1);
         if (current?.status !== "ready") return { status: "stale" };
-        await advanceProjectMediaStage(input.database, context, now());
+        await advanceOrRetry(input.database, context, now());
         return {
           status: "ready",
           durationMs: output.durationMs,
           fitWarning: warning,
         };
       } catch (error) {
+        // The audio itself is generated and committed; only the follow-on
+        // duration reconciliation could not run against the current revision.
+        // Leave the ready audio untouched and let the job retry.
+        if (
+          error instanceof JobExecutionError &&
+          error.code === "DURATION_RECONCILIATION_PENDING"
+        )
+          throw error;
         const failureCode =
           error instanceof JobExecutionError ||
           error instanceof ProviderCallError
@@ -765,11 +804,26 @@ function persistedTiming(
   return timing;
 }
 
+/**
+ * Runs once every scene of the lesson holds ready audio and captions. Scene
+ * durations are reconciled against that measured audio (ST-084) before the
+ * project becomes validatable, so preflight judges the timing a render would
+ * actually produce rather than the word-budget prediction made before any
+ * audio existed. Reconciliation is idempotent, so the repeated calls this
+ * makes as the last few scenes complete write at most once.
+ *
+ * Returns `false` only when a concurrent storyboard edit made reconciliation
+ * lose its optimistic-revision race, so no scene was re-timed and the caller
+ * must not let the project advance to validation on stale timing. Every other
+ * "not yet" case (a scene still missing audio or captions) returns `true`: that
+ * is the normal path as the earlier scenes complete, and a later audio
+ * completion runs this again.
+ */
 async function advanceProjectMediaStage(
   database: DatabaseClient,
-  context: { ownerUserId: string; projectId: string },
+  context: { ownerUserId: string; projectId: string; correlationId: string },
   now: Date,
-): Promise<void> {
+): Promise<boolean> {
   const findSpec = async (status: "draft" | "approved") =>
     (
       await database
@@ -786,7 +840,7 @@ async function advanceProjectMediaStage(
         .limit(1)
     )[0];
   const spec = (await findSpec("draft")) ?? (await findSpec("approved"));
-  if (spec === undefined) return;
+  if (spec === undefined) return true;
   const sceneRows = await database
     .select({ id: scenes.id })
     .from(scenes)
@@ -797,7 +851,7 @@ async function advanceProjectMediaStage(
         eq(scenes.lessonSpecId, spec.id),
       ),
     );
-  if (sceneRows.length === 0) return;
+  if (sceneRows.length === 0) return true;
   const audioRows = await database
     .select({
       id: sceneAudio.id,
@@ -826,7 +880,7 @@ async function advanceProjectMediaStage(
       (scene) => currentAudioByScene.get(scene.id)?.status !== "ready",
     )
   )
-    return;
+    return true;
   const currentAudioIds = [...currentAudioByScene.values()].map(
     (audio) => audio.id,
   );
@@ -848,7 +902,19 @@ async function advanceProjectMediaStage(
     readyCaptionRows.map((track) => track.sceneAudioId),
   );
   if (currentAudioIds.some((audioId) => !audioWithCaptions.has(audioId)))
-    return;
+    return true;
+  const reconciliation = await reconcileLessonSceneDurations({
+    database,
+    ownerUserId: context.ownerUserId as Identifier,
+    projectId: context.projectId as Identifier,
+    correlationId: context.correlationId as Identifier,
+    now,
+  });
+  // A teacher edit bumped the lesson revision between reconciliation's read and
+  // its guarded write, so no scene was re-timed. Advancing now would run
+  // validation against durations a render would not reproduce, so hold the
+  // project where it is and let the job retry against the edited storyboard.
+  if (reconciliation.status === "conflict") return false;
   await database
     .update(projects)
     .set({ stage: "ready_for_validation", updatedAt: now })
@@ -862,6 +928,26 @@ async function advanceProjectMediaStage(
         ]),
       ),
     );
+  return true;
+}
+
+/**
+ * Advances the project once its scene durations are reconciled, or asks the job
+ * runner to retry when a concurrent storyboard edit prevented reconciliation.
+ * The audio this job produced is already committed, so the retry re-enters
+ * through the ready-audio fast path and reconciles the edited storyboard.
+ */
+async function advanceOrRetry(
+  database: DatabaseClient,
+  context: { ownerUserId: string; projectId: string; correlationId: string },
+  now: Date,
+): Promise<void> {
+  if (await advanceProjectMediaStage(database, context, now)) return;
+  throw new JobExecutionError(
+    "retryable",
+    "DURATION_RECONCILIATION_PENDING",
+    "Scene durations could not be reconciled against measured audio yet.",
+  );
 }
 function sceneAudioId(id: string): Identifier {
   return id as Identifier;

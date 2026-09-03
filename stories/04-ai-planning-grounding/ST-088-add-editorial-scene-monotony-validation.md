@@ -2,7 +2,7 @@
 story_id: ST-088
 title: "Add Editorial Scene-Monotony Validation as a Versioned Advisory Rule"
 phase: "04 — AI Planning and Grounding"
-status: Draft
+status: Ready
 priority: should-have
 epics: ["E16", "E19"]
 prd_user_stories: []

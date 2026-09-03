@@ -315,4 +315,158 @@ describe("render API authorization and explicit commands", () => {
       renderEnvelopePayloadSchema.safeParse(jobWrite?.payload).success,
     ).toBe(true);
   });
+  it("renders exactly the reconciled durations the lesson version snapshotted", async () => {
+    // Reconciled scenes hold odd, audio-derived lengths that no allocator would
+    // have produced. A render must reproduce the timing preflight approved, so
+    // every frame boundary has to come from the snapshot and nowhere else.
+    const fixture = createCrossUserProjectFixture();
+    const now = new Date("2026-08-25T08:00:00.000Z");
+    const lessonSpecId = createId(now);
+    const sceneA = createId(new Date("2026-08-25T08:00:01.000Z"));
+    const sceneB = createId(new Date("2026-08-25T08:00:02.000Z"));
+    const sourceDocumentId = createId(new Date("2026-08-25T08:00:03.000Z"));
+    const blockId = createId(new Date("2026-08-25T08:00:04.000Z"));
+    const versionId = createId(new Date("2026-08-25T08:00:05.000Z"));
+    const validationId = createId(new Date("2026-08-25T08:00:06.000Z"));
+    const audioA = createId(new Date("2026-08-25T08:00:07.000Z"));
+    const audioB = createId(new Date("2026-08-25T08:00:08.000Z"));
+    const trackA = createId(new Date("2026-08-25T08:00:09.000Z"));
+    const trackB = createId(new Date("2026-08-25T08:00:10.000Z"));
+    const renderId = createId(new Date("2026-08-25T08:00:11.000Z"));
+    const correlationId = createId(new Date("2026-08-25T08:00:12.000Z"));
+    const reconciledDurations = [33, 28] as const;
+    const scene = (id: string, order: number, durationSeconds: number) => ({
+      id,
+      order,
+      narration: "Water changes state.",
+      durationSeconds,
+      onScreenText: ["States"],
+      transition: "cut",
+      assetBindings: [],
+      sourceRefs: [
+        {
+          documentId: sourceDocumentId,
+          parsedDocumentVersion: 1,
+          pageStart: 1,
+          blockIds: [blockId],
+        },
+      ],
+      generatedAdditions: [],
+      template: "definition",
+      visual: { term: "State", definition: "A form of matter." },
+    });
+    const lesson = {
+      schemaVersion: "1.8",
+      lessonId: lessonSpecId,
+      projectId: fixture.projectId,
+      title: "States of matter",
+      subject: "Science",
+      audience: {
+        ageBand: "11-13",
+        difficulty: "introductory",
+        priorKnowledge: [],
+      },
+      targetDurationSeconds: 180,
+      tone: "friendly",
+      themeId: "mvp-default",
+      objectiveIds: [blockId],
+      voice: { providerVoiceId: "mvp-default", speakingRate: 1 },
+      scenes: [
+        scene(sceneA, 1, reconciledDurations[0]),
+        scene(sceneB, 2, reconciledDurations[1]),
+      ],
+    };
+    const audioRow = (id: string, stableSceneId: string) => ({
+      stableSceneId,
+      audio: {
+        id,
+        storageKey: `users/${fixture.ownerUserId}/projects/${fixture.projectId}/audio/${stableSceneId}/a.mp3`,
+        checksumSha256: "c".repeat(64),
+        contentType: "audio/mpeg",
+        updatedAt: now,
+      },
+    });
+    const writes: Array<Record<string, unknown>> = [];
+    const database = databaseForRenderCommand({
+      writes,
+      rows: [
+        [
+          {
+            id: versionId,
+            contentHash: "a".repeat(64),
+            lessonSpecId,
+            lessonSpecRevision: 1,
+            sceneLibraryVersion: "mvp-v1",
+            snapshot: { lessonSpec: lesson },
+          },
+        ],
+        [{ id: validationId, inputHash: "b".repeat(64) }],
+        [],
+        [audioRow(audioA, sceneA), audioRow(audioB, sceneB)],
+        [
+          { audioId: audioA, track: { id: trackA, updatedAt: now } },
+          { audioId: audioB, track: { id: trackB, updatedAt: now } },
+        ],
+        [{ startMs: 0, endMs: 32_800, text: "Water changes state." }],
+        [{ startMs: 0, endMs: 27_600, text: "Water changes state." }],
+        [],
+        [],
+        [],
+        [
+          {
+            render: {
+              id: renderId,
+              lessonVersionId: versionId,
+              validationRunId: validationId,
+              createdAt: now,
+              errorCode: null,
+            },
+            job: {
+              state: "queued",
+              progress: 0,
+              attempts: 0,
+              errorMetadata: null,
+              errorClassification: null,
+              correlationId,
+              startedAt: null,
+              completedAt: null,
+            },
+            video: null,
+            thumbnail: null,
+          },
+        ],
+      ],
+    });
+    const service = new PostgresRenderService(
+      database,
+      undefined,
+      undefined,
+      () => now,
+    );
+
+    await service.start({
+      ownerUserId: fixture.ownerUserId,
+      projectId: fixture.projectId,
+      correlationId,
+      body: { lessonVersionId: versionId },
+    });
+    const jobWrite = writes.find((value) => value.jobType === "lesson.render");
+    const payload = (jobWrite as { payload: unknown }).payload as {
+      manifest: {
+        captions: { sceneId: string; startFrame: number }[];
+        snapshot: { lessonSpec: { scenes: { durationSeconds: number }[] } };
+      };
+    };
+    expect(
+      payload.manifest.snapshot.lessonSpec.scenes.map(
+        (item) => item.durationSeconds,
+      ),
+    ).toEqual([...reconciledDurations]);
+    // The second scene starts where the first scene's snapshotted duration
+    // ends, not where its 32.8s of audio does.
+    const secondSceneCue = payload.manifest.captions.find(
+      (cue) => cue.sceneId === sceneB,
+    );
+    expect(secondSceneCue?.startFrame).toBe(reconciledDurations[0] * 30);
+  });
 });

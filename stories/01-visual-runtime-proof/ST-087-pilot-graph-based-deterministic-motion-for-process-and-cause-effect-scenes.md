@@ -2,7 +2,7 @@
 story_id: ST-087
 title: "Pilot Graph-Based Deterministic Motion for Process and Cause-Effect Scenes"
 phase: "01 — Visual Runtime Proof"
-status: Draft
+status: Ready
 priority: must-have
 epics: ["E11"]
 prd_user_stories: []

@@ -2,10 +2,16 @@ import { createHash } from "node:crypto";
 import type { DatabaseClient } from "@avlp/database";
 import type { JobMetadata } from "@avlp/jobs";
 import { ProviderCallError } from "@avlp/provider-adapters";
-import { narrationWordCountRange } from "@avlp/schemas";
+import {
+  narrationPauseReservation,
+  narrationWordCountRange,
+  narrationWordsPerMinute,
+  sceneAudioFitToleranceMs,
+} from "@avlp/schemas";
 import { describe, expect, it, vi } from "vitest";
 import {
   createSceneAudioGenerationJobHandler,
+  fixtureDurationJitterMs,
   isCurrentAudioCompletion,
   synthesizeFixtureAudio,
 } from "./scene-audio-job.js";
@@ -131,7 +137,47 @@ describe("fixture TTS adapter", () => {
       const output = synthesizeFixtureAudio(text, 1);
       expect(
         Math.abs(output.durationMs - plannedSeconds * 1_000),
-      ).toBeLessThanOrEqual(1_500);
+      ).toBeLessThanOrEqual(sceneAudioFitToleranceMs);
+    }
+  });
+
+  it("drifts off the planned duration so the reconciliation path stays exercised", () => {
+    // A fixture that realizes the planning model exactly cannot surface the
+    // class of defect this jitter exists to keep visible before a real
+    // provider arrives. Reconciliation rounds measured audio to whole seconds,
+    // so the drift only matters if it moves some scene off its planned second.
+    const retimed = Array.from({ length: 40 }, (_, index) => {
+      const plannedSeconds = 15 + (index % 4) * 15;
+      const words = narrationWordCountRange(plannedSeconds).target;
+      const text = `${Array.from({ length: words }, () => "word").join(" ")} ${index}`;
+      const measured = synthesizeFixtureAudio(text, 1).durationMs;
+      return Math.round(measured / 1_000) !== plannedSeconds;
+    });
+    expect(retimed.filter(Boolean).length).toBeGreaterThan(0);
+  });
+
+  it("keeps the drift deterministic and seeded by the narration alone", () => {
+    // Content-addressed audio identity and job idempotency both assume the
+    // same narration always synthesizes to the same bytes and duration.
+    const text = "Water enters through roots and travels upward.";
+    const first = synthesizeFixtureAudio(text, 1);
+    const second = synthesizeFixtureAudio(text, 1);
+    expect(second.durationMs).toBe(first.durationMs);
+    expect(Array.from(second.bytes)).toEqual(Array.from(first.bytes));
+    expect(
+      synthesizeFixtureAudio("A different narration entirely.", 1).durationMs,
+    ).not.toBe(first.durationMs);
+  });
+
+  it("bounds the drift so on-budget narration never fails the audio-fit rule", () => {
+    for (let words = 1; words <= 400; words += 1) {
+      const text = Array.from({ length: words }, () => "word").join(" ");
+      const modelledMs =
+        (words / (narrationWordsPerMinute * (1 - narrationPauseReservation))) *
+        60_000;
+      expect(
+        Math.abs(fixtureDurationJitterMs(text, modelledMs)),
+      ).toBeLessThanOrEqual(sceneAudioFitToleranceMs);
     }
   });
   it("provides monotonic sentence timing that covers the full generated audio", () => {
