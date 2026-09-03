@@ -22,6 +22,41 @@ import { TeacherAssetPicker } from "./teacher-asset-picker";
 
 type SaveState = "saved" | "saving" | "conflict" | "failed";
 
+// ST-087: `process` and `cause-effect` scenes come in a legacy shape (`steps` /
+// `causes` / `mechanism` / `effects`) or a graph shape (`nodes` / `edges`). The
+// flat editor fields describe the legacy shape only, so on a graph scene they
+// are hidden — showing an empty "Steps" box that cannot be saved would just
+// confuse. A structured node/edge editor is tracked as ST-091.
+const legacyOnlyVisualPaths = new Set([
+  "visual.steps",
+  "visual.causes",
+  "visual.effects",
+  "visual.mechanism.label",
+]);
+
+export function isGraphShapeScene(scene: SceneSpec): boolean {
+  return (
+    (scene.template === "process" || scene.template === "cause-effect") &&
+    typeof scene.visual === "object" &&
+    scene.visual !== null &&
+    "nodes" in scene.visual &&
+    (scene.visual as { nodes?: unknown }).nodes !== undefined
+  );
+}
+
+/**
+ * Editor fields for a scene, minus the legacy-shape visual fields that do not
+ * apply when a `process` / `cause-effect` scene is in its graph shape.
+ */
+export function editorFieldsForScene(
+  scene: SceneSpec,
+): readonly SceneEditorField[] {
+  const fields = sceneEditorMetadata(scene.template).fields;
+  return isGraphShapeScene(scene)
+    ? fields.filter((field) => !legacyOnlyVisualPaths.has(field.path))
+    : fields;
+}
+
 function readPath(value: unknown, path: string): unknown {
   return path
     .split(".")
@@ -261,6 +296,8 @@ export function SceneEditorForm({
     () => sceneEditorMetadata(draft.template),
     [draft.template],
   );
+  const graphShape = isGraphShapeScene(draft);
+  const visibleFields = useMemo(() => editorFieldsForScene(draft), [draft]);
 
   useEffect(() => {
     setDraft(detail.scene.scene);
@@ -492,7 +529,21 @@ export function SceneEditorForm({
         </label>
       </div>
 
-      {metadata.fields.map((field) => (
+      {graphShape ? (
+        <p
+          role="status"
+          style={{
+            margin: 0,
+            fontSize: "12px",
+            color: "var(--color-text-muted, #BDB5C7)",
+          }}
+        >
+          This scene uses the graph layout. Its nodes and connections are laid
+          out automatically; edit narration and titles here.
+        </p>
+      ) : null}
+
+      {visibleFields.map((field) => (
         <label
           key={field.path}
           style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--color-text-muted, #BDB5C7)" }}

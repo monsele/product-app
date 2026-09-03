@@ -928,6 +928,34 @@ describe("storyboard scene editing contracts (ST-055)", () => {
     expect(migrated.resetFields).toEqual([]);
   });
 
+  it("resets graph node/edge fields when a graph scene switches template (ST-087)", () => {
+    const graphProcess = sceneSpecSchema.parse({
+      ...createDefaultStoryboardSceneSpec("process", {
+        id: sceneId,
+        order: 1,
+        durationSeconds: 20,
+      }),
+      visual: {
+        nodes: [
+          { id: "a", label: "Start" },
+          { id: "b", label: "End" },
+        ],
+        edges: [{ id: "e1", from: "a", to: "b" }],
+      },
+    });
+    const migrated = migrateStoryboardSceneTemplate(graphProcess, "definition");
+    expect(migrated.scene.template).toBe("definition");
+    if (migrated.scene.template !== "definition")
+      throw new Error("Expected definition migration.");
+    expect(migrated.scene.visual).not.toHaveProperty("nodes");
+    expect(migrated.scene.visual).not.toHaveProperty("edges");
+    expect(migrated.resetFields).toEqual(
+      expect.arrayContaining(["visual.nodes", "visual.edges"]),
+    );
+    // The migrated scene is a valid legacy definition scene.
+    expect(sceneSpecSchema.safeParse(migrated.scene).success).toBe(true);
+  });
+
   it("preserves an un-slotted scene asset through a template migration", () => {
     const source = sceneSpecSchema.parse({
       ...createDefaultStoryboardSceneSpec("definition", {

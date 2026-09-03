@@ -164,7 +164,7 @@ The consequence is that a process with three steps and a process with nine steps
   - No production MP4/PNG artifact recorded (see Screenshots/output).
 - **Known risks/follow-up:**
   - Storyboard-generation prompt copy (ST-050) still describes the legacy `steps`/`causes` shapes. The model keeps emitting valid legacy scenes; adopting the graph shape in generation is a separate story.
-  - No teacher-facing editor controls for graph nodes/edges yet (explicitly out of scope); `sceneEditorMetadata` for these templates still exposes only the legacy fields, so a persisted graph scene is not editable through the schema-driven editor. Follow-up story needed before graph scenes are generated.
+  - No structured teacher-facing editor for graph nodes/edges yet (explicitly out of scope). Round 3 made the schema-driven editor *safe* on a graph scene — `editorFieldsForScene` hides the legacy `visual.steps`/`visual.causes`/`visual.effects` fields and shows a read-only notice, so narration/title/duration stay editable and no phantom empty field can produce an invalid save. The structured node/edge editor is tracked as **ST-091** (Ready, depends ST-056 + ST-087).
   - The 3 pre-existing snapshot failures in `@avlp/scene-library` predate this branch and should be refreshed independently.
 
 ### Review round 1 — fixes applied
@@ -188,3 +188,13 @@ Re-verified: `@avlp/schemas` build/lint/typecheck/test (284) green; JSON schema 
 - **Coverage.** Added a safe-area bounds test for a columnar layout including a full four-node layer.
 
 Re-verified again: `graph-scene.test.ts` 25 tests green; `@avlp/scene-library` build/lint/typecheck green, full suite green apart from the same 3 pre-existing environmental Remotion-snapshot failures (`full-lesson-render`, `scene-preview-render-smoke`, `summary-scene-render` — confirmed failing identically on `40e157b`, PNG-hash drift from this machine's font rasterisation); `pnpm -r typecheck`, `@avlp/renderer` (17), `@avlp/api` (113) green.
+
+### Review round 3 — follow-ups
+
+- **Follow-up 1 (editor support for graph scenes).** Made the schema-driven editor *safe* on a graph-shape scene now, and tracked the structured editor as a new story:
+  - `apps/web/.../scene-editor-form.tsx`: new exported `isGraphShapeScene` / `editorFieldsForScene` — a graph-shape `process` / `cause-effect` scene no longer renders the legacy `visual.steps` / `visual.causes` / `visual.effects` fields (which would show an un-saveable empty box); a one-line notice explains the layout is automatic. Narration / title / duration / transition / on-screen text stay editable, and the form's existing `sceneSpecSchema.safeParse` before save still blocks any invalid shape.
+  - Confirmed `migrateStoryboardSceneTemplate` already resets `visual.nodes` / `visual.edges` cleanly when a graph scene switches template, and `updateScene` already accepts a full valid graph-scene edit — added regression tests for both (`packages/schemas/src/storyboard.test.ts`, `apps/web/.../scene-editor-form.test.ts`).
+  - **ST-091 — Structured Node and Edge Editor for Graph Process and Cause-Effect Scenes** added to `STORY_INDEX.md` (Ready, depends ST-056 + ST-087) with a full story file, for the actual node/edge editing control.
+- **Follow-up 2 (Remotion snapshot baselines).** Not refreshed. The three failing snapshots are `toMatchInlineSnapshot` PNG hashes recorded against CI's font rasterisation; overwriting them with this Windows machine's hashes would break the check for everyone else. They fail identically on `40e157b` (pre-existing) and are unrelated to this story — left for a dedicated snapshot refresh on the canonical environment.
+
+Re-verified round 3: `@avlp/schemas` lint/typecheck/test green (`storyboard.test.ts` +1); `apps/web` lint/typecheck green, `scene-editor-form.test.ts` green (+2); `@avlp/scene-library` unchanged (25 graph tests green, same 3 pre-existing snapshot failures); `pnpm -r typecheck` green.
