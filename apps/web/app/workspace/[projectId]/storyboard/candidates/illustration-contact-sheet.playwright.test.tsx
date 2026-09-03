@@ -68,6 +68,14 @@ const scenes: readonly ContactSheetScene[] = [
             blockedReason: "generation_failed",
             blockedDetail: "Generation did not produce a usable image.",
           },
+          {
+            ...baseCandidate,
+            id: "cand-blocked-pending",
+            status: "pending_review",
+            selectable: false,
+            blockedReason: "media_check_failed",
+            blockedDetail: "This image failed an integrity check.",
+          },
         ],
       },
     ],
@@ -117,6 +125,21 @@ describe("IllustrationContactSheet accessibility and keyboard operation", () => 
       expect(
         await reviewCard.getByRole("button", { name: "Use this" }).isDisabled(),
       ).toBe(false);
+
+      // A pending_review candidate blocked from acceptance can still be discarded.
+      const blockedPending = page.locator(
+        '[data-testid="candidate-cand-blocked-pending"]',
+      );
+      expect(
+        await blockedPending.getByRole("button", { name: "Use this" }).isDisabled(),
+      ).toBe(true);
+      expect(
+        await blockedPending.getByRole("button", { name: "Discard" }).isDisabled(),
+      ).toBe(false);
+      // A terminally failed candidate cannot be discarded here (the endpoint 404s it).
+      expect(
+        await blockedCard.getByRole("button", { name: "Discard" }).isDisabled(),
+      ).toBe(true);
     } finally {
       await browser.close();
     }

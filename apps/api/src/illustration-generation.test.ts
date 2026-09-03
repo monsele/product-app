@@ -489,11 +489,20 @@ describe("IllustrationGenerationService.contactSheet", () => {
           assetHeight: 0,
           assetMediaType: "image/png",
         }),
+        candidateRow({
+          id: "cand-moderating",
+          moderationStatus: "pending",
+          assetId: "asset-3",
+          assetStatus: "pending_review",
+          assetWidth: 1024,
+          assetHeight: 576,
+          assetMediaType: "image/png",
+        }),
       ],
     ]);
     const service = new IllustrationGenerationService(database);
 
-    const [ready, failed, corrupt] = (
+    const [ready, failed, corrupt, moderating] = (
       await service.contactSheet({ ownerUserId, projectId })
     ).scenes[0]!.slots[0]!.candidates;
 
@@ -506,6 +515,11 @@ describe("IllustrationGenerationService.contactSheet", () => {
     expect(corrupt).toMatchObject({
       selectable: false,
       blockedReason: "media_check_failed",
+    });
+    // Moderation still running is a transient wait, not an integrity failure.
+    expect(moderating).toMatchObject({
+      selectable: false,
+      blockedReason: "not_reviewable",
     });
   });
 });

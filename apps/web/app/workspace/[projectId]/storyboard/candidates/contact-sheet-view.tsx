@@ -120,8 +120,10 @@ export function IllustrationContactSheetView({
       } catch {
         setActionError("That action could not be completed. Check your connection.");
       } finally {
-        setBusyCandidateId(null);
+        // Reload before re-enabling the controls so a second click cannot land
+        // on the now-stale card while the refetch is in flight.
         await load();
+        setBusyCandidateId(null);
       }
     },
     [projectId, state, load],

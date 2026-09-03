@@ -6476,7 +6476,11 @@ export const illustrationContactSheetCandidateSchema = z
     provenance: z.literal("ai_generated"),
     provider: boundedText(80),
     promptVersion: boundedText(40),
-    previewUrl: z.string().url().max(2_000).nullable(),
+    // A signed download URL for our own asset store, rendered straight into an
+    // <img src>. Not constrained to z.string().url() on purpose: a single
+    // provider producing an unusual-but-valid URL form must not fail the parse
+    // for the whole contact sheet.
+    previewUrl: z.string().min(1).max(4_000).nullable(),
     altText: boundedText(300),
     costUsd: z.number().nonnegative().nullable(),
     failureCode: boundedText(120).nullable(),

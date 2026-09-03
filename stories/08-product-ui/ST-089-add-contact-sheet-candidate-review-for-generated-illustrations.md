@@ -260,3 +260,31 @@ That matters more after ST-085. Once slots carry a `visualRole`, the difference 
     batch signer later.
   - Full end-to-end browser screenshots against seeded pipeline data were not
     produced; visual evidence is the component render + Playwright/axe suite.
+
+- **Code-review round 1 (self /code-review, 3 finder agents) — fixes applied:**
+  - `app.ts` contact-sheet handler could 500 the whole endpoint: candidate rows
+    are unbounded but `illustrationContactSheetSlotSchema.candidates` is
+    `.max(100)`. Now the service caps each slot to the 60 most recent
+    (`contactSheetCandidatesPerSlotLimit`); `previewUrl` schema relaxed from
+    `z.string().url()` to a bounded string (it is our own signed URL rendered
+    into `<img src>`); alt text `.slice(0, 300)` in the handler.
+  - `contactSheet()` and `validations.latest()` now run under `Promise.all`
+    (route is polled every 4s).
+  - `selectability()`: a `pending_review` candidate with `moderationStatus
+    "pending"` is now `not_reviewable` ("Waiting for the automated safety review
+    to finish.") instead of being labelled a failed integrity check that tells
+    the teacher to regenerate. New unit assertion added.
+  - Contact sheet Discard button: enabled for any `pending_review` candidate
+    (including one blocked from acceptance by a media/moderation check), since
+    `/reject` accepts any `pending_review` candidate; still disabled for
+    terminal states, which the endpoint 404s. New Playwright assertion added.
+  - `contact-sheet-view.tsx` `decide()`: `setBusyCandidateId(null)` moved to
+    after `await load()` so the controls do not briefly re-enable on stale data
+    (was producing a spurious 409 on a fast double-click).
+  - Findings about ST-084/085/086/087/088 (duration reconciliation band, ST-085
+    binding-role throws on historical data, graph-schema optional fields,
+    diagram label cap, ruleset-version loosening) were raised by the agents
+    against the `main...HEAD` range; they belong to already-merged stories and
+    are out of scope here.
+  - Re-verified: schemas build/lint, api typecheck/build/lint + touched test
+    files (35 pass), web typecheck/build/lint + candidates suite (13 pass).

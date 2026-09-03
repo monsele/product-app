@@ -72,6 +72,13 @@ export type ContactSheetResult = {
   }[];
 };
 
+/**
+ * Most recent candidates shown per slot in the contact sheet. Kept below the
+ * DTO's `.max(100)` so response validation can never trip on an accumulated
+ * history of regenerations.
+ */
+export const contactSheetCandidatesPerSlotLimit = 60;
+
 /** Codes the worker records for a non-recoverable generation failure. */
 const generationFailureCodes = new Set([
   "ILLUSTRATION_GENERATION_FAILED",
@@ -132,20 +139,29 @@ function selectability(input: {
             "Generation did not produce a usable image. Try generating again.",
         };
   }
-  if (
-    input.status === "pending_review" &&
-    (input.moderationStatus !== "approved" ||
+  if (input.status === "pending_review") {
+    // Moderation still running is a transient wait, not a failure: do not tell
+    // the teacher to regenerate.
+    if (input.moderationStatus === "pending")
+      return {
+        selectable: false,
+        blockedReason: "not_reviewable",
+        blockedDetail:
+          "Waiting for the automated safety review to finish.",
+      };
+    if (
+      input.moderationStatus !== "approved" ||
       !input.hasAsset ||
-      !input.assetReady)
-  )
-    return {
-      selectable: false,
-      blockedReason: "media_check_failed",
-      blockedDetail:
-        "This image failed an integrity check and cannot be used. Generate a new one.",
-    };
-  if (input.status === "pending_review")
+      !input.assetReady
+    )
+      return {
+        selectable: false,
+        blockedReason: "media_check_failed",
+        blockedDetail:
+          "This image failed an integrity check and cannot be used. Generate a new one.",
+      };
     return { selectable: true, blockedReason: null, blockedDetail: null };
+  }
   return {
     selectable: false,
     blockedReason: "not_reviewable",
@@ -667,9 +683,13 @@ export class IllustrationGenerationService {
       }
 
       const slotsOut: ContactSheetResult["scenes"][number]["slots"] = [];
-      for (const [slot, rows] of bySlot) {
+      for (const [slot, allRows] of bySlot) {
         const requirement = sceneAssetSlotRequirement(template, slot);
         const visualRole: VisualRole = requirement?.visualRole ?? "decorative";
+        // `allRows` is newest-first (query orders by createdAt desc). A slot a
+        // teacher has regenerated many times can exceed the DTO's per-slot cap;
+        // show the most recent window rather than failing the whole sheet.
+        const rows = allRows.slice(0, contactSheetCandidatesPerSlotLimit);
         slotsOut.push({
           slot,
           visualRole,

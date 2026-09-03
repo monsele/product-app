@@ -585,32 +585,39 @@ function CandidateCard({
       ) : null}
 
       <div style={{ display: "flex", gap: "8px" }}>
-        <button
-          type="button"
-          disabled={!candidate.selectable || busy || anyBusy}
-          aria-disabled={!candidate.selectable || busy || anyBusy}
-          onClick={onAccept}
-          style={buttonStyle(
-            "primary",
-            !candidate.selectable || busy || anyBusy,
-          )}
-        >
-          <Check size={13} weight="bold" aria-hidden />
-          {busy ? "Working…" : "Use this"}
-        </button>
-        <button
-          type="button"
-          disabled={!candidate.selectable || busy || anyBusy}
-          aria-disabled={!candidate.selectable || busy || anyBusy}
-          onClick={onReject}
-          style={buttonStyle(
-            "secondary",
-            !candidate.selectable || busy || anyBusy,
-          )}
-        >
-          <X size={13} weight="bold" aria-hidden />
-          Discard
-        </button>
+        {(() => {
+          const acceptDisabled = !candidate.selectable || busy || anyBusy;
+          // Discard is valid for any candidate still awaiting review, including
+          // one blocked from acceptance by a media or moderation check; the
+          // /reject endpoint only rejects a candidate that is no longer
+          // pending_review.
+          const discardDisabled =
+            candidate.status !== "pending_review" || busy || anyBusy;
+          return (
+            <>
+              <button
+                type="button"
+                disabled={acceptDisabled}
+                aria-disabled={acceptDisabled}
+                onClick={onAccept}
+                style={buttonStyle("primary", acceptDisabled)}
+              >
+                <Check size={13} weight="bold" aria-hidden />
+                {busy ? "Working…" : "Use this"}
+              </button>
+              <button
+                type="button"
+                disabled={discardDisabled}
+                aria-disabled={discardDisabled}
+                onClick={onReject}
+                style={buttonStyle("secondary", discardDisabled)}
+              >
+                <X size={13} weight="bold" aria-hidden />
+                Discard
+              </button>
+            </>
+          );
+        })()}
       </div>
     </li>
   );

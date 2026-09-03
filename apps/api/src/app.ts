@@ -1914,8 +1914,10 @@ class ProjectsController {
     @Req() request: RequestWithAuth & AuthorizedProjectRequest,
   ): Promise<unknown> {
     const access = assertAuthorizedProject(request, projectId);
-    const sheet = await this.illustrations.contactSheet(access);
-    const run = await this.validations.latest(access).catch(() => null);
+    const [sheet, run] = await Promise.all([
+      this.illustrations.contactSheet(access),
+      this.validations.latest(access).catch(() => null),
+    ]);
     const advisoriesBySceneId = new Map<
       string,
       { code: string; message: string; source: "deterministic"; rulesetVersion: string; model: null }[]
@@ -1977,7 +1979,7 @@ class ProjectsController {
                     : null,
                 altText: `AI illustration for the ${slot.slot} slot of scene ${scene.order}${
                   scene.title === null ? "" : ` — ${scene.title}`
-                }`,
+                }`.slice(0, 300),
                 costUsd: candidate.costUsd,
                 failureCode: candidate.failureCode,
                 selectable: candidate.selectable,
