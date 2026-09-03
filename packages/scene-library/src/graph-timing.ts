@@ -20,7 +20,17 @@ export type GraphRevealTiming = Readonly<{
 
 const SENTENCE_PATTERN = /[^.!?]+[.!?]*/g;
 
-/** Cumulative text-length fraction at the start of each of `count` buckets. */
+/**
+ * Start fraction (0..1) for each of `count` reveal steps.
+ *
+ * Each step is anchored to the narration sentence it belongs to — step `i`
+ * maps to sentence `floor(i * sentences / count)` and inherits that sentence's
+ * cumulative-character start fraction — then blended equally with an even
+ * `i / count` spacing. The even term keeps the sequence strictly increasing
+ * (so two steps never share a frame) while the sentence term keeps the reveal
+ * tracking what the narration is actually saying. The result is always < 1, so
+ * the final step still begins before the scene-wide exit fade.
+ */
 export function narrationRevealFractions(
   narration: string,
   count: number,
@@ -32,22 +42,22 @@ export function narrationRevealFractions(
   if (sentences.length === 0)
     return Array.from({ length: count }, (_unused, index) => index / count);
 
-  const perBucket = Math.ceil(sentences.length / count);
-  const total = sentences.reduce(
-    (sum, sentence) => sum + sentence.length,
-    0,
-  );
-  const fractions: number[] = [];
+  const total = sentences.reduce((sum, sentence) => sum + sentence.length, 0);
+  const sentenceStart: number[] = [];
   let consumed = 0;
-  for (let bucket = 0; bucket < count; bucket += 1) {
-    fractions.push(total === 0 ? bucket / count : consumed / total);
-    const slice = sentences.slice(
-      bucket * perBucket,
-      bucket * perBucket + perBucket,
-    );
-    consumed += slice.reduce((sum, sentence) => sum + sentence.length, 0);
+  for (const sentence of sentences) {
+    sentenceStart.push(total === 0 ? 0 : consumed / total);
+    consumed += sentence.length;
   }
-  return fractions;
+
+  return Array.from({ length: count }, (_unused, index) => {
+    const sentenceIndex = Math.min(
+      sentences.length - 1,
+      Math.floor((index * sentences.length) / count),
+    );
+    const evenly = index / count;
+    return 0.5 * evenly + 0.5 * sentenceStart[sentenceIndex]!;
+  });
 }
 
 export function getGraphRevealTiming(
@@ -59,7 +69,11 @@ export function getGraphRevealTiming(
     return Object.freeze({ activeIndex: -1, starts: Object.freeze([]) });
   const timing = getSceneFrameTiming(durationSeconds);
   const windowStart = timing.enterEndFrame;
-  const windowEnd = Math.max(windowStart, timing.exitStartFrame);
+  // Leave room for the last reveal to finish animating before the exit fade.
+  const windowEnd = Math.max(
+    windowStart,
+    timing.exitStartFrame - videoTheme.motion.reveal.durationInFrames,
+  );
   const span = windowEnd - windowStart;
   const fractions = narrationRevealFractions(narration, revealCount);
   const starts = fractions.map((fraction) =>

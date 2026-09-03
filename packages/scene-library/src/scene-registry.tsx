@@ -37,6 +37,7 @@ import { AnalogyScene } from "./analogy-scene.js";
 import { WorkedExampleScene } from "./worked-example-scene.js";
 import { SummaryScene } from "./summary-scene.js";
 import { planDiagramCallouts } from "./diagram-layout.js";
+import { planGraphLayout } from "./graph-layout.js";
 
 export type SceneValidationIssue = Readonly<{
   code:
@@ -762,8 +763,10 @@ export function validateScene(
   }
   // Graph process / cause-effect scenes: `planGraphLayout` sizes every node
   // deterministically inside the body safe area and scales the layout down as
-  // the node count grows, so there is no free-text overflow to measure. Node
-  // labels are bounded by the schema. Only title / on-screen text is checked.
+  // the node count grows. Title / on-screen text is measured against the
+  // stacked body layout; node labels are checked against their computed cell
+  // via the layout plan's `overflowNodeIds` so an over-long label is reported
+  // as a validation issue rather than clipped silently.
   if (
     (parsed.data.template === "process" ||
       parsed.data.template === "cause-effect") &&
@@ -773,19 +776,43 @@ export function validateScene(
     const chrome = measureSceneContent(
       values.filter((value) => !value.path.startsWith("visual.")),
     );
-    return chrome.fits
-      ? []
-      : [
-          Object.freeze({
-            code: "text_overflow" as const,
-            fieldPath: chrome.firstOverflowPath ?? "title",
-            message: "Text exceeds the readable layout capacity.",
-            sceneId: parsed.data.id,
-            severity: "error" as const,
-            suggestedCorrection:
-              "Shorten this text or split it into another scene.",
-          }),
-        ];
+    if (!chrome.fits)
+      return [
+        Object.freeze({
+          code: "text_overflow" as const,
+          fieldPath: chrome.firstOverflowPath ?? "title",
+          message: "Text exceeds the readable layout capacity.",
+          sceneId: parsed.data.id,
+          severity: "error" as const,
+          suggestedCorrection:
+            "Shorten this text or split it into another scene.",
+        }),
+      ];
+    const graphNodes = parsed.data.visual.nodes as ReadonlyArray<{
+      id: string;
+      label: string;
+    }>;
+    const overflow = planGraphLayout(
+      graphNodes.map((node) => ({ id: node.id, label: node.label })),
+      parsed.data.visual.edges ?? [],
+    ).overflowNodeIds;
+    if (overflow.length > 0)
+      return [
+        Object.freeze({
+          code: "text_overflow" as const,
+          fieldPath: `visual.nodes.${graphNodes.findIndex(
+            (node) => node.id === overflow[0],
+          )}.label`,
+          message: `Node label${overflow.length === 1 ? "" : "s"} ${overflow
+            .map((id) => `"${id}"`)
+            .join(", ")} exceed the space available in the diagram layout.`,
+          sceneId: parsed.data.id,
+          severity: "error" as const,
+          suggestedCorrection:
+            "Shorten the label text or reduce the number of nodes.",
+        }),
+      ];
+    return [];
   }
   const measurement =
     parsed.data.template === "input-process-output"

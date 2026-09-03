@@ -40,6 +40,7 @@ export type PlacedGraphNode = Readonly<{
   fontSize: number;
   height: number;
   id: string;
+  label: string;
   /** 0-based reveal order; also the animation sequence position. */
   order: number;
   /** Layer index in the directed graph (source layer is 0). */
@@ -63,6 +64,12 @@ export type GraphLayoutPlan = Readonly<{
   area: GraphRect;
   edges: readonly PlacedGraphEdge[];
   nodes: readonly PlacedGraphNode[];
+  /**
+   * Ids of nodes whose label needs more vertical space than its cell allows.
+   * The layout still clamps the box, but a caller (scene validation) should
+   * treat this as a text-overflow condition rather than clip silently.
+   */
+  overflowNodeIds: readonly string[];
   /** Total number of reveal steps across nodes and edges. */
   revealCount: number;
 }>;
@@ -90,10 +97,15 @@ const MAX_GRID_COLUMNS = 4;
 const MAX_COLUMNAR_PER_RANK = 4;
 
 /**
- * Longest-path layering. Ties break on declaration index. A cyclic input (which
- * the schema does not forbid outright) still terminates: after `nodes.length`
- * relaxation passes any node left unranked is appended to the final layer in
- * declaration order.
+ * Longest-path layering. Ties break on declaration index.
+ *
+ * Cyclic inputs (a rock cycle, a feedback loop — the schema does not forbid
+ * them) are handled deterministically: if no node has in-degree zero, the
+ * first-declared node is pinned to layer 0 and the back-edges into it are
+ * ignored for ranking, so the cycle unrolls into layers along declaration
+ * order. Any node still unreached after `nodes.length` relaxation passes is
+ * placed one layer past the current maximum, again in declaration order. The
+ * function therefore always terminates and is a pure function of input order.
  */
 function assignRanks(
   nodes: readonly GraphLayoutNodeInput[],
@@ -107,12 +119,20 @@ function assignRanks(
       incoming.get(edge.to)!.push(edge.from);
 
   const rank = new Map<string, number>();
+  const pinned = new Set<string>();
   for (const node of nodes)
     if (incoming.get(node.id)!.length === 0) rank.set(node.id, 0);
+  if (rank.size === 0 && nodes.length > 0) {
+    // No source node: pick a deterministic entry point and pin it so an
+    // incoming back-edge cannot push it back down the graph.
+    rank.set(nodes[0]!.id, 0);
+    pinned.add(nodes[0]!.id);
+  }
 
   for (let pass = 0; pass < nodes.length; pass += 1) {
     let changed = false;
     for (const node of nodes) {
+      if (pinned.has(node.id)) continue;
       const preds = incoming.get(node.id)!;
       if (preds.length === 0) continue;
       const resolved = preds
@@ -184,6 +204,7 @@ export function planGraphLayout(
       area,
       edges: Object.freeze([]),
       nodes: Object.freeze([]),
+      overflowNodeIds: Object.freeze([]),
       revealCount: 0,
     });
 
@@ -220,6 +241,31 @@ export function planGraphLayout(
   );
 
   const placed: PlacedGraphNode[] = [];
+  const overflowNodeIds: string[] = [];
+
+  const place = (
+    node: GraphLayoutNodeInput,
+    rankValue: number,
+    x: number,
+    cellTop: number,
+  ): void => {
+    const needed = measureNodeHeight(node.label, boxWidth, fontSize);
+    if (needed > cellHeight + 1) overflowNodeIds.push(node.id);
+    const height = Math.min(cellHeight, needed);
+    placed.push(
+      Object.freeze({
+        fontSize,
+        height,
+        id: node.id,
+        label: node.label,
+        order: orderById.get(node.id)!,
+        rank: rankValue,
+        width: boxWidth,
+        x: Math.round(x + (cellWidth - boxWidth) / 2),
+        y: Math.round(cellTop + (cellHeight - height) / 2),
+      }),
+    );
+  };
 
   if (columnar) {
     ranks.forEach((rankValue, columnIndex) => {
@@ -231,46 +277,18 @@ export function planGraphLayout(
         inRank.length * cellHeight + (inRank.length - 1) * CELL_GAP;
       const top = area.y + (area.height - blockHeight) / 2;
       inRank.forEach((node, rowIndex) => {
-        const height = Math.min(
-          cellHeight,
-          measureNodeHeight(node.label, boxWidth, fontSize),
-        );
-        const cellTop = top + rowIndex * (cellHeight + CELL_GAP);
-        placed.push(
-          Object.freeze({
-            fontSize,
-            height,
-            id: node.id,
-            order: orderById.get(node.id)!,
-            rank: rankValue,
-            width: boxWidth,
-            x: Math.round(x + (cellWidth - boxWidth) / 2),
-            y: Math.round(cellTop + (cellHeight - height) / 2),
-          }),
-        );
+        place(node, rankValue, x, top + rowIndex * (cellHeight + CELL_GAP));
       });
     });
   } else {
     ordered.forEach((entry, position) => {
       const columnIndex = position % columns;
       const rowIndex = Math.floor(position / columns);
-      const height = Math.min(
-        cellHeight,
-        measureNodeHeight(entry.node.label, boxWidth, fontSize),
-      );
-      const x = area.x + columnIndex * (cellWidth + CELL_GAP);
-      const cellTop = area.y + rowIndex * (cellHeight + CELL_GAP);
-      placed.push(
-        Object.freeze({
-          fontSize,
-          height,
-          id: entry.node.id,
-          order: orderById.get(entry.node.id)!,
-          rank: entry.rank,
-          width: boxWidth,
-          x: Math.round(x + (cellWidth - boxWidth) / 2),
-          y: Math.round(cellTop + (cellHeight - height) / 2),
-        }),
+      place(
+        entry.node,
+        entry.rank,
+        area.x + columnIndex * (cellWidth + CELL_GAP),
+        area.y + rowIndex * (cellHeight + CELL_GAP),
       );
     });
   }
@@ -316,6 +334,7 @@ export function planGraphLayout(
     area,
     edges: Object.freeze(sortedEdges),
     nodes: Object.freeze(placed),
+    overflowNodeIds: Object.freeze(overflowNodeIds),
     revealCount: nodeCount + sortedEdges.length,
   });
 }

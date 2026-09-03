@@ -327,6 +327,12 @@ export const refineSceneGraph = (
         message: "Graph edge ids must be unique.",
       });
     edgeIds.add(edge.id);
+    if (edge.from === edge.to)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["edges", index, "to"],
+        message: "An edge cannot connect a node to itself.",
+      });
     if (!nodeIds.has(edge.from))
       context.addIssue({
         code: z.ZodIssueCode.custom,
@@ -339,6 +345,17 @@ export const refineSceneGraph = (
         path: ["edges", index, "to"],
         message: `Edge references unknown node id "${edge.to}".`,
       });
+  });
+  const pairs = new Set<string>();
+  edges.forEach((edge, index) => {
+    const key = `${edge.from} ${edge.to}`;
+    if (pairs.has(key))
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["edges", index],
+        message: `Duplicate edge from "${edge.from}" to "${edge.to}".`,
+      });
+    pairs.add(key);
   });
 };
 /**

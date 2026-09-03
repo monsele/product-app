@@ -120,27 +120,118 @@ describe("planGraphLayout", () => {
     }
     expect(plan.revealCount).toBe(plan.nodes.length + plan.edges.length);
   });
-});
 
-describe("graph reveal timing", () => {
-  it("derives reveal frames from getSceneFrameTiming and the narration", () => {
+  it("layers an acyclic process by longest path from the source", () => {
+    const plan = planGraphLayout(
+      branchingProcessGraphFixture.visual.nodes,
+      branchingProcessGraphFixture.visual.edges,
+    );
+    const rankById = new Map(plan.nodes.map((node) => [node.id, node.rank]));
+    expect(rankById.get("collect")).toBe(0);
+    expect(rankById.get("clean")).toBe(1);
+    expect(rankById.get("validate")).toBe(2);
+    expect(rankById.get("coverage")).toBe(2);
+    expect(rankById.get("report")).toBe(3);
+  });
+
+  it("breaks a cyclic process into ordered layers instead of one flat rank", () => {
     const plan = planGraphLayout(
       nineStepProcessGraphFixture.visual.nodes,
       nineStepProcessGraphFixture.visual.edges,
     );
-    const timing = getGraphRevealTiming(
-      nineStepProcessGraphFixture.durationSeconds,
-      plan.revealCount,
-      nineStepProcessGraphFixture.narration,
+    const ranks = plan.nodes.map((node) => node.rank);
+    expect(new Set(ranks).size).toBeGreaterThan(1);
+    // Reveal order follows the chain declared in the fixture.
+    expect(plan.nodes.map((node) => node.id).slice(0, 3)).toEqual([
+      "magma",
+      "igneous",
+      "sediment",
+    ]);
+  });
+
+  it("reports node labels that cannot fit their computed cell", () => {
+    // Four nodes in one layer (columnar, 4 rows) with maximum-length labels:
+    // the cell is too short for the wrapped text.
+    const plan = planGraphLayout(
+      [
+        { id: "n1", label: "A".repeat(80) },
+        { id: "n2", label: "B".repeat(80) },
+        { id: "n3", label: "C".repeat(80) },
+        { id: "n4", label: "D".repeat(80) },
+        { id: "hub", label: "Hub" },
+        { id: "mid", label: "Mid" },
+        { id: "end", label: "End" },
+      ],
+      [
+        { id: "e1", from: "n1", to: "hub" },
+        { id: "e2", from: "n2", to: "hub" },
+        { id: "e3", from: "n3", to: "hub" },
+        { id: "e4", from: "n4", to: "hub" },
+        { id: "e5", from: "hub", to: "mid" },
+        { id: "e6", from: "mid", to: "end" },
+      ],
     );
-    const frames = getSceneFrameTiming(
-      nineStepProcessGraphFixture.durationSeconds,
-    );
-    expect(timing.starts).toHaveLength(plan.revealCount);
-    expect(timing.starts[0]).toBeGreaterThanOrEqual(frames.enterEndFrame);
-    expect(timing.starts.at(-1)!).toBeLessThanOrEqual(frames.exitStartFrame);
-    for (let i = 1; i < timing.starts.length; i += 1)
-      expect(timing.starts[i]!).toBeGreaterThanOrEqual(timing.starts[i - 1]!);
+    expect(plan.overflowNodeIds).toContain("n1");
+  });
+});
+
+describe("graph reveal timing", () => {
+  it("derives strictly increasing reveal frames that all finish before the exit fade", () => {
+    for (const fixture of [
+      nineStepProcessGraphFixture,
+      branchingProcessGraphFixture,
+      graphCauseEffectFixture,
+    ]) {
+      const plan = planGraphLayout(
+        fixture.visual.nodes,
+        fixture.visual.edges,
+      );
+      const timing = getGraphRevealTiming(
+        fixture.durationSeconds,
+        plan.revealCount,
+        fixture.narration,
+      );
+      const frames = getSceneFrameTiming(fixture.durationSeconds);
+      expect(timing.starts).toHaveLength(plan.revealCount);
+      expect(timing.starts[0]).toBeGreaterThanOrEqual(frames.enterEndFrame);
+      // Every reveal — including the last edge — starts early enough to finish
+      // its reveal animation before the scene-wide exit fade begins.
+      expect(timing.starts.at(-1)!).toBeLessThanOrEqual(
+        frames.exitStartFrame -
+          videoTheme.motion.reveal.durationInFrames,
+      );
+      for (let i = 1; i < timing.starts.length; i += 1)
+        expect(timing.starts[i]!).toBeGreaterThan(timing.starts[i - 1]!);
+    }
+  });
+
+  it("makes every node and edge fully visible mid-scene", () => {
+    for (const [Component, fixture] of [
+      [ProcessSceneFrame, nineStepProcessGraphFixture],
+      [CauseEffectSceneFrame, graphCauseEffectFixture],
+    ] as const) {
+      const plan = planGraphLayout(fixture.visual.nodes, fixture.visual.edges);
+      const timing = getGraphRevealTiming(
+        fixture.durationSeconds,
+        plan.revealCount,
+        fixture.narration,
+      );
+      // A frame shortly after the final reveal, still before the exit fade.
+      const frame =
+        timing.starts.at(-1)! +
+        videoTheme.motion.reveal.durationInFrames;
+      const markup = renderToStaticMarkup(
+        createElement(Component, { frame, scene: fixture }),
+      );
+      for (const node of plan.nodes)
+        expect(markup).toContain(`data-graph-node="${node.id}"`);
+      for (const edge of plan.edges)
+        expect(markup).toContain(`data-graph-edge="${edge.id}"`);
+      // Every node/edge is fully revealed and the exit fade has not started:
+      // no element is at (or near) zero opacity.
+      expect(markup).not.toMatch(/opacity:\s*0(?:\.0+)?[;"]/);
+      expect(markup).not.toMatch(/opacity="0(?:\.0+)?"/);
+    }
   });
 
   it("splits narration into as many buckets as reveal steps", () => {
@@ -198,6 +289,30 @@ describe("graph scene schema", () => {
       expect(result.error.issues[0]!.message).toContain("ghost");
   });
 
+  it("rejects self-loops and duplicate parallel edges", () => {
+    expect(
+      processVisualSchema.safeParse({
+        nodes: [
+          { id: "a", label: "A" },
+          { id: "b", label: "B" },
+        ],
+        edges: [{ id: "e1", from: "a", to: "a" }],
+      }).success,
+    ).toBe(false);
+    expect(
+      processVisualSchema.safeParse({
+        nodes: [
+          { id: "a", label: "A" },
+          { id: "b", label: "B" },
+        ],
+        edges: [
+          { id: "e1", from: "a", to: "b" },
+          { id: "e2", from: "a", to: "b" },
+        ],
+      }).success,
+    ).toBe(false);
+  });
+
   it("rejects mixing legacy and graph shapes", () => {
     expect(
       processVisualSchema.safeParse({
@@ -247,6 +362,35 @@ describe("graph scene rendering", () => {
       graphCauseEffectFixture,
     ])
       expect(validateScene(fixture)).toEqual([]);
+  });
+
+  it("reports a graph node label that overflows its layout cell", () => {
+    const scene = {
+      ...branchingProcessGraphFixture,
+      visual: {
+        nodes: [
+          { id: "n1", label: "A".repeat(80) },
+          { id: "n2", label: "B".repeat(80) },
+          { id: "n3", label: "C".repeat(80) },
+          { id: "n4", label: "D".repeat(80) },
+          { id: "hub", label: "Hub" },
+          { id: "mid", label: "Mid" },
+          { id: "end", label: "End" },
+        ],
+        edges: [
+          { id: "e1", from: "n1", to: "hub" },
+          { id: "e2", from: "n2", to: "hub" },
+          { id: "e3", from: "n3", to: "hub" },
+          { id: "e4", from: "n4", to: "hub" },
+          { id: "e5", from: "hub", to: "mid" },
+          { id: "e6", from: "mid", to: "end" },
+        ],
+      },
+    };
+    const issues = validateScene(scene);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]!.code).toBe("text_overflow");
+    expect(issues[0]!.fieldPath).toMatch(/^visual\.nodes\.\d+\.label$/);
   });
 
   it("renders identical markup for browser preview and headless render", () => {

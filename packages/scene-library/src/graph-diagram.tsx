@@ -11,6 +11,7 @@ import {
   graphEmphasis,
   graphRevealOpacity,
 } from "./graph-timing.js";
+import { getSceneFrameTiming } from "./timing.js";
 
 export type GraphDiagramProps = Readonly<{
   durationSeconds: number;
@@ -46,9 +47,17 @@ export function GraphDiagram({
     narration,
   );
   const active = activeRevealIndex(frame, timing.starts);
+  const nodeCount = plan.nodes.length;
+  const sceneTiming = getSceneFrameTiming(durationSeconds);
   const nodeStartById = new Map(
     plan.nodes.map((node) => [node.id, timing.starts[node.order] ?? 0]),
   );
+  // A node is emphasised from its reveal until the next node reveals (its
+  // narration segment). The last node holds emphasis until the exit fade.
+  const nodeEmphasisEnd = (order: number): number =>
+    order + 1 < nodeCount
+      ? (timing.starts[order + 1] ?? sceneTiming.exitStartFrame)
+      : sceneTiming.exitStartFrame;
 
   const canvas: CSSProperties = {
     background: videoTheme.colors.background,
@@ -126,11 +135,7 @@ export function GraphDiagram({
         const opacity = graphRevealOpacity(frame, durationSeconds, start);
         const isActive = node.order === active;
         const emphasis = isActive
-          ? graphEmphasis(
-              frame,
-              start,
-              timing.starts[node.order + 1] ?? timing.starts[node.order] ?? 0,
-            )
+          ? graphEmphasis(frame, start, nodeEmphasisEnd(node.order))
           : 0;
         const accent = nodeAccent?.(node.id) ?? videoTheme.colors.primary;
         return (
@@ -153,6 +158,10 @@ export function GraphDiagram({
               left: node.x,
               lineHeight: videoTheme.typography.lineHeight,
               opacity,
+              // Validation blocks a render whose label needs more room than its
+              // cell (see `planGraphLayout().overflowNodeIds`); clip rather than
+              // spill across neighbours in the editor-only preview.
+              overflow: "hidden",
               overflowWrap: "anywhere",
               padding: Math.round(node.fontSize * 0.5),
               position: "absolute",
@@ -165,7 +174,7 @@ export function GraphDiagram({
               zIndex: 1,
             }}
           >
-            {nodes.find((candidate) => candidate.id === node.id)?.label ?? ""}
+            {node.label}
           </article>
         );
       })}

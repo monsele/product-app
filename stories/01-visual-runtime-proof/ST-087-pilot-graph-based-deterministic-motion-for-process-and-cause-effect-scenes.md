@@ -164,5 +164,18 @@ The consequence is that a process with three steps and a process with nine steps
   - No production MP4/PNG artifact recorded (see Screenshots/output).
 - **Known risks/follow-up:**
   - Storyboard-generation prompt copy (ST-050) still describes the legacy `steps`/`causes` shapes. The model keeps emitting valid legacy scenes; adopting the graph shape in generation is a separate story.
-  - No teacher-facing editor controls for graph nodes/edges yet (explicitly out of scope); `sceneEditorMetadata` for these templates still exposes only the legacy fields.
+  - No teacher-facing editor controls for graph nodes/edges yet (explicitly out of scope); `sceneEditorMetadata` for these templates still exposes only the legacy fields, so a persisted graph scene is not editable through the schema-driven editor. Follow-up story needed before graph scenes are generated.
   - The 3 pre-existing snapshot failures in `@avlp/scene-library` predate this branch and should be refreshed independently.
+
+### Review round 1 — fixes applied
+
+Findings from `/story-code-review` (commit `0e36c03`) addressed:
+
+- **BLOCKING 1 — edge/trailing-node reveals collapsed onto the exit frame.** `narrationRevealFractions` (`graph-timing.ts`) rewritten: each reveal step maps to sentence `floor(i·sentences/count)` (inheriting that sentence's cumulative-character start fraction) blended 50/50 with an even `i/count` spacing. The even term makes the sequence strictly increasing; the result is always `< 1`. `getGraphRevealTiming` now ends the reveal window at `exitStartFrame − reveal.durationInFrames` so the last reveal completes before the fade. New tests assert strictly-increasing starts, last start ≤ that bound, and every node+edge fully visible (no `opacity:0`) at a mid-scene frame for all three fixtures.
+- **MEDIUM 2 — cyclic graphs collapsed to one layer.** `assignRanks` now pins the first-declared node to layer 0 when no source exists and ignores back-edges into it, so a cycle unrolls along declaration order. Tests: acyclic longest-path layering (`branchingProcessGraphFixture`), and the 9-node cycle now yields >1 distinct rank in chain order.
+- **MEDIUM 3 — graph scenes skipped text-overflow validation.** `planGraphLayout` returns `overflowNodeIds` (label needs more height than its cell); `validateScene` raises `text_overflow` at `visual.nodes.<i>.label`. Node `<article>` also gets `overflow: hidden` for preview safety. Tests cover both the layout signal and the validation issue.
+- **MEDIUM 4 — weak timing test.** Replaced with the strict-monotonic + finish-before-exit + mid-scene-visibility assertions above.
+- **LOW 5 — self-loops / duplicate edges.** `refineSceneGraph` now rejects `from === to` and repeated `(from,to)` pairs. Tests added in `graph-scene.test.ts` and `lesson-spec.test.ts`.
+- **LOW 7 — `GraphDiagram` nits.** `label` carried on `PlacedGraphNode` (O(n) lookup); emphasis window end is now the next *node* reveal (or `exitStartFrame` for the last node), never an edge start.
+
+Re-verified: `@avlp/schemas` build/lint/typecheck/test (284) green; JSON schema regenerated (no diff — superRefine only); `@avlp/scene-library` build/lint/typecheck green, `graph-scene.test.ts` 23 tests green, full suite 85 pass with the same 3 pre-existing environmental snapshot failures; `pnpm -r typecheck` green; `@avlp/renderer` (17) and `@avlp/api` storyboard/validation (113) green.
