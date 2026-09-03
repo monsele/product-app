@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { format } from "prettier";
 import { describe, expect, it } from "vitest";
 import {
   definitionVisualSchema,
@@ -497,6 +499,19 @@ describe("LessonSpec v1", () => {
 
   it("exports a named JSON Schema for external consumers", () => {
     expect(lessonSpecJsonSchema.definitions?.LessonSpec).toBeDefined();
+  });
+
+  it("keeps the committed lesson-spec-v1.schema.json in sync with the Zod source", async () => {
+    // Mirrors scripts/generate-lesson-spec-json-schema.mjs. If this fails, run
+    // `pnpm --filter @avlp/schemas generate:lesson-spec-json-schema` and commit.
+    const generated = await format(JSON.stringify(lessonSpecJsonSchema), {
+      parser: "json",
+    });
+    const committed = readFileSync(
+      new URL("../lesson-spec-v1.schema.json", import.meta.url),
+      "utf8",
+    );
+    expect(committed).toBe(generated);
   });
 
   it("accepts only bounded semantic labelled-diagram anchors", () => {

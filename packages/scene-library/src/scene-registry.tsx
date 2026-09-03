@@ -377,7 +377,7 @@ const metadataByTemplate: Record<SceneTemplate, TemplateMetadataBase> = {
   },
   "labelled-diagram": {
     assetSlots: ["diagram"],
-    itemLimits: { "visual.labels": 6 },
+    itemLimits: { "visual.labels": 20 },
     migrationBehavior: "none",
     textLimits: {
       narration: 5000,
@@ -660,19 +660,19 @@ export function validateScene(
             "Resolve the approved source or library diagram before final rendering.",
         }),
       ];
-    const collisionLabelIds = planDiagramCallouts(
-      diagram.visual.labels,
-    ).collisionLabelIds;
-    if (collisionLabelIds.length > 0)
+    const unplaced = planDiagramCallouts(diagram.visual.labels).unplaced;
+    if (unplaced.length > 0)
       return [
         Object.freeze({
           code: "diagram_collision" as const,
           fieldPath: "visual.labels",
-          message: `Diagram callouts overlap: ${collisionLabelIds.join(", ")}.`,
+          message: `Could not place diagram callouts inside the safe area: ${unplaced
+            .map((entry) => `${entry.id} (${entry.reason})`)
+            .join("; ")}`,
           sceneId: diagram.id,
           severity: "error" as const,
           suggestedCorrection:
-            "Choose distinct semantic anchors for the affected labels.",
+            "Remove or shorten labels until the remaining callouts fit beside the diagram.",
         }),
       ];
   }
@@ -787,7 +787,17 @@ export function validateScene(
             ? (values
                 .map((value) => measureSceneContent([value]))
                 .find((item) => !item.fits) ?? measureSceneContent([]))
-            : measureSceneContent(values);
+            : parsed.data.template === "labelled-diagram"
+              ? // Diagram labels are placed as callouts around the base image by
+                // `planDiagramCallouts`, which sizes each one and reports any it
+                // cannot fit via `unplaced`. Only the title/on-screen text is
+                // measured against the stacked body layout here.
+                measureSceneContent(
+                  values.filter(
+                    (value) => !value.path.startsWith("visual.labels"),
+                  ),
+                )
+              : measureSceneContent(values);
   if (measurement.fits) return [];
   return [
     Object.freeze({

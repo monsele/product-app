@@ -120,10 +120,79 @@
                           "minLength": 1,
                           "maxLength": 500
                         },
+                        "provenance": {
+                          "type": "string",
+                          "enum": [
+                            "catalog",
+                            "source_figure",
+                            "teacher_uploaded",
+                            "ai_generated"
+                          ]
+                        },
                         "slot": {
                           "type": "string",
                           "minLength": 1,
                           "maxLength": 64
+                        },
+                        "sourceRef": {
+                          "type": "object",
+                          "properties": {
+                            "documentId": {
+                              "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                            },
+                            "parsedDocumentVersion": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            },
+                            "pageStart": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            },
+                            "pageEnd": {
+                              "type": "integer",
+                              "exclusiveMinimum": 0
+                            },
+                            "sectionId": {
+                              "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                            },
+                            "blockIds": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                              },
+                              "minItems": 1,
+                              "maxItems": 100
+                            },
+                            "figureIds": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                              },
+                              "maxItems": 100
+                            },
+                            "tableIds": {
+                              "type": "array",
+                              "items": {
+                                "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                              },
+                              "maxItems": 100
+                            }
+                          },
+                          "required": [
+                            "documentId",
+                            "parsedDocumentVersion",
+                            "pageStart",
+                            "blockIds"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "visualRole": {
+                          "type": "string",
+                          "enum": [
+                            "grounding_critical",
+                            "source_derived",
+                            "decorative"
+                          ]
                         }
                       },
                       "required": ["assetId", "role"],
@@ -134,55 +203,8 @@
                   "sourceRefs": {
                     "type": "array",
                     "items": {
-                      "type": "object",
-                      "properties": {
-                        "documentId": {
-                          "$ref": "#/definitions/LessonSpec/properties/lessonId"
-                        },
-                        "parsedDocumentVersion": {
-                          "type": "integer",
-                          "exclusiveMinimum": 0
-                        },
-                        "pageStart": {
-                          "type": "integer",
-                          "exclusiveMinimum": 0
-                        },
-                        "pageEnd": { "type": "integer", "exclusiveMinimum": 0 },
-                        "sectionId": {
-                          "$ref": "#/definitions/LessonSpec/properties/lessonId"
-                        },
-                        "blockIds": {
-                          "type": "array",
-                          "items": {
-                            "$ref": "#/definitions/LessonSpec/properties/lessonId"
-                          },
-                          "minItems": 1,
-                          "maxItems": 100
-                        },
-                        "figureIds": {
-                          "type": "array",
-                          "items": {
-                            "$ref": "#/definitions/LessonSpec/properties/lessonId"
-                          },
-                          "maxItems": 100
-                        },
-                        "tableIds": {
-                          "type": "array",
-                          "items": {
-                            "$ref": "#/definitions/LessonSpec/properties/lessonId"
-                          },
-                          "maxItems": 100
-                        }
-                      },
-                      "required": [
-                        "documentId",
-                        "parsedDocumentVersion",
-                        "pageStart",
-                        "blockIds"
-                      ],
-                      "additionalProperties": false
+                      "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/assetBindings/items/properties/sourceRef"
                     },
-                    "minItems": 1,
                     "maxItems": 100
                   },
                   "generatedAdditions": {
@@ -807,7 +829,7 @@
                           "additionalProperties": false
                         },
                         "minItems": 1,
-                        "maxItems": 6
+                        "maxItems": 20
                       },
                       "shape": {
                         "type": "string",

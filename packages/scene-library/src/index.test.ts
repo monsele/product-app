@@ -52,6 +52,8 @@ import {
   sourceDiagramFixture,
   resolvedDiagramAssets,
   maximumLabelDiagramFixture,
+  manyLabelDiagramFixture,
+  duplicateAnchorDiagramFixture,
   shapesDiagramFixture,
   getLabelledDiagramFrameState,
   LabelledDiagramSceneFrame,
@@ -758,23 +760,60 @@ describe("scene registry runtime", () => {
     expect(validateScene(assetDiagramFixture)).toEqual([]);
     expect(validateScene(shapesDiagramFixture)).toEqual([]);
     expect(validateScene(maximumLabelDiagramFixture)).toEqual([]);
+    // More than the former nine-label ceiling now lays out and validates.
+    expect(validateScene(manyLabelDiagramFixture)).toEqual([]);
+    // Repeated semantic anchors are a placement preference, not a blocking error.
+    expect(validateScene(duplicateAnchorDiagramFixture)).toEqual([]);
     expect(
-      validateScene({
-        ...assetDiagramFixture,
-        visual: {
-          ...assetDiagramFixture.visual,
-          labels: [
-            { anchor: "left", id: "one", text: "One" },
-            { anchor: "left", id: "two", text: "Two" },
-          ],
-        },
-      }),
-    ).toContainEqual(
+      planDiagramCallouts(duplicateAnchorDiagramFixture.visual.labels).unplaced,
+    ).toEqual([]);
+    // Genuinely unsatisfiable placement still blocks and names the labels.
+    const overflow = validateScene({
+      ...assetDiagramFixture,
+      visual: {
+        ...assetDiagramFixture.visual,
+        labels: Array.from({ length: 20 }, (_unused, index) => ({
+          anchor: "left" as const,
+          id: `dense-${index + 1}`,
+          text: "x".repeat(80),
+        })),
+      },
+    });
+    expect(overflow).toContainEqual(
       expect.objectContaining({
         code: "diagram_collision",
         fieldPath: "visual.labels",
       }),
     );
+    expect(overflow[0]?.message).toContain("dense-");
+    // Placement is deterministic and identical between preview and final render.
+    const previewMarkup = renderToStaticMarkup(
+      createElement(LabelledDiagramSceneFrame, {
+        frame: 120,
+        resolvedAssets: resolvedDiagramAssets,
+        runtimeMode: "preview",
+        scene: manyLabelDiagramFixture,
+      }),
+    );
+    const renderMarkup = renderToStaticMarkup(
+      createElement(LabelledDiagramSceneFrame, {
+        frame: 120,
+        resolvedAssets: resolvedDiagramAssets,
+        runtimeMode: "render",
+        scene: manyLabelDiagramFixture,
+      }),
+    );
+    expect(renderMarkup).toBe(previewMarkup);
+    expect(
+      renderToStaticMarkup(
+        createElement(LabelledDiagramSceneFrame, {
+          frame: 120,
+          resolvedAssets: resolvedDiagramAssets,
+          runtimeMode: "render",
+          scene: manyLabelDiagramFixture,
+        }),
+      ),
+    ).toBe(renderMarkup);
     expect(
       validateScene({ ...assetDiagramFixture, assetBindings: [] }),
     ).toContainEqual(

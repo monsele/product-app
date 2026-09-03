@@ -86,3 +86,35 @@ export const maximumLabelDiagramFixture = Object.freeze({
     ],
   },
 } satisfies Extract<SceneSpec, { template: "labelled-diagram" }>);
+
+const denseLabel = (
+  index: number,
+): { anchor: "left"; id: string; text: string } => ({
+  anchor: "left",
+  id: `part-${index}`,
+  text: `Structure ${index}`,
+});
+
+/** More labels than the former nine-anchor ceiling could ever place. */
+export const manyLabelDiagramFixture = Object.freeze({
+  ...assetDiagramFixture,
+  visual: {
+    ...assetDiagramFixture.visual,
+    labels: Array.from({ length: 12 }, (_unused, index) =>
+      denseLabel(index + 1),
+    ),
+  },
+} satisfies Extract<SceneSpec, { template: "labelled-diagram" }>);
+
+/** Two labels asking for the same semantic anchor must both be placed. */
+export const duplicateAnchorDiagramFixture = Object.freeze({
+  ...assetDiagramFixture,
+  visual: {
+    ...assetDiagramFixture.visual,
+    labels: [
+      { anchor: "left", id: "alpha", text: "Alpha" },
+      { anchor: "left", id: "beta", text: "Beta" },
+      { anchor: "left", id: "gamma", text: "Gamma" },
+    ],
+  },
+} satisfies Extract<SceneSpec, { template: "labelled-diagram" }>);

@@ -417,6 +417,10 @@ export const diagramAnchorSchema = z.enum([
 export type DiagramAnchor = z.infer<typeof diagramAnchorSchema>;
 export const diagramLabelSchema = z
   .object({
+    /**
+     * Semantic placement preference. The layout engine treats this as a hint
+     * and decides final pixels; raw pixel coordinates are never accepted.
+     */
     anchor: diagramAnchorSchema,
     id: boundedText(40).regex(/^[a-z][a-z0-9-]*$/),
     text: boundedText(80),
@@ -427,7 +431,7 @@ export const diagramVisualSchema = z
   .object({
     baseAssetSlot: z.literal("diagram").optional(),
     kind: z.enum(["asset", "shapes"]),
-    labels: z.array(diagramLabelSchema).min(1).max(6),
+    labels: z.array(diagramLabelSchema).min(1).max(20),
     shape: z.enum(["cell", "cycle", "plant", "system"]).optional(),
   })
   .strict()

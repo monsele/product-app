@@ -5,7 +5,11 @@ import {
   resolveSafeDiagramAsset,
   type SceneComponentProps,
 } from "./scene-registry.js";
-import { planDiagramCallouts } from "./diagram-layout.js";
+import {
+  diagramCalloutPadding,
+  DIAGRAM_BASE_RECT,
+  planDiagramCallouts,
+} from "./diagram-layout.js";
 import { getSceneFrameTiming } from "./timing.js";
 
 export function getLabelledDiagramFrameState(
@@ -48,7 +52,10 @@ export function LabelledDiagramSceneFrame({
 }: SceneComponentProps & Readonly<{ frame: number }>): JSX.Element {
   if (scene.template !== "labelled-diagram")
     throw new Error("LabelledDiagramScene requires a labelled-diagram scene.");
-  const plan = planDiagramCallouts(scene.visual.labels);
+  const plan = planDiagramCallouts(scene.visual.labels, DIAGRAM_BASE_RECT);
+  const labelIndexById = new Map(
+    scene.visual.labels.map((label, index) => [label.id, index] as const),
+  );
   const asset = scene.assetBindings.find(
     (binding) =>
       binding.slot === scene.visual.baseAssetSlot && binding.role === "diagram",
@@ -111,13 +118,13 @@ export function LabelledDiagramSceneFrame({
           borderRadius: videoTheme.radii.md,
           boxSizing: "border-box",
           display: "grid",
-          height: 450,
+          height: plan.diagramRect.height,
           justifyItems: "center",
-          left: 470,
+          left: plan.diagramRect.x,
           overflow: "hidden",
           position: "absolute",
-          top: 350,
-          width: 980,
+          top: plan.diagramRect.y,
+          width: plan.diagramRect.width,
         }}
       >
         {scene.visual.kind === "asset" && resolvedAsset !== undefined ? (
@@ -192,18 +199,23 @@ export function LabelledDiagramSceneFrame({
             stroke={videoTheme.colors.accent}
             strokeWidth={videoTheme.lineWidths.emphasis}
             x1={callout.targetX}
-            x2={callout.x + callout.width / 2}
+            x2={callout.side === "left" ? callout.x + callout.width : callout.x}
             y1={callout.targetY}
             y2={callout.y + callout.height / 2}
           />
         ))}
       </svg>
-      {plan.callouts.map((callout, index) => {
-        const label = scene.visual.labels[index]!;
+      {plan.callouts.map((callout) => {
+        const labelIndex = labelIndexById.get(callout.id);
+        if (labelIndex === undefined)
+          throw new Error(
+            `Diagram callout ${callout.id} has no matching label.`,
+          );
+        const label = scene.visual.labels[labelIndex]!;
         const state = getLabelledDiagramFrameState(
           frame,
           scene.durationSeconds,
-          index,
+          labelIndex,
         );
         return (
           <aside
@@ -214,13 +226,14 @@ export function LabelledDiagramSceneFrame({
               border: `${videoTheme.lineWidths.emphasis}px solid ${videoTheme.colors.accent}`,
               borderRadius: videoTheme.radii.md,
               boxSizing: "border-box",
-              fontSize: 25,
+              fontSize: callout.fontSize,
               fontWeight: 700,
               left: callout.x,
+              height: callout.height,
               lineHeight: videoTheme.typography.lineHeight,
               opacity: state.opacity,
               overflowWrap: "anywhere",
-              padding: videoTheme.spacing.sm,
+              padding: diagramCalloutPadding(callout.fontSize),
               position: "absolute",
               top: callout.y,
               transform: `translateY(${(1 - state.opacity) * 16}px)`,

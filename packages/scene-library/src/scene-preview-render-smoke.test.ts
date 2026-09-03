@@ -389,11 +389,17 @@ describe("scene runtime Remotion smoke", () => {
     });
     expect(diagram.contentType).toBe("image/png");
     expect(diagram.buffer).toEqual(repeatedDiagram.buffer);
+    // ST-086 replaced the fixed nine-anchor callout table with content-derived
+    // automatic placement, so this frame's pixels change intentionally.
+    // Regenerate with `vitest -u` in the baseline environment and review the
+    // diff alongside the other render baselines.
     expect(
       createHash("sha256")
         .update(diagram.buffer ?? Buffer.alloc(0))
         .digest("hex"),
-    ).toBe("00cb3290b4ab4a14e06b74e0e9e3f33eba25f6c79b5adf987be7816f5bc82e55");
+    ).toMatchInlineSnapshot(
+      `"00cb3290b4ab4a14e06b74e0e9e3f33eba25f6c79b5adf987be7816f5bc82e55"`,
+    );
 
     const diagramInitial = await renderStill({
       browserExecutable,
@@ -447,11 +453,15 @@ describe("scene runtime Remotion smoke", () => {
       serveUrl,
     });
     expect(shapes.contentType).toBe("image/png");
+    // ST-086: callout placement is now automatic for shapes diagrams too.
+    // Regenerate with `vitest -u` in the baseline environment.
     expect(
       createHash("sha256")
         .update(shapes.buffer ?? Buffer.alloc(0))
         .digest("hex"),
-    ).toBe("965ecc52fd4dec47d12f8209ae007ce5cf4d8405d917095760561cf5528bed1b");
+    ).toMatchInlineSnapshot(
+      `"965ecc52fd4dec47d12f8209ae007ce5cf4d8405d917095760561cf5528bed1b"`,
+    );
 
     const shapesFirstReveal = await renderStill({
       browserExecutable,
