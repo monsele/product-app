@@ -4,6 +4,7 @@ import type { CSSProperties, JSX } from "react";
 import type { CauseEffectNode } from "@avlp/schemas";
 import type { SceneComponentProps } from "./scene-registry.js";
 import { getSceneFrameTiming } from "./timing.js";
+import { GraphDiagram } from "./graph-diagram.js";
 
 export type CauseEffectLayout = "chain" | "branching";
 export type CauseEffectSceneFrameState = Readonly<{
@@ -205,11 +206,34 @@ export function CauseEffectSceneFrame({
 }: SceneComponentProps & Readonly<{ frame: number }>): JSX.Element {
   if (scene.template !== "cause-effect")
     throw new Error("CauseEffectScene requires a cause-effect scene.");
+  if (scene.visual.nodes !== undefined && scene.visual.edges !== undefined) {
+    const kindAccent: Record<string, string> = {
+      cause: videoTheme.colors.primary,
+      mechanism: videoTheme.colors.accent,
+      effect: videoTheme.colors.primary,
+    };
+    const accentById = new Map(
+      scene.visual.nodes.map((node) => [node.id, kindAccent[node.kind]!]),
+    );
+    return (
+      <GraphDiagram
+        durationSeconds={scene.durationSeconds}
+        edges={scene.visual.edges}
+        eyebrow="CAUSE AND EFFECT"
+        frame={frame}
+        narration={scene.narration}
+        nodeAccent={(nodeId) =>
+          accentById.get(nodeId) ?? videoTheme.colors.primary
+        }
+        nodes={scene.visual.nodes}
+        title={scene.title ?? "How one change leads to another"}
+      />
+    );
+  }
+  const causes = scene.visual.causes ?? [];
+  const effects = scene.visual.effects ?? [];
   const state = getCauseEffectSceneFrameState(frame, scene.durationSeconds);
-  const layout = selectCauseEffectLayout(
-    scene.visual.causes,
-    scene.visual.effects,
-  );
+  const layout = selectCauseEffectLayout(causes, effects);
   const hasMechanism = scene.visual.mechanism !== undefined;
   const columns: CSSProperties = {
     alignItems: "center",
@@ -275,7 +299,7 @@ export function CauseEffectSceneFrame({
           <CausalColumn
             heading="CAUSE"
             kind="cause"
-            nodes={scene.visual.causes}
+            nodes={causes}
             opacity={state.causesOpacity}
             scene={scene}
           />
@@ -295,7 +319,7 @@ export function CauseEffectSceneFrame({
           <CausalColumn
             heading="EFFECT"
             kind="effect"
-            nodes={scene.visual.effects}
+            nodes={effects}
             opacity={state.effectsOpacity}
             scene={scene}
           />

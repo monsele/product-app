@@ -268,11 +268,112 @@ export const definitionVisualSchema = z
       });
   });
 export type DefinitionVisual = z.infer<typeof definitionVisualSchema>;
-export const processVisualSchema = z
+export const processAssetSlotSchema = z.enum([
+  "step-1-icon",
+  "step-2-icon",
+  "step-3-icon",
+  "step-4-icon",
+  "step-5-icon",
+  "step-6-icon",
+]);
+const graphIdSchema = boundedText(40).regex(/^[a-z][a-z0-9-]*$/);
+/**
+ * A structural edge between two nodes. The engine decides geometry: no pixel,
+ * coordinate, transform, or easing field is accepted here or on a node.
+ */
+export const graphEdgeSchema = z
   .object({
-    steps: z.array(boundedText(80)).min(2).max(6),
+    id: graphIdSchema,
+    from: boundedText(40),
+    to: boundedText(40),
+    label: boundedText(60).optional(),
   })
   .strict();
+export type GraphEdge = z.infer<typeof graphEdgeSchema>;
+export const processNodeSchema = z
+  .object({
+    id: graphIdSchema,
+    label: boundedText(80),
+    assetSlot: processAssetSlotSchema.optional(),
+  })
+  .strict();
+export type ProcessNode = z.infer<typeof processNodeSchema>;
+/**
+ * Shared structural validation for node-and-edge scene visuals: unique node ids,
+ * unique edge ids, and every edge endpoint resolving to a declared node. An edge
+ * that references an unknown node id fails validation.
+ */
+export const refineSceneGraph = (
+  nodes: readonly { id: string }[],
+  edges: readonly { id: string; from: string; to: string }[],
+  context: z.RefinementCtx,
+): void => {
+  const nodeIds = new Set<string>();
+  nodes.forEach((node, index) => {
+    if (nodeIds.has(node.id))
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["nodes", index, "id"],
+        message: "Graph node ids must be unique.",
+      });
+    nodeIds.add(node.id);
+  });
+  const edgeIds = new Set<string>();
+  edges.forEach((edge, index) => {
+    if (edgeIds.has(edge.id))
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["edges", index, "id"],
+        message: "Graph edge ids must be unique.",
+      });
+    edgeIds.add(edge.id);
+    if (!nodeIds.has(edge.from))
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["edges", index, "from"],
+        message: `Edge references unknown node id "${edge.from}".`,
+      });
+    if (!nodeIds.has(edge.to))
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["edges", index, "to"],
+        message: `Edge references unknown node id "${edge.to}".`,
+      });
+  });
+};
+/**
+ * `process` visual. Backwards compatible: a scene supplies either the legacy
+ * `steps` array or the graph `nodes`/`edges` pair, never both. Coordinates,
+ * transforms, easing, and animation code are rejected by `.strict()`.
+ */
+export const processVisualSchema = z
+  .object({
+    steps: z.array(boundedText(80)).min(2).max(6).optional(),
+    nodes: z.array(processNodeSchema).min(2).max(12).optional(),
+    edges: z.array(graphEdgeSchema).min(1).max(24).optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const hasGraph = value.nodes !== undefined || value.edges !== undefined;
+    if (hasGraph === (value.steps !== undefined)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [value.steps === undefined ? "steps" : "nodes"],
+        message: "Provide either `steps` or `nodes` and `edges`, not both.",
+      });
+      return;
+    }
+    if (!hasGraph) return;
+    if (value.nodes === undefined || value.edges === undefined) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [value.nodes === undefined ? "nodes" : "edges"],
+        message: "A graph process scene requires both `nodes` and `edges`.",
+      });
+      return;
+    }
+    refineSceneGraph(value.nodes, value.edges, context);
+  });
 export type ProcessVisual = z.infer<typeof processVisualSchema>;
 export const ipoAssetSlotSchema = z.enum([
   "input-1-icon",
@@ -341,19 +442,94 @@ export const causeEffectConnectionSchema = z
   .object({ from: boundedText(40), to: boundedText(40) })
   .strict();
 export type CauseEffectConnection = z.infer<typeof causeEffectConnectionSchema>;
+export const causeEffectKindSchema = z.enum(["cause", "mechanism", "effect"]);
+export type CauseEffectKind = z.infer<typeof causeEffectKindSchema>;
+export const causeEffectGraphNodeSchema = z
+  .object({
+    id: graphIdSchema,
+    label: boundedText(80),
+    kind: causeEffectKindSchema,
+    assetSlot: causeEffectAssetSlotSchema.optional(),
+  })
+  .strict();
+export type CauseEffectGraphNode = z.infer<typeof causeEffectGraphNodeSchema>;
+/**
+ * `cause-effect` visual. Backwards compatible: a scene supplies either the
+ * legacy `causes`/`mechanism`/`effects`/`connections` shape or the graph
+ * `nodes`/`edges` pair, never both. Coordinates, transforms, easing, and
+ * animation code are rejected by `.strict()`.
+ */
 export const causeEffectVisualSchema = z
   .object({
-    causes: z.array(causeEffectNodeSchema).min(1).max(3),
+    causes: z.array(causeEffectNodeSchema).min(1).max(3).optional(),
     mechanism: causeEffectNodeSchema.optional(),
-    effects: z.array(causeEffectNodeSchema).min(1).max(3),
-    connections: z.array(causeEffectConnectionSchema).min(1).max(9),
+    effects: z.array(causeEffectNodeSchema).min(1).max(3).optional(),
+    connections: z.array(causeEffectConnectionSchema).min(1).max(9).optional(),
+    nodes: z.array(causeEffectGraphNodeSchema).min(2).max(12).optional(),
+    edges: z.array(graphEdgeSchema).min(1).max(24).optional(),
   })
   .strict()
   .superRefine((value, context) => {
+    const hasGraph = value.nodes !== undefined || value.edges !== undefined;
+    const hasLegacy =
+      value.causes !== undefined ||
+      value.effects !== undefined ||
+      value.connections !== undefined;
+    if (hasGraph === hasLegacy) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [hasGraph ? "nodes" : "causes"],
+        message:
+          "Provide either the legacy causes/mechanism/effects/connections shape or the graph nodes/edges pair, not both.",
+      });
+      return;
+    }
+    if (hasGraph) {
+      if (value.nodes === undefined || value.edges === undefined) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [value.nodes === undefined ? "nodes" : "edges"],
+          message:
+            "A graph cause-effect scene requires both `nodes` and `edges`.",
+        });
+        return;
+      }
+      refineSceneGraph(value.nodes, value.edges, context);
+      if (!value.nodes.some((node) => node.kind === "cause"))
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["nodes"],
+          message: "A cause-effect graph needs at least one `cause` node.",
+        });
+      if (!value.nodes.some((node) => node.kind === "effect"))
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["nodes"],
+          message: "A cause-effect graph needs at least one `effect` node.",
+        });
+      return;
+    }
+    if (
+      value.causes === undefined ||
+      value.effects === undefined ||
+      value.connections === undefined
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["connections"],
+        message:
+          "The legacy cause-effect shape requires causes, effects, and connections together.",
+      });
+      return;
+    }
+    const legacyCauses = value.causes;
+    const legacyEffects = value.effects;
+    const legacyConnections = value.connections;
+    const legacyMechanism = value.mechanism;
     const nodes = [
-      ...value.causes,
-      ...(value.mechanism === undefined ? [] : [value.mechanism]),
-      ...value.effects,
+      ...legacyCauses,
+      ...(legacyMechanism === undefined ? [] : [legacyMechanism]),
+      ...legacyEffects,
     ];
     const ids = new Set<string>();
     nodes.forEach((node, index) => {
@@ -361,9 +537,9 @@ export const causeEffectVisualSchema = z
         context.addIssue({
           code: z.ZodIssueCode.custom,
           path: [
-            index < value.causes.length
+            index < legacyCauses.length
               ? "causes"
-              : index === value.causes.length
+              : index === legacyCauses.length
                 ? "mechanism"
                 : "effects",
             "id",
@@ -373,21 +549,21 @@ export const causeEffectVisualSchema = z
       ids.add(node.id);
     });
     const expected = new Set<string>();
-    if (value.mechanism === undefined)
-      value.causes.forEach((cause) =>
-        value.effects.forEach((effect) =>
+    if (legacyMechanism === undefined)
+      legacyCauses.forEach((cause) =>
+        legacyEffects.forEach((effect) =>
           expected.add(`${cause.id}:${effect.id}`),
         ),
       );
     else {
-      value.causes.forEach((cause) =>
-        expected.add(`${cause.id}:${value.mechanism?.id}`),
+      legacyCauses.forEach((cause) =>
+        expected.add(`${cause.id}:${legacyMechanism.id}`),
       );
-      value.effects.forEach((effect) =>
-        expected.add(`${value.mechanism?.id}:${effect.id}`),
+      legacyEffects.forEach((effect) =>
+        expected.add(`${legacyMechanism.id}:${effect.id}`),
       );
     }
-    const actual = value.connections.map(
+    const actual = legacyConnections.map(
       (connection) => `${connection.from}:${connection.to}`,
     );
     if (

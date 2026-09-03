@@ -52,6 +52,34 @@ export const branchingCauseEffectFixture = Object.freeze({
   },
 } satisfies Extract<SceneSpec, { template: "cause-effect" }>);
 
+/** Cause-effect expressed as a graph (ST-087): two causes, a mechanism, three effects. */
+export const graphCauseEffectFixture = Object.freeze({
+  ...createDefaultScene("cause-effect"),
+  title: "Deforestation cascades through a watershed",
+  narration:
+    "Clearing the forest removes the tree canopy. Losing the canopy exposes the soil to rain. " +
+    "Exposed soil erodes quickly. The eroded sediment chokes the river. " +
+    "Downstream flooding then increases and fish populations fall.",
+  durationSeconds: 24,
+  visual: {
+    nodes: [
+      { id: "clearing", label: "Forest cleared", kind: "cause" },
+      { id: "rain", label: "Heavy seasonal rain", kind: "cause" },
+      { id: "erosion", label: "Topsoil erodes", kind: "mechanism" },
+      { id: "sediment", label: "River fills with sediment", kind: "effect" },
+      { id: "flooding", label: "Downstream flooding", kind: "effect" },
+      { id: "fish", label: "Fish populations fall", kind: "effect" },
+    ],
+    edges: [
+      { id: "e1", from: "clearing", to: "erosion" },
+      { id: "e2", from: "rain", to: "erosion" },
+      { id: "e3", from: "erosion", to: "sediment" },
+      { id: "e4", from: "sediment", to: "flooding" },
+      { id: "e5", from: "sediment", to: "fish" },
+    ],
+  },
+} satisfies Extract<SceneSpec, { template: "cause-effect" }>);
+
 export const maximumDensityCauseEffectFixture = Object.freeze({
   ...branchingCauseEffectFixture,
   title: "T".repeat(160),

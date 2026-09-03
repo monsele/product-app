@@ -306,6 +306,78 @@ describe("LessonSpec v1", () => {
     ).toBe(false);
   });
 
+  it("accepts a graph process visual and rejects coordinates and dangling edges (ST-087)", () => {
+    expect(
+      processVisualSchema.safeParse({
+        nodes: [
+          { id: "a", label: "Start" },
+          { id: "b", label: "Middle" },
+          { id: "c", label: "End" },
+        ],
+        edges: [
+          { id: "e1", from: "a", to: "b" },
+          { id: "e2", from: "b", to: "c" },
+        ],
+      }).success,
+    ).toBe(true);
+    // A pixel coordinate on a node is rejected by `.strict()`.
+    expect(
+      processVisualSchema.safeParse({
+        nodes: [
+          { id: "a", label: "Start", x: 10 },
+          { id: "b", label: "End" },
+        ],
+        edges: [{ id: "e1", from: "a", to: "b" }],
+      }).success,
+    ).toBe(false);
+    // An edge pointing at an undeclared node id fails validation.
+    expect(
+      processVisualSchema.safeParse({
+        nodes: [
+          { id: "a", label: "Start" },
+          { id: "b", label: "End" },
+        ],
+        edges: [{ id: "e1", from: "a", to: "missing" }],
+      }).success,
+    ).toBe(false);
+    // Legacy and graph shapes may not be combined.
+    expect(
+      processVisualSchema.safeParse({
+        steps: ["one", "two"],
+        nodes: [
+          { id: "a", label: "Start" },
+          { id: "b", label: "End" },
+        ],
+        edges: [{ id: "e1", from: "a", to: "b" }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts a graph cause-effect visual with typed nodes (ST-087)", () => {
+    expect(
+      causeEffectVisualSchema.safeParse({
+        nodes: [
+          { id: "a", label: "Cause", kind: "cause" },
+          { id: "m", label: "Mechanism", kind: "mechanism" },
+          { id: "b", label: "Effect", kind: "effect" },
+        ],
+        edges: [
+          { id: "e1", from: "a", to: "m" },
+          { id: "e2", from: "m", to: "b" },
+        ],
+      }).success,
+    ).toBe(true);
+    expect(
+      causeEffectVisualSchema.safeParse({
+        nodes: [
+          { id: "a", label: "Cause", kind: "cause" },
+          { id: "b", label: "Also cause", kind: "cause" },
+        ],
+        edges: [{ id: "e1", from: "a", to: "b" }],
+      }).success,
+    ).toBe(false);
+  });
+
   it("requires bounded IPO collections, labels, and optional asset slots", () => {
     expect(
       ipoVisualSchema.safeParse({

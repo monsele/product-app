@@ -3,6 +3,7 @@ import { Easing, interpolate, useCurrentFrame } from "remotion";
 import type { CSSProperties, JSX } from "react";
 import type { SceneComponentProps } from "./scene-registry.js";
 import { getSceneFrameTiming } from "./timing.js";
+import { GraphDiagram } from "./graph-diagram.js";
 
 export type ProcessLayout = "horizontal" | "vertical";
 
@@ -74,11 +75,24 @@ export function ProcessSceneFrame({
 }: SceneComponentProps & Readonly<{ frame: number }>): JSX.Element {
   if (scene.template !== "process")
     throw new Error("ProcessScene requires a process scene.");
-  const layout = selectProcessLayout(scene.visual.steps);
+  if (scene.visual.nodes !== undefined && scene.visual.edges !== undefined)
+    return (
+      <GraphDiagram
+        durationSeconds={scene.durationSeconds}
+        edges={scene.visual.edges}
+        eyebrow="PROCESS"
+        frame={frame}
+        narration={scene.narration}
+        nodes={scene.visual.nodes}
+        title={scene.title ?? "How it happens"}
+      />
+    );
+  const steps = scene.visual.steps ?? [];
+  const layout = selectProcessLayout(steps);
   const state = getProcessSceneFrameState(
     frame,
     scene.durationSeconds,
-    scene.visual.steps.length,
+    steps.length,
   );
   const stepsStyle: CSSProperties = {
     boxSizing: "border-box",
@@ -127,7 +141,7 @@ export function ProcessSceneFrame({
             padding: 0,
           }}
         >
-          {scene.visual.steps.map((step, index) => {
+          {steps.map((step, index) => {
             const isRevealed = index <= state.activeStep;
             const icon = stepIcon(scene, index);
             return (

@@ -241,7 +241,7 @@ const layouts: Record<SceneTemplate, SceneLayout> = {
       "visual.exampleText",
     ],
   },
-  process: { visualTextPaths: ["visual.steps"] },
+  process: { visualTextPaths: ["visual.steps", "visual.nodes"] },
   "input-process-output": {
     visualTextPaths: ["visual.inputs", "visual.process", "visual.outputs"],
   },
@@ -254,7 +254,12 @@ const layouts: Record<SceneTemplate, SceneLayout> = {
     ],
   },
   "cause-effect": {
-    visualTextPaths: ["visual.causes", "visual.mechanism", "visual.effects"],
+    visualTextPaths: [
+      "visual.causes",
+      "visual.mechanism",
+      "visual.effects",
+      "visual.nodes",
+    ],
   },
   "labelled-diagram": {
     visualTextPaths: ["visual.labels"],
@@ -732,12 +737,17 @@ export function validateScene(
     }
     if (typeof value === "object" && value !== null)
       Object.entries(value)
-        .filter(
-          ([key]) =>
-            parsed.data.template !== "labelled-diagram" ||
-            !path.startsWith("visual.labels") ||
-            key === "text",
-        )
+        .filter(([key]) => {
+          if (
+            parsed.data.template === "labelled-diagram" &&
+            path.startsWith("visual.labels")
+          )
+            return key === "text";
+          // Graph nodes carry structural fields (`id`, `kind`, `assetSlot`)
+          // alongside the label; only the label is display text.
+          if (path.startsWith("visual.nodes")) return key === "label";
+          return true;
+        })
         .forEach(([key, nested]) => collectText(nested, `${path}.${key}`));
   };
   for (const path of definition.layout.visualTextPaths) {
@@ -749,6 +759,33 @@ export function validateScene(
           ? (value as Record<string, unknown>)[key]
           : undefined;
     collectText(value, path);
+  }
+  // Graph process / cause-effect scenes: `planGraphLayout` sizes every node
+  // deterministically inside the body safe area and scales the layout down as
+  // the node count grows, so there is no free-text overflow to measure. Node
+  // labels are bounded by the schema. Only title / on-screen text is checked.
+  if (
+    (parsed.data.template === "process" ||
+      parsed.data.template === "cause-effect") &&
+    "nodes" in parsed.data.visual &&
+    parsed.data.visual.nodes !== undefined
+  ) {
+    const chrome = measureSceneContent(
+      values.filter((value) => !value.path.startsWith("visual.")),
+    );
+    return chrome.fits
+      ? []
+      : [
+          Object.freeze({
+            code: "text_overflow" as const,
+            fieldPath: chrome.firstOverflowPath ?? "title",
+            message: "Text exceeds the readable layout capacity.",
+            sceneId: parsed.data.id,
+            severity: "error" as const,
+            suggestedCorrection:
+              "Shorten this text or split it into another scene.",
+          }),
+        ];
   }
   const measurement =
     parsed.data.template === "input-process-output"
