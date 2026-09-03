@@ -200,7 +200,9 @@ describe("scene monotony advisory", () => {
         severity: "warning",
         acknowledgeable: true,
         scopeType: "scene",
-        sceneId: null,
+        // Anchored to the first scene in the run for editor deep-linking.
+        sceneId: source.scenes[1]!.stableSceneId,
+        scopeId: source.scenes[1]!.stableSceneId,
         fieldPath: "scenes.1.scene.template",
         details: expect.objectContaining({
           template: "definition",
@@ -233,6 +235,19 @@ describe("scene monotony advisory", () => {
         ]),
       ),
     ).toEqual([]);
+  });
+
+  it("adds only the advisory and leaves every other rule's output untouched", () => {
+    // The historical clean five-scene fixture produced zero issues. Adding the
+    // rule must add exactly one scene_monotony warning (the fixture is all-hook)
+    // and change nothing else.
+    const issues = evaluateLessonValidation(input());
+    expect(
+      issues.filter((issue) => issue.code !== "scene_monotony"),
+    ).toEqual([]);
+    expect(issues.filter((issue) => issue.code === "scene_monotony")).toHaveLength(
+      1,
+    );
   });
 
   it("uses the exported threshold as the boundary", () => {

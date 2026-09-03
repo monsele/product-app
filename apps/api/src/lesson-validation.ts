@@ -54,11 +54,12 @@ const durationToleranceMs = sceneAudioFitToleranceMs;
  * Audio that underruns its scene is padded with trailing silence, so a teacher
  * may accept the gap; audio that overruns would be cut off and never can be.
  */
-export const acknowledgeableWarningCodes = new Set<ValidationIssueCode>([
-  "grounding_recheck_required",
-  "audio_duration_mismatch",
-  "scene_monotony",
-]);
+export const acknowledgeableWarningCodes: ReadonlySet<ValidationIssueCode> =
+  new Set<ValidationIssueCode>([
+    "grounding_recheck_required",
+    "audio_duration_mismatch",
+    "scene_monotony",
+  ]);
 
 /**
  * A run of this many or more consecutive scenes sharing one template is flagged
@@ -665,12 +666,15 @@ export function evaluateLessonValidation(
         const run = scenesList.slice(runStart, index);
         const template = run[0]!.scene.template;
         const sceneIds = run.map((entry) => entry.stableSceneId);
+        // Anchor the finding to the first scene in the run so the validation UI
+        // can deep-link into the editor; the full range is in `details`.
+        const firstSceneId = run[0]!.stableSceneId as Identifier;
         issues.push(
           issue("scene_monotony", {
             severity: "warning",
             scopeType: "scene",
-            scopeId: null,
-            sceneId: null,
+            scopeId: firstSceneId,
+            sceneId: firstSceneId,
             fieldPath: `scenes.${runStart}.scene.template`,
             message: `Scenes ${runStart + 1}–${index} all use the "${template}" template. Vary the sequence so the lesson does not repeat the same scene ${runLength} times in a row.`,
             details: {

@@ -139,9 +139,14 @@ What is genuinely missing is one editorial check: consecutive repetition of the 
 
 - **Files changed:**
   - `packages/schemas/src/index.ts` — added `scene_monotony` to `validationIssueCodeSchema`; bumped `lessonValidationRulesetVersion` `"2" → "3"` with a changelog note.
-  - `apps/api/src/lesson-validation.ts` — new deterministic `scene_monotony` rule in `evaluateLessonValidation`; exported `sceneMonotonyThreshold = 3`; exported `acknowledgeableWarningCodes` and added `scene_monotony` to it; registered `scene_monotony` in `validationRuleDependencies.scene`.
-  - `apps/api/src/lesson-validation.test.ts` — new `describe("scene monotony advisory")` block (9 tests) plus `storyboardWithTemplates` / `monotonyIssues` helpers and a `SceneTemplate` import.
+  - `apps/api/src/lesson-validation.ts` — new deterministic `scene_monotony` rule in `evaluateLessonValidation`; exported `sceneMonotonyThreshold = 3`; exported `acknowledgeableWarningCodes` (typed `ReadonlySet`) and added `scene_monotony` to it; registered `scene_monotony` in `validationRuleDependencies.scene`. The finding is anchored to the first scene of the run (`scopeId`/`sceneId`) so the validation UI's "Open affected scene" deep-link works; the full range stays in `details`.
+  - `apps/api/src/lesson-validation.test.ts` — new `describe("scene monotony advisory")` block (10 tests) plus `storyboardWithTemplates` / `monotonyIssues` helpers and a `SceneTemplate` import.
   - `STORY_INDEX.md`, this story file — status transitions.
+
+- **Review follow-ups applied (post first review round):**
+  - Deep-link (was LOW-1): `scene_monotony` now sets `scopeId`/`sceneId` to the first scene in the run instead of `null`, so `ValidationPanel` renders "Open affected scene" rather than the generic fallback.
+  - Regression guard (was LOW-2): added test "adds only the advisory and leaves every other rule's output untouched" — asserts the historical clean fixture now yields exactly one `scene_monotony` issue and nothing else.
+  - Encapsulation (was LOW-3): `acknowledgeableWarningCodes` export is typed `ReadonlySet<ValidationIssueCode>`.
 
 - **Migrations:** None. `validation_issues.code` is a `text` column, not a pg enum, so the new code needs no migration. Persisted runs are recomputed rather than migrated: the ruleset-version bump changes `validationInputHash`, marking every prior run stale so it re-runs under v3 and picks up the advisory. Render authorization is unaffected because the rule is warning-only.
 
@@ -154,12 +159,13 @@ What is genuinely missing is one editorial check: consecutive repetition of the 
   - `pnpm --filter @avlp/schemas build` — pass.
   - `pnpm --filter @avlp/schemas test` — 285 pass.
   - `pnpm --filter @avlp/api typecheck` — pass.
-  - `pnpm --filter @avlp/api test` — 451 pass, 70 skipped (DB integration suites skipped, no Postgres in env).
+  - `pnpm --filter @avlp/api test` — 452 pass, 70 skipped (DB integration suites skipped, no Postgres in env).
+  - `pnpm --filter @avlp/api lint` / `build` — pass.
   - `pnpm lint` — 16/16 pass.
   - `pnpm typecheck` — 16/16 pass.
   - `pnpm build` — 16/16 pass.
 
-- **Screenshots/output:** None. `apps/web/.../storyboard/validation-panel.tsx` renders issues generically (group by `scopeType`, print `issue.message`, show an acknowledge button when `acknowledgeable && acknowledgedAt === null`); `scene_monotony` (scopeType `scene`, severity `warning`, `acknowledgeable: true`, `sceneId: null`) renders with no code-specific handling and does not gate the storyboard editor, which is a separate route.
+- **Screenshots/output:** None. `apps/web/.../storyboard/validation-panel.tsx` renders issues generically (group by `scopeType`, print `issue.message`, show an acknowledge button when `acknowledgeable && acknowledgedAt === null`); `scene_monotony` (scopeType `scene`, severity `warning`, `acknowledgeable: true`, `sceneId` = first affected scene) renders with no code-specific handling, shows the "Open affected scene" deep-link and the acknowledge button, and does not gate the storyboard editor, which is a separate route.
 
 - **Decisions/assumptions:**
   - **Written confirmation — no additional check added.** Per the Scope gate, every other structural concern already has a code and was not re-implemented: objective coverage → `objective_uncovered` / `objective_unknown`; layout/text budget → `text_overflow` (via `validateScene`); diagram callout overlap → `diagram_collision`; lesson/scene duration → `lesson_duration_mismatch` / `scene_duration_out_of_range` / `narration_duration_mismatch`; grounding → `grounding_missing` / `grounding_recheck_required` / `generated_addition_unlabelled`; assets → `asset_required` / `asset_unresolved`. Only consecutive-template repetition was missing, and only that was added.
