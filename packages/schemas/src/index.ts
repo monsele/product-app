@@ -54,14 +54,62 @@ export const sceneAssetRoleValues = [
 export const sceneAssetRoleSchema = z.enum(sceneAssetRoleValues);
 export type SceneAssetRole = z.infer<typeof sceneAssetRoleSchema>;
 
+/** The epistemic role of a template-owned visual slot (ST-085). */
+export const visualRoleSchema = z.enum([
+  "grounding_critical",
+  "source_derived",
+  "decorative",
+]);
+export type VisualRole = z.infer<typeof visualRoleSchema>;
+
+export const assetProvenanceSchema = z.enum([
+  "catalog",
+  "source_figure",
+  "teacher_uploaded",
+  "ai_generated",
+]);
+export type AssetProvenance = z.infer<typeof assetProvenanceSchema>;
+
+/**
+ * ST-085: `provenance` records where the bound asset came from and `visualRole`
+ * mirrors the epistemic role of the slot it fills. Both are optional so bindings
+ * written against the previous contract (no provenance) keep parsing; every
+ * binding created from this release on carries them. The authoritative check is
+ * on `sceneSpecSchema` — see `assetBindingComplianceIssues` — because only the
+ * scene knows its template and therefore the slot's real role. The refinement
+ * here is a second, template-independent guard for callers that validate a
+ * binding in isolation.
+ */
 export const sceneAssetBindingSchema = z
   .object({
     assetId: identifierSchema,
     role: sceneAssetRoleSchema,
     altText: boundedText(500).optional(),
+    provenance: assetProvenanceSchema.optional(),
     slot: boundedText(64).optional(),
+    sourceRef: sourceRefSchema.optional(),
+    visualRole: visualRoleSchema.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((binding, context) => {
+    if (binding.visualRole === undefined) return;
+    if (
+      binding.visualRole === "grounding_critical" &&
+      binding.provenance === "ai_generated"
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["provenance"],
+        message: "A grounding-critical slot cannot use an AI-generated asset.",
+      });
+    if (binding.visualRole !== "decorative" && binding.sourceRef === undefined)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["sourceRef"],
+        message:
+          "A grounding-critical or source-derived slot requires a source reference.",
+      });
+  });
 export type SceneAssetBinding = z.infer<typeof sceneAssetBindingSchema>;
 
 // ---------------------------------------------------------------------------
@@ -546,7 +594,17 @@ export const sceneSpecSchema = z.discriminatedUnion("template", [
       visual: summaryVisualSchema,
     })
     .strict(),
-]);
+]).superRefine((scene, context) => {
+  // ST-085: enforce the slot's epistemic role structurally, on the scene
+  // contract, so no binding — however it was constructed or by which endpoint —
+  // can place generated imagery into a slot a learner must trust. The role is
+  // read from the immutable template registry, never from the binding.
+  for (const issue of assetBindingComplianceIssues(
+    scene.template,
+    scene.assetBindings,
+  ))
+    context.addIssue({ code: z.ZodIssueCode.custom, ...issue });
+});
 export type SceneBase = Omit<
   z.infer<typeof sceneSpecSchema>,
   "template" | "visual"
@@ -5907,6 +5965,7 @@ export const previewManifestSchema = z
           .object({
             altText: boundedText(2_000),
             assetId: identifierSchema,
+            provenance: assetProvenanceSchema.optional(),
             source: z.enum(["library", "source"]),
             src: z.string().min(1).max(4_096),
           })
@@ -6157,6 +6216,7 @@ export const sceneAssetSlotRequirementSchema = z
     bindingRole: sceneAssetRoleSchema,
     required: z.boolean(),
     slot: boundedText(64),
+    visualRole: visualRoleSchema,
   })
   .strict();
 export type SceneAssetSlotRequirement = z.infer<
@@ -6449,6 +6509,9 @@ function slotRequirement(
   acceptedKinds: readonly AssetCatalogKind[],
   acceptedAspectRatios: readonly AssetAspectRatio[] = ["square"],
   required = false,
+  // ST-085: fail closed. A slot added without an explicit role is treated as
+  // grounding-critical, which blocks generation until someone classifies it.
+  visualRole: VisualRole = "grounding_critical",
 ): SceneAssetSlotRequirement {
   return sceneAssetSlotRequirementSchema.parse({
     acceptedAspectRatios,
@@ -6456,9 +6519,17 @@ function slotRequirement(
     bindingRole,
     required,
     slot,
+    visualRole,
   });
 }
 
+// ST-085 visual-role assignment. `labelled-diagram.diagram` carries the factual
+// visual of the scene — exact labels a learner is expected to trust — so it is
+// grounding-critical and generation is barred from it. Every other slot is a
+// supporting or establishing visual with no required labels or factual
+// assertions and is decorative. No slot is `source_derived` in this release
+// (the teacher-approved generated-illustration flow for those is ST-089).
+const decorative = "decorative" as const;
 const templateAssetSlotRequirements: Record<
   SceneTemplate,
   readonly SceneAssetSlotRequirement[]
@@ -6469,6 +6540,8 @@ const templateAssetSlotRequirements: Record<
       "illustration",
       ["illustration", "shape"],
       ["square", "landscape"],
+      false,
+      decorative,
     ),
   ],
   definition: [
@@ -6477,13 +6550,16 @@ const templateAssetSlotRequirements: Record<
       "illustration",
       ["illustration", "shape"],
       ["square", "landscape"],
+      false,
+      decorative,
     ),
   ],
   process: templateAssetSlots.process.map((slot) =>
-    slotRequirement(slot, "icon", ["icon", "shape"]),
+    slotRequirement(slot, "icon", ["icon", "shape"], ["square"], false, decorative),
   ),
   "input-process-output": templateAssetSlots["input-process-output"].map(
-    (slot) => slotRequirement(slot, "icon", ["icon", "shape"]),
+    (slot) =>
+      slotRequirement(slot, "icon", ["icon", "shape"], ["square"], false, decorative),
   ),
   comparison: templateAssetSlots.comparison.map((slot) =>
     slotRequirement(
@@ -6491,10 +6567,12 @@ const templateAssetSlotRequirements: Record<
       "illustration",
       ["illustration", "shape"],
       ["square", "landscape"],
+      false,
+      decorative,
     ),
   ),
   "cause-effect": templateAssetSlots["cause-effect"].map((slot) =>
-    slotRequirement(slot, "icon", ["icon", "shape"]),
+    slotRequirement(slot, "icon", ["icon", "shape"], ["square"], false, decorative),
   ),
   "labelled-diagram": [
     slotRequirement(
@@ -6503,6 +6581,7 @@ const templateAssetSlotRequirements: Record<
       ["illustration", "shape"],
       ["landscape", "wide"],
       true,
+      "grounding_critical",
     ),
   ],
   analogy: [
@@ -6511,6 +6590,8 @@ const templateAssetSlotRequirements: Record<
       "illustration",
       ["illustration", "shape"],
       ["square", "landscape"],
+      false,
+      decorative,
     ),
   ],
   "worked-example": [],
@@ -6520,6 +6601,8 @@ const templateAssetSlotRequirements: Record<
       "illustration",
       ["illustration", "shape"],
       ["square", "landscape"],
+      false,
+      decorative,
     ),
   ],
 };
@@ -6542,6 +6625,88 @@ export function sceneAssetSlotRequirement(
   return templateAssetSlotRequirements[template].find(
     (requirement) => requirement.slot === slot,
   );
+}
+
+export const assetBindingRoleViolationValues = [
+  "visual_role_mismatch",
+  "generated_in_grounding_slot",
+  "missing_source_reference",
+] as const;
+export type AssetBindingRoleViolation =
+  (typeof assetBindingRoleViolationValues)[number];
+
+/**
+ * ST-085: the pure role-vs-provenance rule for one binding, with no dependency
+ * on a template or scene. `slotRole` is the authoritative role the template
+ * assigns to the slot. A binding that declares no `provenance` predates this
+ * contract and is grandfathered (only a declared-`visualRole` mismatch is
+ * reported). `source_derived` permits a teacher-approved generated illustration
+ * per the visual-role table; only `grounding_critical` bars `ai_generated`.
+ */
+export function assetBindingRoleViolations(input: {
+  slotRole: VisualRole;
+  declaredVisualRole?: VisualRole | undefined;
+  provenance?: AssetProvenance | undefined;
+  hasSourceRef: boolean;
+}): readonly AssetBindingRoleViolation[] {
+  const violations: AssetBindingRoleViolation[] = [];
+  if (
+    input.declaredVisualRole !== undefined &&
+    input.declaredVisualRole !== input.slotRole
+  )
+    violations.push("visual_role_mismatch");
+  if (input.slotRole === "decorative" || input.provenance === undefined)
+    return violations;
+  if (
+    input.slotRole === "grounding_critical" &&
+    input.provenance === "ai_generated"
+  )
+    violations.push("generated_in_grounding_slot");
+  if (!input.hasSourceRef) violations.push("missing_source_reference");
+  return violations;
+}
+
+/**
+ * ST-085: validate a scene's asset bindings against the epistemic role its
+ * template assigns to each slot. Returned issues are ready to hand to
+ * `context.addIssue`. The authoritative provenance-versus-slot check at write
+ * time lives in the storyboard service, which resolves the real asset
+ * provenance from the database.
+ */
+export function assetBindingComplianceIssues(
+  template: SceneTemplate,
+  assetBindings: readonly SceneAssetBinding[],
+): readonly { path: (string | number)[]; message: string }[] {
+  const issues: { path: (string | number)[]; message: string }[] = [];
+  assetBindings.forEach((binding, index) => {
+    if (binding.slot === undefined) return;
+    const requirement = sceneAssetSlotRequirement(template, binding.slot);
+    if (requirement === undefined) return;
+    const slotRole = requirement.visualRole;
+    for (const violation of assetBindingRoleViolations({
+      slotRole,
+      declaredVisualRole: binding.visualRole,
+      provenance: binding.provenance,
+      hasSourceRef: binding.sourceRef !== undefined,
+    })) {
+      if (violation === "visual_role_mismatch")
+        issues.push({
+          path: ["assetBindings", index, "visualRole"],
+          message: `Slot "${binding.slot}" is ${slotRole}, not ${binding.visualRole}.`,
+        });
+      else if (violation === "generated_in_grounding_slot")
+        issues.push({
+          path: ["assetBindings", index, "provenance"],
+          message: `Slot "${binding.slot}" is grounding-critical and cannot use an AI-generated asset.`,
+        });
+      else
+        issues.push({
+          path: ["assetBindings", index, "sourceRef"],
+          message: `Slot "${binding.slot}" is ${slotRole} and requires a source reference.`,
+        });
+    }
+  });
+  return issues;
 }
 
 /**
@@ -6606,14 +6771,6 @@ export const projectAssetMediaTypeSchema = z.enum([
   "image/webp",
 ]);
 export type ProjectAssetMediaType = z.infer<typeof projectAssetMediaTypeSchema>;
-
-export const assetProvenanceSchema = z.enum([
-  "catalog",
-  "source_figure",
-  "teacher_uploaded",
-  "ai_generated",
-]);
-export type AssetProvenance = z.infer<typeof assetProvenanceSchema>;
 
 export const createProjectAssetUploadInputSchema = z
   .object({

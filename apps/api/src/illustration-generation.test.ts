@@ -124,6 +124,32 @@ describe("IllustrationGenerationService.request", () => {
     expect(inserts).toHaveLength(2);
   });
 
+  it("rejects a single-slot request for a non-decorative slot with a typed 400", async () => {
+    const { database, inserts } = fakeDatabase(
+      [
+        [
+          {
+            id: "019ffbf1-eeee-7000-8000-000000000050",
+            stableSceneId: sceneId,
+            revision: 3,
+            template: "labelled-diagram",
+          },
+        ],
+      ],
+      [],
+    );
+    const service = new IllustrationGenerationService(database);
+
+    await expect(
+      service.request({ ...request, slot: "diagram" }),
+    ).rejects.toMatchObject({
+      code: "validation_failed",
+      statusCode: 400,
+      message: expect.stringContaining("grounding_critical"),
+    });
+    expect(inserts).toEqual([]);
+  });
+
   it("queues one illustration per required slot that has no binding", async () => {
     // hook needs 1 slot, comparison needs 2, definition needs none.
     const sceneRows = [

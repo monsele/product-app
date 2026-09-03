@@ -81,6 +81,7 @@ export type ResolvedSceneAsset = Readonly<{
   altText: string;
   assetId: string;
   source: ResolvedSceneAssetSource;
+  provenance?: "catalog" | "source_figure" | "teacher_uploaded" | "ai_generated";
   src: string;
 }>;
 export type SceneRuntimeMode = "preview" | "render";

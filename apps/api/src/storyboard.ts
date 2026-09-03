@@ -1184,6 +1184,7 @@ export class PostgresStoryboardService implements StoryboardService {
           input.ownerUserId,
           input.projectId,
           parsed.scene,
+          input.sceneId,
         );
       const edited = lessonStoryboardSceneSchema.parse({
         ...current,
@@ -1294,13 +1295,25 @@ export class PostgresStoryboardService implements StoryboardService {
         !isCatalogAssetCompatibleWithSlot(asset, requirement))
     )
       throw incompatibleCatalogAsset();
+    // ST-085: a catalog asset is a licensed decorative visual. A
+    // grounding-critical or source-derived slot must be filled from a source
+    // figure, a teacher-supplied asset, or a deterministic diagram — never the
+    // catalog — so reject the bind here with a role-specific error.
+    if (requirement.visualRole !== "decorative")
+      throw nonDecorativeSlotRejectsGeneratedOrCatalog(
+        input.sceneId,
+        input.slot,
+        requirement.visualRole,
+      );
     const assetBindings = detail.scene.scene.assetBindings.filter(
       (binding) => binding.slot !== input.slot,
     );
     assetBindings.push({
       assetId: parsed.assetId,
+      provenance: "catalog",
       role: requirement.bindingRole,
       slot: input.slot,
+      visualRole: requirement.visualRole,
       ...(parsed.altText === undefined ? {} : { altText: parsed.altText }),
     });
     return this.updateScene({
@@ -1404,8 +1417,10 @@ export class PostgresStoryboardService implements StoryboardService {
           ),
           {
             assetId: candidate.assetId,
+            provenance: "ai_generated" as const,
             role: requirement.bindingRole,
             slot: candidate.slot,
+            visualRole: requirement.visualRole,
           },
         ],
       };
@@ -1414,6 +1429,7 @@ export class PostgresStoryboardService implements StoryboardService {
         input.ownerUserId,
         input.projectId,
         nextScene,
+        current.stableSceneId,
       );
       const edited = lessonStoryboardSceneSchema.parse({
         ...current,
@@ -2096,6 +2112,7 @@ export class PostgresStoryboardService implements StoryboardService {
     ownerUserId: Identifier,
     projectId: Identifier,
     scene: LessonStoryboardScene["scene"],
+    sceneRef: string = scene.id,
   ): Promise<void> {
     const catalogBindings = scene.assetBindings.filter(
       (binding) => approvedAssetById(binding.assetId) !== undefined,
@@ -2106,10 +2123,21 @@ export class PostgresStoryboardService implements StoryboardService {
           ? undefined
           : sceneAssetSlotRequirement(scene.template, binding.slot);
       const asset = approvedAssetById(binding.assetId);
+      // ST-085: the catalog is a decorative-only source. Name the scene and
+      // slot so the failure is actionable, not a generic compatibility error.
+      if (requirement !== undefined && requirement.visualRole !== "decorative")
+        throw nonDecorativeSlotRejectsGeneratedOrCatalog(
+          sceneRef,
+          binding.slot ?? "",
+          requirement.visualRole,
+        );
       if (
         requirement === undefined ||
         asset === undefined ||
         binding.role !== requirement.bindingRole ||
+        (binding.visualRole !== undefined &&
+          binding.visualRole !== requirement.visualRole) ||
+        (binding.provenance !== undefined && binding.provenance !== "catalog") ||
         !isCatalogAssetCompatibleWithSlot(asset, requirement)
       )
         throw incompatibleCatalogAsset();
@@ -2123,7 +2151,7 @@ export class PostgresStoryboardService implements StoryboardService {
     ];
     if (uniqueIds.length === 0) return;
     const teacherAssets = await executor
-      .select({ id: projectAssets.id })
+      .select({ id: projectAssets.id, provenance: projectAssets.provenance })
       .from(projectAssets)
       .where(
         and(
@@ -2134,18 +2162,70 @@ export class PostgresStoryboardService implements StoryboardService {
           inArray(projectAssets.id, uniqueIds),
         ),
       );
-    const teacherAssetIds = new Set(teacherAssets.map((asset) => asset.id));
+    const teacherAssetById = new Map(
+      teacherAssets.map((asset) => [asset.id, asset]),
+    );
+    const teacherAssetIds = new Set(teacherAssetById.keys());
     for (const binding of scene.assetBindings) {
       if (!teacherAssetIds.has(binding.assetId)) continue;
       const requirement =
         binding.slot === undefined
           ? undefined
           : sceneAssetSlotRequirement(scene.template, binding.slot);
-      if (requirement === undefined || binding.role !== requirement.bindingRole)
+      // ST-085: enforce against the asset's *real* provenance from the
+      // database, not the value the binding declares — an asset generated
+      // before this story cannot be bound to a grounding-critical slot now.
+      const realProvenance = teacherAssetById.get(binding.assetId)?.provenance;
+      if (
+        requirement !== undefined &&
+        requirement.visualRole === "grounding_critical" &&
+        realProvenance === "ai_generated"
+      )
+        throw aiGeneratedAssetInGroundingSlot(sceneRef, binding.slot ?? "");
+      if (
+        requirement !== undefined &&
+        requirement.visualRole !== "decorative" &&
+        binding.sourceRef === undefined
+      )
+        throw missingSourceReferenceForSlot(
+          sceneRef,
+          binding.slot ?? "",
+          requirement.visualRole,
+        );
+      if (
+        requirement === undefined ||
+        binding.role !== requirement.bindingRole ||
+        (binding.visualRole !== undefined &&
+          binding.visualRole !== requirement.visualRole) ||
+        (binding.provenance !== undefined &&
+          binding.provenance !== realProvenance)
+      )
         throw incompatibleSceneAssetSlot();
     }
     const sourceFigureIds = uniqueIds.filter((id) => !teacherAssetIds.has(id));
     if (sourceFigureIds.length === 0) return;
+    const sourceFigureIdSet = new Set(sourceFigureIds);
+    for (const binding of scene.assetBindings) {
+      if (!sourceFigureIdSet.has(binding.assetId)) continue;
+      const requirement =
+        binding.slot === undefined
+          ? undefined
+          : sceneAssetSlotRequirement(scene.template, binding.slot);
+      // ST-085: a source figure resolves to an extracted figure in this
+      // project's parsed document, so it *is* a citation to source material and
+      // satisfies the source-reference requirement for a non-decorative slot by
+      // construction. It still must match the slot's binding role, agree with
+      // any declared visualRole, and never claim a non-source provenance.
+      if (
+        requirement === undefined ||
+        binding.role !== requirement.bindingRole ||
+        (binding.visualRole !== undefined &&
+          binding.visualRole !== requirement.visualRole) ||
+        (binding.provenance !== undefined &&
+          binding.provenance !== "source_figure")
+      )
+        throw incompatibleSceneAssetSlot();
+    }
     const [document] = await executor
       .select({ id: parsedDocuments.id })
       .from(parsedDocuments)
@@ -3053,6 +3133,63 @@ function incompatibleSceneAssetSlot(): PublicError {
     {
       "scene.assetBindings":
         "Use a named slot declared by the selected template.",
+    },
+  );
+}
+
+/**
+ * ST-085: a binding puts an AI-generated asset into a grounding-critical slot.
+ * The message names the scene and slot so the teacher knows exactly which
+ * visual would have substituted an invented picture for a factual one.
+ */
+function aiGeneratedAssetInGroundingSlot(
+  sceneRef: string,
+  slot: string,
+): PublicError {
+  return new PublicError(
+    "validation_failed",
+    `Scene ${sceneRef} slot "${slot}" is grounding-critical and cannot hold an AI-generated asset.`,
+    400,
+    false,
+    {
+      [`scenes.${sceneRef}.assetBindings.${slot}`]:
+        "This slot needs a source figure or teacher-supplied visual, not a generated image.",
+    },
+  );
+}
+
+/** ST-085: a non-decorative slot was targeted by generation or a catalog bind. */
+function nonDecorativeSlotRejectsGeneratedOrCatalog(
+  sceneRef: string,
+  slot: string,
+  visualRole: string,
+): PublicError {
+  return new PublicError(
+    "validation_failed",
+    `Scene ${sceneRef} slot "${slot}" is ${visualRole}; only decorative slots accept generated or catalog visuals.`,
+    400,
+    false,
+    {
+      [`scenes.${sceneRef}.assetBindings.${slot}`]:
+        "This slot requires a source-backed visual.",
+    },
+  );
+}
+
+/** ST-085: a grounding-critical or source-derived slot has no source reference. */
+function missingSourceReferenceForSlot(
+  sceneRef: string,
+  slot: string,
+  visualRole: string,
+): PublicError {
+  return new PublicError(
+    "validation_failed",
+    `Scene ${sceneRef} slot "${slot}" is ${visualRole} and requires a source reference.`,
+    400,
+    false,
+    {
+      [`scenes.${sceneRef}.assetBindings.${slot}`]:
+        "Cite the source material this visual is drawn from.",
     },
   );
 }

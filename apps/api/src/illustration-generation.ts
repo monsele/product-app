@@ -106,7 +106,7 @@ export class IllustrationGenerationService {
         );
         if (
           slotRequirement === undefined ||
-          slotRequirement.bindingRole === "diagram"
+          slotRequirement.visualRole !== "decorative"
         ) {
           guarded += 1;
           continue;
@@ -211,16 +211,23 @@ export class IllustrationGenerationService {
           "The scene changed. Refresh and try again.",
           409,
         );
-      if (
-        sceneAssetSlotRequirement(
-          sceneTemplateSchema.parse(scene.template),
-          input.slot,
-        ) === undefined
-      )
+      const requirement = sceneAssetSlotRequirement(
+        sceneTemplateSchema.parse(scene.template),
+        input.slot,
+      );
+      if (requirement === undefined)
         throw new PublicError(
           "validation_failed",
           "The asset slot is not supported by this scene.",
           400,
+        );
+      if (requirement.visualRole !== "decorative")
+        throw new PublicError(
+          "validation_failed",
+          `Illustration generation is permitted only for decorative slots; ${scene.stableSceneId}/${input.slot} is ${requirement.visualRole}.`,
+          400,
+          false,
+          { slot: "This slot requires a source-backed visual." },
         );
       const idempotencyKey = createIdempotencyKey({
         jobType: "illustration.generate",

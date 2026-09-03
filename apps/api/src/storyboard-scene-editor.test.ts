@@ -11,6 +11,7 @@ import {
   narrationBlocks,
   narrationSets,
   parsedDocuments,
+  projectAssets,
   scenes,
   type DatabaseClient,
   type DatabaseExecutor,
@@ -344,6 +345,7 @@ type FakeDbOptions = {
   scenesToTrim?: number;
   sourceFigureIds?: readonly string[];
   storyboard?: LessonStoryboard;
+  teacherAssets?: readonly { id: string; provenance: string }[];
 };
 
 function fakeDatabase(options: FakeDbOptions = {}) {
@@ -411,6 +413,7 @@ function fakeDatabase(options: FakeDbOptions = {}) {
     if (table === figureInclusionOverlays) return excludedFigureRows;
     if (table === lessonSpecs) return lessonSpecRows;
     if (table === scenes) return sceneRows;
+    if (table === projectAssets) return [...(options.teacherAssets ?? [])];
     return [];
   };
   const thenable = (value: unknown) => ({
@@ -892,6 +895,205 @@ describe("PostgresStoryboardService scene editor", () => {
         body: {
           assetId: "019ffbf1-a001-7000-8000-000000000001",
           expectedRevision: 0,
+        },
+        correlationId: createId(),
+      }),
+    ).rejects.toMatchObject({ code: "validation_failed", statusCode: 400 });
+  });
+
+  it("refuses to bind a catalog asset to a grounding-critical diagram slot", async () => {
+    const payload = storyboardPayload();
+    const current = payload.scenes[0]!;
+    const storyboard = lessonStoryboardSchema.parse({
+      ...payload,
+      scenes: [
+        {
+          ...current,
+          template: "labelled-diagram",
+          assetRequirements: [],
+          scene: {
+            ...current.scene,
+            template: "labelled-diagram",
+            assetBindings: [],
+            visual: {
+              kind: "shapes",
+              shape: "cycle",
+              labels: [{ anchor: "top", id: "part", text: "Part" }],
+            },
+          },
+        },
+        ...payload.scenes.slice(1),
+      ],
+    });
+    const { database } = fakeDatabase({ storyboard });
+    const { service } = createService(database);
+
+    await expect(
+      service.bindCatalogAsset({
+        ownerUserId,
+        projectId,
+        sceneId: sceneA,
+        slot: "diagram",
+        body: {
+          assetId: "019ffbf1-a005-7000-8000-000000000005",
+          expectedRevision: 0,
+        },
+        correlationId: createId(),
+      }),
+    ).rejects.toMatchObject({
+      code: "validation_failed",
+      statusCode: 400,
+      message: expect.stringContaining("grounding_critical"),
+    });
+  });
+
+  it("refuses to bind an asset generated before this story to a grounding-critical slot", async () => {
+    const generatedAssetId = "019ffbf1-eeee-7000-8000-000000000077";
+    const payload = storyboardPayload();
+    const current = payload.scenes[0]!;
+    const storyboard = lessonStoryboardSchema.parse({
+      ...payload,
+      scenes: [
+        {
+          ...current,
+          template: "labelled-diagram",
+          assetRequirements: [],
+          scene: {
+            ...current.scene,
+            template: "labelled-diagram",
+            assetBindings: [],
+            visual: {
+              kind: "shapes",
+              shape: "cycle",
+              labels: [{ anchor: "top", id: "part", text: "Part" }],
+            },
+          },
+        },
+        ...payload.scenes.slice(1),
+      ],
+    });
+    const { database } = fakeDatabase({
+      storyboard,
+      teacherAssets: [{ id: generatedAssetId, provenance: "ai_generated" }],
+    });
+    const { service } = createService(database);
+    const diagramScene = storyboard.scenes[0]!.scene;
+
+    await expect(
+      service.updateScene({
+        ownerUserId,
+        projectId,
+        sceneId: sceneA,
+        body: {
+          expectedRevision: 0,
+          scene: {
+            ...diagramScene,
+            assetBindings: [
+              {
+                assetId: generatedAssetId,
+                role: "diagram",
+                slot: "diagram",
+                sourceRef: diagramScene.sourceRefs[0],
+              },
+            ],
+          },
+        },
+        correlationId: createId(),
+      }),
+    ).rejects.toMatchObject({
+      code: "validation_failed",
+      statusCode: 400,
+      message: expect.stringContaining("AI-generated"),
+    });
+  });
+
+  it("allows an included source figure in a grounding-critical diagram slot", async () => {
+    const payload = storyboardPayload();
+    const current = payload.scenes[0]!;
+    const storyboard = lessonStoryboardSchema.parse({
+      ...payload,
+      scenes: [
+        {
+          ...current,
+          template: "labelled-diagram",
+          assetRequirements: [],
+          scene: {
+            ...current.scene,
+            template: "labelled-diagram",
+            assetBindings: [],
+            visual: {
+              kind: "shapes",
+              shape: "cycle",
+              labels: [{ anchor: "top", id: "part", text: "Part" }],
+            },
+          },
+        },
+        ...payload.scenes.slice(1),
+      ],
+    });
+    const { database } = fakeDatabase({ storyboard });
+    const { service } = createService(database);
+    const diagramScene = storyboard.scenes[0]!.scene;
+
+    const result = await service.updateScene({
+      ownerUserId,
+      projectId,
+      sceneId: sceneA,
+      body: {
+        expectedRevision: 0,
+        scene: {
+          ...diagramScene,
+          assetBindings: [
+            { assetId: sourceFigureId, role: "diagram", slot: "diagram" },
+          ],
+        },
+      },
+      correlationId: createId(),
+    });
+    expect(result.scene.scene.assetBindings).toHaveLength(1);
+  });
+
+  it("rejects a source figure whose binding role does not match the slot", async () => {
+    const payload = storyboardPayload();
+    const current = payload.scenes[0]!;
+    const storyboard = lessonStoryboardSchema.parse({
+      ...payload,
+      scenes: [
+        {
+          ...current,
+          template: "labelled-diagram",
+          assetRequirements: [],
+          scene: {
+            ...current.scene,
+            template: "labelled-diagram",
+            assetBindings: [],
+            visual: {
+              kind: "shapes",
+              shape: "cycle",
+              labels: [{ anchor: "top", id: "part", text: "Part" }],
+            },
+          },
+        },
+        ...payload.scenes.slice(1),
+      ],
+    });
+    const { database } = fakeDatabase({ storyboard });
+    const { service } = createService(database);
+    const diagramScene = storyboard.scenes[0]!.scene;
+
+    await expect(
+      service.updateScene({
+        ownerUserId,
+        projectId,
+        sceneId: sceneA,
+        body: {
+          expectedRevision: 0,
+          scene: {
+            ...diagramScene,
+            assetBindings: [
+              { assetId: sourceFigureId, role: "illustration", slot: "diagram" },
+            ],
+          },
         },
         correlationId: createId(),
       }),

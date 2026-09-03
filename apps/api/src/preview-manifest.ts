@@ -109,6 +109,11 @@ export class PreviewManifestService {
         {
           assetId: string;
           altText: string;
+          provenance:
+            | "catalog"
+            | "source_figure"
+            | "teacher_uploaded"
+            | "ai_generated";
           source: "library" | "source";
           src: string;
         },
@@ -122,6 +127,7 @@ export class PreviewManifestService {
           {
             assetId,
             altText: catalogAsset.subject,
+            provenance: "catalog" as const,
             source: "library",
             src: catalogAsset.staticLocation,
           },
@@ -149,6 +155,14 @@ export class PreviewManifestService {
           assetId,
           altText:
             asset?.originalName ?? sourceFigure?.altText ?? "Source figure",
+          // ST-085: surface provenance to the scene layer. A resolved project
+          // asset carries its own; anything else is an included source figure.
+          provenance:
+            asset === undefined
+              ? ("source_figure" as const)
+              : asset.provenance === "ai_generated"
+                ? ("ai_generated" as const)
+                : ("teacher_uploaded" as const),
           source: "source",
           src: signed.url,
         },
