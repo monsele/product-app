@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createDefaultStoryboardSceneSpec,
+  lessonValidationRulesetVersion,
+  lessonValidationRunSchema,
   reconcileSceneDurations,
   sceneAudioFitToleranceMs,
   storyboardDurationToleranceSeconds,
@@ -536,6 +538,33 @@ describe("deterministic lesson validation", () => {
     const response = validationIssueResponse(storedIssue);
     expect(response).not.toHaveProperty("ownerUserId");
     expect(response).not.toHaveProperty("runId");
+  });
+
+  it("reads a run persisted under an earlier ruleset version instead of rejecting it", () => {
+    // ST-088 follow-up: `readRun` parses stored rows through this schema. After
+    // a ruleset-version bump the newest stored run still carries the previous
+    // version until the teacher re-runs validation; it must come back as
+    // `stale`, not throw and 500 the validation read path and render preflight.
+    const priorVersion = "2";
+    expect(priorVersion).not.toBe(lessonValidationRulesetVersion);
+    const run = {
+      id: "01989a3d-8e00-7000-8000-00000000000a",
+      lessonSpecId: "01989a3d-8e00-7000-8000-00000000000b",
+      lessonSpecRevision: 4,
+      lessonSpecContentHash: sourceHash,
+      inputHash: sourceHash,
+      rulesetVersion: priorVersion,
+      sceneLibraryVersion: "1.0.0",
+      artifactHashes: { "scene-1": sourceHash },
+      status: "passed" as const,
+      stale: true,
+      startedAt: "2026-09-03T10:00:00.000Z",
+      completedAt: "2026-09-03T10:00:01.000Z",
+      issues: [],
+    };
+    const parsed = lessonValidationRunSchema.parse(run);
+    expect(parsed.rulesetVersion).toBe(priorVersion);
+    expect(parsed.stale).toBe(true);
   });
 
   it("rejects acknowledgement of a blocking issue", () => {

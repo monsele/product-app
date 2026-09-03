@@ -1014,6 +1014,9 @@ export class PostgresLessonValidationService implements LessonValidationService 
       lessonSpecRevision: row.lessonSpecRevision,
       lessonSpecContentHash: row.lessonSpecContentHash,
       inputHash: row.inputHash,
+      // A run stored under an earlier ruleset version is read back verbatim and
+      // marked `stale`; the read contract accepts any version string precisely
+      // so `latest()` and the render preflight keep working across a bump.
       rulesetVersion: row.rulesetVersion,
       sceneLibraryVersion: row.sceneLibraryVersion,
       artifactHashes: row.artifactHashes,

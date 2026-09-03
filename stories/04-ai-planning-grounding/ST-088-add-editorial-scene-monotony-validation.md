@@ -2,7 +2,7 @@
 story_id: ST-088
 title: "Add Editorial Scene-Monotony Validation as a Versioned Advisory Rule"
 phase: "04 — AI Planning and Grounding"
-status: In Review
+status: Done
 priority: should-have
 epics: ["E16", "E19"]
 prd_user_stories: []
@@ -122,7 +122,7 @@ What is genuinely missing is one editorial check: consecutive repetition of the 
 - [x] The threshold constant is exported and documented.
 - [x] No unresolved security, tenant-isolation, idempotency, or data-loss issue remains.
 - [x] Dev Agent Record is completed.
-- [ ] Story status and index are updated to Done. _(Reserved for human review; currently `In Review`.)_
+- [x] Story status and index are updated to Done. _(Approved by repository owner after the round-2 review; see review follow-ups below.)_
 
 ## Story-Specific Notes
 
@@ -143,16 +143,24 @@ What is genuinely missing is one editorial check: consecutive repetition of the 
   - `apps/api/src/lesson-validation.test.ts` — new `describe("scene monotony advisory")` block (10 tests) plus `storyboardWithTemplates` / `monotonyIssues` helpers and a `SceneTemplate` import.
   - `STORY_INDEX.md`, this story file — status transitions.
 
+- **Review follow-ups applied (round 2 — repository-owner review):**
+  - **MEDIUM — ruleset bump 500s the validation read path.** `PostgresLessonValidationService.readRun` parsed the persisted `validation_runs.ruleset_version` through `lessonValidationRunSchema`, whose `rulesetVersion` was `z.literal(lessonValidationRulesetVersion)`. After the `"2" → "3"` bump, the newest stored run for any already-validated project still carries `"2"` until the teacher re-runs validation, so `latest()` (backing `GET /projects/:id/validation` and the `renders.ts` preflight) threw a raw `ZodError` → HTTP 500 instead of returning the run as `stale`. Same latent exposure existed at the ST-084 `"1" → "2"` bump.
+    - Fix: `lessonValidationRunSchema.rulesetVersion` is now `z.string().trim().min(1).max(20)`. A persisted run legitimately carries a historical ruleset version; `stale` (derived from the input hash, which folds in the current ruleset version) is the signal that it is superseded. Fresh runs are still written with the current constant. Comments added at `lessonValidationRunSchema`, the ruleset-version changelog (`"3"` entry), and `readRun`.
+    - Test: `apps/api/src/lesson-validation.test.ts` → "reads a run persisted under an earlier ruleset version instead of rejecting it" asserts the schema accepts `rulesetVersion: "2"` and preserves `stale: true`. (`isValidationRunStale` on a hash mismatch is already covered, so the fixed `latest()` path is fully covered without Postgres.)
+  - **LOW — `prd_user_stories` empty.** The rule serves PRD E16-US2 ("Each issue identifies the affected scene", "navigate directly to the affected scene", "Warnings can be acknowledged where allowed", "Validation reruns after relevant edits"); noted here rather than adding an ID, since there is no monotony-specific user story.
+  - Files touched this round: `packages/schemas/src/index.ts` (read contract + comments), `apps/api/src/lesson-validation.ts` (comment at `readRun`), `apps/api/src/lesson-validation.test.ts` (+1 test).
+  - Re-run: `pnpm --filter @avlp/schemas build` + `test` (285 pass); `pnpm --filter @avlp/api typecheck` + `test` (453 pass / 70 skipped); `pnpm --filter @avlp/web typecheck` (pass); `pnpm typecheck` (16/16).
+
 - **Review follow-ups applied (post first review round):**
   - Deep-link (was LOW-1): `scene_monotony` now sets `scopeId`/`sceneId` to the first scene in the run instead of `null`, so `ValidationPanel` renders "Open affected scene" rather than the generic fallback.
   - Regression guard (was LOW-2): added test "adds only the advisory and leaves every other rule's output untouched" — asserts the historical clean fixture now yields exactly one `scene_monotony` issue and nothing else.
   - Encapsulation (was LOW-3): `acknowledgeableWarningCodes` export is typed `ReadonlySet<ValidationIssueCode>`.
 
-- **Migrations:** None. `validation_issues.code` is a `text` column, not a pg enum, so the new code needs no migration. Persisted runs are recomputed rather than migrated: the ruleset-version bump changes `validationInputHash`, marking every prior run stale so it re-runs under v3 and picks up the advisory. Render authorization is unaffected because the rule is warning-only.
+- **Migrations:** None. `validation_issues.code` is a `text` column, not a pg enum, so the new code needs no migration. Persisted runs are recomputed rather than migrated: the ruleset-version bump changes `validationInputHash`, marking every prior run stale so it re-runs under v3 and picks up the advisory. Render authorization is unaffected because the rule is warning-only. A prior run is now read back verbatim and flagged `stale` (round-2 fix — the read contract no longer pins `rulesetVersion` to the current literal), so the validation read path and render preflight keep working for already-validated projects until the teacher re-runs.
 
 - **Public contract changes:**
   - `validationIssueCodeSchema` gains `scene_monotony` (additive).
-  - `lessonValidationRulesetVersion` is now `"3"`; `lessonValidationRunSchema.rulesetVersion` is `z.literal(lessonValidationRulesetVersion)`, so responses now carry `"3"`.
+  - `lessonValidationRulesetVersion` is now `"3"`; fresh runs carry `"3"`. `lessonValidationRunSchema.rulesetVersion` was relaxed from `z.literal(...)` to `z.string().trim().min(1).max(20)` (round-2 fix) so a stale run persisted under an earlier version parses instead of throwing. Consuming `LessonValidationRun["rulesetVersion"]` widens from `"3"` to `string`; no code branched on the literal value.
   - New exports from `apps/api/src/lesson-validation.ts`: `sceneMonotonyThreshold`, `acknowledgeableWarningCodes`.
 
 - **Commands/tests:**
@@ -180,5 +188,5 @@ What is genuinely missing is one editorial check: consecutive repetition of the 
 
 - **Known risks/follow-up:**
   - The shared API test fixture `storyboard()` builds all-`hook` scenes, so `evaluateLessonValidation` now returns a `scene_monotony` warning for it; existing assertions use `arrayContaining` / filtering and are unaffected, but future exact-array assertions on that fixture must account for the advisory.
-  - No DB integration test exercises `PostgresLessonValidationService.acknowledge` for this code (no Postgres in this environment); acknowledgement is covered at the unit level (`acknowledgeableWarningCodes` membership + the service's existing acknowledge gate, which checks that set).
+  - No DB integration test exercises `PostgresLessonValidationService.acknowledge` / `latest` end-to-end for this code (no Postgres in this environment); acknowledgement is covered at the unit level (`acknowledgeableWarningCodes` membership + the service's existing acknowledge gate), and the round-2 stale-run read fix is covered by a schema-contract test plus the existing `isValidationRunStale` hash-mismatch tests. A Postgres-gated test that seeds a run under an older `ruleset_version` and asserts `latest()` returns it as `stale` is a reasonable follow-up when the integration harness is available.
   - ST-091 (structured node/edge editor) will add scene-structure editing UI; monotony re-run there is already covered by the payload-hash staleness path.

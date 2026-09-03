@@ -7485,7 +7485,10 @@ export function reconcileSceneDurations(
  * - `"3"` — ST-088: added the advisory `scene_monotony` rule (three or more
  *   consecutive scenes of the same template). It is warning-only and never
  *   changes render authorization; the bump forces previously-passed runs to
- *   recompute so the new advisory surfaces.
+ *   recompute so the new advisory surfaces. A run persisted under an earlier
+ *   version is read back as `stale` (see `lessonValidationRunSchema`), not
+ *   rejected, so the read path and render preflight keep working until the
+ *   teacher re-runs validation.
  */
 export const lessonValidationRulesetVersion = "3" as const;
 
@@ -7569,7 +7572,15 @@ export const lessonValidationRunSchema = z
     lessonSpecRevision: z.number().int().nonnegative(),
     lessonSpecContentHash: z.string().regex(sha256HexPattern),
     inputHash: z.string().regex(sha256HexPattern),
-    rulesetVersion: z.literal(lessonValidationRulesetVersion),
+    /**
+     * The ruleset the run was computed under. A fresh run always carries
+     * `lessonValidationRulesetVersion`, but a persisted run from before a
+     * version bump legitimately carries an older value — `stale` (driven by the
+     * input hash, which folds in the current ruleset version) is how a
+     * superseded run is signalled, so this must not be pinned to the current
+     * literal or reading such a run would throw instead of surfacing as stale.
+     */
+    rulesetVersion: z.string().trim().min(1).max(20),
     sceneLibraryVersion: z.string().trim().min(1).max(100),
     artifactHashes: z.record(z.string(), z.string().regex(sha256HexPattern)),
     status: validationRunStatusSchema,
