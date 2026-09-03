@@ -2,7 +2,7 @@
 story_id: ST-087
 title: "Pilot Graph-Based Deterministic Motion for Process and Cause-Effect Scenes"
 phase: "01 — Visual Runtime Proof"
-status: In Review
+status: Done
 priority: must-have
 epics: ["E11"]
 prd_user_stories: []
@@ -119,7 +119,7 @@ The consequence is that a process with three steps and a process with nine steps
 - [x] Shared contracts are updated and versioned before consumers; no data migration required (additive; legacy scenes read unchanged).
 - [x] No unresolved security, tenant-isolation, idempotency, or data-loss issue remains (pure layout/animation and schema; no new I/O, queries, or provider calls).
 - [x] Dev Agent Record is completed.
-- [ ] Story status and index are updated to Done. — left for human review; set to **In Review**.
+- [x] Story status and index are updated to Done — by repository owner after review rounds 1–3.
 
 ## Story-Specific Notes
 
