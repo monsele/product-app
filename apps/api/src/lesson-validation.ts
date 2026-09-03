@@ -54,10 +54,18 @@ const durationToleranceMs = sceneAudioFitToleranceMs;
  * Audio that underruns its scene is padded with trailing silence, so a teacher
  * may accept the gap; audio that overruns would be cut off and never can be.
  */
-const acknowledgeableWarningCodes = new Set<ValidationIssueCode>([
+export const acknowledgeableWarningCodes = new Set<ValidationIssueCode>([
   "grounding_recheck_required",
   "audio_duration_mismatch",
+  "scene_monotony",
 ]);
+
+/**
+ * A run of this many or more consecutive scenes sharing one template is flagged
+ * as editorially monotonous. Exported so it can be tuned without hunting through
+ * the rule body, and referenced by tests for the boundary.
+ */
+export const sceneMonotonyThreshold = 3;
 
 type IssueDraft = Readonly<{
   severity: ValidationSeverity;
@@ -225,6 +233,9 @@ export const validationRuleDependencies = Object.freeze({
     "diagram_collision",
     "scene_duration_out_of_range",
     "narration_duration_mismatch",
+    // Editorial: depends only on the sequence of scene templates, so any edit
+    // that adds, removes, reorders, or retemplates a scene must rerun it.
+    "scene_monotony",
   ],
 } as const satisfies Record<string, readonly ValidationIssueCode[]>);
 
@@ -634,6 +645,46 @@ export function evaluateLessonValidation(
             details: {},
           }),
         );
+    }
+  }
+  // Editorial advisory (ST-088): three or more consecutive scenes of one
+  // template read as monotonous teaching even when every scene is valid. It is
+  // deterministic over the template sequence, warning-only, acknowledgeable, and
+  // never blocks approval or rendering. One finding per maximal run.
+  {
+    const scenesList = input.storyboard.scenes;
+    let runStart = 0;
+    for (let index = 1; index <= scenesList.length; index += 1) {
+      const sameAsRun =
+        index < scenesList.length &&
+        scenesList[index]!.scene.template ===
+          scenesList[runStart]!.scene.template;
+      if (sameAsRun) continue;
+      const runLength = index - runStart;
+      if (runLength >= sceneMonotonyThreshold) {
+        const run = scenesList.slice(runStart, index);
+        const template = run[0]!.scene.template;
+        const sceneIds = run.map((entry) => entry.stableSceneId);
+        issues.push(
+          issue("scene_monotony", {
+            severity: "warning",
+            scopeType: "scene",
+            scopeId: null,
+            sceneId: null,
+            fieldPath: `scenes.${runStart}.scene.template`,
+            message: `Scenes ${runStart + 1}–${index} all use the "${template}" template. Vary the sequence so the lesson does not repeat the same scene ${runLength} times in a row.`,
+            details: {
+              template,
+              sceneIds,
+              startOrder: runStart + 1,
+              endOrder: index,
+              consecutiveCount: runLength,
+            },
+            acknowledgeable: true,
+          }),
+        );
+      }
+      runStart = index;
     }
   }
   if (input.grounding.hasUnsupportedClaims)

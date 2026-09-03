@@ -7482,8 +7482,12 @@ export function reconcileSceneDurations(
  *   reconciliation rounding. The version participates in the render-authorization
  *   input hash, so bumping it forces re-validation of runs that passed under the
  *   old rules.
+ * - `"3"` — ST-088: added the advisory `scene_monotony` rule (three or more
+ *   consecutive scenes of the same template). It is warning-only and never
+ *   changes render authorization; the bump forces previously-passed runs to
+ *   recompute so the new advisory surfaces.
  */
-export const lessonValidationRulesetVersion = "2" as const;
+export const lessonValidationRulesetVersion = "3" as const;
 
 export const validationSeveritySchema = z.enum(["error", "warning", "info"]);
 export type ValidationSeverity = z.infer<typeof validationSeveritySchema>;
@@ -7524,6 +7528,7 @@ export const validationIssueCodeSchema = z.enum([
   "grounding_missing",
   "grounding_recheck_required",
   "generated_addition_unlabelled",
+  "scene_monotony",
 ]);
 export type ValidationIssueCode = z.infer<typeof validationIssueCodeSchema>;
 

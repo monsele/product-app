@@ -6,6 +6,7 @@ import {
   sceneAudioFitToleranceMs,
   storyboardDurationToleranceSeconds,
   type LessonStoryboard,
+  type SceneTemplate,
 } from "@avlp/schemas";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import {
@@ -17,9 +18,11 @@ import {
 } from "@avlp/auth";
 import { createApp, sessionCookieName } from "./app.js";
 import {
+  acknowledgeableWarningCodes,
   affectedValidationRules,
   evaluateLessonValidation,
   isValidationRunStale,
+  sceneMonotonyThreshold,
   validationIssueResponse,
   validationInputHash,
 } from "./lesson-validation.js";
@@ -134,6 +137,162 @@ function input(source = storyboard()) {
     ),
   };
 }
+
+/**
+ * A storyboard whose scene templates follow `templates`, reusing the otherwise
+ * valid five-scene fixture so only the template sequence is under test.
+ */
+function storyboardWithTemplates(
+  templates: readonly SceneTemplate[],
+): LessonStoryboard {
+  const base = storyboard(templates.length);
+  const scenes = base.scenes.map((entry, index) => {
+    const template = templates[index]!;
+    return {
+      ...entry,
+      template,
+      scene: {
+        ...createDefaultStoryboardSceneSpec(template, {
+          id: entry.id,
+          order: entry.order,
+          durationSeconds: entry.durationSeconds,
+        }),
+        sourceRefs: entry.scene.sourceRefs,
+      },
+    };
+  });
+  return { ...base, scenes } as LessonStoryboard;
+}
+
+function monotonyIssues(source: LessonStoryboard) {
+  return evaluateLessonValidation(input(source)).filter(
+    (issue) => issue.code === "scene_monotony",
+  );
+}
+
+describe("scene monotony advisory", () => {
+  it("does not flag two consecutive scenes of the same template", () => {
+    expect(
+      monotonyIssues(
+        storyboardWithTemplates([
+          "hook",
+          "hook",
+          "definition",
+          "summary",
+          "analogy",
+        ]),
+      ),
+    ).toEqual([]);
+  });
+
+  it("flags three consecutive scenes, naming the template and the scene ids", () => {
+    const source = storyboardWithTemplates([
+      "hook",
+      "definition",
+      "definition",
+      "definition",
+      "summary",
+    ]);
+    const issues = monotonyIssues(source);
+    expect(issues).toEqual([
+      expect.objectContaining({
+        code: "scene_monotony",
+        severity: "warning",
+        acknowledgeable: true,
+        scopeType: "scene",
+        sceneId: null,
+        fieldPath: "scenes.1.scene.template",
+        details: expect.objectContaining({
+          template: "definition",
+          consecutiveCount: 3,
+          sceneIds: source.scenes.slice(1, 4).map((s) => s.stableSceneId),
+        }),
+      }),
+    ]);
+  });
+
+  it("reports a run of five as a single finding naming all five scenes", () => {
+    const source = storyboardWithTemplates(Array<SceneTemplate>(5).fill("definition"));
+    const issues = monotonyIssues(source);
+    expect(issues).toHaveLength(1);
+    expect(issues[0]!.details).toMatchObject({
+      consecutiveCount: 5,
+      sceneIds: source.scenes.map((s) => s.stableSceneId),
+    });
+  });
+
+  it("does not flag non-consecutive repetition of a template", () => {
+    expect(
+      monotonyIssues(
+        storyboardWithTemplates([
+          "hook",
+          "definition",
+          "hook",
+          "definition",
+          "hook",
+        ]),
+      ),
+    ).toEqual([]);
+  });
+
+  it("uses the exported threshold as the boundary", () => {
+    expect(sceneMonotonyThreshold).toBe(3);
+    const run = (length: number) =>
+      monotonyIssues(
+        storyboardWithTemplates(Array<SceneTemplate>(length).fill("definition")),
+      );
+    expect(run(sceneMonotonyThreshold - 1)).toEqual([]);
+    expect(run(sceneMonotonyThreshold)).toHaveLength(1);
+  });
+
+  it("constructs a finding the strict issue contract accepts", () => {
+    const draft = monotonyIssues(
+      storyboardWithTemplates(["definition", "definition", "definition"]),
+    )[0]!;
+    const response = validationIssueResponse({
+      id: "01989a3d-8e00-7000-8000-0000000000aa",
+      ...draft,
+      acknowledgedAt: null,
+    });
+    expect(response.severity).toBe("warning");
+    expect(response.acknowledgeable).toBe(true);
+  });
+
+  it("keeps scene_monotony acknowledgeable through the service", () => {
+    expect(acknowledgeableWarningCodes.has("scene_monotony")).toBe(true);
+  });
+
+  it("never blocks: a monotony-only lesson still authorises a render", () => {
+    const issues = evaluateLessonValidation(
+      input(storyboardWithTemplates(Array<SceneTemplate>(5).fill("hook"))),
+    );
+    expect(issues.some((issue) => issue.severity === "error")).toBe(false);
+    expect(issues.some((issue) => issue.code === "scene_monotony")).toBe(true);
+  });
+
+  it("re-runs on scene structure edits and clears when the run is broken up", () => {
+    expect(affectedValidationRules(["scene"])).toContain("scene_monotony");
+    const monotonous = storyboardWithTemplates([
+      "definition",
+      "definition",
+      "definition",
+      "hook",
+      "summary",
+    ]);
+    expect(monotonyIssues(monotonous)).toHaveLength(1);
+    const reordered = {
+      ...monotonous,
+      scenes: [
+        monotonous.scenes[0]!,
+        monotonous.scenes[3]!,
+        monotonous.scenes[1]!,
+        monotonous.scenes[4]!,
+        monotonous.scenes[2]!,
+      ],
+    } as LessonStoryboard;
+    expect(monotonyIssues(reordered)).toEqual([]);
+  });
+});
 
 describe("deterministic lesson validation", () => {
   it("passes a complete five-scene fixture", () => {
