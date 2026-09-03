@@ -356,3 +356,156 @@ describe("IllustrationGenerationService.request", () => {
     ).toEqual(["subject"]);
   });
 });
+
+/** Chainable fake that resolves a queued result array per awaited statement. */
+function contactSheetDatabase(results: unknown[][]): DatabaseClient {
+  let index = 0;
+  const makeQuery = () => {
+    const query: Record<string, unknown> = {};
+    for (const method of [
+      "from",
+      "where",
+      "orderBy",
+      "leftJoin",
+      "innerJoin",
+      "limit",
+      "groupBy",
+    ])
+      query[method] = () => query;
+    query.then = (resolve: (rows: unknown[]) => unknown) =>
+      Promise.resolve(results[index++] ?? []).then(resolve);
+    return query;
+  };
+  return { select: () => makeQuery() } as unknown as DatabaseClient;
+}
+
+describe("IllustrationGenerationService.contactSheet", () => {
+  const sceneRowId = "019ffbf1-eeee-7000-8000-0000000000d0";
+  const stableSceneId = "019ffbf1-eeee-7000-8000-0000000000d1" as Identifier;
+
+  const sceneRows = [
+    {
+      id: sceneRowId,
+      stableSceneId,
+      order: 1,
+      revision: 4,
+      sceneJson: createDefaultStoryboardSceneSpec("hook", {
+        id: stableSceneId,
+        order: 1,
+        durationSeconds: 20,
+      }),
+    },
+  ];
+
+  function candidateRow(
+    overrides: Record<string, unknown>,
+  ): Record<string, unknown> {
+    return {
+      id: "019ffbf1-eeee-7000-8000-0000000000e0",
+      sceneId: sceneRowId,
+      slot: "subject",
+      assetId: null,
+      status: "pending_review",
+      moderationStatus: "approved",
+      provider: "mock-illustration",
+      promptVersion: "v1",
+      failureCode: null,
+      createdAt: new Date("2026-09-01T00:00:00.000Z"),
+      jobId: null,
+      assetStatus: null,
+      assetWidth: null,
+      assetHeight: null,
+      assetMediaType: null,
+      assetDeletedAt: null,
+      estimatedCostUsd: "0.020000",
+      ...overrides,
+    };
+  }
+
+  it("groups candidates by scene and slot with the slot's role guidance", async () => {
+    const database = contactSheetDatabase([
+      sceneRows,
+      [
+        candidateRow({
+          id: "cand-ready",
+          assetId: "asset-1",
+          assetStatus: "pending_review",
+          assetWidth: 1024,
+          assetHeight: 576,
+          assetMediaType: "image/png",
+        }),
+        candidateRow({
+          id: "cand-failed",
+          status: "failed",
+          moderationStatus: "rejected",
+          failureCode: "ILLUSTRATION_GENERATION_FAILED",
+          estimatedCostUsd: null,
+        }),
+        candidateRow({ id: "cand-orphan", sceneId: "no-such-scene" }),
+      ],
+    ]);
+    const service = new IllustrationGenerationService(database);
+
+    const result = await service.contactSheet({ ownerUserId, projectId });
+
+    expect(result.scenes).toHaveLength(1);
+    const scene = result.scenes[0]!;
+    expect(scene.sceneId).toBe(stableSceneId);
+    expect(scene.sceneRevision).toBe(4);
+    expect(scene.slots).toHaveLength(1);
+    const slot = scene.slots[0]!;
+    expect(slot.slot).toBe("subject");
+    expect(slot.visualRole).toBe("decorative");
+    expect(slot.visualRolePermits).toContain("free editorial choice");
+    expect(slot.candidates.map((candidate) => candidate.id)).toEqual([
+      "cand-ready",
+      "cand-failed",
+    ]);
+  });
+
+  it("marks a reviewable, well-formed candidate selectable and a failed one blocked", async () => {
+    const database = contactSheetDatabase([
+      sceneRows,
+      [
+        candidateRow({
+          id: "cand-ready",
+          assetId: "asset-1",
+          assetStatus: "active",
+          assetWidth: 1024,
+          assetHeight: 576,
+          assetMediaType: "image/png",
+        }),
+        candidateRow({
+          id: "cand-failed",
+          status: "failed",
+          moderationStatus: "rejected",
+          failureCode: "ILLUSTRATION_GENERATION_FAILED",
+        }),
+        candidateRow({
+          id: "cand-corrupt",
+          assetId: "asset-2",
+          assetStatus: "pending_review",
+          assetWidth: 0,
+          assetHeight: 0,
+          assetMediaType: "image/png",
+        }),
+      ],
+    ]);
+    const service = new IllustrationGenerationService(database);
+
+    const [ready, failed, corrupt] = (
+      await service.contactSheet({ ownerUserId, projectId })
+    ).scenes[0]!.slots[0]!.candidates;
+
+    expect(ready).toMatchObject({ selectable: true, blockedReason: null });
+    expect(ready?.costUsd).toBe(0.02);
+    expect(failed).toMatchObject({
+      selectable: false,
+      blockedReason: "generation_failed",
+    });
+    expect(corrupt).toMatchObject({
+      selectable: false,
+      blockedReason: "media_check_failed",
+    });
+  });
+});

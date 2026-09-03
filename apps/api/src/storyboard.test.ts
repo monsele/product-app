@@ -285,6 +285,46 @@ describe("storyboard API", () => {
       })),
       list: vi.fn(async () => []),
       reject: vi.fn(async () => ({ status: "rejected" as const })),
+      contactSheet: vi.fn(
+        async () =>
+          ({
+            scenes: [
+              {
+                sceneId: "019ffbf1-eeee-7000-8000-000000000050",
+                order: 1,
+                title: "Water cycle",
+                template: "definition",
+                sceneRevision: 2,
+                slots: [
+                  {
+                    slot: "backdrop",
+                    visualRole: "decorative",
+                    visualRolePermits: "free editorial choice",
+                    required: false,
+                    candidates: [
+                      {
+                        id: "019ffbf1-eeee-7000-8000-0000000000c1",
+                        jobId: null,
+                        assetId: null,
+                        assetReady: false,
+                        status: "failed",
+                        moderationStatus: "rejected",
+                        provider: "mock-illustration",
+                        promptVersion: "v1",
+                        failureCode: "ILLUSTRATION_GENERATION_FAILED",
+                        costUsd: 0.02,
+                        selectable: false,
+                        blockedReason: "generation_failed",
+                        blockedDetail:
+                          "Generation did not produce a usable image.",
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          }) as never,
+      ),
     };
     app = await createApp({
       authGateway: auth,
@@ -714,5 +754,40 @@ describe("storyboard API", () => {
     expect(
       storyboardService.acceptIllustrationCandidate,
     ).not.toHaveBeenCalled();
+  });
+
+  it("returns the project-scoped illustration contact sheet for the owner", async () => {
+    const { fixture, server, illustrations } = await api();
+    const response = await server.inject({
+      method: "GET",
+      url: `/projects/${fixture.projectId}/illustration-candidates`,
+      cookies: { [sessionCookieName]: "owner" },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(illustrations.contactSheet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ownerUserId: fixture.ownerUserId,
+        projectId: fixture.projectId,
+      }),
+    );
+    const body = response.json() as {
+      scenes: { slots: { candidates: { selectable: boolean; blockedDetail: string | null }[] }[] }[];
+    };
+    const candidate = body.scenes[0]!.slots[0]!.candidates[0]!;
+    expect(candidate.selectable).toBe(false);
+    expect(candidate.blockedDetail).toContain("usable image");
+    // The signing-only internal field must not leak to the client.
+    expect(JSON.stringify(body)).not.toContain("assetReady");
+  });
+
+  it("rejects a cross-tenant read of the illustration contact sheet", async () => {
+    const { fixture, server, illustrations } = await api();
+    const response = await server.inject({
+      method: "GET",
+      url: `/projects/${fixture.projectId}/illustration-candidates`,
+      cookies: { [sessionCookieName]: "other" },
+    });
+    expect(response.statusCode).toBe(404);
+    expect(illustrations.contactSheet).not.toHaveBeenCalled();
   });
 });

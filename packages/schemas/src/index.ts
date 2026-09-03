@@ -6420,6 +6420,113 @@ export type SceneAssetSlotRequirement = z.infer<
   typeof sceneAssetSlotRequirementSchema
 >;
 
+/**
+ * ST-089: one line of teacher-facing guidance describing what acquisition a
+ * slot's epistemic role permits. Kept beside the role enum so the contact-sheet
+ * read path and the storyboard editor stay consistent.
+ */
+export function visualRolePermits(role: VisualRole): string {
+  switch (role) {
+    case "grounding_critical":
+      return "Carries factual content the learner must trust. Only a source-derived visual is allowed; generated illustrations cannot be used here.";
+    case "source_derived":
+      return "Must stay faithful to the source. A generated illustration is allowed only with an explicit source reference and your review.";
+    case "decorative":
+      return "Supports the scene without carrying facts. A generated illustration is a free editorial choice.";
+  }
+}
+
+/** ST-089: why a candidate cannot be selected from the contact sheet. */
+export const illustrationCandidateBlockReasonSchema = z.enum([
+  "generation_failed",
+  "moderation_rejected",
+  "media_check_failed",
+  "not_reviewable",
+  "already_resolved",
+]);
+export type IllustrationCandidateBlockReason = z.infer<
+  typeof illustrationCandidateBlockReasonSchema
+>;
+
+/**
+ * ST-089: a non-blocking editorial signal shown against a scene in the contact
+ * sheet. `deterministic` signals (e.g. scene monotony) carry a ruleset version;
+ * a future `model_assisted` visual-quality signal additionally names its model.
+ * An advisory never gates candidate selection.
+ */
+export const illustrationAdvisoryFindingSchema = z
+  .object({
+    code: boundedText(64),
+    message: boundedText(500),
+    source: z.enum(["deterministic", "model_assisted"]),
+    rulesetVersion: boundedText(64),
+    model: boundedText(120).nullable(),
+  })
+  .strict();
+export type IllustrationAdvisoryFinding = z.infer<
+  typeof illustrationAdvisoryFindingSchema
+>;
+
+export const illustrationContactSheetCandidateSchema = z
+  .object({
+    id: identifierSchema,
+    jobId: identifierSchema.nullable(),
+    status: illustrationCandidateStatusSchema,
+    moderationStatus: illustrationModerationStatusSchema,
+    provenance: z.literal("ai_generated"),
+    provider: boundedText(80),
+    promptVersion: boundedText(40),
+    previewUrl: z.string().url().max(2_000).nullable(),
+    altText: boundedText(300),
+    costUsd: z.number().nonnegative().nullable(),
+    failureCode: boundedText(120).nullable(),
+    selectable: z.boolean(),
+    blockedReason: illustrationCandidateBlockReasonSchema.nullable(),
+    blockedDetail: boundedText(300).nullable(),
+  })
+  .strict();
+export type IllustrationContactSheetCandidate = z.infer<
+  typeof illustrationContactSheetCandidateSchema
+>;
+
+export const illustrationContactSheetSlotSchema = z
+  .object({
+    slot: boundedText(64),
+    visualRole: visualRoleSchema,
+    visualRolePermits: boundedText(400),
+    required: z.boolean(),
+    candidates: z.array(illustrationContactSheetCandidateSchema).max(100),
+  })
+  .strict();
+export type IllustrationContactSheetSlot = z.infer<
+  typeof illustrationContactSheetSlotSchema
+>;
+
+export const illustrationContactSheetSceneSchema = z
+  .object({
+    sceneId: identifierSchema,
+    order: z.number().int().positive(),
+    title: boundedText(160).nullable(),
+    template: sceneTemplateSchema,
+    sceneRevision: z.number().int().nonnegative(),
+    advisories: z.array(illustrationAdvisoryFindingSchema).max(20),
+    slots: z.array(illustrationContactSheetSlotSchema).max(20),
+  })
+  .strict();
+export type IllustrationContactSheetScene = z.infer<
+  typeof illustrationContactSheetSceneSchema
+>;
+
+export const illustrationContactSheetResponseSchema = z
+  .object({
+    rulesetVersion: boundedText(64).nullable(),
+    scenes: z.array(illustrationContactSheetSceneSchema).max(500),
+  })
+  .strict();
+export type IllustrationContactSheetResponse = z.infer<
+  typeof illustrationContactSheetResponseSchema
+>;
+
 export const sceneEditorTemplateMetadataSchema = z
   .object({
     assetSlots: z.array(boundedText(64)).max(20),

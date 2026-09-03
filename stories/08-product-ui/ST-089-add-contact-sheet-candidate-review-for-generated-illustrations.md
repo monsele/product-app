@@ -2,7 +2,7 @@
 story_id: ST-089
 title: "Add Contact-Sheet Candidate Review for Generated Illustrations"
 phase: "08 - Product UI"
-status: Ready
+status: In Review
 priority: should-have
 epics: ["E13"]
 prd_user_stories: []
@@ -131,14 +131,132 @@ That matters more after ST-085. Once slots carry a `visualRole`, the difference 
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
+- **Agent:** Claude Sonnet 5 (next-story)
+- **Started:** 2026-09-03
+- **Completed:** 2026-09-03
+- **Branch/PR:** `story/st-089` (no PR opened)
+
+- **Precondition check (recorded per Definition of Done):** PASSED. No candidate
+  comparison surface exists in `apps/web`. The only pre-existing candidate UI is
+  `apps/web/app/workspace/[projectId]/storyboard/illustration-candidate-panel.tsx`,
+  which is strictly one scene / one slot inside the storyboard inspector and
+  shows status + a 56px thumbnail only — no `visualRole`, provenance label,
+  cost, moderation failure code, advisory findings, or cross-scene/cross-slot
+  grouping. Side-by-side comparison is genuinely missing. This story proceeds.
+
 - **Files changed:**
-- **Migrations:**
+  - `packages/schemas/src/index.ts` — new `illustrationContactSheetResponseSchema`
+    (+ scene/slot/candidate/advisory sub-schemas, `IllustrationCandidateBlockReason`,
+    `illustrationAdvisoryFindingSchema`) and a `visualRolePermits(role)` helper
+    colocated with the `visualRoleSchema` enum.
+  - `apps/api/src/illustration-generation.ts` — new `IllustrationGenerationService.contactSheet()`
+    (tenant/project-scoped grouped read; joins `jobs` for the request id,
+    `project_assets` for media readiness, `usage_records` for persisted cost);
+    module-level `selectability()` mirroring the accept gate and
+    `ContactSheetResult`/`ContactSheetCandidate` types.
+  - `apps/api/src/app.ts` — new `GET :projectId/illustration-candidates`
+    (project-scoped) that signs preview URLs via the existing
+    `ProjectAssetService.reviewPreview`, attaches `scene_monotony` advisories
+    from `LessonValidationService.latest`, strips internal fields, and parses
+    the response through the schema; `contactSheet` added to the
+    `IllustrationGenerationApiService` Pick and the unavailable stub.
+  - `apps/web/app/workspace/[projectId]/storyboard/candidates/page.tsx` — new
+    Focus Studio route (server component, auth + project fetch + shell).
+  - `apps/web/app/workspace/[projectId]/storyboard/candidates/contact-sheet-view.tsx`
+    — client shell: fetches the sheet + storyboard revision, polls while any
+    candidate is in flight, routes accept/discard through the existing
+    `/illustration-candidates/:id/accept|reject` commands.
+  - `apps/web/app/workspace/[projectId]/storyboard/candidates/illustration-contact-sheet.tsx`
+    — presentational contact sheet (grouping, role badge + permission line,
+    status pills with icon+text, provenance, persisted cost, advisory notes,
+    blocked/selectable controls, surfaced alt text).
+  - `apps/web/app/workspace/[projectId]/storyboard/storyboard-panel.tsx` — added
+    a "Review illustration candidates" link into the storyboard workspace.
+  - Tests: `apps/api/src/illustration-generation.test.ts` (+2 `contactSheet`
+    unit tests), `apps/api/src/storyboard.test.ts` (+2 route tests: owner read,
+    cross-tenant rejection, internal-field non-leak),
+    `apps/web/.../candidates/illustration-contact-sheet.test.tsx` (7 SSR),
+    `apps/web/.../candidates/illustration-contact-sheet.playwright.test.tsx`
+    (4: keyboard-blocked selection, advisory does not disable, alt text, axe).
+
+- **Migrations:** none. No new table or column (confirmed — cost is read from the
+  existing `usage_records`, role is derived from the scene template).
+
+- **Public contract changes:** `@avlp/schemas` adds
+  `illustrationContactSheetResponseSchema` and friends plus `visualRolePermits`;
+  new read-only endpoint `GET /projects/:projectId/illustration-candidates`.
+  No mutation paths added — accept/reject/regenerate are the existing ST-059
+  commands.
+
 - **Commands/tests:**
-- **Screenshots/output:**
+  - `pnpm --filter @avlp/schemas build|test|lint` — pass (285 tests).
+  - `pnpm --filter @avlp/api typecheck|build|lint` — pass.
+  - `pnpm --filter @avlp/api test` — pass (457 passed, 70 skipped; one earlier
+    run had 10 unrelated "Test timed out" flakes under machine load that all
+    passed on re-run and in isolation).
+  - `pnpm --filter @avlp/web typecheck|build|lint` — pass; route
+    `/workspace/[projectId]/storyboard/candidates` present in the build output.
+  - `pnpm --filter @avlp/web exec vitest run app/workspace/[projectId]/storyboard/candidates`
+    — 11 passed (SSR + Playwright + axe).
+  - `pnpm --filter @avlp/web test` (full) — pre-existing Playwright viewport
+    failures in `configuration.playwright`, `narration.playwright`,
+    `cross-screen-quality.playwright` reproduce on a clean checkout with this
+    branch stashed; environmental (Windows chromium viewport rendering), not
+    introduced here.
+
+- **Screenshots/output:** contact sheet rendered from the real component
+  (Focus Studio, 1180px) — grouped scene → slot, decorative role + permission
+  line, `scene_monotony` advisory labelled "Advisory" with ruleset version and
+  "does not block" copy, two reviewable candidates with previews + persisted
+  cost, one `failed` candidate showing its reason and code (error styling), one
+  `queued` candidate showing a neutral "still generating" note (not error
+  styling). Sent to the user via SendUserFile.
+
 - **Decisions/assumptions:**
+  - Placement: dedicated sub-route `…/storyboard/candidates` (user-chosen),
+    reachable from a link in `StoryboardPanel`.
+  - `selectable` is computed server-side as a deterministic mirror of
+    `acceptIllustrationCandidate`'s gate (pending_review + moderation approved +
+    readable, correctly-dimensioned PNG). Blocked reasons: `generation_failed`,
+    `moderation_rejected` (failure code not in the worker's generation-failure
+    set), `media_check_failed`, `not_reviewable` (queued/generating),
+    `already_resolved` (accepted/rejected).
+  - Cost is read verbatim from `usage_records.estimated_cost_usd`
+    (`idempotency_key = 'illustration:' || candidate.id`), never recomputed.
+  - Request identity exposed as the resolved `jobId` (joined via the shared
+    idempotency key), not the internal idempotency key.
+  - Advisory model: only the deterministic `scene_monotony` finding exists
+    today; the schema carries `source`/`rulesetVersion`/`model` so a future
+    model-assisted visual-quality signal slots in without a contract change.
+    Advisories never affect `selectable`.
+  - `assetReady`/`assetId` are returned by the service for URL signing only and
+    stripped by the HTTP layer (asserted by test).
+
 - **Deviations:**
+  - AC "every one needs its alt text surfaced **and editable** per the existing
+    asset conventions": no editable-alt-text convention exists in the codebase
+    (`project_assets` has no alt/caption column; the asset pickers don't offer
+    it), and adding per-candidate alt text would require a new column + mutation
+    that Contracts/Persistence and Out-of-Scope forbid. Alt text is **surfaced**
+    on every candidate — a deterministic scene/slot/order-derived description on
+    the `<img alt>` and shown visibly as "Alt text: …". Editing alt text remains
+    where it will live: on the bound asset after acceptance. Flagged for the
+    reviewer.
+  - "Convergence" AC is structural rather than separately tested end-to-end: the
+    contact sheet calls the exact `POST /projects/:id/illustration-candidates/:cid/accept`
+    endpoint the per-scene panel calls (same `StoryboardService.acceptIllustrationCandidate`),
+    already covered by `storyboard.test.ts`. A full DB integration test of the
+    grouped read was not added because seeding a `scenes` row pulls in the
+    lesson-spec → narration-set → outline-set → model-call fixture chain; the
+    grouping/selectability/cost logic is covered by the `contactSheet` unit
+    tests with a join-capable fake, and authorization by the route tests.
+
 - **Known risks/follow-up:**
+  - The storyboard revision the accept call needs is fetched from
+    `GET /storyboard/scenes` in the client; a race between load and accept
+    surfaces as a 409 that the view handles by reloading. Acceptable.
+  - If a very large lesson has many candidates the read path signs one URL per
+    ready candidate serially-ish (Promise.all) — fine at MVP scale, worth a
+    batch signer later.
+  - Full end-to-end browser screenshots against seeded pipeline data were not
+    produced; visual evidence is the component render + Playwright/axe suite.

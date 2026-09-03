@@ -33,6 +33,7 @@ import {
   toApiErrorEnvelope,
   type Identifier,
 } from "@avlp/config";
+import { illustrationContactSheetResponseSchema } from "@avlp/schemas";
 import {
   DuplicateEmailError,
   InvalidPasswordResetTokenError,
@@ -304,7 +305,7 @@ type ProjectAssetApiService = Pick<
 >;
 type IllustrationGenerationApiService = Pick<
   IllustrationGenerationService,
-  "request" | "list" | "reject"
+  "request" | "list" | "reject" | "contactSheet"
 > & {
   generateMissing?: IllustrationGenerationService["generateMissing"];
 };
@@ -1907,6 +1908,94 @@ class ProjectsController {
     };
   }
 
+  @Get(":projectId/illustration-candidates")
+  public async illustrationContactSheet(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    const sheet = await this.illustrations.contactSheet(access);
+    const run = await this.validations.latest(access).catch(() => null);
+    const advisoriesBySceneId = new Map<
+      string,
+      { code: string; message: string; source: "deterministic"; rulesetVersion: string; model: null }[]
+    >();
+    for (const issue of run?.issues ?? []) {
+      if (issue.code !== "scene_monotony") continue;
+      const scope = issue.details.sceneIds;
+      const sceneIds =
+        Array.isArray(scope) && scope.every((value) => typeof value === "string")
+          ? (scope as string[])
+          : issue.sceneId === null
+            ? []
+            : [issue.sceneId];
+      for (const sceneId of sceneIds) {
+        const list = advisoriesBySceneId.get(sceneId) ?? [];
+        list.push({
+          code: issue.code,
+          message: issue.message,
+          source: "deterministic",
+          rulesetVersion: run?.rulesetVersion ?? "unknown",
+          model: null,
+        });
+        advisoriesBySceneId.set(sceneId, list);
+      }
+    }
+
+    const scenes = await Promise.all(
+      sheet.scenes.map(async (scene) => ({
+        sceneId: scene.sceneId,
+        order: scene.order,
+        title: scene.title,
+        template: scene.template,
+        sceneRevision: scene.sceneRevision,
+        advisories: advisoriesBySceneId.get(scene.sceneId) ?? [],
+        slots: await Promise.all(
+          scene.slots.map(async (slot) => ({
+            slot: slot.slot,
+            visualRole: slot.visualRole,
+            visualRolePermits: slot.visualRolePermits,
+            required: slot.required,
+            candidates: await Promise.all(
+              slot.candidates.map(async (candidate) => ({
+                id: candidate.id,
+                jobId: candidate.jobId,
+                status: candidate.status,
+                moderationStatus: candidate.moderationStatus,
+                provenance: "ai_generated" as const,
+                provider: candidate.provider,
+                promptVersion: candidate.promptVersion,
+                previewUrl:
+                  candidate.assetId !== null && candidate.assetReady
+                    ? await this.projectAssets
+                        .reviewPreview(
+                          access.ownerUserId,
+                          access.projectId,
+                          candidate.assetId,
+                        )
+                        .catch(() => null)
+                    : null,
+                altText: `AI illustration for the ${slot.slot} slot of scene ${scene.order}${
+                  scene.title === null ? "" : ` — ${scene.title}`
+                }`,
+                costUsd: candidate.costUsd,
+                failureCode: candidate.failureCode,
+                selectable: candidate.selectable,
+                blockedReason: candidate.blockedReason,
+                blockedDetail: candidate.blockedDetail,
+              })),
+            ),
+          })),
+        ),
+      })),
+    );
+
+    return illustrationContactSheetResponseSchema.parse({
+      rulesetVersion: run?.rulesetVersion ?? null,
+      scenes,
+    });
+  }
+
   @Post(":projectId/illustration-candidates/:candidateId/reject")
   public async rejectIllustrationCandidate(
     @Param("projectId") projectId: string,
@@ -2895,6 +2984,15 @@ const unavailableIllustrationGenerationService: IllustrationGenerationApiService
         ),
       ),
     reject: () =>
+      Promise.reject(
+        new PublicError(
+          "internal_error",
+          "Illustration generation is unavailable.",
+          503,
+          true,
+        ),
+      ),
+    contactSheet: () =>
       Promise.reject(
         new PublicError(
           "internal_error",

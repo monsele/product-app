@@ -944,6 +944,15 @@ export function StoryboardPanel({
             </button>
           ) : null}
 
+          {storyboard !== null ? (
+            <Link
+              href={`/workspace/${encodeURIComponent(projectId)}/storyboard/candidates`}
+              className={`${styles.button} ${styles.buttonSecondary}`}
+            >
+              Review illustration candidates
+            </Link>
+          ) : null}
+
           {storyboard !== null && !mediaReady ? (
             <button
               type="button"

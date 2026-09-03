@@ -7,7 +7,9 @@ import {
   illustrationGenerationCandidates,
   jobs,
   outboxEvents,
+  projectAssets,
   scenes,
+  usageRecords,
   type DatabaseClient,
 } from "@avlp/database";
 import { createIdempotencyKey, createJobEnvelope } from "@avlp/jobs";
@@ -21,8 +23,11 @@ import {
   sceneAssetSlotRequirement,
   sceneSpecSchema,
   sceneTemplateSchema,
+  visualRolePermits,
+  type IllustrationCandidateBlockReason,
   type IllustrationGenerationResponse,
   type LessonIllustrationGenerationResponse,
+  type VisualRole,
 } from "@avlp/schemas";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -33,6 +38,120 @@ export const defaultMaximumIllustrationsPerHour = 10;
 const sceneAssetRequirementsSchema = z.array(
   z.object({ slot: z.string().trim().min(1).max(64) }).passthrough(),
 );
+
+export type ContactSheetCandidate = {
+  id: Identifier;
+  jobId: Identifier | null;
+  assetId: Identifier | null;
+  assetReady: boolean;
+  status: string;
+  moderationStatus: string;
+  provider: string;
+  promptVersion: string;
+  failureCode: string | null;
+  costUsd: number | null;
+  selectable: boolean;
+  blockedReason: IllustrationCandidateBlockReason | null;
+  blockedDetail: string | null;
+};
+
+export type ContactSheetResult = {
+  scenes: {
+    sceneId: Identifier;
+    order: number;
+    title: string | null;
+    template: string;
+    sceneRevision: number;
+    slots: {
+      slot: string;
+      visualRole: VisualRole;
+      visualRolePermits: string;
+      required: boolean;
+      candidates: ContactSheetCandidate[];
+    }[];
+  }[];
+};
+
+/** Codes the worker records for a non-recoverable generation failure. */
+const generationFailureCodes = new Set([
+  "ILLUSTRATION_GENERATION_FAILED",
+  "ILLUSTRATION_UNKNOWN_FAILURE",
+  "INVALID_IMAGE_OUTPUT",
+]);
+
+/**
+ * Deterministic mirror of the accept gate in `acceptIllustrationCandidate`: a
+ * candidate is selectable only when it is awaiting review, moderation-approved,
+ * and backed by a readable, correctly-dimensioned image. Any other state is
+ * blocked with a stated reason rather than hidden.
+ */
+function selectability(input: {
+  status: string;
+  moderationStatus: string;
+  failureCode: string | null;
+  hasAsset: boolean;
+  assetReady: boolean;
+}): {
+  selectable: boolean;
+  blockedReason: IllustrationCandidateBlockReason | null;
+  blockedDetail: string | null;
+} {
+  if (input.status === "accepted")
+    return {
+      selectable: false,
+      blockedReason: "already_resolved",
+      blockedDetail: "This illustration is already in use on the scene.",
+    };
+  if (input.status === "rejected")
+    return {
+      selectable: false,
+      blockedReason: "already_resolved",
+      blockedDetail: "You discarded this illustration.",
+    };
+  if (input.status === "queued" || input.status === "generating")
+    return {
+      selectable: false,
+      blockedReason: "not_reviewable",
+      blockedDetail: "Still generating. It will be ready to review shortly.",
+    };
+  if (input.status === "failed") {
+    const isModeration =
+      input.failureCode !== null &&
+      !generationFailureCodes.has(input.failureCode);
+    return isModeration
+      ? {
+          selectable: false,
+          blockedReason: "moderation_rejected",
+          blockedDetail:
+            "Automated safety review rejected this image. Generate a new one.",
+        }
+      : {
+          selectable: false,
+          blockedReason: "generation_failed",
+          blockedDetail:
+            "Generation did not produce a usable image. Try generating again.",
+        };
+  }
+  if (
+    input.status === "pending_review" &&
+    (input.moderationStatus !== "approved" ||
+      !input.hasAsset ||
+      !input.assetReady)
+  )
+    return {
+      selectable: false,
+      blockedReason: "media_check_failed",
+      blockedDetail:
+        "This image failed an integrity check and cannot be used. Generate a new one.",
+    };
+  if (input.status === "pending_review")
+    return { selectable: true, blockedReason: null, blockedDetail: null };
+  return {
+    selectable: false,
+    blockedReason: "not_reviewable",
+    blockedDetail: null,
+  };
+}
 
 /** Queues only bounded, explicitly requested scene illustration generation. */
 export class IllustrationGenerationService {
@@ -430,6 +549,183 @@ export class IllustrationGenerationService {
       moderationStatus: row.moderationStatus,
       provenance: "ai_generated" as const,
     }));
+  }
+
+  /**
+   * ST-089: every illustration candidate for a project, grouped by scene and
+   * slot, with the context a teacher needs to choose between them: the slot's
+   * epistemic role and what it permits, provenance, persisted cost, moderation
+   * status, and a deterministic `selectable` flag mirroring the accept gate.
+   *
+   * Tenant- and project-scoped on every table. Returns internal `assetId` and
+   * `assetReady` so the caller can sign a preview URL through the existing
+   * asset-access mechanism; the HTTP layer strips `assetId` before responding.
+   */
+  public async contactSheet(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+  }): Promise<ContactSheetResult> {
+    const sceneRows = await this.database
+      .select({
+        id: scenes.id,
+        stableSceneId: scenes.stableSceneId,
+        order: scenes.order,
+        revision: scenes.revision,
+        sceneJson: scenes.sceneJson,
+      })
+      .from(scenes)
+      .where(
+        and(
+          eq(scenes.ownerUserId, input.ownerUserId),
+          eq(scenes.projectId, input.projectId),
+        ),
+      )
+      .orderBy(scenes.order);
+
+    const candidateRows = await this.database
+      .select({
+        id: illustrationGenerationCandidates.id,
+        sceneId: illustrationGenerationCandidates.sceneId,
+        slot: illustrationGenerationCandidates.slot,
+        assetId: illustrationGenerationCandidates.assetId,
+        status: illustrationGenerationCandidates.status,
+        moderationStatus: illustrationGenerationCandidates.moderationStatus,
+        provider: illustrationGenerationCandidates.provider,
+        promptVersion: illustrationGenerationCandidates.promptVersion,
+        failureCode: illustrationGenerationCandidates.failureCode,
+        createdAt: illustrationGenerationCandidates.createdAt,
+        jobId: jobs.id,
+        assetStatus: projectAssets.status,
+        assetWidth: projectAssets.width,
+        assetHeight: projectAssets.height,
+        assetMediaType: projectAssets.mediaType,
+        assetDeletedAt: projectAssets.deletedAt,
+        estimatedCostUsd: usageRecords.estimatedCostUsd,
+      })
+      .from(illustrationGenerationCandidates)
+      .leftJoin(
+        jobs,
+        and(
+          eq(jobs.ownerUserId, illustrationGenerationCandidates.ownerUserId),
+          eq(jobs.projectId, illustrationGenerationCandidates.projectId),
+          eq(
+            jobs.idempotencyKey,
+            illustrationGenerationCandidates.idempotencyKey,
+          ),
+        ),
+      )
+      .leftJoin(
+        projectAssets,
+        eq(projectAssets.id, illustrationGenerationCandidates.assetId),
+      )
+      .leftJoin(
+        usageRecords,
+        and(
+          eq(
+            usageRecords.ownerUserId,
+            illustrationGenerationCandidates.ownerUserId,
+          ),
+          eq(
+            usageRecords.projectId,
+            illustrationGenerationCandidates.projectId,
+          ),
+          sql`${usageRecords.idempotencyKey} = 'illustration:' || ${illustrationGenerationCandidates.id}`,
+        ),
+      )
+      .where(
+        and(
+          eq(illustrationGenerationCandidates.ownerUserId, input.ownerUserId),
+          eq(illustrationGenerationCandidates.projectId, input.projectId),
+        ),
+      )
+      .orderBy(desc(illustrationGenerationCandidates.createdAt));
+
+    const candidatesBySceneId = new Map<string, typeof candidateRows>();
+    for (const row of candidateRows) {
+      const list = candidatesBySceneId.get(row.sceneId) ?? [];
+      list.push(row);
+      candidatesBySceneId.set(row.sceneId, list);
+    }
+
+    const scenesOut: ContactSheetResult["scenes"] = [];
+    for (const sceneRow of sceneRows) {
+      const forScene = candidatesBySceneId.get(sceneRow.id) ?? [];
+      if (forScene.length === 0) continue;
+      const parsed = sceneSpecSchema.safeParse(sceneRow.sceneJson);
+      const template = parsed.success
+        ? parsed.data.template
+        : sceneTemplateSchema.safeParse(
+            (sceneRow.sceneJson as { template?: unknown })?.template,
+          ).data;
+      if (template === undefined) continue;
+
+      const bySlot = new Map<string, typeof forScene>();
+      for (const row of forScene) {
+        const list = bySlot.get(row.slot) ?? [];
+        list.push(row);
+        bySlot.set(row.slot, list);
+      }
+
+      const slotsOut: ContactSheetResult["scenes"][number]["slots"] = [];
+      for (const [slot, rows] of bySlot) {
+        const requirement = sceneAssetSlotRequirement(template, slot);
+        const visualRole: VisualRole = requirement?.visualRole ?? "decorative";
+        slotsOut.push({
+          slot,
+          visualRole,
+          visualRolePermits: visualRolePermits(visualRole),
+          required: requirement?.required ?? false,
+          candidates: rows.map((row) => {
+            const assetReady =
+              row.assetId !== null &&
+              row.assetDeletedAt === null &&
+              (row.assetStatus === "pending_review" ||
+                row.assetStatus === "active") &&
+              (row.assetWidth ?? 0) > 0 &&
+              (row.assetHeight ?? 0) > 0 &&
+              (row.assetMediaType ?? "").startsWith("image/");
+            const { selectable, blockedReason, blockedDetail } =
+              selectability({
+                status: row.status,
+                moderationStatus: row.moderationStatus,
+                failureCode: row.failureCode,
+                hasAsset: row.assetId !== null,
+                assetReady,
+              });
+            return {
+              id: row.id as Identifier,
+              jobId: (row.jobId as Identifier | null) ?? null,
+              assetId: (row.assetId as Identifier | null) ?? null,
+              assetReady,
+              status: row.status,
+              moderationStatus: row.moderationStatus,
+              provider: row.provider,
+              promptVersion: row.promptVersion,
+              failureCode: row.failureCode,
+              costUsd:
+                row.estimatedCostUsd === null
+                  ? null
+                  : Number(row.estimatedCostUsd),
+              selectable,
+              blockedReason,
+              blockedDetail,
+            };
+          }),
+        });
+      }
+      slotsOut.sort((left, right) => left.slot.localeCompare(right.slot));
+
+      scenesOut.push({
+        sceneId: sceneRow.stableSceneId as Identifier,
+        order: sceneRow.order,
+        title: parsed.success ? (parsed.data.title ?? null) : null,
+        template,
+        sceneRevision: sceneRow.revision,
+        slots: slotsOut,
+      });
+    }
+
+    return { scenes: scenesOut };
   }
 
   /** Rejection is an auditable state transition; generated media is retained. */
