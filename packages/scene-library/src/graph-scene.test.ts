@@ -453,4 +453,32 @@ describe("graph scene rendering", () => {
     );
     expect(markup.match(/data-graph-node-active="true"/g)).toHaveLength(1);
   });
+
+  it("keeps the final node emphasised while trailing edges reveal", () => {
+    const plan = planGraphLayout(
+      graphCauseEffectFixture.visual.nodes,
+      graphCauseEffectFixture.visual.edges,
+    );
+    const timing = getGraphRevealTiming(
+      graphCauseEffectFixture.durationSeconds,
+      plan.revealCount,
+      graphCauseEffectFixture.narration,
+    );
+    const nodeCount = plan.nodes.length;
+    // A frame after the first edge has started revealing (index >= nodeCount).
+    const frame = timing.starts[nodeCount]! + 4;
+    const markup = renderToStaticMarkup(
+      createElement(CauseEffectSceneFrame, {
+        frame,
+        scene: graphCauseEffectFixture,
+      }),
+    );
+    const lastNodeId = plan.nodes[nodeCount - 1]!.id;
+    expect(markup).toMatch(
+      new RegExp(
+        `data-graph-node="${lastNodeId}" data-graph-node-active="true"`,
+      ),
+    );
+    expect(markup.match(/data-graph-node-active="true"/g)).toHaveLength(1);
+  });
 });

@@ -5,16 +5,15 @@ import { getSceneFrameTiming } from "./timing.js";
 /**
  * Reveal timing for graph scenes. Reveal frames derive from
  * `getSceneFrameTiming` and the scene's narration: the narration is split into
- * sentences, the sentences are distributed across the reveal steps, and each
- * step starts at the frame proportional to how far through the narration text
- * that step falls. No per-node delay is chosen at authoring time, and the whole
- * computation is a pure function of its inputs, so preview and render agree.
+ * sentences, each reveal step is anchored to the sentence it falls in and
+ * blended with an even spacing across the reveal window, and the window ends
+ * before the scene-wide exit fade so the last reveal still animates in. No
+ * per-node delay is chosen at authoring time, and the whole computation is a
+ * pure function of its inputs, so preview and render agree.
  */
 
 export type GraphRevealTiming = Readonly<{
-  /** Index of the node currently being narrated, or -1 before the first. */
-  activeIndex: number;
-  /** Start frame for each reveal step, ascending. */
+  /** Start frame for each reveal step, strictly ascending. */
   starts: readonly number[];
 }>;
 
@@ -26,10 +25,12 @@ const SENTENCE_PATTERN = /[^.!?]+[.!?]*/g;
  * Each step is anchored to the narration sentence it belongs to — step `i`
  * maps to sentence `floor(i * sentences / count)` and inherits that sentence's
  * cumulative-character start fraction — then blended equally with an even
- * `i / count` spacing. The even term keeps the sequence strictly increasing
- * (so two steps never share a frame) while the sentence term keeps the reveal
- * tracking what the narration is actually saying. The result is always < 1, so
- * the final step still begins before the scene-wide exit fade.
+ * `i / count` spacing. The even term keeps the fraction sequence strictly
+ * increasing while the sentence term keeps the reveal tracking what the
+ * narration is actually saying. The result is always < 1, so the final step
+ * still begins before the scene-wide exit fade. (After rounding to whole
+ * frames, adjacent steps can coincide only when the scene is far too short
+ * for its node count — a case `scene_duration_out_of_range` already flags.)
  */
 export function narrationRevealFractions(
   narration: string,
@@ -66,7 +67,7 @@ export function getGraphRevealTiming(
   narration: string,
 ): GraphRevealTiming {
   if (revealCount <= 0)
-    return Object.freeze({ activeIndex: -1, starts: Object.freeze([]) });
+    return Object.freeze({ starts: Object.freeze([]) });
   const timing = getSceneFrameTiming(durationSeconds);
   const windowStart = timing.enterEndFrame;
   // Leave room for the last reveal to finish animating before the exit fade.
@@ -79,7 +80,7 @@ export function getGraphRevealTiming(
   const starts = fractions.map((fraction) =>
     Math.round(windowStart + fraction * span),
   );
-  return Object.freeze({ activeIndex: -1, starts: Object.freeze(starts) });
+  return Object.freeze({ starts: Object.freeze(starts) });
 }
 
 /** Opacity 0..1 for a single reveal step at `frame`, with the shared exit fade. */

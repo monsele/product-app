@@ -46,9 +46,16 @@ export function GraphDiagram({
     plan.revealCount,
     narration,
   );
-  const active = activeRevealIndex(frame, timing.starts);
   const nodeCount = plan.nodes.length;
   const sceneTiming = getSceneFrameTiming(durationSeconds);
+  // Emphasis follows the node reveal sequence. Once the trailing edges start
+  // revealing (reveal indices >= nodeCount) the final node stays emphasised
+  // through the rest of the scene, so the concluding node is never left
+  // un-emphasised while its narration is still playing.
+  const activeNode = Math.min(
+    activeRevealIndex(frame, timing.starts),
+    nodeCount - 1,
+  );
   const nodeStartById = new Map(
     plan.nodes.map((node) => [node.id, timing.starts[node.order] ?? 0]),
   );
@@ -92,11 +99,18 @@ export function GraphDiagram({
         </p>
         <h1
           style={{
+            display: "-webkit-box",
             fontSize: 48,
             lineHeight: 1.1,
             margin: `${videoTheme.spacing.xs}px 0 0`,
             maxWidth: 1200,
+            // Two lines keeps the header clear of the graph's top row, which
+            // starts at the body safe area (y = 252).
+            maxHeight: 106,
+            overflow: "hidden",
             overflowWrap: "anywhere",
+            WebkitBoxOrient: "vertical",
+            WebkitLineClamp: 2,
           }}
         >
           {title}
@@ -133,7 +147,7 @@ export function GraphDiagram({
       {plan.nodes.map((node) => {
         const start = nodeStartById.get(node.id) ?? 0;
         const opacity = graphRevealOpacity(frame, durationSeconds, start);
-        const isActive = node.order === active;
+        const isActive = node.order === activeNode;
         const emphasis = isActive
           ? graphEmphasis(frame, start, nodeEmphasisEnd(node.order))
           : 0;
