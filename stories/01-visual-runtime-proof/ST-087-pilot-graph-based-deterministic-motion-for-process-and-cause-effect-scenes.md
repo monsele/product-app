@@ -179,3 +179,12 @@ Findings from `/story-code-review` (commit `0e36c03`) addressed:
 - **LOW 7 — `GraphDiagram` nits.** `label` carried on `PlacedGraphNode` (O(n) lookup); emphasis window end is now the next *node* reveal (or `exitStartFrame` for the last node), never an edge start.
 
 Re-verified: `@avlp/schemas` build/lint/typecheck/test (284) green; JSON schema regenerated (no diff — superRefine only); `@avlp/scene-library` build/lint/typecheck green, `graph-scene.test.ts` 23 tests green, full suite 85 pass with the same 3 pre-existing environmental snapshot failures; `pnpm -r typecheck` green; `@avlp/renderer` (17) and `@avlp/api` storyboard/validation (113) green.
+
+### Review round 2 — fixes applied
+
+- **Emphasis on the concluding node.** `GraphDiagram` clamped the active reveal index to the node range, so once the trailing edges start revealing the final node stays emphasised through the rest of the scene rather than dropping to no emphasis — matches "the active node is emphasised while its narration is playing". New test `keeps the final node emphasised while trailing edges reveal`.
+- **Title / graph overlap.** `GraphDiagram`'s `<h1>` now has a two-line clamp (parity with `cause-effect-scene.tsx`), so a long title cannot overlap the graph's top row at `y = 252`.
+- **API tidy.** Removed the unused `GraphRevealTiming.activeIndex` field; doc comments aligned with the blended sentence/even-spacing timing.
+- **Coverage.** Added a safe-area bounds test for a columnar layout including a full four-node layer.
+
+Re-verified again: `graph-scene.test.ts` 25 tests green; `@avlp/scene-library` build/lint/typecheck green, full suite green apart from the same 3 pre-existing environmental Remotion-snapshot failures (`full-lesson-render`, `scene-preview-render-smoke`, `summary-scene-render` — confirmed failing identically on `40e157b`, PNG-hash drift from this machine's font rasterisation); `pnpm -r typecheck`, `@avlp/renderer` (17), `@avlp/api` (113) green.

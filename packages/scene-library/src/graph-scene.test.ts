@@ -90,6 +90,44 @@ describe("planGraphLayout", () => {
     }
   });
 
+  it("keeps a columnar layout (incl. a full four-node layer) inside the safe area", () => {
+    for (const input of [
+      {
+        nodes: branchingProcessGraphFixture.visual.nodes,
+        edges: branchingProcessGraphFixture.visual.edges,
+      },
+      {
+        nodes: [
+          { id: "a", label: "Alpha cause" },
+          { id: "b", label: "Beta cause" },
+          { id: "c", label: "Gamma cause" },
+          { id: "d", label: "Delta cause" },
+          { id: "hub", label: "Shared mechanism" },
+          { id: "out", label: "Outcome" },
+        ],
+        edges: [
+          { id: "e1", from: "a", to: "hub" },
+          { id: "e2", from: "b", to: "hub" },
+          { id: "e3", from: "c", to: "hub" },
+          { id: "e4", from: "d", to: "hub" },
+          { id: "e5", from: "hub", to: "out" },
+        ],
+      },
+    ]) {
+      const plan = planGraphLayout(input.nodes, input.edges);
+      for (const node of plan.nodes) {
+        expect(node.x).toBeGreaterThanOrEqual(GRAPH_SAFE_AREA.x - 1);
+        expect(node.x + node.width).toBeLessThanOrEqual(
+          GRAPH_SAFE_AREA.x + GRAPH_SAFE_AREA.width + 1,
+        );
+        expect(node.y).toBeGreaterThanOrEqual(GRAPH_SAFE_AREA.y - 1);
+        expect(node.y + node.height).toBeLessThanOrEqual(
+          videoTheme.lowerThirdAvoidance.top + 1,
+        );
+      }
+    }
+  });
+
   it("keeps every edge endpoint inside the safe area", () => {
     const plan = planGraphLayout(
       graphCauseEffectFixture.visual.nodes,
