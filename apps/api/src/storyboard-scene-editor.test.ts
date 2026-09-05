@@ -308,6 +308,32 @@ function storyboardPayload(): LessonStoryboard {
   });
 }
 
+function graphStoryboardPayload(): LessonStoryboard {
+  const payload = storyboardPayload();
+  const first = payload.scenes[0]!;
+  return lessonStoryboardSchema.parse({
+    ...payload,
+    scenes: [
+      {
+        ...first,
+        template: "process",
+        scene: {
+          ...first.scene,
+          template: "process",
+          visual: {
+            nodes: [
+              { id: "start", label: "Start" },
+              { id: "finish", label: "Finish" },
+            ],
+            edges: [{ id: "edge-1", from: "start", to: "finish" }],
+          },
+        },
+      },
+      ...payload.scenes.slice(1),
+    ],
+  });
+}
+
 function lessonSpecRow(payload = storyboardPayload()) {
   return {
     id: lessonSpecId,
@@ -731,6 +757,72 @@ describe("PostgresStoryboardService scene editor", () => {
     expect(operations.indexOf("select:scenes")).toBeLessThan(
       operations.indexOf("update:scenes"),
     );
+  });
+
+  it("persists a graph node-label edit and rejects a dangling graph edge", async () => {
+    const payload = graphStoryboardPayload();
+    const { database, updates } = fakeDatabase({ storyboard: payload });
+    const { service } = createService(database);
+    const current = payload.scenes[0]!.scene;
+    const edited = {
+      ...current,
+      visual: {
+        nodes: [
+          { id: "start", label: "Edited start" },
+          { id: "finish", label: "Finish" },
+        ],
+        edges: [{ id: "edge-1", from: "start", to: "finish" }],
+      },
+    };
+    const result = await service.updateScene({
+      ownerUserId,
+      projectId,
+      sceneId: sceneA,
+      body: { expectedRevision: 0, scene: edited },
+      correlationId: createId(),
+    });
+    expect(
+      (result.scene.scene.visual as { nodes: readonly unknown[] }).nodes[0],
+    ).toMatchObject({ id: "start", label: "Edited start" });
+    expect(updates).toContainEqual(
+      expect.objectContaining({
+        table: scenes,
+        value: expect.objectContaining({
+          sceneJson: expect.objectContaining({
+            visual: expect.objectContaining({
+              nodes: expect.arrayContaining([
+                expect.objectContaining({ label: "Edited start" }),
+              ]),
+            }),
+          }),
+        }),
+      }),
+    );
+    await expect(
+      service.updateScene({
+        ownerUserId,
+        projectId,
+        sceneId: sceneA,
+        body: {
+          expectedRevision: 1,
+          scene: {
+            ...edited,
+            visual: {
+              ...edited.visual,
+              edges: [{ id: "edge-1", from: "start", to: "missing" }],
+            },
+          },
+        },
+        correlationId: createId(),
+      }),
+    ).rejects.toMatchObject({
+      code: "validation_failed",
+      statusCode: 400,
+      fieldErrors: {
+        "scene.visual.edges.0.to":
+          'Edge references unknown node id "missing".',
+      },
+    });
   });
 
   it("rejects invalid scene edits with field-level validation", async () => {

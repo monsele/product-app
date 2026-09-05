@@ -360,6 +360,33 @@ describe("teacher asset query", () => {
 });
 
 describe("scene edit commands", () => {
+  it("persists a graph node label through the revisioned update command", async () => {
+    const detail = sampleDetail();
+    const graphScene = {
+      ...detail.scene.scene,
+      template: "process",
+      visual: {
+        nodes: [
+          { id: "start", label: "Edited start" },
+          { id: "finish", label: "Finish" },
+        ],
+        edges: [{ id: "edge-1", from: "start", to: "finish" }],
+      },
+    } as SceneSpec;
+    let requestOptions: RequestInit | undefined;
+    vi.stubGlobal("fetch", vi.fn(async (_input: RequestInfo | URL, options?: RequestInit) => {
+      requestOptions = options;
+      return {
+        ok: true,
+        json: async () => ({ revision: 1, scene: detail.scene, invalidated: ["preview", "render", "validation"], warning: null, requiresConfirmation: false, resetFields: [] }),
+      };
+    }));
+
+    await updateStoryboardScene(projectId, sceneId, graphScene, 0);
+    const body = JSON.parse(String(requestOptions?.body)) as { scene: { visual: { nodes: Array<{ label: string }> } } };
+    expect(body.scene.visual.nodes[0]?.label).toBe("Edited start");
+  });
+
   it("sends a revisioned scene update and validates the response", async () => {
     const detail = sampleDetail();
     const scene = detail.scene.scene as unknown as SceneSpec;

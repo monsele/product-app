@@ -2,7 +2,7 @@
 story_id: ST-091
 title: "Structured Node and Edge Editor for Graph Process and Cause-Effect Scenes"
 phase: "08 - Product UI"
-status: Ready
+status: Done
 priority: should-have
 epics: ["E11", "E12"]
 prd_user_stories: []
@@ -63,15 +63,15 @@ the web form.
 
 ## Scope
 
-- [ ] Add a structured editor control (e.g. `graph`) to `sceneEditorControlSchema`
+- [x] Add a structured editor control (e.g. `graph`) to `sceneEditorControlSchema`
       and describe `visual.nodes` / `visual.edges` for `process` and
       `cause-effect` in `templateEditorFields`.
-- [ ] Render the control in `apps/web` `scene-editor-form.tsx`: node label / kind
+- [x] Render the control in `apps/web` `scene-editor-form.tsx`: node label / kind
       editing, add / remove node, add / remove edge between existing nodes.
-- [ ] Surface the schema's graph rules (dangling reference, self-loop, duplicate
+- [x] Surface the schema's graph rules (dangling reference, self-loop, duplicate
       edge, unique ids, ≥1 cause and ≥1 effect for `cause-effect`) inline before
       save; reuse the `@avlp/schemas` refinement, do not re-implement it.
-- [ ] Keep narration / title / duration / transition / on-screen-text editing
+- [x] Keep narration / title / duration / transition / on-screen-text editing
       unchanged for graph scenes.
 
 ## Out of Scope
@@ -84,34 +84,34 @@ the web form.
 
 ## Acceptance Criteria
 
-- [ ] A graph `process` scene shows an editor for its nodes and edges; a legacy
+- [x] A graph `process` scene shows an editor for its nodes and edges; a legacy
       `process` scene still shows the `visual.steps` list.
-- [ ] Adding an edge is limited to pairs of existing nodes; removing a node the
+- [x] Adding an edge is limited to pairs of existing nodes; removing a node the
       teacher still references in an edge is prevented or cascades deterministically.
-- [ ] A save that would violate a schema graph rule is blocked with an inline
+- [x] A save that would violate a schema graph rule is blocked with an inline
       message naming the offending node or edge.
-- [ ] Narration and title edits on a graph scene continue to save.
-- [ ] `updateScene` and `switchSceneTemplate` behaviour is unchanged for legacy
+- [x] Narration and title edits on a graph scene continue to save.
+- [x] `updateScene` and `switchSceneTemplate` behaviour is unchanged for legacy
       scenes.
 
 ## Required Tests
 
-- [ ] Unit: the new control round-trips a node/edge collection through
+- [x] Unit: the new control round-trips a node/edge collection through
       `writeField` / `fieldValue` without data loss.
-- [ ] Unit: `editorFieldsForScene` exposes the graph control only for graph-shape
+- [x] Unit: `editorFieldsForScene` exposes the graph control only for graph-shape
       scenes.
-- [ ] Component: graph editor renders for a graph scene and not for a legacy one.
-- [ ] Integration: editing a node label on a graph scene persists through
+- [x] Component: graph editor renders for a graph scene and not for a legacy one.
+- [x] Integration: editing a node label on a graph scene persists through
       `updateScene`; an invalid edge is rejected with a field error.
 
 ## Definition of Done
 
-- [ ] All acceptance criteria pass.
-- [ ] Required tests pass.
-- [ ] Lint, typecheck, test, and build pass for `@avlp/schemas` and `apps/web`.
-- [ ] Shared contract (`sceneEditorControlSchema`) updated before its consumers.
-- [ ] Dev Agent Record completed.
-- [ ] Story status and index updated to Done.
+- [x] All acceptance criteria pass.
+- [x] Required tests pass.
+- [x] Lint, typecheck, test, and build pass for `@avlp/schemas` and `apps/web`.
+- [x] Shared contract (`sceneEditorControlSchema`) updated before its consumers.
+- [x] Dev Agent Record completed.
+- [x] Story status and index updated to Done.
 
 ## Story-Specific Notes
 
@@ -121,14 +121,16 @@ the web form.
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Commands/tests:**
-- **Screenshots/output:**
-- **Decisions/assumptions:**
-- **Deviations:**
-- **Known risks/follow-up:**
+- **Agent:** Codex
+- **Started:** 2026-09-05
+- **Completed:** 2026-09-05
+- **Branch/PR:** `story/st-091`; no PR opened.
+- **Files changed:** `packages/schemas/src/index.ts`; `apps/web/app/workspace/[projectId]/storyboard/scene-editor-form.tsx`; focused web/API tests; configuration, narration, and cross-screen Playwright test setup; `STORY_INDEX.md`; this record.
+- **Migrations:** None.
+- **Commands/tests:** `pnpm --filter @avlp/schemas lint`, `typecheck`, `test` (285 tests), and `build` passed. `pnpm --filter @avlp/api test -- storyboard-scene-editor.test.ts` passed (25 tests), covering graph node-label persistence and the exact dangling-edge field error. The post-fix focused web run passed 33 tests across the graph editor, configuration, narration, and cross-screen suites. `pnpm lint` and `pnpm typecheck` passed across all 16 packages. `pnpm --filter @avlp/web test` passed all 45 files / 216 tests. `pnpm build` passed across all 16 packages. A combined `pnpm run ci` attempt was stopped after workspace-wide concurrency starved existing browser/render tests and caused timeouts; the same timed-out web files passed in the isolated full-web run.
+- **Screenshots/output:** Static component rendering test confirms the graph control is rendered; no visual screenshot captured.
+- **Decisions/assumptions:** A single `graph` control is attached to `visual.nodes` and owns the related `visual.edges`; this preserves a compact inspector while exposing both collections. Node removal deterministically cascades connected edges. Client validation remains the existing `sceneSpecSchema` refinement; no graph rule is duplicated. Indexed refinement paths are retained and rendered beside the affected row, while collection-level refinements remain at the graph boundary. Edge selectors are normalized against the current scene on every render.
+- **Deviations:** The pre-existing configuration/narration router mocks and one invalid cross-screen fixture were repaired because the owner requested all review findings be fixed.
+- **Review findings fixed:** The graph component test renders the actual `SceneEditorForm` for graph and legacy scenes; API integration asserts the exact dangling-edge field error; indexed errors now name and describe the affected row; stale selectors normalize after scene navigation; graph controls use the shared button foundation and 36px minimum targets; the full web suite's nine deterministic failures are fixed.
+- **Review conclusion:** Approved by the repository owner on 2026-09-05. No blocking, high, medium, or low in-scope findings remain; story marked `Done`.
+- **Known risks/follow-up:** The compact control does not expose edge labels because graph edge labels are optional and outside the story's editing requirements. Graph node asset slots are preserved on edit but are not configured by this control.

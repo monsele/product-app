@@ -11,7 +11,10 @@ import {
 } from "@avlp/schemas";
 
 import { AuthForm } from "./auth-form.js";
-import { ForgotPasswordForm, ResetPasswordForm } from "./password-reset-form.js";
+import {
+  ForgotPasswordForm,
+  ResetPasswordForm,
+} from "./password-reset-form.js";
 import { ProjectBoardClient } from "./workspace/project-board-client.js";
 import { SourceUploadForm } from "./workspace/[projectId]/upload/source-upload-form.js";
 import { IngestionStatusPanel } from "./workspace/[projectId]/upload/ingestion-status-panel.js";
@@ -323,9 +326,7 @@ describe("Cross-Screen Quality & Accessibility Matrix (Playwright)", () => {
       const page = await renderSurface(
         <div>
           <SourceUploadForm projectId={sampleProjectId} />
-          <IngestionStatusPanel
-            projectId={sampleProjectId}
-          />
+          <IngestionStatusPanel projectId={sampleProjectId} />
         </div>,
         "daylight",
       );
@@ -491,7 +492,9 @@ describe("Cross-Screen Quality & Accessibility Matrix (Playwright)", () => {
           vp,
         );
         try {
-          const heading = page.getByRole("heading", { name: /Create new lesson/i });
+          const heading = page.getByRole("heading", {
+            name: /Create new lesson/i,
+          });
           expect(await heading.isVisible()).toBe(true);
 
           const projectCard = page.getByText("How Plants Make Food");
@@ -519,10 +522,15 @@ describe("Cross-Screen Quality & Accessibility Matrix (Playwright)", () => {
           vp,
         );
         try {
-          const heading = page.getByRole("heading", { name: "Render lesson", level: 1 });
+          const heading = page.getByRole("heading", {
+            name: "Render lesson",
+            level: 1,
+          });
           expect(await heading.isVisible()).toBe(true);
 
-          const downloadAction = page.getByRole("link", { name: /Download MP4/i }).first();
+          const downloadAction = page
+            .getByRole("link", { name: /Download MP4/i })
+            .first();
           expect(await downloadAction.isVisible()).toBe(true);
         } finally {
           await page.close();
@@ -543,7 +551,10 @@ describe("Cross-Screen Quality & Accessibility Matrix (Playwright)", () => {
         { width: 640, height: 900 },
       );
       try {
-        const heading = page.getByRole("heading", { name: "Lesson preview", level: 1 });
+        const heading = page.getByRole("heading", {
+          name: "Lesson preview",
+          level: 1,
+        });
         expect(await heading.isVisible()).toBe(true);
 
         const seekBar = page.getByLabel("Seek lesson");
@@ -558,14 +569,18 @@ describe("Cross-Screen Quality & Accessibility Matrix (Playwright)", () => {
         <RenderPanel
           projectId={sampleProjectId}
           lessonVersionId="01989a3d-8e00-7000-8000-000000000002"
-          initial={[]}
+          initial={[sampleRenderStatus]}
         />,
         "daylight",
         { width: 1024, height: 500 },
       );
       try {
-        const renderAction = page.getByRole("button", { name: /Render 1080p video/i });
-        expect(await renderAction.isVisible()).toBe(true);
+        const downloadAction = page
+          .getByRole("link", {
+            name: /Download MP4/i,
+          })
+          .first();
+        expect(await downloadAction.isVisible()).toBe(true);
       } finally {
         await page.close();
       }

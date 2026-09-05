@@ -6376,6 +6376,7 @@ const sceneEditorControlValues = [
   "textarea",
   "text-list",
   "select",
+  "graph",
 ] as const;
 export const sceneEditorControlSchema = z.enum(sceneEditorControlValues);
 export type SceneEditorControl = z.infer<typeof sceneEditorControlSchema>;
@@ -6642,6 +6643,12 @@ const templateEditorFields: Record<SceneTemplate, readonly SceneEditorField[]> =
         control: "text-list",
         required: true,
       },
+      {
+        path: "visual.nodes",
+        label: "Process graph",
+        control: "graph",
+        required: true,
+      },
     ],
     "input-process-output": [
       {
@@ -6706,6 +6713,12 @@ const templateEditorFields: Record<SceneTemplate, readonly SceneEditorField[]> =
         path: "visual.effects",
         label: "Effects",
         control: "text-list",
+        required: true,
+      },
+      {
+        path: "visual.nodes",
+        label: "Cause and effect graph",
+        control: "graph",
         required: true,
       },
     ],

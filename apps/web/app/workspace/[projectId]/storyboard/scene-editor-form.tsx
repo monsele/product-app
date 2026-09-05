@@ -17,6 +17,7 @@ import {
   switchStoryboardSceneTemplate,
   updateStoryboardScene,
 } from "./storyboard-scene-query";
+import { Button } from "../../../../components/ui/button";
 import { ApprovedAssetPicker } from "./approved-asset-picker";
 import { TeacherAssetPicker } from "./teacher-asset-picker";
 
@@ -33,6 +34,17 @@ const legacyOnlyVisualPaths = new Set([
   "visual.effects",
   "visual.mechanism.label",
 ]);
+const graphOnlyVisualPaths = new Set(["visual.nodes"]);
+
+export type GraphEditorValue = {
+  nodes: readonly {
+    id: string;
+    label: string;
+    kind?: "cause" | "mechanism" | "effect";
+    assetSlot?: string;
+  }[];
+  edges: readonly { id: string; from: string; to: string; label?: string }[];
+};
 
 export function isGraphShapeScene(scene: SceneSpec): boolean {
   return (
@@ -54,7 +66,7 @@ export function editorFieldsForScene(
   const fields = sceneEditorMetadata(scene.template).fields;
   return isGraphShapeScene(scene)
     ? fields.filter((field) => !legacyOnlyVisualPaths.has(field.path))
-    : fields;
+    : fields.filter((field) => !graphOnlyVisualPaths.has(field.path));
 }
 
 function readPath(value: unknown, path: string): unknown {
@@ -132,12 +144,20 @@ function cloneScene(scene: SceneSpec): Record<string, unknown> {
   return JSON.parse(JSON.stringify(scene)) as Record<string, unknown>;
 }
 
-function writeField(
+export function writeField(
   scene: SceneSpec,
   field: SceneEditorField,
-  raw: string,
+  raw: string | GraphEditorValue,
 ): SceneSpec {
   const next = cloneScene(scene);
+  if (field.control === "graph") {
+    if (typeof raw === "string") return scene;
+    const visual = next.visual as Record<string, unknown>;
+    visual.nodes = raw.nodes.map((node) => ({ ...node }));
+    visual.edges = raw.edges.map((edge) => ({ ...edge }));
+    return next as unknown as SceneSpec;
+  }
+  if (typeof raw !== "string") return scene;
   const lines = raw
     .split("\n")
     .map((line) => line.trim())
@@ -232,12 +252,431 @@ function writeField(
   return next as unknown as SceneSpec;
 }
 
-function fieldValue(field: SceneEditorField, scene: SceneSpec): string {
+export function fieldValue(
+  field: SceneEditorField,
+  scene: SceneSpec,
+): string | GraphEditorValue {
   const value = readPath(scene, field.path);
+  if (field.control === "graph") {
+    const visual = scene.visual as Record<string, unknown>;
+    return {
+      nodes: Array.isArray(visual.nodes)
+        ? visual.nodes
+            .filter(
+              (node): node is Record<string, unknown> =>
+                typeof node === "object" && node !== null,
+            )
+            .map((node) => ({
+              id: typeof node.id === "string" ? node.id : "",
+              label: typeof node.label === "string" ? node.label : "",
+              ...(node.kind === "cause" ||
+              node.kind === "mechanism" ||
+              node.kind === "effect"
+                ? { kind: node.kind }
+                : {}),
+              ...(typeof node.assetSlot === "string"
+                ? { assetSlot: node.assetSlot }
+                : {}),
+            }))
+        : [],
+      edges: Array.isArray(visual.edges)
+        ? visual.edges
+            .filter(
+              (edge): edge is Record<string, unknown> =>
+                typeof edge === "object" && edge !== null,
+            )
+            .map((edge) => ({
+              id: typeof edge.id === "string" ? edge.id : "",
+              from: typeof edge.from === "string" ? edge.from : "",
+              to: typeof edge.to === "string" ? edge.to : "",
+              ...(typeof edge.label === "string" ? { label: edge.label } : {}),
+            }))
+        : [],
+    };
+  }
   if (field.control === "text-list") return listValue(field.path, value);
   return typeof value === "number" || typeof value === "string"
     ? String(value)
     : "";
+}
+
+function nextGraphId(prefix: string, used: ReadonlySet<string>): string {
+  let index = 1;
+  while (used.has(`${prefix}-${index}`)) index += 1;
+  return `${prefix}-${index}`;
+}
+
+export function canAddGraphEdge(
+  value: GraphEditorValue,
+  from: string,
+  to: string,
+): boolean {
+  const nodeIds = new Set(value.nodes.map((node) => node.id));
+  return (
+    from !== "" &&
+    to !== "" &&
+    nodeIds.has(from) &&
+    nodeIds.has(to) &&
+    from !== to &&
+    value.edges.length < 24 &&
+    !value.edges.some((edge) => edge.from === from && edge.to === to)
+  );
+}
+
+export function graphFieldErrors(
+  errors: Readonly<Record<string, string>>,
+): Readonly<{
+  nodes: Readonly<Record<number, readonly string[]>>;
+  edges: Readonly<Record<number, readonly string[]>>;
+  nodeGroup: readonly string[];
+  edgeGroup: readonly string[];
+}> {
+  const nodes: Record<number, string[]> = {};
+  const edges: Record<number, string[]> = {};
+  const nodeGroup: string[] = [];
+  const edgeGroup: string[] = [];
+
+  for (const [path, message] of Object.entries(errors)) {
+    const match = /^scene\.visual\.(nodes|edges)(?:\.(\d+)(?:\.|$))?/.exec(
+      path,
+    );
+    if (match === null) continue;
+    const group = match[1] === "nodes" ? nodeGroup : edgeGroup;
+    const indexed = match[1] === "nodes" ? nodes : edges;
+    const index = match[2];
+    if (index === undefined) group.push(message);
+    else (indexed[Number(index)] ??= []).push(message);
+  }
+
+  return { nodes, edges, nodeGroup, edgeGroup };
+}
+
+export function normalizeGraphEdgeSelection(
+  value: GraphEditorValue,
+  selection: Readonly<{ from: string; to: string }>,
+): Readonly<{ from: string; to: string }> {
+  const nodeIds = new Set(value.nodes.map((node) => node.id));
+  const from = nodeIds.has(selection.from)
+    ? selection.from
+    : (value.nodes[0]?.id ?? "");
+  const to =
+    nodeIds.has(selection.to) && selection.to !== from
+      ? selection.to
+      : (value.nodes.find((node) => node.id !== from)?.id ?? from);
+  return { from, to };
+}
+
+export function GraphEditor({
+  field,
+  value,
+  causeEffect,
+  disabled,
+  errors,
+  onChange,
+}: {
+  field: SceneEditorField;
+  value: GraphEditorValue;
+  causeEffect: boolean;
+  disabled: boolean;
+  errors: Readonly<Record<string, string>>;
+  onChange: (value: GraphEditorValue) => void;
+}): JSX.Element {
+  const [from, setFrom] = useState(value.nodes[0]?.id ?? "");
+  const [to, setTo] = useState(value.nodes[1]?.id ?? "");
+  const selection = normalizeGraphEdgeSelection(value, { from, to });
+  const graphErrors = graphFieldErrors(errors);
+  const updateNode = (
+    id: string,
+    patch: Partial<GraphEditorValue["nodes"][number]>,
+  ): void =>
+    onChange({
+      ...value,
+      nodes: value.nodes.map((node) =>
+        node.id === id ? { ...node, ...patch } : node,
+      ),
+    });
+  const removeNode = (id: string): void => {
+    const nodes = value.nodes.filter((node) => node.id !== id);
+    const fallback = nodes[0]?.id ?? "";
+    if (from === id) setFrom(fallback);
+    if (to === id)
+      setTo(nodes.find((node) => node.id !== fallback)?.id ?? fallback);
+    onChange({
+      nodes,
+      edges: value.edges.filter((edge) => edge.from !== id && edge.to !== id),
+    });
+  };
+  const addNode = (): void => {
+    const id = nextGraphId("node", new Set(value.nodes.map((node) => node.id)));
+    onChange({
+      ...value,
+      nodes: [
+        ...value.nodes,
+        {
+          id,
+          label: "New node",
+          ...(causeEffect ? { kind: "cause" as const } : {}),
+        },
+      ],
+    });
+  };
+  const addEdge = (): void => {
+    if (!canAddGraphEdge(value, selection.from, selection.to)) return;
+    const id = nextGraphId("edge", new Set(value.edges.map((edge) => edge.id)));
+    onChange({
+      ...value,
+      edges: [...value.edges, { id, from: selection.from, to: selection.to }],
+    });
+  };
+  const controlStyle: React.CSSProperties = {
+    width: "100%",
+    minHeight: "36px",
+    backgroundColor: "var(--color-surface, #211A2B)",
+    border: "1px solid var(--color-border, #3A3046)",
+    borderRadius: "6px",
+    color: "var(--color-text, #F4F1F8)",
+    padding: "7px 8px",
+    fontSize: "12px",
+    boxSizing: "border-box",
+  };
+  const compactButtonStyle: React.CSSProperties = {
+    minHeight: "36px",
+    padding: "6px 10px",
+  };
+  return (
+    <fieldset
+      aria-label={field.label}
+      style={{
+        margin: 0,
+        border: "1px solid var(--color-border, #3A3046)",
+        borderRadius: "8px",
+        padding: "10px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "8px",
+      }}
+    >
+      <legend style={{ padding: "0 4px", fontSize: "12px", fontWeight: 600 }}>
+        {field.label}
+      </legend>
+      <p
+        style={{
+          margin: 0,
+          fontSize: "11px",
+          color: "var(--color-text-muted, #BDB5C7)",
+        }}
+      >
+        Layout stays automatic. Removing a node also removes its connections.
+      </p>
+      {value.nodes.map((node, index) => {
+        const nodeErrors = graphErrors.nodes[index] ?? [];
+        const errorId = `graph-node-${index}-error`;
+        return (
+          <div
+            key={node.id}
+            style={{ display: "flex", flexDirection: "column", gap: "4px" }}
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: causeEffect
+                  ? "1fr 120px auto"
+                  : "1fr auto",
+                gap: "6px",
+                alignItems: "center",
+              }}
+            >
+              <input
+                aria-label={`Label for ${node.id}`}
+                aria-describedby={nodeErrors.length > 0 ? errorId : undefined}
+                value={node.label}
+                disabled={disabled}
+                onChange={(event) =>
+                  updateNode(node.id, { label: event.target.value })
+                }
+                style={controlStyle}
+              />
+              {causeEffect ? (
+                <select
+                  aria-label={`Kind for ${node.id}`}
+                  aria-describedby={nodeErrors.length > 0 ? errorId : undefined}
+                  value={node.kind ?? "cause"}
+                  disabled={disabled}
+                  onChange={(event) =>
+                    updateNode(node.id, {
+                      kind: event.target.value as
+                        "cause" | "mechanism" | "effect",
+                    })
+                  }
+                  style={controlStyle}
+                >
+                  <option value="cause">Cause</option>
+                  <option value="mechanism">Mechanism</option>
+                  <option value="effect">Effect</option>
+                </select>
+              ) : null}
+              <Button
+                type="button"
+                variant="destructive"
+                size="compact"
+                style={compactButtonStyle}
+                aria-label={`Remove ${node.id}`}
+                disabled={disabled}
+                onClick={() => removeNode(node.id)}
+              >
+                Remove
+              </Button>
+            </div>
+            {nodeErrors.length > 0 ? (
+              <span
+                id={errorId}
+                role="alert"
+                style={{ color: "#FCA5A5", fontSize: "11px" }}
+              >
+                Node “{node.label || node.id}” ({node.id}):{" "}
+                {nodeErrors.join(" ")}
+              </span>
+            ) : null}
+          </div>
+        );
+      })}
+      <Button
+        type="button"
+        variant="secondary"
+        size="compact"
+        style={compactButtonStyle}
+        disabled={disabled || value.nodes.length >= 12}
+        onClick={addNode}
+      >
+        Add node
+      </Button>
+      <div
+        style={{
+          borderTop: "1px solid var(--color-border, #3A3046)",
+          paddingTop: "8px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "6px",
+        }}
+      >
+        <strong style={{ fontSize: "12px" }}>Connections</strong>
+        {value.edges.map((edge, index) => {
+          const edgeErrors = graphErrors.edges[index] ?? [];
+          const errorId = `graph-edge-${index}-error`;
+          return (
+            <div
+              key={edge.id}
+              style={{ display: "flex", flexDirection: "column", gap: "4px" }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  gap: "6px",
+                  alignItems: "center",
+                  fontSize: "12px",
+                }}
+              >
+                <span>
+                  {edge.from} → {edge.to}
+                </span>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="compact"
+                  style={compactButtonStyle}
+                  aria-describedby={edgeErrors.length > 0 ? errorId : undefined}
+                  aria-label={`Remove ${edge.id}`}
+                  disabled={disabled}
+                  onClick={() =>
+                    onChange({
+                      ...value,
+                      edges: value.edges.filter((item) => item.id !== edge.id),
+                    })
+                  }
+                >
+                  Remove
+                </Button>
+              </div>
+              {edgeErrors.length > 0 ? (
+                <span
+                  id={errorId}
+                  role="alert"
+                  style={{ color: "#FCA5A5", fontSize: "11px" }}
+                >
+                  Edge “{edge.id}” ({edge.from} → {edge.to}):{" "}
+                  {edgeErrors.join(" ")}
+                </span>
+              ) : null}
+            </div>
+          );
+        })}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr auto",
+            gap: "6px",
+          }}
+        >
+          <select
+            aria-label="Connection from"
+            value={selection.from}
+            disabled={disabled || value.nodes.length < 2}
+            onChange={(event) => setFrom(event.target.value)}
+            style={controlStyle}
+          >
+            {value.nodes.map((node) => (
+              <option key={node.id} value={node.id}>
+                {node.label || node.id}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Connection to"
+            value={selection.to}
+            disabled={disabled || value.nodes.length < 2}
+            onChange={(event) => setTo(event.target.value)}
+            style={controlStyle}
+          >
+            {value.nodes.map((node) => (
+              <option key={node.id} value={node.id}>
+                {node.label || node.id}
+              </option>
+            ))}
+          </select>
+          <Button
+            type="button"
+            variant="secondary"
+            size="compact"
+            style={compactButtonStyle}
+            disabled={
+              disabled || !canAddGraphEdge(value, selection.from, selection.to)
+            }
+            onClick={addEdge}
+          >
+            Add edge
+          </Button>
+        </div>
+      </div>
+      {graphErrors.nodeGroup.map((error, index) => (
+        <span
+          key={`node-group-${index}`}
+          role="alert"
+          style={{ color: "#FCA5A5", fontSize: "11px" }}
+        >
+          Nodes: {error}
+        </span>
+      ))}
+      {graphErrors.edgeGroup.map((error, index) => (
+        <span
+          key={`edge-group-${index}`}
+          role="alert"
+          style={{ color: "#FCA5A5", fontSize: "11px" }}
+        >
+          Connections: {error}
+        </span>
+      ))}
+    </fieldset>
+  );
 }
 
 function assetRole(slot: string): "diagram" | "icon" | "illustration" {
@@ -296,7 +735,6 @@ export function SceneEditorForm({
     () => sceneEditorMetadata(draft.template),
     [draft.template],
   );
-  const graphShape = isGraphShapeScene(draft);
   const visibleFields = useMemo(() => editorFieldsForScene(draft), [draft]);
 
   useEffect(() => {
@@ -447,7 +885,14 @@ export function SceneEditorForm({
           paddingBottom: "8px",
         }}
       >
-        <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: "var(--color-text, #F4F1F8)" }}>
+        <h4
+          style={{
+            margin: 0,
+            fontSize: "14px",
+            fontWeight: 600,
+            color: "var(--color-text, #F4F1F8)",
+          }}
+        >
           Edit scene
         </h4>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -510,7 +955,13 @@ export function SceneEditorForm({
       ) : null}
 
       <div>
-        <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--color-text-muted, #BDB5C7)" }}>
+        <label
+          style={{
+            fontSize: "12px",
+            fontWeight: 600,
+            color: "var(--color-text-muted, #BDB5C7)",
+          }}
+        >
           Template{" "}
           <select
             value={draft.template}
@@ -529,84 +980,109 @@ export function SceneEditorForm({
         </label>
       </div>
 
-      {graphShape ? (
-        <p
-          role="status"
-          style={{
-            margin: 0,
-            fontSize: "12px",
-            color: "var(--color-text-muted, #BDB5C7)",
-          }}
-        >
-          This scene uses the graph layout. Its nodes and connections are laid
-          out automatically; edit narration and titles here.
-        </p>
-      ) : null}
-
-      {visibleFields.map((field) => (
-        <label
-          key={field.path}
-          style={{ display: "block", fontSize: "12px", fontWeight: 600, color: "var(--color-text-muted, #BDB5C7)" }}
-        >
-          {field.label}
-          {field.control === "select" ? (
-            <select
-              value={fieldValue(field, draft)}
-              disabled={disabled || saveState === "saving"}
-              onChange={(event) =>
-                setDraft((current) =>
-                  writeField(current, field, event.target.value),
-                )
-              }
-              style={inputStyle}
-            >
-              {!field.required ? <option value="">Not set</option> : null}
-              {field.options?.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          ) : field.control === "textarea" || field.control === "text-list" ? (
-            <textarea
-              aria-label={field.label}
-              value={fieldValue(field, draft)}
-              disabled={disabled || saveState === "saving"}
-              onChange={(event) =>
-                setDraft((current) =>
-                  writeField(current, field, event.target.value),
-                )
-              }
-              rows={3}
-              style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
-            />
-          ) : (
-            <input
-              aria-label={field.label}
-              value={fieldValue(field, draft)}
-              disabled={disabled || saveState === "saving"}
-              onChange={(event) =>
-                setDraft((current) =>
-                  writeField(current, field, event.target.value),
-                )
-              }
-              style={inputStyle}
-            />
-          )}
-          {field.control === "text-list" ? (
-            <small style={{ display: "block", marginTop: "4px", color: "var(--color-text-muted, #BDB5C7)", fontWeight: 400 }}>
-              {field.path === "visual.labels"
-                ? "One label per line: text | semantic anchor."
-                : "One item per line."}
-            </small>
-          ) : null}
-          {fieldErrors[`scene.${field.path}`] !== undefined ? (
-            <span role="alert" style={{ display: "block", marginTop: "4px", color: "#FCA5A5", fontSize: "11px" }}>
-              {fieldErrors[`scene.${field.path}`]}
-            </span>
-          ) : null}
-        </label>
-      ))}
+      {visibleFields.map((field) =>
+        field.control === "graph" ? (
+          <GraphEditor
+            key={field.path}
+            field={field}
+            value={fieldValue(field, draft) as GraphEditorValue}
+            causeEffect={draft.template === "cause-effect"}
+            disabled={disabled || saveState === "saving"}
+            errors={fieldErrors}
+            onChange={(value) =>
+              setDraft((current) => writeField(current, field, value))
+            }
+          />
+        ) : (
+          <label
+            key={field.path}
+            style={{
+              display: "block",
+              fontSize: "12px",
+              fontWeight: 600,
+              color: "var(--color-text-muted, #BDB5C7)",
+            }}
+          >
+            {field.label}
+            {field.control === "select" ? (
+              <select
+                value={fieldValue(field, draft) as string}
+                disabled={disabled || saveState === "saving"}
+                onChange={(event) =>
+                  setDraft((current) =>
+                    writeField(current, field, event.target.value),
+                  )
+                }
+                style={inputStyle}
+              >
+                {!field.required ? <option value="">Not set</option> : null}
+                {field.options?.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            ) : field.control === "textarea" ||
+              field.control === "text-list" ? (
+              <textarea
+                aria-label={field.label}
+                value={fieldValue(field, draft) as string}
+                disabled={disabled || saveState === "saving"}
+                onChange={(event) =>
+                  setDraft((current) =>
+                    writeField(current, field, event.target.value),
+                  )
+                }
+                rows={3}
+                style={{
+                  ...inputStyle,
+                  resize: "vertical",
+                  fontFamily: "inherit",
+                }}
+              />
+            ) : (
+              <input
+                aria-label={field.label}
+                value={fieldValue(field, draft) as string}
+                disabled={disabled || saveState === "saving"}
+                onChange={(event) =>
+                  setDraft((current) =>
+                    writeField(current, field, event.target.value),
+                  )
+                }
+                style={inputStyle}
+              />
+            )}
+            {field.control === "text-list" ? (
+              <small
+                style={{
+                  display: "block",
+                  marginTop: "4px",
+                  color: "var(--color-text-muted, #BDB5C7)",
+                  fontWeight: 400,
+                }}
+              >
+                {field.path === "visual.labels"
+                  ? "One label per line: text | semantic anchor."
+                  : "One item per line."}
+              </small>
+            ) : null}
+            {fieldErrors[`scene.${field.path}`] !== undefined ? (
+              <span
+                role="alert"
+                style={{
+                  display: "block",
+                  marginTop: "4px",
+                  color: "#FCA5A5",
+                  fontSize: "11px",
+                }}
+              >
+                {fieldErrors[`scene.${field.path}`]}
+              </span>
+            ) : null}
+          </label>
+        ),
+      )}
 
       {metadata.assetSlots.map((slot) => (
         <div
@@ -678,7 +1154,8 @@ export function SceneEditorForm({
             color: "var(--color-on-brand, #1B1027)",
             fontSize: "13px",
             fontWeight: 600,
-            cursor: disabled || saveState === "saving" ? "not-allowed" : "pointer",
+            cursor:
+              disabled || saveState === "saving" ? "not-allowed" : "pointer",
             opacity: disabled || saveState === "saving" ? 0.6 : 1,
           }}
         >
