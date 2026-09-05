@@ -1,6 +1,6 @@
 "use client";
 
-import React, { type JSX } from "react";
+import React, { useState, type JSX } from "react";
 import {
   ArrowClockwise,
   Check,
@@ -64,6 +64,7 @@ export type ContactSheetDecision = {
   candidateId: string;
   sceneId: string;
   sceneRevision: number;
+  altText?: string;
 };
 
 /** Statuses the illustration pipeline writes for a candidate. */
@@ -404,11 +405,12 @@ function SlotGroup({
             candidate={candidate}
             busy={busyCandidateId === candidate.id}
             anyBusy={busyCandidateId !== null}
-            onAccept={() =>
+            onAccept={(altText) =>
               onAccept({
                 candidateId: candidate.id,
                 sceneId: scene.sceneId,
                 sceneRevision: scene.sceneRevision,
+                altText,
               })
             }
             onReject={() =>
@@ -435,10 +437,11 @@ function CandidateCard({
   candidate: ContactSheetCandidate;
   busy: boolean;
   anyBusy: boolean;
-  onAccept: () => void;
+  onAccept: (altText: string) => void;
   onReject: () => void;
 }): JSX.Element {
   const presentation = statusPresentation(candidate.status);
+  const [altText, setAltText] = useState(candidate.altText);
   const inFlight =
     candidate.status === "queued" || candidate.status === "generating";
   return (
@@ -469,7 +472,7 @@ function CandidateCard({
       >
         {candidate.previewUrl !== null ? (
           <img
-            alt={candidate.altText}
+            alt={altText}
             src={candidate.previewUrl}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
@@ -492,16 +495,36 @@ function CandidateCard({
         )}
       </div>
 
-      <p
+      <div
         style={{
-          margin: 0,
+          display: "flex",
+          flexDirection: "column",
+          gap: "4px",
           fontSize: "11px",
           lineHeight: "15px",
           color: "var(--color-text-muted, #BDB5C7)",
         }}
       >
-        <span style={{ fontWeight: 700 }}>Alt text:</span> {candidate.altText}
-      </p>
+        <label htmlFor={`candidate-${candidate.id}-alt`} style={{ fontWeight: 700 }}>
+          Alt text
+        </label>
+        <input
+          id={`candidate-${candidate.id}-alt`}
+          value={altText}
+          onChange={(event) => setAltText(event.target.value)}
+          maxLength={300}
+          disabled={candidate.status !== "pending_review" || busy || anyBusy}
+          style={{
+            minHeight: "32px",
+            padding: "6px 8px",
+            borderRadius: "8px",
+            border: cardBorder,
+            backgroundColor: "var(--color-surface, #211A2B)",
+            color: "var(--color-text, #F4F1F8)",
+            font: "inherit",
+          }}
+        />
+      </div>
 
       <div
         style={{
@@ -599,7 +622,7 @@ function CandidateCard({
                 type="button"
                 disabled={acceptDisabled}
                 aria-disabled={acceptDisabled}
-                onClick={onAccept}
+                onClick={() => onAccept(altText)}
                 style={buttonStyle("primary", acceptDisabled)}
               >
                 <Check size={13} weight="bold" aria-hidden />

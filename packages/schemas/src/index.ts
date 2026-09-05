@@ -146,6 +146,10 @@ export const illustrationCandidateDecisionInputSchema = z
   .object({
     expectedSceneRevision: z.number().int().nonnegative(),
     expectedStoryboardRevision: z.number().int().nonnegative(),
+    // Optional so the existing per-scene acceptance path remains compatible.
+    // The contact sheet supplies this when the teacher refines the accessible
+    // description before accepting an illustration.
+    altText: boundedText(300).optional(),
   })
   .strict();
 export const illustrationGenerationResponseSchema = z

@@ -161,8 +161,9 @@ describe("IllustrationContactSheet", () => {
     expect(html).toContain("failed an integrity check and cannot be used");
   });
 
-  it("surfaces alt text for every candidate", () => {
-    expect(html).toContain("Alt text:");
+  it("surfaces editable alt text for every candidate", () => {
+    expect(html).toContain('for="candidate-cand-review-alt"');
+    expect(html).toContain("Alt text");
     expect(html).toContain(
       "AI illustration for the backdrop slot of scene 1",
     );

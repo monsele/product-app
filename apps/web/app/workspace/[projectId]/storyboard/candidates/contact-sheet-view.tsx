@@ -107,6 +107,9 @@ export function IllustrationContactSheetView({
             body: JSON.stringify({
               expectedSceneRevision: decision.sceneRevision,
               expectedStoryboardRevision: state.storyboardRevision,
+              ...(action === "accept" && decision.altText !== undefined
+                ? { altText: decision.altText }
+                : {}),
             }),
           },
         );

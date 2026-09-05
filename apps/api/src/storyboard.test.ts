@@ -25,6 +25,7 @@ const narrationSetId = "019ffbf1-eeee-7000-8000-000000000020";
 const outlineSetId = "019ffbf1-eeee-7000-8000-000000000002";
 const objectiveId = "019ffbf1-eeee-7000-8000-000000000009";
 const blockA = "019ffbf1-eeee-7000-8000-000000000021";
+const foreignProjectId = "019ffbf1-ffff-7000-8000-000000000099";
 
 function sampleStoryboard(overrides: Record<string, unknown> = {}) {
   const scene = {
@@ -329,7 +330,14 @@ describe("storyboard API", () => {
     app = await createApp({
       authGateway: auth,
       projectAuthorizer: new ProjectAuthorizationService(
-        new InMemoryOwnerScopedProjectRepository([fixture.project]),
+        new InMemoryOwnerScopedProjectRepository([
+          fixture.project,
+          {
+            ...fixture.project,
+            id: foreignProjectId,
+            ownerUserId: fixture.otherUserId,
+          },
+        ]),
       ),
       storyboardService,
       illustrationGenerationService: illustrations,
@@ -720,7 +728,11 @@ describe("storyboard API", () => {
       url: `/projects/${fixture.projectId}/illustration-candidates/${candidateId}/accept`,
       cookies: { [sessionCookieName]: "owner" },
       headers: { origin: "https://teacher.example.test" },
-      payload: { expectedSceneRevision: 0, expectedStoryboardRevision: 0 },
+      payload: {
+        expectedSceneRevision: 0,
+        expectedStoryboardRevision: 0,
+        altText: "An evaporation illustration",
+      },
     });
     expect(response.statusCode).toBe(201);
     expect(storyboardService.acceptIllustrationCandidate).toHaveBeenCalledWith(
@@ -728,7 +740,11 @@ describe("storyboard API", () => {
         ownerUserId: fixture.ownerUserId,
         projectId: fixture.projectId,
         candidateId,
-        body: { expectedSceneRevision: 0, expectedStoryboardRevision: 0 },
+        body: {
+          expectedSceneRevision: 0,
+          expectedStoryboardRevision: 0,
+          altText: "An evaporation illustration",
+        },
       }),
     );
   });
@@ -786,6 +802,17 @@ describe("storyboard API", () => {
       method: "GET",
       url: `/projects/${fixture.projectId}/illustration-candidates`,
       cookies: { [sessionCookieName]: "other" },
+    });
+    expect(response.statusCode).toBe(404);
+    expect(illustrations.contactSheet).not.toHaveBeenCalled();
+  });
+
+  it("rejects a cross-project read of the illustration contact sheet", async () => {
+    const { server, illustrations } = await api();
+    const response = await server.inject({
+      method: "GET",
+      url: `/projects/${foreignProjectId}/illustration-candidates`,
+      cookies: { [sessionCookieName]: "owner" },
     });
     expect(response.statusCode).toBe(404);
     expect(illustrations.contactSheet).not.toHaveBeenCalled();

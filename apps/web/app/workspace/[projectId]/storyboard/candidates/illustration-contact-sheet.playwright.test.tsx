@@ -160,7 +160,7 @@ describe("IllustrationContactSheet accessibility and keyboard operation", () => 
     }
   });
 
-  it("exposes alt text on every rendered candidate image target", async () => {
+  it("exposes an editable alt text field for a reviewable candidate", async () => {
     const { browser, page } = await setup();
     try {
       // The reviewable candidate has a preview image; assert its alt text.
@@ -199,6 +199,12 @@ describe("IllustrationContactSheet accessibility and keyboard operation", () => 
       expect(
         await page.getByAltText(/AI illustration for the backdrop slot/).count(),
       ).toBe(1);
+      const altText = page.getByLabel("Alt text");
+      expect(await altText.isEditable()).toBe(true);
+      await altText.fill("A sunlight-to-sugar illustration");
+      expect(await altText.inputValue()).toBe(
+        "A sunlight-to-sugar illustration",
+      );
     } finally {
       await browser.close();
     }

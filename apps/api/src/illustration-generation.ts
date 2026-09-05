@@ -632,7 +632,17 @@ export class IllustrationGenerationService {
       )
       .leftJoin(
         projectAssets,
-        eq(projectAssets.id, illustrationGenerationCandidates.assetId),
+        and(
+          eq(projectAssets.id, illustrationGenerationCandidates.assetId),
+          eq(
+            projectAssets.ownerUserId,
+            illustrationGenerationCandidates.ownerUserId,
+          ),
+          eq(
+            projectAssets.projectId,
+            illustrationGenerationCandidates.projectId,
+          ),
+        ),
       )
       .leftJoin(
         usageRecords,

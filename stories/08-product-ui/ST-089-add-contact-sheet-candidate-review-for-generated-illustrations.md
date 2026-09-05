@@ -2,7 +2,7 @@
 story_id: ST-089
 title: "Add Contact-Sheet Candidate Review for Generated Illustrations"
 phase: "08 - Product UI"
-status: In Review
+status: Done
 priority: should-have
 epics: ["E13"]
 prd_user_stories: []
@@ -288,3 +288,22 @@ That matters more after ST-085. Once slots carry a `visualRole`, the difference 
     are out of scope here.
   - Re-verified: schemas build/lint, api typecheck/build/lint + touched test
     files (35 pass), web typecheck/build/lint + candidates suite (13 pass).
+
+- **Code-review round 2 (Codex, 2026-09-05) â€” fixes applied:**
+  - The accept transaction locks and validates tenant/project ownership, review
+    status, deletion state, image media type, and positive dimensions before it
+    activates a candidate asset; a crafted request cannot bypass the sheet's
+    deterministic media block.
+  - The contact-sheet asset join is explicitly owner- and project-scoped.
+  - Alt text is an editable labelled field for reviewable candidates. Its
+    bounded value flows through the existing accept command into the accepted
+    scene asset binding; the per-scene path stays compatible because it is
+    optional.
+  - Verified: API and web typecheck; API focused tests (33 pass); contact-sheet
+    UI/browser tests (11 pass); API, web, and schemas lint.
+
+- **Final approval (Codex, 2026-09-05):** Approved after the follow-up review.
+  The preview's accessible name now follows the editable alt-text field, and
+  cross-project contact-sheet access is explicitly covered. Focused API tests
+  pass (34), as do API/web typechecks, lint, and the contact-sheet UI/browser
+  suite (11).

@@ -1358,6 +1358,38 @@ export class PostgresStoryboardService implements StoryboardService {
         .for("update");
       if (candidate === undefined || candidate.assetId === null)
         throw sceneNotFound();
+      // The contact sheet disables corrupt candidates, but this authoritative
+      // command must enforce the same deterministic media gate against crafted
+      // requests as well.
+      const [candidateAsset] = await transaction
+        .select({
+          id: projectAssets.id,
+          mediaType: projectAssets.mediaType,
+          width: projectAssets.width,
+          height: projectAssets.height,
+          deletedAt: projectAssets.deletedAt,
+        })
+        .from(projectAssets)
+        .where(
+          and(
+            eq(projectAssets.id, candidate.assetId),
+            eq(projectAssets.ownerUserId, input.ownerUserId),
+            eq(projectAssets.projectId, input.projectId),
+            eq(projectAssets.status, "pending_review"),
+          ),
+        )
+        .limit(1)
+        .for("update");
+      if (
+        candidateAsset === undefined ||
+        candidateAsset.deletedAt !== null ||
+        candidateAsset.width === null ||
+        candidateAsset.width <= 0 ||
+        candidateAsset.height === null ||
+        candidateAsset.height <= 0 ||
+        !candidateAsset.mediaType.startsWith("image/")
+      )
+        throw invalidIllustrationCandidateMedia();
       const lessonSpec = await this.mutableDraftLessonSpecRow(
         transaction,
         input.ownerUserId,
@@ -1421,6 +1453,7 @@ export class PostgresStoryboardService implements StoryboardService {
             role: requirement.bindingRole,
             slot: candidate.slot,
             visualRole: requirement.visualRole,
+            ...(parsed.altText === undefined ? {} : { altText: parsed.altText }),
           },
         ],
       };
@@ -3133,6 +3166,18 @@ function incompatibleSceneAssetSlot(): PublicError {
     {
       "scene.assetBindings":
         "Use a named slot declared by the selected template.",
+    },
+  );
+}
+
+function invalidIllustrationCandidateMedia(): PublicError {
+  return new PublicError(
+    "validation_failed",
+    "This illustration failed a media integrity check and cannot be used.",
+    400,
+    false,
+    {
+      illustration: "Generate a new illustration before selecting one for this slot.",
     },
   );
 }
