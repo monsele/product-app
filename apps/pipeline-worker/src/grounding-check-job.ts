@@ -146,7 +146,9 @@ export function isGeneratedAdditionSentence(
   const normalizedAddition = normalizeClaimText(addition.content);
   if (normalizedAddition.length === 0) return false;
   if (normalizedSentence.includes(normalizedAddition)) return true;
-  const additionTokens = normalizedAddition.split(" ").filter((token) => token.length >= 3);
+  const additionTokens = normalizedAddition
+    .split(" ")
+    .filter((token) => token.length >= 3);
   if (additionTokens.length === 0) return false;
   const sentenceTokens = new Set(normalizedSentence.split(" "));
   const matched = additionTokens.filter((token) => sentenceTokens.has(token));
@@ -285,7 +287,9 @@ export async function loadGroundingCheckContext(input: {
     return { status: "source_snapshot_hash_mismatch" };
 
   const snapshot = parseSnapshotPayload(snapshotRow.payload);
-  const snapshotBlockIds = new Set(snapshot.blocks.map((block) => block.blockId));
+  const snapshotBlockIds = new Set(
+    snapshot.blocks.map((block) => block.blockId),
+  );
 
   const storyboard = lessonStoryboardSchema.parse(lessonSpecRow.payload);
   const targetScenes =
@@ -469,8 +473,7 @@ export async function persistGroundingCheck(input: {
 }): Promise<{ id: Identifier }> {
   const parsedParams = groundingCheckParamsSchema.parse(input.params);
   const operationContext = input.operationContext as
-    | GroundingCheckOperationContext
-    | undefined;
+    GroundingCheckOperationContext | undefined;
   if (operationContext === undefined)
     throw new Error("The grounding check operation context is missing.");
   const timestamp = input.now;
@@ -527,7 +530,7 @@ export async function persistGroundingCheck(input: {
       sourceSnapshotContentHash: check.sourceSnapshotContentHash,
       scope: parsedParams.scope,
       sceneId:
-        parsedParams.scope === "scene" ? parsedParams.sceneId ?? null : null,
+        parsedParams.scope === "scene" ? (parsedParams.sceneId ?? null) : null,
       claims: check.claims as unknown[],
       results: check.results,
       summary: check.summary,
@@ -630,7 +633,7 @@ export function createGroundingCheckJobHandler(input: {
   const now = input.now ?? (() => new Date());
   const options: ModelCallHandlerOptions<GroundingOutput> = {
     jobType: "grounding.check",
-    payloadVersion: 1,
+    payloadVersion: 2,
     operationType: "ai.grounding",
     outputSchema: groundingOutputSchema,
     provider: input.provider,

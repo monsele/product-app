@@ -18,6 +18,11 @@ import {
 } from "@avlp/jobs";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
+  ApprovedProviderUnavailableError,
+  ProviderEnvelopeViolationError,
+  resolveJobAdapter,
+} from "@avlp/provider-adapters";
+import {
   documentIngestionJobPayloadSchema,
   documentValidationCleanupJobPayloadSchema,
   documentValidationJobPayloadSchema,
@@ -102,7 +107,26 @@ export function createDocumentValidationJobHandler(
           document.storageKey,
           options.maxUploadBytes + 1,
         );
-      } catch {
+      } catch (error) {
+        if (
+          error instanceof ProviderEnvelopeViolationError ||
+          error instanceof ApprovedProviderUnavailableError
+        )
+          await new PostgresAuditWriter(options.database).write({
+            ownerUserId: context.ownerUserId,
+            projectId: context.projectId,
+            actor: { type: "system" },
+            eventType: "ai.generated",
+            target: { type: "job", id: context.jobId },
+            correlationId: context.correlationId,
+            metadata: {
+              event: "provider.envelope_violation",
+              jobType: documentValidationJobType,
+              requestedAdapter: "malware-scanning",
+              code: error.code,
+            },
+            occurredAt: now(),
+          });
         await recordSystemFailure(
           options.database,
           document,
@@ -135,11 +159,34 @@ export function createDocumentValidationJobHandler(
 
       let scan;
       try {
-        scan = await options.scanner.scan({
+        scan = await resolveJobAdapter({
+          jobType: documentValidationJobType,
+          adapterFamily: "malware-scanning",
+          adapter: options.scanner as MalwareScanner & { providerId: string },
+        }).adapter.scan({
           bytes: object.body,
           sha256: document.sha256,
         });
-      } catch {
+      } catch (error) {
+        if (
+          error instanceof ProviderEnvelopeViolationError ||
+          error instanceof ApprovedProviderUnavailableError
+        )
+          await new PostgresAuditWriter(options.database).write({
+            ownerUserId: context.ownerUserId,
+            projectId: context.projectId,
+            actor: { type: "system" },
+            eventType: "ai.generated",
+            target: { type: "job", id: context.jobId },
+            correlationId: context.correlationId,
+            metadata: {
+              event: "provider.envelope_violation",
+              jobType: documentValidationJobType,
+              requestedAdapter: "malware-scanning",
+              code: error.code,
+            },
+            occurredAt: now(),
+          });
         await recordSystemFailure(
           options.database,
           document,
@@ -356,10 +403,6 @@ async function recordSuccess(
       .where(
         and(
           eq(sourceDocumentIngestionArtifacts.ownerUserId, context.ownerUserId),
-          eq(
-            sourceDocumentIngestionArtifacts.projectId,
-            context.projectId,
-          ),
           eq(sourceDocuments.ownerUserId, context.ownerUserId),
           eq(sourceDocuments.sha256, document.sha256),
           eq(sourceDocuments.status, "active"),

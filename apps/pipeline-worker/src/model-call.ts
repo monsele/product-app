@@ -21,11 +21,14 @@ import {
   computeGenerationInputVersion,
   estimateCostUsd,
   generateStructuredOutput,
+  ApprovedProviderUnavailableError,
+  ProviderEnvelopeViolationError,
   ProviderCallError,
   QuotaExceededError,
   renderPrompt,
   stableJsonHash,
   StructuredOutputError,
+  resolveJobAdapter,
   type LanguageModelProvider,
   type ModelPricingTable,
   type PromptRegistry,
@@ -414,6 +417,17 @@ export function createModelCallGenerationHandler<T>(
       params,
     });
     try {
+      const resolvedProvider = resolveJobAdapter({
+        jobType: options.jobType,
+        adapterFamily: "language-model",
+        adapter: options.provider,
+        approvedProvider: payload.providerApproval.providerId,
+        approvedModel: payload.providerApproval.model,
+        executingModel: payload.model,
+        approvalReference: payload.providerApproval.approvalReference,
+        estimatedCostUsd: payload.providerApproval.estimatedCostUsd,
+        selectionReason: payload.providerApproval.selectionReason,
+      });
       await options.quotaGuard.assertCanGenerate({
         ownerUserId: context.ownerUserId,
         projectId: context.projectId,
@@ -421,7 +435,7 @@ export function createModelCallGenerationHandler<T>(
         now: timestamp,
       });
       const structured = await generateStructuredOutput<T>({
-        provider: options.provider,
+        provider: resolvedProvider.adapter,
         request: {
           model: payload.model,
           messages: [
@@ -435,6 +449,20 @@ export function createModelCallGenerationHandler<T>(
           ? {}
           : { maxRepairs: options.maxRepairs }),
       });
+      const executed = structured.responses.at(-1);
+      if (
+        executed === undefined ||
+        executed.providerId !== resolvedProvider.adapter.providerId ||
+        executed.model !== payload.model
+      )
+        throw new ApprovedProviderUnavailableError({
+          approvedProvider: resolvedProvider.adapter.providerId,
+          approvedModel: payload.model,
+          foundProvider: executed?.providerId ?? "unknown",
+          ...(executed?.model === undefined
+            ? {}
+            : { foundModel: executed.model }),
+        });
       let warnings: readonly DeterministicWarning[] = [];
       try {
         warnings =
@@ -451,7 +479,7 @@ export function createModelCallGenerationHandler<T>(
           inputVersion,
           inputHash,
           responses: structured.responses,
-          providerId: options.provider.providerId,
+          providerId: resolvedProvider.adapter.providerId,
           errorCode: "DETERMINISTIC_CHECK_FAILED",
           modelCallsRepository,
           usageMeter,
@@ -475,7 +503,7 @@ export function createModelCallGenerationHandler<T>(
         inputVersion,
         inputHash,
         structured,
-        providerId: options.provider.providerId,
+        providerId: resolvedProvider.adapter.providerId,
         ...(pricing === undefined ? {} : { pricing }),
       });
       const modelCall = await modelCallsRepository.create({
@@ -531,6 +559,13 @@ export function createModelCallGenerationHandler<T>(
           promptVersion: payload.promptVersion,
           model: payload.model,
           inputVersion,
+          providerSelection: {
+            ...resolvedProvider.selection,
+            model: payload.model,
+            approvalReference: payload.providerApproval.approvalReference,
+            estimatedCostUsd: payload.providerApproval.estimatedCostUsd,
+            actualCostUsd: record.estimatedCostUsd,
+          },
         },
         occurredAt: timestamp,
       });
@@ -562,6 +597,31 @@ export function createModelCallGenerationHandler<T>(
           "AI_QUOTA_EXCEEDED",
           "The AI generation quota for this project has been reached.",
         );
+      if (
+        error instanceof ProviderEnvelopeViolationError ||
+        error instanceof ApprovedProviderUnavailableError
+      ) {
+        await auditWriter.write({
+          ownerUserId: context.ownerUserId,
+          projectId: context.projectId,
+          actor: { type: "system" },
+          eventType: "ai.generated",
+          target: { type: "job", id: context.jobId },
+          correlationId: context.correlationId,
+          metadata: {
+            event: "provider.envelope_violation",
+            jobType: options.jobType,
+            requestedAdapter: "language-model",
+            code: error.code,
+          },
+          occurredAt: timestamp,
+        });
+        throw new JobExecutionError(
+          "terminal",
+          error.code,
+          "The configured provider is unavailable for this operation.",
+        );
+      }
       if (error instanceof ProviderCallError) {
         await recordFailedCall({
           context,

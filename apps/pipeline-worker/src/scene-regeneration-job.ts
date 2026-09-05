@@ -586,7 +586,7 @@ export function createSceneRegenerationJobHandler(input: {
 > {
   const options: ModelCallHandlerOptions<SceneRegenerationOutput> = {
     jobType: "storyboard.scene-regenerate",
-    payloadVersion: 1,
+    payloadVersion: 2,
     operationType: "ai.scene_regeneration",
     outputSchema: sceneRegenerationOutputSchema,
     provider: input.provider,

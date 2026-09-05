@@ -32,7 +32,10 @@ import {
   type SourceSnapshot,
 } from "@avlp/schemas";
 import { and, eq } from "drizzle-orm";
-import { createModelCallGenerationHandler, type ModelCallHandlerOptions } from "./model-call.js";
+import {
+  createModelCallGenerationHandler,
+  type ModelCallHandlerOptions,
+} from "./model-call.js";
 import { resolveObjectiveSourceRefs as resolveSourceRefs } from "./objectives-job.js";
 
 /**
@@ -78,10 +81,7 @@ export type ApprovedObjectiveSetResult =
     }
   | {
       status:
-        | "missing"
-        | "not_approved"
-        | "revision_mismatch"
-        | "snapshot_mismatch";
+        "missing" | "not_approved" | "revision_mismatch" | "snapshot_mismatch";
     };
 
 /**
@@ -191,7 +191,9 @@ export function assertOutlineDeterministicChecks(
   const { objectives, params } = operationContext;
   const valid = collectPackageBlockIds(sourcePackage);
   const linkedObjectiveIds = new Set<string>();
-  const knownObjectiveIds = new Set(objectives.map((objective) => objective.id));
+  const knownObjectiveIds = new Set(
+    objectives.map((objective) => objective.id),
+  );
   for (const [index, item] of output.items.entries()) {
     if (item.objectiveIds.length === 0)
       throw new OutlineDeterministicCheckError(
@@ -304,9 +306,11 @@ export async function persistOutlineSet(input: {
 }): Promise<{ id: Identifier }> {
   const params = outlineGenerationParamsSchema.parse(input.params);
   const operationContext = input.operationContext as
-    | OutlineOperationContext
-    | undefined;
-  if (operationContext === undefined || operationContext.objectives.length === 0)
+    OutlineOperationContext | undefined;
+  if (
+    operationContext === undefined ||
+    operationContext.objectives.length === 0
+  )
     throw new Error(
       "The outline operation context is missing the approved objectives.",
     );
@@ -423,10 +427,7 @@ export async function persistOutlineSet(input: {
           and(
             eq(lessonOutlineSets.ownerUserId, input.context.ownerUserId),
             eq(lessonOutlineSets.projectId, input.context.projectId),
-            eq(
-              lessonOutlineSets.idempotencyKey,
-              input.context.idempotencyKey,
-            ),
+            eq(lessonOutlineSets.idempotencyKey, input.context.idempotencyKey),
           ),
         )
         .limit(1);
@@ -491,7 +492,7 @@ export function createOutlineGenerationJobHandler(input: {
 }): ReturnType<typeof createModelCallGenerationHandler<OutlineOutputV1>> {
   const options: ModelCallHandlerOptions<OutlineOutputV1> = {
     jobType: "outline.generate",
-    payloadVersion: 1,
+    payloadVersion: 2,
     operationType: "ai.outline",
     outputSchema: outlineOutputV1Schema,
     provider: input.provider,
@@ -508,8 +509,7 @@ export function createOutlineGenerationJobHandler(input: {
         expectedRevision: parsedParams.objectiveSetRevision,
         sourceSnapshotId: snapshot.id,
       });
-      if (loaded.status !== "ok")
-        throw objectiveSetError(loaded.status);
+      if (loaded.status !== "ok") throw objectiveSetError(loaded.status);
       return {
         variables: {
           objectives: JSON.stringify(loaded.set.objectives),
@@ -540,9 +540,7 @@ export function createOutlineGenerationJobHandler(input: {
         now: candidate.now,
       }),
     ...(input.pricing === undefined ? {} : { pricing: input.pricing }),
-    ...(input.maxRepairs === undefined
-      ? {}
-      : { maxRepairs: input.maxRepairs }),
+    ...(input.maxRepairs === undefined ? {} : { maxRepairs: input.maxRepairs }),
     ...(input.now === undefined ? {} : { now: input.now }),
   };
   return createModelCallGenerationHandler<OutlineOutputV1>(options);

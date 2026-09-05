@@ -215,7 +215,9 @@ describe("computeObjectiveSetContentHash", () => {
 });
 
 describe("loadApprovedObjectiveSet", () => {
-  function executor(input: { setRows?: unknown[]; objectiveRows?: unknown[] } = {}) {
+  function executor(
+    input: { setRows?: unknown[]; objectiveRows?: unknown[] } = {},
+  ) {
     const rowsFor = (table: unknown): unknown[] => {
       if (table === learningObjectiveSets)
         return input.setRows ?? [approvedObjectiveSetRow()];
@@ -268,7 +270,9 @@ describe("loadApprovedObjectiveSet", () => {
 
   it("rejects an unapproved objective set", async () => {
     const result = await loadApprovedObjectiveSet({
-      executor: executor({ setRows: [approvedObjectiveSetRow({ status: "draft" })] }),
+      executor: executor({
+        setRows: [approvedObjectiveSetRow({ status: "draft" })],
+      }),
       ownerUserId,
       projectId,
       objectiveSetId,
@@ -280,7 +284,9 @@ describe("loadApprovedObjectiveSet", () => {
 
   it("rejects a stale objective-set revision", async () => {
     const result = await loadApprovedObjectiveSet({
-      executor: executor({ setRows: [approvedObjectiveSetRow({ revision: 2 })] }),
+      executor: executor({
+        setRows: [approvedObjectiveSetRow({ revision: 2 })],
+      }),
       ownerUserId,
       projectId,
       objectiveSetId,
@@ -380,7 +386,9 @@ describe("assertOutlineDeterministicChecks", () => {
 
   it("rejects a missing recall question when the configuration requests one", () => {
     const output = validOutput();
-    output.items = output.items.filter((item) => item.kind !== "recall_question");
+    output.items = output.items.filter(
+      (item) => item.kind !== "recall_question",
+    );
     expect(() =>
       assertOutlineDeterministicChecks(output, pkg, context),
     ).toThrow(/recall question/);
@@ -388,7 +396,9 @@ describe("assertOutlineDeterministicChecks", () => {
 
   it("accepts the missing recall question when not requested", () => {
     const output = validOutput();
-    output.items = output.items.filter((item) => item.kind !== "recall_question");
+    output.items = output.items.filter(
+      (item) => item.kind !== "recall_question",
+    );
     const withoutRecall = {
       ...context,
       params: { ...context.params, includeRecallQuestions: false },
@@ -630,12 +640,19 @@ describe("outline generation job", () => {
 
   function jobPayload(overrides: Record<string, unknown> = {}) {
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       operationType: "ai.outline",
       sourceSnapshotId: snapshotId,
       promptId: "outline",
       promptVersion: "v2",
       model: "mock-model-1",
+      providerApproval: {
+        approvalReference: createId(),
+        providerId: "mock",
+        model: "mock-model-1",
+        estimatedCostUsd: 0.01,
+        selectionReason: "explicit_job_request",
+      },
       params: jobParams,
       ...overrides,
     };
@@ -646,7 +663,7 @@ describe("outline generation job", () => {
     jobPayloadValue: unknown,
   ) {
     const envelope = createJobEnvelope(
-      z.object({ schemaVersion: z.literal(1) }).passthrough(),
+      z.object({ schemaVersion: z.literal(2) }).passthrough(),
       {
         jobId: createId(),
         jobType: handler.jobType,
@@ -704,7 +721,7 @@ describe("outline generation job", () => {
       now: () => new Date("2026-08-17T10:00:00.000Z"),
     });
     expect(handler.jobType).toBe("outline.generate");
-    expect(handler.payloadVersion).toBe(1);
+    expect(handler.payloadVersion).toBe(2);
     const result = await execute(handler, jobPayload());
     expect(result.outcome).toBe("succeeded");
     if (result.outcome !== "succeeded") throw new Error("unreachable");

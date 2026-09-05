@@ -56,6 +56,8 @@ export type ProviderCompletionResponse = z.infer<
  */
 export interface LanguageModelProvider {
   readonly providerId: string;
+  /** Models this adapter is configured and approved to execute. */
+  readonly supportedModels?: readonly string[];
   complete(
     request: ProviderCompletionRequest,
   ): Promise<ProviderCompletionResponse>;
@@ -80,10 +82,12 @@ export const illustrationResponseSchema = z.object({
   costUsd: z.number().nonnegative(),
   latencyMs: z.number().int().nonnegative().optional(),
   retryCount: z.number().int().min(0).max(20).optional(),
-  moderation: z.object({
-    status: z.enum(["approved", "rejected"]),
-    code: z.string().trim().min(1).max(100),
-  }).strict(),
+  moderation: z
+    .object({
+      status: z.enum(["approved", "rejected"]),
+      code: z.string().trim().min(1).max(100),
+    })
+    .strict(),
 });
 export type IllustrationResponse = z.infer<typeof illustrationResponseSchema>;
 export interface IllustrationProvider {

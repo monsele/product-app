@@ -169,7 +169,10 @@ function lessonSpecPayload() {
           sourceRefs: [sourceRef],
           generatedAdditions: [],
           template: "definition",
-          visual: { term: "Evaporation", definition: "A liquid becoming a gas." },
+          visual: {
+            term: "Evaporation",
+            definition: "A liquid becoming a gas.",
+          },
         },
       },
       {
@@ -241,7 +244,9 @@ function lessonSpecRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function groundingParams(overrides: Record<string, unknown> = {}): GroundingCheckParams {
+function groundingParams(
+  overrides: Record<string, unknown> = {},
+): GroundingCheckParams {
   return groundingCheckParamsSchema.parse({
     lessonSpecId,
     lessonSpecRevision: 0,
@@ -253,7 +258,9 @@ function groundingParams(overrides: Record<string, unknown> = {}): GroundingChec
   });
 }
 
-function validOutput(claims: readonly { id: string; text?: string }[]): GroundingOutput {
+function validOutput(
+  claims: readonly { id: string; text?: string }[],
+): GroundingOutput {
   return groundingOutputSchema.parse({
     schemaVersion: "grounding-v1",
     results: claims.map((claim) => ({
@@ -310,7 +317,9 @@ describe("claimIdFor", () => {
     const first = claimIdFor(now, sceneId, 0);
     const second = claimIdFor(now, sceneId, 0);
     expect(first).toBe(second);
-    expect(first).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+    expect(first).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
   });
 
   it("differs across sentence indexes", () => {
@@ -462,9 +471,7 @@ describe("assertGroundingChecks", () => {
           schemaVersion: "grounding-claim-v1",
           claimId: context.claims[0]!.id,
           status: "supported",
-          supportedSpans: [
-            { start: 0, end: 10_000, sourceBlockId: blockA },
-          ],
+          supportedSpans: [{ start: 0, end: 10_000, sourceBlockId: blockA }],
           unsupportedSpans: [],
         },
       ],
@@ -544,10 +551,7 @@ describe("assertGroundingChecks", () => {
 });
 
 describe("loadGroundingCheckContext", () => {
-  function executor(input: {
-    specRows?: unknown[];
-    snapshotRows?: unknown[];
-  }) {
+  function executor(input: { specRows?: unknown[]; snapshotRows?: unknown[] }) {
     const rowsFor = (table: unknown): unknown[] => {
       if (table === lessonSpecs) return input.specRows ?? [lessonSpecRow()];
       if (table === sourceSnapshots)
@@ -617,7 +621,9 @@ describe("loadGroundingCheckContext", () => {
 
   it("rejects a lesson spec whose content hash changed", async () => {
     const result = await loadGroundingCheckContext({
-      executor: executor({ specRows: [lessonSpecRow({ contentHash: "e".repeat(64) })] }),
+      executor: executor({
+        specRows: [lessonSpecRow({ contentHash: "e".repeat(64) })],
+      }),
       ownerUserId,
       projectId,
       params: groundingParams(),
@@ -846,12 +852,19 @@ describe("createGroundingCheckJobHandler", () => {
 
   function jobPayload(overrides: Record<string, unknown> = {}) {
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       operationType: "ai.grounding",
       sourceSnapshotId: snapshotId,
       promptId: "grounding",
       promptVersion: "v2",
       model: "mock-model-1",
+      providerApproval: {
+        approvalReference: createId(),
+        providerId: "mock",
+        model: "mock-model-1",
+        estimatedCostUsd: 0.01,
+        selectionReason: "explicit_job_request",
+      },
       narrowing: { blockIds: [blockA] },
       params: groundingParams(),
       ...overrides,
@@ -863,7 +876,7 @@ describe("createGroundingCheckJobHandler", () => {
     jobPayloadValue: unknown,
   ) {
     const envelope = createJobEnvelope(
-      z.object({ schemaVersion: z.literal(1) }).passthrough(),
+      z.object({ schemaVersion: z.literal(2) }).passthrough(),
       {
         jobId: createId(),
         jobType: handler.jobType,
@@ -922,7 +935,7 @@ describe("createGroundingCheckJobHandler", () => {
       now: () => now,
     });
     expect(handler.jobType).toBe("grounding.check");
-    expect(handler.payloadVersion).toBe(1);
+    expect(handler.payloadVersion).toBe(2);
     const result = await execute(handler, jobPayload());
     expect(result.outcome).toBe("succeeded");
     if (result.outcome !== "succeeded") throw new Error("unreachable");

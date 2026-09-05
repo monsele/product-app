@@ -887,12 +887,19 @@ describe("createSceneRegenerationJobHandler", () => {
 
   function jobPayload(overrides: Record<string, unknown> = {}) {
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       operationType: "ai.scene_regeneration",
       sourceSnapshotId: snapshotId,
       promptId: "scene-regeneration",
       promptVersion: "v1",
       model: "mock-model-1",
+      providerApproval: {
+        approvalReference: createId(),
+        providerId: "mock",
+        model: "mock-model-1",
+        estimatedCostUsd: 0.01,
+        selectionReason: "explicit_job_request",
+      },
       params: sceneRegenerationParams(),
       ...overrides,
     };
@@ -903,7 +910,7 @@ describe("createSceneRegenerationJobHandler", () => {
     jobPayloadValue: unknown,
   ) {
     const envelope = createJobEnvelope(
-      z.object({ schemaVersion: z.literal(1) }).passthrough(),
+      z.object({ schemaVersion: z.literal(2) }).passthrough(),
       {
         jobId: createId(),
         jobType: handler.jobType,
@@ -954,7 +961,7 @@ describe("createSceneRegenerationJobHandler", () => {
       now: () => new Date("2026-08-18T10:00:00.000Z"),
     });
     expect(handler.jobType).toBe("storyboard.scene-regenerate");
-    expect(handler.payloadVersion).toBe(1);
+    expect(handler.payloadVersion).toBe(2);
     const result = await execute(handler, jobPayload());
     expect(result.outcome).toBe("succeeded");
     if (result.outcome !== "succeeded") throw new Error("unreachable");

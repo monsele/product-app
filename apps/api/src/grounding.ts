@@ -14,6 +14,7 @@ import {
   type DatabaseExecutor,
 } from "@avlp/database";
 import { createIdempotencyKey, createJobEnvelope } from "@avlp/jobs";
+import { createModelCallProviderApproval } from "./model-call-approval.js";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
   currentGroundingCompatibility,
@@ -64,12 +65,7 @@ export interface GroundingService {
 
 type LessonSpecRow = typeof lessonSpecs.$inferSelect;
 type JobState =
-  | "queued"
-  | "running"
-  | "retry_wait"
-  | "succeeded"
-  | "failed"
-  | "cancelled";
+  "queued" | "running" | "retry_wait" | "succeeded" | "failed" | "cancelled";
 
 /**
  * Triggers a grounding recheck after teacher edits and reads the latest
@@ -132,8 +128,8 @@ export class PostgresGroundingService implements GroundingService {
       const blockIds = [
         ...new Set(
           targetScenes.flatMap((scene) =>
-            (scene.scene.sourceRefs as SourceRef[]).flatMap((ref) =>
-              ref.blockIds,
+            (scene.scene.sourceRefs as SourceRef[]).flatMap(
+              (ref) => ref.blockIds,
             ),
           ),
         ),
@@ -159,13 +155,18 @@ export class PostgresGroundingService implements GroundingService {
           status: "queued",
           cached: true,
         });
+      const requestedJobId = createId(timestamp);
       const payload = modelCallJobPayloadSchema.parse({
-        schemaVersion: 1,
+        schemaVersion: 2,
         operationType: "ai.grounding",
         sourceSnapshotId: approval.snapshotId,
         promptId: currentGroundingCompatibility.promptId,
         promptVersion: currentGroundingCompatibility.promptVersion,
         model: currentGroundingCompatibility.model,
+        providerApproval: createModelCallProviderApproval({
+          jobId: requestedJobId,
+          model: currentGroundingCompatibility.model,
+        }),
         ...(blockIds.length === 0 ? {} : { narrowing: { blockIds } }),
         params,
       });
@@ -178,7 +179,7 @@ export class PostgresGroundingService implements GroundingService {
         paramsHash,
       ].join(":");
       const envelope = createJobEnvelope(modelCallJobPayloadSchema, {
-        jobId: createId(timestamp),
+        jobId: requestedJobId,
         jobType: "grounding.check",
         projectId: input.projectId,
         ownerUserId: input.ownerUserId,
@@ -190,7 +191,7 @@ export class PostgresGroundingService implements GroundingService {
           options: { requestKey: idempotencyKey },
         }),
         correlationId: input.correlationId,
-        payloadVersion: 1,
+        payloadVersion: 2,
         payload,
         requestedAt: timestamp,
       });
@@ -226,7 +227,9 @@ export class PostgresGroundingService implements GroundingService {
             .limit(1)
         )[0]?.id;
       if (jobId === undefined)
-        throw new Error("The idempotent grounding check job could not be read.");
+        throw new Error(
+          "The idempotent grounding check job could not be read.",
+        );
       if (created !== undefined) {
         await transaction.insert(outboxEvents).values({
           id: createId(timestamp),
@@ -424,7 +427,9 @@ export class PostgresGroundingService implements GroundingService {
   }
 }
 
-function parseBoundary(input: unknown): ReturnType<typeof groundingCheckRequestSchema.parse> {
+function parseBoundary(
+  input: unknown,
+): ReturnType<typeof groundingCheckRequestSchema.parse> {
   const parsed = groundingCheckRequestSchema.safeParse(input);
   if (parsed.success) return parsed.data;
   const fieldErrors = Object.fromEntries(

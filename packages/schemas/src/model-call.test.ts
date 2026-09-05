@@ -86,12 +86,19 @@ describe("model-call contracts", () => {
 
   it("validates the model-call job payload", () => {
     const payload = modelCallJobPayloadSchema.parse({
-      schemaVersion: 1,
+      schemaVersion: 2,
       operationType: "ai.objectives",
       sourceSnapshotId: snapshotId,
       promptId: "objectives",
       promptVersion: "v1",
       model: "mock-model-1",
+      providerApproval: {
+        approvalReference: correlationId,
+        providerId: "mock",
+        model: "mock-model-1",
+        estimatedCostUsd: 0.01,
+        selectionReason: "explicit_job_request",
+      },
       params: { ageBand: "11-13" },
     });
     expect(payload.params).toEqual({ ageBand: "11-13" });
@@ -100,12 +107,19 @@ describe("model-call contracts", () => {
 
   it("accepts a job payload with narrowing", () => {
     const payload = modelCallJobPayloadSchema.parse({
-      schemaVersion: 1,
+      schemaVersion: 2,
       operationType: "ai.objectives",
       sourceSnapshotId: snapshotId,
       promptId: "objectives",
       promptVersion: "v1",
       model: "mock-model-1",
+      providerApproval: {
+        approvalReference: correlationId,
+        providerId: "mock",
+        model: "mock-model-1",
+        estimatedCostUsd: 0.01,
+        selectionReason: "explicit_job_request",
+      },
       narrowing: { sectionIds: [snapshotId] },
     });
     expect(payload.narrowing?.sectionIds).toEqual([snapshotId]);

@@ -209,7 +209,8 @@ describe("loadApprovedOutlineSet", () => {
     const rowsFor = (table: unknown): unknown[] => {
       if (table === lessonOutlineSets)
         return input.setRows ?? [approvedOutlineSetRow()];
-      if (table === lessonOutlineItems) return input.itemRows ?? outlineItemRows();
+      if (table === lessonOutlineItems)
+        return input.itemRows ?? outlineItemRows();
       return [];
     };
     const query = (rows: unknown[]) => {
@@ -257,7 +258,9 @@ describe("loadApprovedOutlineSet", () => {
 
   it("rejects an unapproved outline set", async () => {
     const result = await loadApprovedOutlineSet({
-      executor: executor({ setRows: [approvedOutlineSetRow({ status: "draft" })] }),
+      executor: executor({
+        setRows: [approvedOutlineSetRow({ status: "draft" })],
+      }),
       ownerUserId,
       projectId,
       outlineSetId,
@@ -328,7 +331,9 @@ describe("assertNarrationDeterministicChecks", () => {
 
   it("rejects an uncovered approved outline item", () => {
     const output = validOutput();
-    output.blocks = output.blocks.filter((block) => block.outlineItemId !== itemB);
+    output.blocks = output.blocks.filter(
+      (block) => block.outlineItemId !== itemB,
+    );
     expect(() =>
       assertNarrationDeterministicChecks(output, pkg, context),
     ).toThrow(/has no narration block/);
@@ -345,7 +350,10 @@ describe("assertNarrationDeterministicChecks", () => {
   it("rejects an over-long sentence", () => {
     const output = validOutput();
     output.blocks[0]!.sentences = [
-      { text: words(narrationSentenceMaximumWords + 1), sourceBlockIds: [blockA] },
+      {
+        text: words(narrationSentenceMaximumWords + 1),
+        sourceBlockIds: [blockA],
+      },
     ];
     expect(() =>
       assertNarrationDeterministicChecks(output, pkg, context),
@@ -392,9 +400,9 @@ describe("assertNarrationDeterministicChecks", () => {
   });
 
   it("returns no warnings for narration that fits every budget", () => {
-    expect(assertNarrationDeterministicChecks(validOutput(), pkg, context)).toEqual(
-      [],
-    );
+    expect(
+      assertNarrationDeterministicChecks(validOutput(), pkg, context),
+    ).toEqual([]);
   });
 
   it("rejects a target duration that does not match the configuration", () => {
@@ -409,7 +417,8 @@ describe("assertNarrationDeterministicChecks", () => {
     const output = validOutput();
     output.blocks[0]!.sentences = [
       {
-        text: "Water evaporates when heated and rises as water vapour " + words(27),
+        text:
+          "Water evaporates when heated and rises as water vapour " + words(27),
         sourceBlockIds: [blockA],
       },
     ];
@@ -545,8 +554,7 @@ describe("narration generation job", () => {
         return options.outlineSetRow === undefined
           ? []
           : [options.outlineSetRow];
-      if (table === lessonOutlineItems)
-        return options.outlineItemRows ?? [];
+      if (table === lessonOutlineItems) return options.outlineItemRows ?? [];
       return [];
     };
     const query = (rows: unknown[]) => {
@@ -602,12 +610,19 @@ describe("narration generation job", () => {
 
   function jobPayload(overrides: Record<string, unknown> = {}) {
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       operationType: "ai.narration",
       sourceSnapshotId: snapshotId,
       promptId: "narration",
       promptVersion: "v2",
       model: "mock-model-1",
+      providerApproval: {
+        approvalReference: createId(),
+        providerId: "mock",
+        model: "mock-model-1",
+        estimatedCostUsd: 0.01,
+        selectionReason: "explicit_job_request",
+      },
       params: jobParams,
       ...overrides,
     };
@@ -618,7 +633,7 @@ describe("narration generation job", () => {
     jobPayloadValue: unknown,
   ) {
     const envelope = createJobEnvelope(
-      z.object({ schemaVersion: z.literal(1) }).passthrough(),
+      z.object({ schemaVersion: z.literal(2) }).passthrough(),
       {
         jobId: createId(),
         jobType: handler.jobType,
@@ -676,7 +691,7 @@ describe("narration generation job", () => {
       now: () => new Date("2026-08-17T10:00:00.000Z"),
     });
     expect(handler.jobType).toBe("narration.generate");
-    expect(handler.payloadVersion).toBe(1);
+    expect(handler.payloadVersion).toBe(2);
     const result = await execute(handler, jobPayload());
     expect(result.outcome).toBe("succeeded");
     if (result.outcome !== "succeeded") throw new Error("unreachable");
@@ -691,7 +706,9 @@ describe("narration generation job", () => {
   it("rejects deterministic failures without producing a candidate", async () => {
     const snapshot = sampleSnapshot();
     const output = validOutput();
-    output.blocks = output.blocks.filter((block) => block.outlineItemId !== itemB);
+    output.blocks = output.blocks.filter(
+      (block) => block.outlineItemId !== itemB,
+    );
     const provider = new MockLanguageModelProvider({
       model: "mock-model-1",
       completion: jsonCompletion(output),

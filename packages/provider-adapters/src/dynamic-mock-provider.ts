@@ -985,9 +985,14 @@ function generateGroundingCheckJson(text: string, allUuids: string[]): string {
  * - grounding-claim-v1
  */
 export class DynamicMockLanguageModelProvider implements LanguageModelProvider {
-  public readonly providerId = "dynamic-mock";
+  public readonly providerId: string;
+  public readonly supportedModels = ["Qwen/Qwen3.8-Flash"] as const;
   public readonly requests: ProviderCompletionRequest[] = [];
   public readonly completions: string[] = [];
+
+  public constructor(options: { providerId?: string } = {}) {
+    this.providerId = options.providerId ?? "dynamic-mock";
+  }
 
   public async complete(
     request: ProviderCompletionRequest,

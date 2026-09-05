@@ -103,6 +103,7 @@ type PersistCandidateInput = NonNullable<
 function handlerOptions(
   overrides: {
     provider?: LanguageModelProvider;
+    jobType?: string;
     quota?: InMemoryQuotaGuard;
     database?: { client: unknown };
     modelCalls?: ModelCallRepository;
@@ -159,10 +160,13 @@ function handlerOptions(
       status: "ok",
       snapshot: sampleSnapshot(),
     }));
+  const auditWriter = {
+    write: vi.fn(async () => ({ id: createId() })),
+  };
   const handler = createModelCallGenerationHandler<{
     objectives: { statement: string; sourceBlockIds: string[] }[];
   }>({
-    jobType: "ai.objectives",
+    jobType: overrides.jobType ?? "ai.objectives",
     payloadVersion: 1,
     operationType: "ai.objectives",
     outputSchema: objectivesOutputSchema,
@@ -177,9 +181,7 @@ function handlerOptions(
     usageMeter: {
       record: vi.fn(async () => ({ id: createId() })),
     },
-    auditWriter: {
-      write: vi.fn(async () => ({ id: createId() })),
-    },
+    auditWriter,
     pricing: {
       "mock-model-1": {
         inputUsdPerMillionTokens: 0.5,
@@ -193,17 +195,24 @@ function handlerOptions(
       ? {}
       : { persistCandidate: overrides.persistCandidate }),
   });
-  return { recorded, modelCalls, provider, handler, quota };
+  return { recorded, modelCalls, provider, handler, quota, auditWriter };
 }
 
 function payload(overrides: Record<string, unknown> = {}) {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     operationType: "ai.objectives",
     sourceSnapshotId: snapshotId,
     promptId: "objectives",
     promptVersion: "v1",
     model: "mock-model-1",
+    providerApproval: {
+      approvalReference: createId(),
+      providerId: "mock",
+      model: "mock-model-1",
+      estimatedCostUsd: 0.01,
+      selectionReason: "explicit_job_request",
+    },
     ...overrides,
   };
 }
@@ -212,10 +221,20 @@ async function execute(
   handler: RegisteredJobHandler,
   jobPayload: unknown,
 ): Promise<{ outcome: string; error?: unknown; metadata?: JobMetadata }> {
+  const jobId = createId();
+  const preparedPayload = {
+    ...(jobPayload as Record<string, unknown>),
+    schemaVersion: 2 as const,
+    providerApproval: {
+      ...((jobPayload as { providerApproval?: Record<string, unknown> })
+        .providerApproval ?? {}),
+      approvalReference: jobId,
+    },
+  };
   const envelope = createJobEnvelope(
-    z.object({ schemaVersion: z.literal(1) }).passthrough(),
+    z.object({ schemaVersion: z.literal(2) }).passthrough(),
     {
-      jobId: createId(),
+      jobId,
       jobType: handler.jobType,
       projectId,
       ownerUserId,
@@ -223,7 +242,7 @@ async function execute(
       idempotencyKey: `objectives:${createId()}`,
       correlationId: createId(),
       payloadVersion: handler.payloadVersion,
-      payload: jobPayload,
+      payload: preparedPayload,
     },
   );
   const handlerInner = (
@@ -390,6 +409,91 @@ describe("model-call lifecycle", () => {
       status: "failed",
       errorCode: "PROVIDER_RATE_LIMITED",
     });
+  });
+
+  it("fails closed before transport when the configured provider lacks the approved model", async () => {
+    const provider = new MockLanguageModelProvider({
+      model: "different-model",
+      completion: jsonCompletion({
+        objectives: [
+          { statement: "Explain evaporation.", sourceBlockIds: [blockId] },
+        ],
+      }),
+    });
+    const { handler } = handlerOptions({ provider });
+    const result = await execute(handler, payload());
+    expect(result.outcome).toBe("failed");
+    expect(result.error).toMatchObject({
+      code: "APPROVED_PROVIDER_UNAVAILABLE",
+      classification: "terminal",
+    });
+    expect(provider.requests).toHaveLength(0);
+  });
+
+  it("denies an unapproved configured provider before its transport runs", async () => {
+    const provider = new MockLanguageModelProvider({ model: "mock-model-1" });
+    const { handler, auditWriter } = handlerOptions({ provider });
+    const result = await execute(
+      handler,
+      payload({
+        providerApproval: {
+          approvalReference: createId(),
+          providerId: "together",
+          model: "mock-model-1",
+          estimatedCostUsd: 0.01,
+          selectionReason: "explicit_job_request",
+        },
+      }),
+    );
+    expect(result.error).toMatchObject({
+      code: "APPROVED_PROVIDER_UNAVAILABLE",
+      classification: "terminal",
+    });
+    expect(provider.requests).toHaveLength(0);
+    expect(auditWriter.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          requestedAdapter: "language-model",
+          code: "APPROVED_PROVIDER_UNAVAILABLE",
+        }),
+      }),
+    );
+  });
+
+  it("records the immutable approval selection reason", async () => {
+    const { handler, auditWriter } = handlerOptions();
+    const result = await execute(handler, payload());
+    expect(result.outcome).toBe("succeeded");
+    expect(auditWriter.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          providerSelection: expect.objectContaining({
+            selectionReason: "explicit_job_request",
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("audits a denied envelope before the provider transport can run", async () => {
+    const provider = new MockLanguageModelProvider({ model: "mock-model-1" });
+    const { handler, auditWriter } = handlerOptions({
+      provider,
+      jobType: "unregistered.provider.job",
+    });
+    const result = await execute(handler, payload());
+    expect(result.error).toMatchObject({ code: "PROVIDER_ENVELOPE_VIOLATION" });
+    expect(provider.requests).toHaveLength(0);
+    expect(auditWriter.write).toHaveBeenCalledWith(
+      expect.objectContaining({
+        target: expect.objectContaining({ type: "job" }),
+        correlationId: expect.any(String),
+        metadata: expect.objectContaining({
+          requestedAdapter: "language-model",
+          jobType: "unregistered.provider.job",
+        }),
+      }),
+    );
   });
 
   it("reports missing source snapshots as terminal failures", async () => {

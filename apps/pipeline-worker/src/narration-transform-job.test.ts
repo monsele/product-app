@@ -206,7 +206,9 @@ function transformParams(overrides: Record<string, unknown> = {}) {
   });
 }
 
-function validOutput(mode: "shorten" | "simplify" | "expand" | "regenerate" = "shorten"): NarrationBlockTransformOutput {
+function validOutput(
+  mode: "shorten" | "simplify" | "expand" | "regenerate" = "shorten",
+): NarrationBlockTransformOutput {
   return narrationBlockTransformOutputSchema.parse({
     schemaVersion: "narration-block-v1",
     mode,
@@ -429,7 +431,9 @@ describe("loadNarrationTransformContext", () => {
 
   it("rejects a non-draft narration set", async () => {
     const result = await loadNarrationTransformContext({
-      executor: executor({ setRows: [narrationSetRow({ status: "approved" })] }),
+      executor: executor({
+        setRows: [narrationSetRow({ status: "approved" })],
+      }),
       ownerUserId,
       projectId,
       params: transformParams(),
@@ -511,7 +515,10 @@ describe("persistNarrationBlockCandidate", () => {
     return { executor, inserted, idsByKey };
   }
 
-  function callPersist(input: { executor: DatabaseExecutor; idempotencyKey: string }) {
+  function callPersist(input: {
+    executor: DatabaseExecutor;
+    idempotencyKey: string;
+  }) {
     return persistNarrationBlockCandidate({
       executor: input.executor,
       value: validOutput("shorten"),
@@ -580,9 +587,10 @@ describe("narration block transform job", () => {
         return options.siblingBlockRows ?? [];
       }
       if (table === lessonOutlineSets)
-        return options.outlineSetRow === undefined ? [] : [options.outlineSetRow];
-      if (table === lessonOutlineItems)
-        return options.outlineItemRows ?? [];
+        return options.outlineSetRow === undefined
+          ? []
+          : [options.outlineSetRow];
+      if (table === lessonOutlineItems) return options.outlineItemRows ?? [];
       return [];
     };
     const query = (rows: unknown[]) => {
@@ -622,12 +630,19 @@ describe("narration block transform job", () => {
 
   function jobPayload(overrides: Record<string, unknown> = {}) {
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       operationType: "ai.narration",
       sourceSnapshotId: snapshotId,
       promptId: "narration-block",
       promptVersion: "v1",
       model: "mock-model-1",
+      providerApproval: {
+        approvalReference: createId(),
+        providerId: "mock",
+        model: "mock-model-1",
+        estimatedCostUsd: 0.01,
+        selectionReason: "explicit_job_request",
+      },
       narrowing: { blockIds: [blockA, blockB] },
       params: transformParams(),
       ...overrides,
@@ -639,7 +654,7 @@ describe("narration block transform job", () => {
     jobPayloadValue: unknown,
   ) {
     const envelope = createJobEnvelope(
-      z.object({ schemaVersion: z.literal(1) }).passthrough(),
+      z.object({ schemaVersion: z.literal(2) }).passthrough(),
       {
         jobId: createId(),
         jobType: handler.jobType,
@@ -700,7 +715,7 @@ describe("narration block transform job", () => {
       now: () => new Date("2026-08-17T10:00:00.000Z"),
     });
     expect(handler.jobType).toBe("narration.transform");
-    expect(handler.payloadVersion).toBe(1);
+    expect(handler.payloadVersion).toBe(2);
     const result = await execute(handler, jobPayload());
     expect(result.outcome).toBe("succeeded");
     if (result.outcome !== "succeeded") throw new Error("unreachable");

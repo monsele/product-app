@@ -11,6 +11,12 @@ import {
   projectAssetValidationJobPayloadSchema,
 } from "@avlp/schemas";
 import { storageKeys, type ObjectStorage } from "@avlp/storage";
+import { PostgresAuditWriter } from "@avlp/observability";
+import {
+  ApprovedProviderUnavailableError,
+  ProviderEnvelopeViolationError,
+  resolveJobAdapter,
+} from "@avlp/provider-adapters";
 import { and, eq, isNull } from "drizzle-orm";
 import sharp from "sharp";
 import { type MalwareScanner } from "./document-validation.js";
@@ -58,7 +64,26 @@ export function createProjectAssetValidationJobHandler(options: {
       let object;
       try {
         object = await options.storage.getBytes(asset.storageKey, maxBytes + 1);
-      } catch {
+      } catch (error) {
+        if (
+          error instanceof ProviderEnvelopeViolationError ||
+          error instanceof ApprovedProviderUnavailableError
+        )
+          await new PostgresAuditWriter(options.database).write({
+            ownerUserId: context.ownerUserId,
+            projectId: context.projectId,
+            actor: { type: "system" },
+            eventType: "ai.generated",
+            target: { type: "job", id: context.jobId },
+            correlationId: context.correlationId,
+            metadata: {
+              event: "provider.envelope_violation",
+              jobType: projectAssetValidationJobType,
+              requestedAdapter: "malware-scanning",
+              code: error.code,
+            },
+            occurredAt: now(),
+          });
         throw new JobExecutionError(
           "retryable",
           "PROJECT_ASSET_READ_FAILED",
@@ -115,7 +140,11 @@ export function createProjectAssetValidationJobHandler(options: {
       }
       let scan;
       try {
-        scan = await options.scanner.scan({
+        scan = await resolveJobAdapter({
+          jobType: projectAssetValidationJobType,
+          adapterFamily: "malware-scanning",
+          adapter: options.scanner as MalwareScanner & { providerId: string },
+        }).adapter.scan({
           bytes: object.body,
           sha256: asset.sha256,
         });

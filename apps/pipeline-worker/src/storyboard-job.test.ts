@@ -305,7 +305,9 @@ function validOutput(): StoryboardOutputV1 {
         term: "Condensation",
         definition: "Vapour cooling into liquid.",
       }),
-      sceneOutput([blockC], "summary", { takeaways: [{ text: "The cycle repeats." }] }),
+      sceneOutput([blockC], "summary", {
+        takeaways: [{ text: "The cycle repeats." }],
+      }),
     ],
   });
 }
@@ -344,7 +346,11 @@ function operationContext(
 describe("allocateStoryboardDurations", () => {
   it("allocates an exact target total", () => {
     const { durations } = allocateStoryboardDurations({
-      scenes: [{ estimatedSeconds: 45 }, { estimatedSeconds: 90 }, { estimatedSeconds: 120 }],
+      scenes: [
+        { estimatedSeconds: 45 },
+        { estimatedSeconds: 90 },
+        { estimatedSeconds: 120 },
+      ],
       target: 180,
     });
     expect(durations.reduce((sum, value) => sum + value, 0)).toBe(180);
@@ -356,7 +362,11 @@ describe("allocateStoryboardDurations", () => {
 
   it("keeps a target that already sums exactly", () => {
     const { durations } = allocateStoryboardDurations({
-      scenes: [{ estimatedSeconds: 60 }, { estimatedSeconds: 60 }, { estimatedSeconds: 60 }],
+      scenes: [
+        { estimatedSeconds: 60 },
+        { estimatedSeconds: 60 },
+        { estimatedSeconds: 60 },
+      ],
       target: 180,
     });
     expect(durations).toEqual([60, 60, 60]);
@@ -365,7 +375,11 @@ describe("allocateStoryboardDurations", () => {
   it("rejects an unreachable target", () => {
     expect(() =>
       allocateStoryboardDurations({
-        scenes: [{ estimatedSeconds: 3 }, { estimatedSeconds: 3 }, { estimatedSeconds: 3 }],
+        scenes: [
+          { estimatedSeconds: 3 },
+          { estimatedSeconds: 3 },
+          { estimatedSeconds: 3 },
+        ],
         target: 300,
       }),
     ).toThrow(StoryboardDeterministicCheckError);
@@ -419,10 +433,15 @@ describe("assertStoryboardDeterministicChecks", () => {
 
   it("rejects an ungrounded scene", () => {
     const output = validOutput();
-    output.scenes[1] = sceneOutput([blockB], "definition", {
-      term: "Condensation",
-      definition: "Vapour cooling into liquid.",
-    }, { sourceBlockIds: [], generatedAdditions: [] });
+    output.scenes[1] = sceneOutput(
+      [blockB],
+      "definition",
+      {
+        term: "Condensation",
+        definition: "Vapour cooling into liquid.",
+      },
+      { sourceBlockIds: [], generatedAdditions: [] },
+    );
     expect(() =>
       assertStoryboardDeterministicChecks(output, pkg, context),
     ).toThrow(/cite at least one source block/);
@@ -430,15 +449,24 @@ describe("assertStoryboardDeterministicChecks", () => {
 
   it("rejects a scene grounded only by generated additions", () => {
     const output = validOutput();
-    output.scenes[1] = sceneOutput([blockB], "definition", {
-      term: "Condensation",
-      definition: "Vapour cooling into liquid.",
-    }, {
-      sourceBlockIds: [],
-      generatedAdditions: [
-        { kind: "analogy", content: "Like a sponge.", rationale: "A generated analogy." },
-      ],
-    });
+    output.scenes[1] = sceneOutput(
+      [blockB],
+      "definition",
+      {
+        term: "Condensation",
+        definition: "Vapour cooling into liquid.",
+      },
+      {
+        sourceBlockIds: [],
+        generatedAdditions: [
+          {
+            kind: "analogy",
+            content: "Like a sponge.",
+            rationale: "A generated analogy.",
+          },
+        ],
+      },
+    );
     expect(() =>
       assertStoryboardDeterministicChecks(output, pkg, context),
     ).toThrow(StoryboardDeterministicCheckError);
@@ -497,7 +525,10 @@ describe("assertStoryboardDeterministicChecks", () => {
         id: outlineSetId,
         contentHash: "x".repeat(64),
         items: [
-          ...outlineItemRows().map((item) => ({ ...item, objectiveIds: [objectiveId] })),
+          ...outlineItemRows().map((item) => ({
+            ...item,
+            objectiveIds: [objectiveId],
+          })),
           {
             id: "019ffbf1-1111-7000-8000-000000000099",
             order: 4,
@@ -526,11 +557,14 @@ describe("loadStoryboardOperationContext", () => {
   }) {
     const rowsFor = (table: unknown): unknown[] => {
       if (table === narrationSets) return input.setRows ?? [narrationSetRow()];
-      if (table === narrationBlocks) return input.blockRows ?? narrationBlockRows();
+      if (table === narrationBlocks)
+        return input.blockRows ?? narrationBlockRows();
       if (table === lessonOutlineSets)
-        return input.outlineSetRows ?? [
-          { id: outlineSetId, status: "approved", projectId, ownerUserId },
-        ];
+        return (
+          input.outlineSetRows ?? [
+            { id: outlineSetId, status: "approved", projectId, ownerUserId },
+          ]
+        );
       if (table === lessonOutlineItems)
         return input.outlineItemRows ?? outlineItemRows();
       if (table === outlineObjectiveLinks)
@@ -564,7 +598,9 @@ describe("loadStoryboardOperationContext", () => {
     if (result.status !== "ok") throw new Error("unreachable");
     expect(result.context.narrationSet.blocks).toHaveLength(3);
     expect(result.context.outlineSet.items).toHaveLength(3);
-    expect(result.context.outlineSet.items[0]!.objectiveIds).toEqual([objectiveId]);
+    expect(result.context.outlineSet.items[0]!.objectiveIds).toEqual([
+      objectiveId,
+    ]);
   });
 
   it("reports a missing narration set", async () => {
@@ -600,7 +636,9 @@ describe("loadStoryboardOperationContext", () => {
   it("rejects a bound outline that is no longer approved", async () => {
     const result = await loadStoryboardOperationContext({
       executor: executor({
-        outlineSetRows: [{ id: outlineSetId, status: "draft", projectId, ownerUserId }],
+        outlineSetRows: [
+          { id: outlineSetId, status: "draft", projectId, ownerUserId },
+        ],
       }),
       ownerUserId,
       projectId,
@@ -612,7 +650,9 @@ describe("loadStoryboardOperationContext", () => {
   it("rejects a bound outline whose content changed", async () => {
     const result = await loadStoryboardOperationContext({
       executor: executor({
-        outlineSetRows: [{ id: outlineSetId, status: "approved", projectId, ownerUserId }],
+        outlineSetRows: [
+          { id: outlineSetId, status: "approved", projectId, ownerUserId },
+        ],
         outlineItemRows: [
           {
             id: itemA,
@@ -672,13 +712,17 @@ describe("persistLessonStoryboard", () => {
           }),
         }),
       }),
-      transaction: async (callback: (executor: DatabaseExecutor) => Promise<unknown>) =>
-        callback(executor),
+      transaction: async (
+        callback: (executor: DatabaseExecutor) => Promise<unknown>,
+      ) => callback(executor),
     } as unknown as DatabaseExecutor;
     return { executor, inserted, idsByKey };
   }
 
-  function callPersist(input: { executor: DatabaseExecutor; idempotencyKey: string }) {
+  function callPersist(input: {
+    executor: DatabaseExecutor;
+    idempotencyKey: string;
+  }) {
     return persistLessonStoryboard({
       executor: input.executor,
       output: validOutput(),
@@ -704,12 +748,16 @@ describe("persistLessonStoryboard", () => {
       (row) => (row as { payload?: unknown }).payload !== undefined,
     );
     expect(specRow).toBeDefined();
-    const sceneRows = inserted.filter((row) =>
-      Array.isArray(row) && (row[0] as { sceneJson?: unknown } | undefined)?.sceneJson !== undefined,
+    const sceneRows = inserted.filter(
+      (row) =>
+        Array.isArray(row) &&
+        (row[0] as { sceneJson?: unknown } | undefined)?.sceneJson !==
+          undefined,
     );
     expect(sceneRows).toHaveLength(1);
     expect(sceneRows[0] as unknown[]).toHaveLength(3);
-    const payload = (specRow as { payload: { totalDurationSeconds: number } }).payload;
+    const payload = (specRow as { payload: { totalDurationSeconds: number } })
+      .payload;
     expect(payload.totalDurationSeconds).toBe(180);
   });
 
@@ -731,7 +779,9 @@ describe("createStoryboardGenerationJobHandler", () => {
       if (table === narrationSets) return [narrationSetRow()];
       if (table === narrationBlocks) return narrationBlockRows();
       if (table === lessonOutlineSets)
-        return [{ id: outlineSetId, status: "approved", projectId, ownerUserId }];
+        return [
+          { id: outlineSetId, status: "approved", projectId, ownerUserId },
+        ];
       if (table === lessonOutlineItems) return outlineItemRows();
       if (table === outlineObjectiveLinks) return outlineObjectiveRows();
       return [];
@@ -789,12 +839,19 @@ describe("createStoryboardGenerationJobHandler", () => {
 
   function jobPayload(overrides: Record<string, unknown> = {}) {
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       operationType: "ai.storyboard",
       sourceSnapshotId: snapshotId,
       promptId: "storyboard",
       promptVersion: "v1",
       model: "mock-model-1",
+      providerApproval: {
+        approvalReference: createId(),
+        providerId: "mock",
+        model: "mock-model-1",
+        estimatedCostUsd: 0.01,
+        selectionReason: "explicit_job_request",
+      },
       params: storyboardParams(),
       ...overrides,
     };
@@ -805,7 +862,7 @@ describe("createStoryboardGenerationJobHandler", () => {
     jobPayloadValue: unknown,
   ) {
     const envelope = createJobEnvelope(
-      z.object({ schemaVersion: z.literal(1) }).passthrough(),
+      z.object({ schemaVersion: z.literal(2) }).passthrough(),
       {
         jobId: createId(),
         jobType: handler.jobType,
@@ -856,7 +913,7 @@ describe("createStoryboardGenerationJobHandler", () => {
       now: () => new Date("2026-08-18T10:00:00.000Z"),
     });
     expect(handler.jobType).toBe("storyboard.generate");
-    expect(handler.payloadVersion).toBe(1);
+    expect(handler.payloadVersion).toBe(2);
     const result = await execute(handler, jobPayload());
     expect(result.outcome).toBe("succeeded");
     if (result.outcome !== "succeeded") throw new Error("unreachable");

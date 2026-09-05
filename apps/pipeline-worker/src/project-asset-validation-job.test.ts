@@ -18,15 +18,19 @@ function databaseFor(
       from: () => ({
         where: () => ({
           limit: async () => [
-            ...(status === undefined ? [] : [{
-              id: assetId,
-              ownerUserId,
-              projectId,
-              status,
-              mediaType: "image/png",
-              sha256: "a".repeat(64),
-              storageKey: `users/${ownerUserId}/projects/${projectId}/assets/${assetId}/original.png`,
-            }]),
+            ...(status === undefined
+              ? []
+              : [
+                  {
+                    id: assetId,
+                    ownerUserId,
+                    projectId,
+                    status,
+                    mediaType: "image/png",
+                    sha256: "a".repeat(64),
+                    storageKey: `users/${ownerUserId}/projects/${projectId}/assets/${assetId}/original.png`,
+                  },
+                ]),
           ],
         }),
       }),
@@ -69,7 +73,10 @@ describe("project asset validation job", () => {
     const handler = createProjectAssetValidationJobHandler({
       database,
       storage: { getBytes, putBytes: vi.fn() },
-      scanner: { scan: async () => ({ status: "safe" }) },
+      scanner: {
+        providerId: "fixture-scanner",
+        scan: async () => ({ status: "safe" }),
+      },
     });
 
     await expect(execute(handler)).rejects.toMatchObject({
@@ -96,7 +103,10 @@ describe("project asset validation job", () => {
         }),
         putBytes,
       },
-      scanner: { scan: async () => ({ status: "safe" }) },
+      scanner: {
+        providerId: "fixture-scanner",
+        scan: async () => ({ status: "safe" }),
+      },
     });
 
     await expect(execute(handler)).resolves.toMatchObject({
@@ -129,7 +139,10 @@ describe("project asset validation job", () => {
         }),
         putBytes,
       },
-      scanner: { scan: async () => ({ status: "unsafe" }) },
+      scanner: {
+        providerId: "fixture-scanner",
+        scan: async () => ({ status: "unsafe" }),
+      },
     });
 
     await expect(execute(handler)).resolves.toEqual({
@@ -162,6 +175,7 @@ describe("project asset validation job", () => {
         putBytes: async () => ({}) as never,
       },
       scanner: {
+        providerId: "fixture-scanner",
         scan: async () => {
           throw new Error("not available");
         },

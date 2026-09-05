@@ -14,9 +14,13 @@ import {
 } from "@avlp/jobs";
 import { illustrationGenerationJobPayloadSchema } from "@avlp/schemas";
 import {
+  ApprovedProviderUnavailableError,
   ProviderCallError,
+  ProviderEnvelopeViolationError,
+  resolveJobAdapter,
   type IllustrationProvider,
 } from "@avlp/provider-adapters";
+import { PostgresAuditWriter } from "@avlp/observability";
 import { and, eq, or } from "drizzle-orm";
 import sharp from "sharp";
 import { storageKeys, type ObjectStorage } from "@avlp/storage";
@@ -35,6 +39,7 @@ export function createIllustrationGenerationJobHandler(input: {
   now?: () => Date;
 }): RegisteredJobHandler {
   const now = input.now ?? (() => new Date());
+  const auditWriter = new PostgresAuditWriter(input.database);
   return defineJobHandler(
     illustrationGenerationJobType,
     1,
@@ -69,14 +74,20 @@ export function createIllustrationGenerationJobHandler(input: {
       const [scene] = await input.database
         .select({ sceneJson: scenes.sceneJson })
         .from(scenes)
-        .where(and(
-          eq(scenes.id, candidate.sceneId),
-          eq(scenes.ownerUserId, context.ownerUserId),
-          eq(scenes.projectId, context.projectId),
-        ))
+        .where(
+          and(
+            eq(scenes.id, candidate.sceneId),
+            eq(scenes.ownerUserId, context.ownerUserId),
+            eq(scenes.projectId, context.projectId),
+          ),
+        )
         .limit(1);
       if (scene === undefined)
-        throw new JobExecutionError("terminal", "ILLUSTRATION_SCENE_NOT_FOUND", "The illustration scene was not found.");
+        throw new JobExecutionError(
+          "terminal",
+          "ILLUSTRATION_SCENE_NOT_FOUND",
+          "The illustration scene was not found.",
+        );
       const [claimed] = await input.database
         .update(illustrationGenerationCandidates)
         .set({ status: "generating", updatedAt: now() })
@@ -92,7 +103,12 @@ export function createIllustrationGenerationJobHandler(input: {
         .returning({ id: illustrationGenerationCandidates.id });
       if (claimed === undefined) return { status: "already_processing" };
       try {
-        const result = await input.provider.generate({
+        const resolvedProvider = resolveJobAdapter({
+          jobType: illustrationGenerationJobType,
+          adapterFamily: "illustration",
+          adapter: input.provider,
+        });
+        const result = await resolvedProvider.adapter.generate({
           prompt: illustrationPrompt(scene.sceneJson),
           size: "1024x1024",
           style: "flat-educational-vector",
@@ -118,7 +134,17 @@ export function createIllustrationGenerationJobHandler(input: {
                 retryCount: result.retryCount ?? 0,
                 status: "failed",
                 correlationId: context.correlationId,
-                metadata: { candidateId: candidate.id, moderationCode: result.moderation.code },
+                metadata: {
+                  candidateId: candidate.id,
+                  moderationCode: result.moderation.code,
+                  providerSelection: {
+                    contractVersion: "provider-envelope-v1",
+                    selectionReason: "approved_configuration",
+                    approvalReference: context.jobId,
+                    estimatedCostUsd: result.costUsd,
+                    actualCostUsd: result.costUsd,
+                  },
+                },
                 occurredAt: now(),
               })
               .onConflictDoNothing();
@@ -197,7 +223,16 @@ export function createIllustrationGenerationJobHandler(input: {
               retryCount: result.retryCount ?? 0,
               status: "succeeded",
               correlationId: context.correlationId,
-              metadata: { candidateId: candidate.id },
+              metadata: {
+                candidateId: candidate.id,
+                providerSelection: {
+                  contractVersion: "provider-envelope-v1",
+                  selectionReason: "approved_configuration",
+                  approvalReference: context.jobId,
+                  estimatedCostUsd: result.costUsd,
+                  actualCostUsd: result.costUsd,
+                },
+              },
               occurredAt: now(),
             })
             .onConflictDoNothing();
@@ -218,6 +253,25 @@ export function createIllustrationGenerationJobHandler(input: {
           height: metadata.height,
         };
       } catch (error) {
+        if (
+          error instanceof ProviderEnvelopeViolationError ||
+          error instanceof ApprovedProviderUnavailableError
+        )
+          await auditWriter.write({
+            ownerUserId: context.ownerUserId,
+            projectId: context.projectId,
+            actor: { type: "system" },
+            eventType: "ai.generated",
+            target: { type: "job", id: context.jobId },
+            correlationId: context.correlationId,
+            metadata: {
+              event: "provider.envelope_violation",
+              jobType: illustrationGenerationJobType,
+              requestedAdapter: "illustration",
+              code: error.code,
+            },
+            occurredAt: now(),
+          });
         await input.database
           .update(illustrationGenerationCandidates)
           .set({
@@ -246,8 +300,15 @@ export function createIllustrationGenerationJobHandler(input: {
 
 /** Bounded scene context only; approved source text is never sent to images. */
 function illustrationPrompt(scene: unknown): string {
-  const value = typeof scene === "object" && scene !== null ? scene as Record<string, unknown> : {};
-  const title = typeof value.title === "string" ? value.title.slice(0, 160) : "lesson concept";
-  const narration = typeof value.narration === "string" ? value.narration.slice(0, 400) : "";
+  const value =
+    typeof scene === "object" && scene !== null
+      ? (scene as Record<string, unknown>)
+      : {};
+  const title =
+    typeof value.title === "string"
+      ? value.title.slice(0, 160)
+      : "lesson concept";
+  const narration =
+    typeof value.narration === "string" ? value.narration.slice(0, 400) : "";
   return `Create a simple flat educational supporting illustration for: ${title}. Context: ${narration}. No text, logos, people, or unsafe content.`;
 }

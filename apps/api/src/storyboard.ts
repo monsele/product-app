@@ -32,6 +32,7 @@ import {
   type DatabaseExecutor,
 } from "@avlp/database";
 import { createIdempotencyKey, createJobEnvelope } from "@avlp/jobs";
+import { createModelCallProviderApproval } from "./model-call-approval.js";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
   createDefaultStoryboardSceneSpec,
@@ -290,13 +291,18 @@ export class PostgresStoryboardService implements StoryboardService {
         narrationSetId: narrationSet.id,
         narrationSetRevision: narrationSet.revision,
       });
+      const requestedJobId = createId(timestamp);
       const payload = modelCallJobPayloadSchema.parse({
-        schemaVersion: 1,
+        schemaVersion: 2,
         operationType: "ai.storyboard",
         sourceSnapshotId: approval.snapshotId,
         promptId: currentStoryboardGenerationCompatibility.promptId,
         promptVersion: currentStoryboardGenerationCompatibility.promptVersion,
         model: currentStoryboardGenerationCompatibility.model,
+        providerApproval: createModelCallProviderApproval({
+          jobId: requestedJobId,
+          model: currentStoryboardGenerationCompatibility.model,
+        }),
         ...(blockIds.length === 0 ? {} : { narrowing: { blockIds } }),
         params,
       });
@@ -309,7 +315,7 @@ export class PostgresStoryboardService implements StoryboardService {
         paramsHash,
       ].join(":");
       const envelope = createJobEnvelope(modelCallJobPayloadSchema, {
-        jobId: createId(timestamp),
+        jobId: requestedJobId,
         jobType: "storyboard.generate",
         projectId: input.projectId,
         ownerUserId: input.ownerUserId,
@@ -321,7 +327,7 @@ export class PostgresStoryboardService implements StoryboardService {
           options: { requestKey: idempotencyKey },
         }),
         correlationId: input.correlationId,
-        payloadVersion: 1,
+        payloadVersion: 2,
         payload,
         requestedAt: timestamp,
       });
@@ -616,13 +622,18 @@ export class PostgresStoryboardService implements StoryboardService {
         targetDurationSeconds: configuration.targetDurationSeconds,
         includeRecallQuestions: configuration.includeRecallQuestions,
       });
+      const requestedJobId = createId(timestamp);
       const payload = modelCallJobPayloadSchema.parse({
-        schemaVersion: 1,
+        schemaVersion: 2,
         operationType: "ai.scene_regeneration",
         sourceSnapshotId: narrationSet.sourceSnapshotId,
         promptId: currentSceneRegenerationCompatibility.promptId,
         promptVersion: currentSceneRegenerationCompatibility.promptVersion,
         model: currentSceneRegenerationCompatibility.model,
+        providerApproval: createModelCallProviderApproval({
+          jobId: requestedJobId,
+          model: currentSceneRegenerationCompatibility.model,
+        }),
         ...(blockIds.length === 0 ? {} : { narrowing: { blockIds } }),
         params,
       });
@@ -635,7 +646,7 @@ export class PostgresStoryboardService implements StoryboardService {
         paramsHash,
       ].join(":");
       const envelope = createJobEnvelope(modelCallJobPayloadSchema, {
-        jobId: createId(timestamp),
+        jobId: requestedJobId,
         jobType: "storyboard.scene-regenerate",
         projectId: input.projectId,
         ownerUserId: input.ownerUserId,
@@ -647,7 +658,7 @@ export class PostgresStoryboardService implements StoryboardService {
           options: { requestKey: idempotencyKey },
         }),
         correlationId: input.correlationId,
-        payloadVersion: 1,
+        payloadVersion: 2,
         payload,
         requestedAt: timestamp,
       });
@@ -1453,7 +1464,9 @@ export class PostgresStoryboardService implements StoryboardService {
             role: requirement.bindingRole,
             slot: candidate.slot,
             visualRole: requirement.visualRole,
-            ...(parsed.altText === undefined ? {} : { altText: parsed.altText }),
+            ...(parsed.altText === undefined
+              ? {}
+              : { altText: parsed.altText }),
           },
         ],
       };
@@ -2170,7 +2183,8 @@ export class PostgresStoryboardService implements StoryboardService {
         binding.role !== requirement.bindingRole ||
         (binding.visualRole !== undefined &&
           binding.visualRole !== requirement.visualRole) ||
-        (binding.provenance !== undefined && binding.provenance !== "catalog") ||
+        (binding.provenance !== undefined &&
+          binding.provenance !== "catalog") ||
         !isCatalogAssetCompatibleWithSlot(asset, requirement)
       )
         throw incompatibleCatalogAsset();
@@ -3177,7 +3191,8 @@ function invalidIllustrationCandidateMedia(): PublicError {
     400,
     false,
     {
-      illustration: "Generate a new illustration before selecting one for this slot.",
+      illustration:
+        "Generate a new illustration before selecting one for this slot.",
     },
   );
 }

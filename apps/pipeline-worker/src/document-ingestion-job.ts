@@ -22,6 +22,11 @@ import {
 } from "@avlp/jobs";
 import { PostgresAuditWriter, PostgresUsageMeter } from "@avlp/observability";
 import {
+  ApprovedProviderUnavailableError,
+  ProviderEnvelopeViolationError,
+  resolveJobAdapter,
+} from "@avlp/provider-adapters";
+import {
   currentIngestionCompatibility,
   doclingIngestionRequestSchema,
   documentIngestionJobPayloadSchema,
@@ -354,7 +359,13 @@ export function createDocumentIngestionJobHandler(
         });
         let parsed: DoclingIngestionResult;
         try {
-          parsed = await options.client.ingest(
+          parsed = await resolveJobAdapter({
+            jobType: documentIngestionJobType,
+            adapterFamily: "document-ingestion",
+            adapter: options.client as DoclingIngestionClient & {
+              providerId: string;
+            },
+          }).adapter.ingest(
             doclingIngestionRequestSchema.parse({
               schemaVersion: 1,
               jobId: context.jobId,
@@ -366,6 +377,25 @@ export function createDocumentIngestionJobHandler(
             }),
           );
         } catch (error) {
+          if (
+            error instanceof ProviderEnvelopeViolationError ||
+            error instanceof ApprovedProviderUnavailableError
+          )
+            await new PostgresAuditWriter(options.database).write({
+              ownerUserId: context.ownerUserId,
+              projectId: context.projectId,
+              actor: { type: "system" },
+              eventType: "ai.generated",
+              target: { type: "job", id: context.jobId },
+              correlationId: context.correlationId,
+              metadata: {
+                event: "provider.envelope_violation",
+                jobType: documentIngestionJobType,
+                requestedAdapter: "document-ingestion",
+                code: error.code,
+              },
+              occurredAt: new Date(),
+            });
           const code =
             error instanceof DoclingIngestionError
               ? error.code

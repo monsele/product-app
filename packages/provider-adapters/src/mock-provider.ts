@@ -37,6 +37,7 @@ export type MockCompletion = (
  */
 export class MockLanguageModelProvider implements LanguageModelProvider {
   public readonly providerId = "mock";
+  public readonly supportedModels: readonly string[];
   public readonly requests: ProviderCompletionRequest[] = [];
   public readonly completions: string[] = [];
 
@@ -48,7 +49,9 @@ export class MockLanguageModelProvider implements LanguageModelProvider {
       latencyMs?: number;
       fail?: { code: string; retryable?: boolean; message?: string };
     } = {},
-  ) {}
+  ) {
+    this.supportedModels = [options.model ?? "mock-model-1"];
+  }
 
   public async complete(
     request: ProviderCompletionRequest,

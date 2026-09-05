@@ -106,7 +106,10 @@ describeWithPostgres("document validation job", () => {
         delete: async () => undefined,
         getBytes: async () => ({ body: bytes, metadata: {} as never }),
       },
-      scanner: { scan: async () => ({ status: "safe" as const }) },
+      scanner: {
+        providerId: "fixture-scanner",
+        scan: async () => ({ status: "safe" as const }),
+      },
       maxUploadBytes: 1_024,
     });
     await expect(
@@ -136,6 +139,44 @@ describeWithPostgres("document validation job", () => {
     expect(ingestion?.idempotencyKey).toBeTruthy();
   });
 
+  it("persists an envelope violation without calling an unidentified scanner", async () => {
+    const scan = vi.fn(async () => ({ status: "safe" as const }));
+    const handler = createDocumentValidationJobHandler({
+      database: database!.client,
+      storage: {
+        delete: async () => undefined,
+        getBytes: async () => ({ body: bytes, metadata: {} as never }),
+      },
+      scanner: { scan },
+      maxUploadBytes: 1_024,
+    });
+    await expect(
+      handler.handler(
+        documentValidationJobPayloadSchema.parse({
+          schemaVersion: 1,
+          sourceDocumentId: documentId,
+        }),
+        context,
+      ),
+    ).rejects.toMatchObject({ code: "MALWARE_SCAN_UNAVAILABLE" });
+    expect(scan).not.toHaveBeenCalled();
+    expect(await database!.client.select().from(auditEvents)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          eventType: "ai.generated",
+          targetId: context.jobId,
+          correlationId,
+          metadata: expect.objectContaining({
+            event: "provider.envelope_violation",
+            jobType: "document.validation",
+            requestedAdapter: "malware-scanning",
+            code: "APPROVED_PROVIDER_UNAVAILABLE",
+          }),
+        }),
+      ]),
+    );
+  });
+
   it("queues one ingestion job and outbox event for overlapping validation delivery", async () => {
     const handler = createDocumentValidationJobHandler({
       database: database!.client,
@@ -144,6 +185,7 @@ describeWithPostgres("document validation job", () => {
         getBytes: async () => ({ body: bytes, metadata: {} as never }),
       },
       scanner: {
+        providerId: "fixture-scanner",
         scan: async () => {
           await Promise.resolve();
           return { status: "safe" as const };
@@ -157,7 +199,10 @@ describeWithPostgres("document validation job", () => {
     });
 
     await expect(
-      Promise.all([handler.handler(payload, context), handler.handler(payload, context)]),
+      Promise.all([
+        handler.handler(payload, context),
+        handler.handler(payload, context),
+      ]),
     ).resolves.toHaveLength(2);
     expect(
       (await database!.client.select().from(jobs)).filter(
@@ -210,7 +255,10 @@ describeWithPostgres("document validation job", () => {
         delete: async () => undefined,
         getBytes: async () => ({ body: bytes, metadata: {} as never }),
       },
-      scanner: { scan: async () => ({ status: "safe" as const }) },
+      scanner: {
+        providerId: "fixture-scanner",
+        scan: async () => ({ status: "safe" as const }),
+      },
       maxUploadBytes: 1_024,
     });
 
@@ -282,7 +330,10 @@ describeWithPostgres("document validation job", () => {
         delete: async () => undefined,
         getBytes: async () => ({ body: bytes, metadata: {} as never }),
       },
-      scanner: { scan: async () => ({ status: "safe" as const }) },
+      scanner: {
+        providerId: "fixture-scanner",
+        scan: async () => ({ status: "safe" as const }),
+      },
       maxUploadBytes: 1_024,
     });
 
@@ -348,7 +399,10 @@ describeWithPostgres("document validation job", () => {
         delete: async () => undefined,
         getBytes: async () => ({ body: bytes, metadata: {} as never }),
       },
-      scanner: { scan: async () => ({ status: "safe" as const }) },
+      scanner: {
+        providerId: "fixture-scanner",
+        scan: async () => ({ status: "safe" as const }),
+      },
       maxUploadBytes: 1_024,
     });
 
@@ -378,7 +432,10 @@ describeWithPostgres("document validation job", () => {
         delete: deleteObject,
         getBytes: async () => ({ body: bytes, metadata: {} as never }),
       },
-      scanner: { scan: async () => ({ status: "unsafe" as const }) },
+      scanner: {
+        providerId: "fixture-scanner",
+        scan: async () => ({ status: "unsafe" as const }),
+      },
       maxUploadBytes: 1_024,
     });
     await expect(
@@ -464,7 +521,10 @@ describeWithPostgres("document validation job", () => {
           metadata: {} as never,
         }),
       },
-      scanner: { scan: async () => ({ status: "safe" as const }) },
+      scanner: {
+        providerId: "fixture-scanner",
+        scan: async () => ({ status: "safe" as const }),
+      },
       maxUploadBytes: 1_024,
     });
     await expect(
@@ -504,7 +564,10 @@ describeWithPostgres("document validation job", () => {
           throw new Error("object unavailable");
         },
       },
-      scanner: { scan: async () => ({ status: "safe" as const }) },
+      scanner: {
+        providerId: "fixture-scanner",
+        scan: async () => ({ status: "safe" as const }),
+      },
       maxUploadBytes: 1_024,
     });
     await expect(
@@ -535,6 +598,7 @@ describeWithPostgres("document validation job", () => {
         getBytes: async () => ({ body: bytes, metadata: {} as never }),
       },
       scanner: {
+        providerId: "fixture-scanner",
         scan: async () => {
           throw new Error("scanner unavailable");
         },

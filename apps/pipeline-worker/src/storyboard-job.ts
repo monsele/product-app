@@ -298,7 +298,10 @@ async function loadApprovedOutlineBoundToNarration(input: {
           .from(outlineObjectiveLinks)
           .where(
             and(
-              inArray(outlineObjectiveLinks.outlineItemId, itemRows.map((item) => item.id)),
+              inArray(
+                outlineObjectiveLinks.outlineItemId,
+                itemRows.map((item) => item.id),
+              ),
               eq(outlineObjectiveLinks.ownerUserId, input.ownerUserId),
               eq(outlineObjectiveLinks.projectId, input.projectId),
             ),
@@ -310,10 +313,14 @@ async function loadApprovedOutlineBoundToNarration(input: {
     objectiveIdsByItem.set(link.outlineItemId, current);
   }
   return {
-    set: { id: setRow.id as Identifier, contentHash: input.expectedContentHash },
+    set: {
+      id: setRow.id as Identifier,
+      contentHash: input.expectedContentHash,
+    },
     items: items.map((item) => ({
       ...item,
-      objectiveIds: (objectiveIdsByItem.get(item.id) ?? []) as readonly Identifier[],
+      objectiveIds: (objectiveIdsByItem.get(item.id) ??
+        []) as readonly Identifier[],
     })),
   };
 }
@@ -349,7 +356,11 @@ export function allocateStoryboardDurations(input: {
   const clamp = (value: number): number =>
     Math.min(maximum, Math.max(minimum, Math.round(value)));
   let durations = input.scenes.map((scene) => clamp(scene.estimatedSeconds));
-  for (let attempt = 0; attempt < 20 && sum(durations) !== input.target; attempt += 1) {
+  for (
+    let attempt = 0;
+    attempt < 20 && sum(durations) !== input.target;
+    attempt += 1
+  ) {
     const factor = input.target / Math.max(1, sum(durations));
     durations = durations.map((duration) => clamp(duration * factor));
   }
@@ -373,7 +384,8 @@ export function allocateStoryboardDurations(input: {
       for (let index = 0; index < durations.length; index += 1)
         if (
           durations[index]! < maximum &&
-          (smallestIndex === -1 || durations[index]! < durations[smallestIndex]!)
+          (smallestIndex === -1 ||
+            durations[index]! < durations[smallestIndex]!)
         )
           smallestIndex = index;
       if (smallestIndex === -1) break;
@@ -407,7 +419,10 @@ export function assertStoryboardDeterministicChecks(
       "OUTLINE_ITEM_UNCOVERED",
       "The storyboard operation context is missing the approved narration and outline.",
     );
-  if (output.targetDurationSeconds !== operationContext.params.targetDurationSeconds)
+  if (
+    output.targetDurationSeconds !==
+    operationContext.params.targetDurationSeconds
+  )
     throw new StoryboardDeterministicCheckError(
       "TARGET_DURATION_MISMATCH",
       `The storyboard target (${output.targetDurationSeconds}s) must match the lesson configuration (${operationContext.params.targetDurationSeconds}s).`,
@@ -551,8 +566,7 @@ async function persistLessonStoryboardDraft(input: {
 }): Promise<{ id: Identifier }> {
   const params = storyboardGenerationParamsSchema.parse(input.params);
   const operationContext = input.operationContext as
-    | StoryboardOperationContext
-    | undefined;
+    StoryboardOperationContext | undefined;
   if (
     operationContext === undefined ||
     operationContext.narrationSet.blocks.length === 0
@@ -799,7 +813,7 @@ export function createStoryboardGenerationJobHandler(input: {
 }): ReturnType<typeof createModelCallGenerationHandler<StoryboardOutputV1>> {
   const options: ModelCallHandlerOptions<StoryboardOutputV1> = {
     jobType: "storyboard.generate",
-    payloadVersion: 1,
+    payloadVersion: 2,
     operationType: "ai.storyboard",
     outputSchema: storyboardOutputV1Schema,
     provider: input.provider,
@@ -814,8 +828,7 @@ export function createStoryboardGenerationJobHandler(input: {
         projectId: context.projectId,
         params: parsedParams,
       });
-      if (loaded.status !== "ok")
-        throw storyboardContextError(loaded.status);
+      if (loaded.status !== "ok") throw storyboardContextError(loaded.status);
       const narration = loaded.context.narrationSet.blocks.map((block) => ({
         id: block.id,
         order: block.order,
@@ -861,9 +874,7 @@ export function createStoryboardGenerationJobHandler(input: {
         now: candidate.now,
       }),
     ...(input.pricing === undefined ? {} : { pricing: input.pricing }),
-    ...(input.maxRepairs === undefined
-      ? {}
-      : { maxRepairs: input.maxRepairs }),
+    ...(input.maxRepairs === undefined ? {} : { maxRepairs: input.maxRepairs }),
     ...(input.now === undefined ? {} : { now: input.now }),
   };
   return createModelCallGenerationHandler<StoryboardOutputV1>(options);

@@ -230,9 +230,8 @@ export async function persistObjectiveSet(input: {
   const params = objectiveGenerationParamsSchema.parse(input.params);
   const timestamp = input.now;
   const setId = createId(timestamp);
-  const sourceRefsById = (
-    blockIds: readonly string[],
-  ): SourceRef[] => resolveObjectiveSourceRefs(input.sourcePackage, blockIds);
+  const sourceRefsById = (blockIds: readonly string[]): SourceRef[] =>
+    resolveObjectiveSourceRefs(input.sourcePackage, blockIds);
   const set: LearningObjectiveSet = learningObjectiveSetSchema.parse({
     schemaVersion: 1,
     id: setId,
@@ -285,12 +284,14 @@ export async function persistObjectiveSet(input: {
       correction: item.correction,
       sourceRefs: sourceRefsById(item.sourceBlockIds),
     })),
-    assessmentQuestions: input.output.assessmentQuestions.map((item, index) => ({
-      id: createId(timestamp),
-      order: index + 1,
-      question: item.question,
-      sourceRefs: sourceRefsById(item.sourceBlockIds),
-    })),
+    assessmentQuestions: input.output.assessmentQuestions.map(
+      (item, index) => ({
+        id: createId(timestamp),
+        order: index + 1,
+        question: item.question,
+        sourceRefs: sourceRefsById(item.sourceBlockIds),
+      }),
+    ),
     generatedAt: serializeUtcTimestamp(timestamp),
     createdAt: serializeUtcTimestamp(timestamp),
   });
@@ -355,7 +356,10 @@ export async function persistObjectiveSet(input: {
           and(
             eq(learningObjectiveSets.ownerUserId, input.context.ownerUserId),
             eq(learningObjectiveSets.projectId, input.context.projectId),
-            eq(learningObjectiveSets.idempotencyKey, input.context.idempotencyKey),
+            eq(
+              learningObjectiveSets.idempotencyKey,
+              input.context.idempotencyKey,
+            ),
           ),
         )
         .limit(1);
@@ -382,7 +386,7 @@ export function createObjectivesGenerationJobHandler(input: {
 }): ReturnType<typeof createModelCallGenerationHandler<ObjectiveOutputV1>> {
   const options: ModelCallHandlerOptions<ObjectiveOutputV1> = {
     jobType: "objectives.generate",
-    payloadVersion: 1,
+    payloadVersion: 2,
     operationType: "ai.objectives",
     outputSchema: objectiveOutputV1Schema,
     provider: input.provider,
@@ -402,9 +406,7 @@ export function createObjectivesGenerationJobHandler(input: {
         now: candidate.now,
       }),
     ...(input.pricing === undefined ? {} : { pricing: input.pricing }),
-    ...(input.maxRepairs === undefined
-      ? {}
-      : { maxRepairs: input.maxRepairs }),
+    ...(input.maxRepairs === undefined ? {} : { maxRepairs: input.maxRepairs }),
     ...(input.now === undefined ? {} : { now: input.now }),
   };
   return createModelCallGenerationHandler<ObjectiveOutputV1>(options);

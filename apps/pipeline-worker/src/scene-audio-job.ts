@@ -18,7 +18,13 @@ import {
   JobExecutionError,
   type RegisteredJobHandler,
 } from "@avlp/jobs";
-import { ProviderCallError } from "@avlp/provider-adapters";
+import {
+  ApprovedProviderUnavailableError,
+  ProviderCallError,
+  ProviderEnvelopeViolationError,
+  resolveJobAdapter,
+} from "@avlp/provider-adapters";
+import { PostgresAuditWriter } from "@avlp/observability";
 import {
   narrationPauseReservation,
   narrationWordsPerMinute,
@@ -206,6 +212,7 @@ export function createSceneAudioGenerationJobHandler(input: {
   const now = input.now ?? (() => new Date());
   const provider = input.provider ?? fixtureSceneAudioTtsProvider;
   const alignmentProvider = input.alignmentProvider;
+  const auditWriter = new PostgresAuditWriter(input.database);
   return defineJobHandler(
     sceneAudioGenerationJobType,
     1,
@@ -385,7 +392,13 @@ export function createSceneAudioGenerationJobHandler(input: {
             "TTS_PROVIDER_MISMATCH",
             "The requested TTS provider configuration is unavailable.",
           );
-        const output = await provider.synthesize({
+        const resolvedProvider = resolveJobAdapter({
+          jobType: sceneAudioGenerationJobType,
+          adapterFamily: "text-to-speech",
+          adapter: provider,
+          approvedProvider: payload.provider.providerId,
+        });
+        const output = await resolvedProvider.adapter.synthesize({
           narration,
           speakingRate: voice.speakingRate,
           voiceId: voice.voiceId,
@@ -482,6 +495,13 @@ export function createSceneAudioGenerationJobHandler(input: {
               metadata: {
                 sceneAudioId: audio.id,
                 durationMs: output.durationMs,
+                providerSelection: {
+                  contractVersion: "provider-envelope-v1",
+                  selectionReason: "approved_configuration",
+                  approvalReference: context.jobId,
+                  estimatedCostUsd: output.costUsd ?? 0,
+                  actualCostUsd: output.costUsd ?? 0,
+                },
                 ...(output.providerCallId === undefined
                   ? {}
                   : { providerCallId: output.providerCallId }),
@@ -516,6 +536,13 @@ export function createSceneAudioGenerationJobHandler(input: {
                 metadata: {
                   sceneAudioId: audio.id,
                   phase: "forced_alignment",
+                  providerSelection: {
+                    contractVersion: "provider-envelope-v1",
+                    selectionReason: "approved_configuration",
+                    approvalReference: context.jobId,
+                    estimatedCostUsd: aligned.costUsd ?? 0,
+                    actualCostUsd: aligned.costUsd ?? 0,
+                  },
                   ...(aligned.providerCallId === undefined
                     ? {}
                     : { providerCallId: aligned.providerCallId }),
@@ -557,6 +584,25 @@ export function createSceneAudioGenerationJobHandler(input: {
           error.code === "DURATION_RECONCILIATION_PENDING"
         )
           throw error;
+        if (
+          error instanceof ProviderEnvelopeViolationError ||
+          error instanceof ApprovedProviderUnavailableError
+        )
+          await auditWriter.write({
+            ownerUserId: context.ownerUserId,
+            projectId: context.projectId,
+            actor: { type: "system" },
+            eventType: "ai.generated",
+            target: { type: "job", id: context.jobId },
+            correlationId: context.correlationId,
+            metadata: {
+              event: "provider.envelope_violation",
+              jobType: sceneAudioGenerationJobType,
+              requestedAdapter: "text-to-speech",
+              code: error.code,
+            },
+            occurredAt: now(),
+          });
         const failureCode =
           error instanceof JobExecutionError ||
           error instanceof ProviderCallError
@@ -651,34 +697,38 @@ function alignWithoutProvider(
       "FORCED_ALIGNMENT_UNAVAILABLE",
       "The TTS provider returned no timestamps and no forced-alignment provider is configured.",
     );
-  return Promise.resolve(provider.align({ audio, narration, durationMs })).then(
-    (result) => {
-      const alignment = Array.isArray(result) ? { timing: result } : result;
-      const validTiming =
-        alignment.timing.length > 0 &&
-        alignment.timing.every(
-          (item, index) =>
-            item.startMs >= 0 &&
-            item.endMs > item.startMs &&
-            item.endMs <= durationMs &&
-            (index === 0 || item.startMs >= alignment.timing[index - 1]!.endMs),
-        );
-      if (!validTiming)
-        throw new JobExecutionError(
-          "terminal",
-          "FORCED_ALIGNMENT_INVALID",
-          "The forced-alignment provider returned unusable timestamps.",
-        );
-      return {
-        ...alignment,
-        timing: alignSentences({
-          narration,
-          durationMs,
-          timing: alignment.timing,
-        }),
-      };
-    },
-  );
+  return Promise.resolve(
+    resolveJobAdapter({
+      jobType: sceneAudioGenerationJobType,
+      adapterFamily: "forced-alignment",
+      adapter: provider as SceneAudioAlignmentProvider & { providerId: string },
+    }).adapter.align({ audio, narration, durationMs }),
+  ).then((result) => {
+    const alignment = Array.isArray(result) ? { timing: result } : result;
+    const validTiming =
+      alignment.timing.length > 0 &&
+      alignment.timing.every(
+        (item, index) =>
+          item.startMs >= 0 &&
+          item.endMs > item.startMs &&
+          item.endMs <= durationMs &&
+          (index === 0 || item.startMs >= alignment.timing[index - 1]!.endMs),
+      );
+    if (!validTiming)
+      throw new JobExecutionError(
+        "terminal",
+        "FORCED_ALIGNMENT_INVALID",
+        "The forced-alignment provider returned unusable timestamps.",
+      );
+    return {
+      ...alignment,
+      timing: alignSentences({
+        narration,
+        durationMs,
+        timing: alignment.timing,
+      }),
+    };
+  });
 }
 
 async function persistCaptions(input: {

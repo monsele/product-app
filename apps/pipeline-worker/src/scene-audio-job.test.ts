@@ -356,7 +356,7 @@ describe("scene audio generation job", () => {
           timing: [],
         }),
       },
-      alignmentProvider: { align },
+      alignmentProvider: { providerId: "fixture-v1", align },
       now,
     });
     await expect(execute(handler)).resolves.toMatchObject({ status: "ready" });

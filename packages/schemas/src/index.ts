@@ -724,88 +724,90 @@ export const summaryVisualSchema = z
 export type SummaryVisual = z.infer<typeof summaryVisualSchema>;
 const visual = <T extends z.ZodRawShape>(shape: T) => z.object(shape).strict();
 
-export const sceneSpecSchema = z.discriminatedUnion("template", [
-  z
-    .object({
-      ...sceneBaseShape,
-      template: z.literal("hook"),
-      visual: hookVisualSchema,
-    })
-    .strict(),
-  z
-    .object({
-      ...sceneBaseShape,
-      template: z.literal("definition"),
-      visual: definitionVisualSchema,
-    })
-    .strict(),
-  z
-    .object({
-      ...sceneBaseShape,
-      template: z.literal("process"),
-      visual: processVisualSchema,
-    })
-    .strict(),
-  z
-    .object({
-      ...sceneBaseShape,
-      template: z.literal("input-process-output"),
-      visual: ipoVisualSchema,
-    })
-    .strict(),
-  z
-    .object({
-      ...sceneBaseShape,
-      template: z.literal("comparison"),
-      visual: comparisonVisualSchema,
-    })
-    .strict(),
-  z
-    .object({
-      ...sceneBaseShape,
-      template: z.literal("cause-effect"),
-      visual: causeEffectVisualSchema,
-    })
-    .strict(),
-  z
-    .object({
-      ...sceneBaseShape,
-      template: z.literal("labelled-diagram"),
-      visual: diagramVisualSchema,
-    })
-    .strict(),
-  z
-    .object({
-      ...sceneBaseShape,
-      template: z.literal("analogy"),
-      visual: analogyVisualSchema,
-    })
-    .strict(),
-  z
-    .object({
-      ...sceneBaseShape,
-      template: z.literal("worked-example"),
-      visual: workedExampleVisualSchema,
-    })
-    .strict(),
-  z
-    .object({
-      ...sceneBaseShape,
-      template: z.literal("summary"),
-      visual: summaryVisualSchema,
-    })
-    .strict(),
-]).superRefine((scene, context) => {
-  // ST-085: enforce the slot's epistemic role structurally, on the scene
-  // contract, so no binding — however it was constructed or by which endpoint —
-  // can place generated imagery into a slot a learner must trust. The role is
-  // read from the immutable template registry, never from the binding.
-  for (const issue of assetBindingComplianceIssues(
-    scene.template,
-    scene.assetBindings,
-  ))
-    context.addIssue({ code: z.ZodIssueCode.custom, ...issue });
-});
+export const sceneSpecSchema = z
+  .discriminatedUnion("template", [
+    z
+      .object({
+        ...sceneBaseShape,
+        template: z.literal("hook"),
+        visual: hookVisualSchema,
+      })
+      .strict(),
+    z
+      .object({
+        ...sceneBaseShape,
+        template: z.literal("definition"),
+        visual: definitionVisualSchema,
+      })
+      .strict(),
+    z
+      .object({
+        ...sceneBaseShape,
+        template: z.literal("process"),
+        visual: processVisualSchema,
+      })
+      .strict(),
+    z
+      .object({
+        ...sceneBaseShape,
+        template: z.literal("input-process-output"),
+        visual: ipoVisualSchema,
+      })
+      .strict(),
+    z
+      .object({
+        ...sceneBaseShape,
+        template: z.literal("comparison"),
+        visual: comparisonVisualSchema,
+      })
+      .strict(),
+    z
+      .object({
+        ...sceneBaseShape,
+        template: z.literal("cause-effect"),
+        visual: causeEffectVisualSchema,
+      })
+      .strict(),
+    z
+      .object({
+        ...sceneBaseShape,
+        template: z.literal("labelled-diagram"),
+        visual: diagramVisualSchema,
+      })
+      .strict(),
+    z
+      .object({
+        ...sceneBaseShape,
+        template: z.literal("analogy"),
+        visual: analogyVisualSchema,
+      })
+      .strict(),
+    z
+      .object({
+        ...sceneBaseShape,
+        template: z.literal("worked-example"),
+        visual: workedExampleVisualSchema,
+      })
+      .strict(),
+    z
+      .object({
+        ...sceneBaseShape,
+        template: z.literal("summary"),
+        visual: summaryVisualSchema,
+      })
+      .strict(),
+  ])
+  .superRefine((scene, context) => {
+    // ST-085: enforce the slot's epistemic role structurally, on the scene
+    // contract, so no binding — however it was constructed or by which endpoint —
+    // can place generated imagery into a slot a learner must trust. The role is
+    // read from the immutable template registry, never from the binding.
+    for (const issue of assetBindingComplianceIssues(
+      scene.template,
+      scene.assetBindings,
+    ))
+      context.addIssue({ code: z.ZodIssueCode.custom, ...issue });
+  });
 export type SceneBase = Omit<
   z.infer<typeof sceneSpecSchema>,
   "template" | "visual"
@@ -3802,12 +3804,26 @@ export type ModelCallParams = z.infer<typeof modelCallParamsSchema>;
  */
 export const modelCallJobPayloadSchema = z
   .object({
-    schemaVersion: z.literal(1),
+    schemaVersion: z.literal(2),
     operationType: modelCallOperationSchema,
     sourceSnapshotId: identifierSchema,
     promptId: z.string().trim().min(1).max(100),
     promptVersion: z.string().trim().min(1).max(50),
     model: z.string().trim().min(1).max(200),
+    /**
+     * Immutable approval captured when the explicit generation request is
+     * queued.  The reference is the persisted job request itself; it binds
+     * execution to the selected provider, model, and bounded cost estimate.
+     */
+    providerApproval: z
+      .object({
+        approvalReference: identifierSchema,
+        providerId: z.string().trim().min(1).max(100),
+        model: z.string().trim().min(1).max(200),
+        estimatedCostUsd: z.number().finite().nonnegative(),
+        selectionReason: z.literal("explicit_job_request"),
+      })
+      .strict(),
     narrowing: sourcePackageNarrowingSchema.optional(),
     params: modelCallParamsSchema.optional(),
   })
@@ -6867,11 +6883,25 @@ const templateAssetSlotRequirements: Record<
     ),
   ],
   process: templateAssetSlots.process.map((slot) =>
-    slotRequirement(slot, "icon", ["icon", "shape"], ["square"], false, decorative),
+    slotRequirement(
+      slot,
+      "icon",
+      ["icon", "shape"],
+      ["square"],
+      false,
+      decorative,
+    ),
   ),
   "input-process-output": templateAssetSlots["input-process-output"].map(
     (slot) =>
-      slotRequirement(slot, "icon", ["icon", "shape"], ["square"], false, decorative),
+      slotRequirement(
+        slot,
+        "icon",
+        ["icon", "shape"],
+        ["square"],
+        false,
+        decorative,
+      ),
   ),
   comparison: templateAssetSlots.comparison.map((slot) =>
     slotRequirement(
@@ -6884,7 +6914,14 @@ const templateAssetSlotRequirements: Record<
     ),
   ),
   "cause-effect": templateAssetSlots["cause-effect"].map((slot) =>
-    slotRequirement(slot, "icon", ["icon", "shape"], ["square"], false, decorative),
+    slotRequirement(
+      slot,
+      "icon",
+      ["icon", "shape"],
+      ["square"],
+      false,
+      decorative,
+    ),
   ),
   "labelled-diagram": [
     slotRequirement(

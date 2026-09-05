@@ -8,6 +8,7 @@ export type MalwareScanResult = { status: "safe" | "unsafe" };
 
 /** A scanner boundary intentionally exposes no provider-specific payload. */
 export interface MalwareScanner {
+  readonly providerId?: string;
   scan(input: {
     bytes: Uint8Array;
     sha256: string;
@@ -19,6 +20,7 @@ const malwareScanResponseSchema = z
   .strict();
 
 export class PassThroughMalwareScanner implements MalwareScanner {
+  public readonly providerId = "fixture-malware-scanner";
   public async scan(): Promise<MalwareScanResult> {
     return { status: "safe" };
   }
@@ -26,6 +28,7 @@ export class PassThroughMalwareScanner implements MalwareScanner {
 
 /** Minimal scanner adapter; scanner response details never leave the worker. */
 export class HttpMalwareScanner implements MalwareScanner {
+  public readonly providerId = "http-malware-scanner";
   public constructor(
     private readonly endpoint: string | undefined,
     private readonly token: string | undefined,

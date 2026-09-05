@@ -20,6 +20,7 @@ import {
   type DatabaseExecutor,
 } from "@avlp/database";
 import { createIdempotencyKey, createJobEnvelope } from "@avlp/jobs";
+import { createModelCallProviderApproval } from "./model-call-approval.js";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
   currentOutlineGenerationCompatibility,
@@ -115,12 +116,7 @@ export interface OutlineService {
 
 type OutlineSetRow = typeof lessonOutlineSets.$inferSelect;
 type GenerationJobState =
-  | "queued"
-  | "running"
-  | "retry_wait"
-  | "succeeded"
-  | "failed"
-  | "cancelled";
+  "queued" | "running" | "retry_wait" | "succeeded" | "failed" | "cancelled";
 
 export class PostgresOutlineService implements OutlineService {
   public constructor(
@@ -182,12 +178,14 @@ export class PostgresOutlineService implements OutlineService {
       const blockIds = [
         ...new Set(
           objectiveRows.flatMap((objective) =>
-            (objective.sourceRefs as SourceRef[]).flatMap((ref) => ref.blockIds),
+            (objective.sourceRefs as SourceRef[]).flatMap(
+              (ref) => ref.blockIds,
+            ),
           ),
         ),
       ];
-      const params: OutlineGenerationParams = outlineGenerationParamsSchema.parse(
-        {
+      const params: OutlineGenerationParams =
+        outlineGenerationParamsSchema.parse({
           configurationVersion: configuration.version,
           lessonTitle: configuration.lessonTitle,
           subject: configuration.subject,
@@ -198,15 +196,19 @@ export class PostgresOutlineService implements OutlineService {
           includeRecallQuestions: configuration.includeRecallQuestions,
           objectiveSetId: approvedSet.id,
           objectiveSetRevision: approvedSet.revision,
-        },
-      );
+        });
+      const requestedJobId = createId(timestamp);
       const payload = modelCallJobPayloadSchema.parse({
-        schemaVersion: 1,
+        schemaVersion: 2,
         operationType: "ai.outline",
         sourceSnapshotId: approval.snapshotId,
         promptId: currentOutlineGenerationCompatibility.promptId,
         promptVersion: currentOutlineGenerationCompatibility.promptVersion,
         model: currentOutlineGenerationCompatibility.model,
+        providerApproval: createModelCallProviderApproval({
+          jobId: requestedJobId,
+          model: currentOutlineGenerationCompatibility.model,
+        }),
         ...(blockIds.length === 0 ? {} : { narrowing: { blockIds } }),
         params,
       });
@@ -219,7 +221,7 @@ export class PostgresOutlineService implements OutlineService {
         paramsHash,
       ].join(":");
       const envelope = createJobEnvelope(modelCallJobPayloadSchema, {
-        jobId: createId(timestamp),
+        jobId: requestedJobId,
         jobType: "outline.generate",
         projectId: input.projectId,
         ownerUserId: input.ownerUserId,
@@ -231,7 +233,7 @@ export class PostgresOutlineService implements OutlineService {
           options: { requestKey: idempotencyKey },
         }),
         correlationId: input.correlationId,
-        payloadVersion: 1,
+        payloadVersion: 2,
         payload,
         requestedAt: timestamp,
       });
@@ -306,18 +308,28 @@ export class PostgresOutlineService implements OutlineService {
     ownerUserId: Identifier;
     projectId: Identifier;
   }): Promise<OutlineResponse> {
-    const [workingRow, approvedRow, latestJob, configuration, approval, approvedSet] =
-      await Promise.all([
-        this.workingSetRow(input.ownerUserId, input.projectId),
-        this.approvedSetRow(this.database, input.ownerUserId, input.projectId),
-        this.latestGenerationJob(input.ownerUserId, input.projectId),
-        this.loadConfiguration(this.database, input.ownerUserId, input.projectId),
-        this.sourceApprovalStatus({
-          ownerUserId: input.ownerUserId,
-          projectId: input.projectId,
-        }),
-        this.latestApprovedSetRow(this.database, input.ownerUserId, input.projectId),
-      ]);
+    const [
+      workingRow,
+      approvedRow,
+      latestJob,
+      configuration,
+      approval,
+      approvedSet,
+    ] = await Promise.all([
+      this.workingSetRow(input.ownerUserId, input.projectId),
+      this.approvedSetRow(this.database, input.ownerUserId, input.projectId),
+      this.latestGenerationJob(input.ownerUserId, input.projectId),
+      this.loadConfiguration(this.database, input.ownerUserId, input.projectId),
+      this.sourceApprovalStatus({
+        ownerUserId: input.ownerUserId,
+        projectId: input.projectId,
+      }),
+      this.latestApprovedSetRow(
+        this.database,
+        input.ownerUserId,
+        input.projectId,
+      ),
+    ]);
     const set =
       workingRow === undefined ? null : await this.assembleSet(workingRow);
     const approved =
@@ -412,7 +424,9 @@ export class PostgresOutlineService implements OutlineService {
         parsed.sourceBlockIds,
       );
       const [maxRow] = await transaction
-        .select({ max: sql<number>`coalesce(max(${lessonOutlineItems.order}), 0)` })
+        .select({
+          max: sql<number>`coalesce(max(${lessonOutlineItems.order}), 0)`,
+        })
         .from(lessonOutlineItems)
         .where(eq(lessonOutlineItems.setId, set.id));
       const order = (maxRow?.max ?? 0) + 1;
@@ -471,7 +485,10 @@ export class PostgresOutlineService implements OutlineService {
         occurredAt: timestamp,
       });
     });
-    return this.current({ ownerUserId: input.ownerUserId, projectId: input.projectId });
+    return this.current({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+    });
   }
 
   public async update(input: {
@@ -523,8 +540,7 @@ export class PostgresOutlineService implements OutlineService {
           kind: parsed.kind ?? current.kind,
           title: parsed.title ?? current.title,
           description: parsed.description ?? current.description,
-          estimatedSeconds:
-            parsed.estimatedSeconds ?? current.estimatedSeconds,
+          estimatedSeconds: parsed.estimatedSeconds ?? current.estimatedSeconds,
           sourceRefs,
           framingNote:
             parsed.framingNote === undefined
@@ -573,11 +589,17 @@ export class PostgresOutlineService implements OutlineService {
         eventType: "outline.edited",
         target: { type: "outline_item", id: input.itemId },
         correlationId: input.correlationId,
-        metadata: { operation: "update", revision: parsed.expectedRevision + 1 },
+        metadata: {
+          operation: "update",
+          revision: parsed.expectedRevision + 1,
+        },
         occurredAt: timestamp,
       });
     });
-    return this.current({ ownerUserId: input.ownerUserId, projectId: input.projectId });
+    return this.current({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+    });
   }
 
   public async remove(input: {
@@ -654,11 +676,17 @@ export class PostgresOutlineService implements OutlineService {
         eventType: "outline.edited",
         target: { type: "outline_item", id: input.itemId },
         correlationId: input.correlationId,
-        metadata: { operation: "remove", revision: parsed.expectedRevision + 1 },
+        metadata: {
+          operation: "remove",
+          revision: parsed.expectedRevision + 1,
+        },
         occurredAt: timestamp,
       });
     });
-    return this.current({ ownerUserId: input.ownerUserId, projectId: input.projectId });
+    return this.current({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+    });
   }
 
   public async reorder(input: {
@@ -724,7 +752,10 @@ export class PostgresOutlineService implements OutlineService {
         occurredAt: timestamp,
       });
     });
-    return this.current({ ownerUserId: input.ownerUserId, projectId: input.projectId });
+    return this.current({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+    });
   }
 
   public async approve(input: {
@@ -854,7 +885,10 @@ export class PostgresOutlineService implements OutlineService {
         occurredAt: timestamp,
       });
     });
-    return this.current({ ownerUserId: input.ownerUserId, projectId: input.projectId });
+    return this.current({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+    });
   }
 
   private computeValidation(input: {
@@ -1779,9 +1813,9 @@ function parseBoundary<T>(schema: z.ZodType<T>, input: unknown): T {
   return result.data;
 }
 
-function errorDetails(
-  error: { issues: { path: (string | number)[]; message: string }[] },
-): Record<string, string> {
+function errorDetails(error: {
+  issues: { path: (string | number)[]; message: string }[];
+}): Record<string, string> {
   return Object.fromEntries(
     error.issues.map((issue) => [
       issue.path.join(".") || "root",

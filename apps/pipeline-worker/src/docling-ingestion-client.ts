@@ -20,6 +20,7 @@ export class DoclingIngestionError extends Error {
 }
 
 export interface DoclingIngestionClient {
+  readonly providerId?: string;
   ingest(request: DoclingIngestionRequest): Promise<DoclingIngestionResult>;
 }
 
@@ -31,6 +32,7 @@ const failureResponseSchema = z.object({
 });
 
 export class HttpDoclingIngestionClient implements DoclingIngestionClient {
+  public readonly providerId = "docling";
   public constructor(
     private readonly serviceUrl: string,
     private readonly serviceToken: string | undefined,

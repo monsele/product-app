@@ -168,7 +168,10 @@ export async function loadNarrationTransformContext(input: {
   );
   if (outlineItem === undefined) return { status: "outline_mismatch" };
   const countWords = (text: string): number =>
-    text.trim().split(/\s+/).filter((word) => word.length > 0).length;
+    text
+      .trim()
+      .split(/\s+/)
+      .filter((word) => word.length > 0).length;
   return {
     status: "ok",
     context: {
@@ -187,7 +190,10 @@ export async function loadNarrationTransformContext(input: {
         generated: blockRow.generated,
       },
       currentWords: countWords(blockRow.text),
-      neighbors: siblingRows.map((row) => ({ order: row.order, text: row.text })),
+      neighbors: siblingRows.map((row) => ({
+        order: row.order,
+        text: row.text,
+      })),
       outlineItem: {
         id: outlineItem.id,
         order: outlineItem.order,
@@ -273,22 +279,50 @@ function collectPackageBlockIds(sourcePackage: SourcePackage): Set<string> {
 }
 
 function countWords(text: string): number {
-  return text.trim().split(/\s+/).filter((word) => word.length > 0).length;
+  return text
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 0).length;
 }
 
 function longestCopiedWordRun(sentence: string, sourceText: string): number {
-  const sentenceWords = sentence.trim().split(/\s+/).filter((word) => word.length > 0);
-  const sourceWords = sourceText.trim().split(/\s+/).filter((word) => word.length > 0);
+  const sentenceWords = sentence
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 0);
+  const sourceWords = sourceText
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 0);
   if (sentenceWords.length === 0 || sourceWords.length === 0) return 0;
   const sourceNGrams = new Set<string>();
-  for (let index = 0; index + narrationCopiedPassageMinimumRun <= sourceWords.length; index += 1)
-    sourceNGrams.add(sourceWords.slice(index, index + narrationCopiedPassageMinimumRun).join(" "));
+  for (
+    let index = 0;
+    index + narrationCopiedPassageMinimumRun <= sourceWords.length;
+    index += 1
+  )
+    sourceNGrams.add(
+      sourceWords
+        .slice(index, index + narrationCopiedPassageMinimumRun)
+        .join(" "),
+    );
   let longest = 0;
-  for (let index = 0; index + narrationCopiedPassageMinimumRun <= sentenceWords.length; index += 1) {
-    const run = sentenceWords.slice(index, index + narrationCopiedPassageMinimumRun);
+  for (
+    let index = 0;
+    index + narrationCopiedPassageMinimumRun <= sentenceWords.length;
+    index += 1
+  ) {
+    const run = sentenceWords.slice(
+      index,
+      index + narrationCopiedPassageMinimumRun,
+    );
     if (!sourceNGrams.has(run.join(" "))) continue;
     let end = index + narrationCopiedPassageMinimumRun;
-    while (end < sentenceWords.length && sourceWords.includes(sentenceWords[end]!)) end += 1;
+    while (
+      end < sentenceWords.length &&
+      sourceWords.includes(sentenceWords[end]!)
+    )
+      end += 1;
     longest = Math.max(longest, end - index);
   }
   return longest;
@@ -394,8 +428,7 @@ export async function persistNarrationBlockCandidate(input: {
 }): Promise<{ id: Identifier }> {
   narrationTransformParamsSchema.parse(input.params);
   const operationContext = input.operationContext as
-    | NarrationTransformOperationContext
-    | undefined;
+    NarrationTransformOperationContext | undefined;
   if (operationContext === undefined)
     throw new Error("The narration transform operation context is missing.");
   const timestamp = input.now;
@@ -527,10 +560,12 @@ export function createNarrationBlockTransformJobHandler(input: {
   pricing?: ModelPricingTable;
   maxRepairs?: number;
   now?: () => Date;
-}): ReturnType<typeof createModelCallGenerationHandler<NarrationBlockTransformOutput>> {
+}): ReturnType<
+  typeof createModelCallGenerationHandler<NarrationBlockTransformOutput>
+> {
   const options: ModelCallHandlerOptions<NarrationBlockTransformOutput> = {
     jobType: "narration.transform",
-    payloadVersion: 1,
+    payloadVersion: 2,
     operationType: "ai.narration",
     outputSchema: narrationBlockTransformOutputSchema,
     provider: input.provider,
@@ -585,9 +620,7 @@ export function createNarrationBlockTransformJobHandler(input: {
         now: candidate.now,
       }),
     ...(input.pricing === undefined ? {} : { pricing: input.pricing }),
-    ...(input.maxRepairs === undefined
-      ? {}
-      : { maxRepairs: input.maxRepairs }),
+    ...(input.maxRepairs === undefined ? {} : { maxRepairs: input.maxRepairs }),
     ...(input.now === undefined ? {} : { now: input.now }),
   };
   return createModelCallGenerationHandler<NarrationBlockTransformOutput>(

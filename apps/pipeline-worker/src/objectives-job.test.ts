@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createId } from "@avlp/config";
-import {
-  learningObjectiveSets,
-  type DatabaseExecutor,
-} from "@avlp/database";
+import { learningObjectiveSets, type DatabaseExecutor } from "@avlp/database";
 import { createJobEnvelope, type JobMetadata } from "@avlp/jobs";
 import {
   InMemoryQuotaGuard,
@@ -266,8 +263,7 @@ describe("persistObjectiveSet", () => {
               where: () => ({
                 limit: async () => {
                   const value = insertedSets.at(-1) as
-                    | { id: string }
-                    | undefined;
+                    { id: string } | undefined;
                   return value === undefined ? [] : [{ id: value.id }];
                 },
               }),
@@ -392,12 +388,19 @@ describe("objectives generation job", () => {
 
   function jobPayload(overrides: Record<string, unknown> = {}) {
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       operationType: "ai.objectives",
       sourceSnapshotId: snapshotId,
       promptId: "objectives",
       promptVersion: "v2",
       model: "mock-model-1",
+      providerApproval: {
+        approvalReference: createId(),
+        providerId: "mock",
+        model: "mock-model-1",
+        estimatedCostUsd: 0.01,
+        selectionReason: "explicit_job_request",
+      },
       params: jobParams,
       ...overrides,
     };
@@ -408,7 +411,7 @@ describe("objectives generation job", () => {
     jobPayloadValue: unknown,
   ) {
     const envelope = createJobEnvelope(
-      z.object({ schemaVersion: z.literal(1) }).passthrough(),
+      z.object({ schemaVersion: z.literal(2) }).passthrough(),
       {
         jobId: createId(),
         jobType: handler.jobType,
@@ -461,7 +464,7 @@ describe("objectives generation job", () => {
       now: () => new Date("2026-08-17T10:00:00.000Z"),
     });
     expect(handler.jobType).toBe("objectives.generate");
-    expect(handler.payloadVersion).toBe(1);
+    expect(handler.payloadVersion).toBe(2);
     const result = await execute(handler, jobPayload());
     expect(result.outcome).toBe("succeeded");
     if (result.outcome !== "succeeded") throw new Error("unreachable");
@@ -492,7 +495,9 @@ describe("objectives generation job", () => {
     const result = await execute(handler, jobPayload());
     expect(result.outcome).toBe("failed");
     const error = result.error as Error & { code?: string };
-    expect(error.message).toContain("The model output failed deterministic checks");
+    expect(error.message).toContain(
+      "The model output failed deterministic checks",
+    );
     expect(error).toMatchObject({ code: "MODEL_OUTPUT_DETERMINISTIC_FAILURE" });
   });
 });

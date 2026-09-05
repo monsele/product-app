@@ -17,6 +17,7 @@ import {
   type DatabaseExecutor,
 } from "@avlp/database";
 import { createIdempotencyKey, createJobEnvelope } from "@avlp/jobs";
+import { createModelCallProviderApproval } from "./model-call-approval.js";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
   currentObjectiveGenerationCompatibility,
@@ -109,12 +110,7 @@ export interface ObjectivesService {
 
 type ObjectiveSetRow = typeof learningObjectiveSets.$inferSelect;
 type GenerationJobState =
-  | "queued"
-  | "running"
-  | "retry_wait"
-  | "succeeded"
-  | "failed"
-  | "cancelled";
+  "queued" | "running" | "retry_wait" | "succeeded" | "failed" | "cancelled";
 
 /**
  * Resolves source block IDs selected by the teacher into {@link SourceRef}
@@ -126,7 +122,9 @@ export function resolveSnapshotSourceRefs(
   snapshot: SourceSnapshot,
   blockIds: readonly string[],
 ): SourceRef[] {
-  const blocksById = new Map(snapshot.blocks.map((block) => [block.blockId, block]));
+  const blocksById = new Map(
+    snapshot.blocks.map((block) => [block.blockId, block]),
+  );
   for (const blockId of blockIds)
     if (!blocksById.has(blockId))
       throw new PublicError(
@@ -218,13 +216,18 @@ export class PostgresObjectivesService implements ObjectivesService {
         targetDurationSeconds: configuration.targetDurationSeconds,
         includeRecallQuestions: configuration.includeRecallQuestions,
       });
+      const requestedJobId = createId(timestamp);
       const payload = modelCallJobPayloadSchema.parse({
-        schemaVersion: 1,
+        schemaVersion: 2,
         operationType: "ai.objectives",
         sourceSnapshotId: approval.snapshotId,
         promptId: currentObjectiveGenerationCompatibility.promptId,
         promptVersion: currentObjectiveGenerationCompatibility.promptVersion,
         model: currentObjectiveGenerationCompatibility.model,
+        providerApproval: createModelCallProviderApproval({
+          jobId: requestedJobId,
+          model: currentObjectiveGenerationCompatibility.model,
+        }),
         params,
       });
       const paramsHash = canonicalHash(params);
@@ -236,7 +239,7 @@ export class PostgresObjectivesService implements ObjectivesService {
         paramsHash,
       ].join(":");
       const envelope = createJobEnvelope(modelCallJobPayloadSchema, {
-        jobId: createId(timestamp),
+        jobId: requestedJobId,
         jobType: "objectives.generate",
         projectId: input.projectId,
         ownerUserId: input.ownerUserId,
@@ -248,7 +251,7 @@ export class PostgresObjectivesService implements ObjectivesService {
           options: { requestKey: idempotencyKey },
         }),
         correlationId: input.correlationId,
-        payloadVersion: 1,
+        payloadVersion: 2,
         payload,
         requestedAt: timestamp,
       });
@@ -348,7 +351,11 @@ export class PostgresObjectivesService implements ObjectivesService {
         this.workingSetRow(input.ownerUserId, input.projectId),
         this.approvedSetRow(this.database, input.ownerUserId, input.projectId),
         this.latestGenerationJob(input.ownerUserId, input.projectId),
-        this.loadConfiguration(this.database, input.ownerUserId, input.projectId),
+        this.loadConfiguration(
+          this.database,
+          input.ownerUserId,
+          input.projectId,
+        ),
         this.sourceApprovalStatus({
           ownerUserId: input.ownerUserId,
           projectId: input.projectId,
@@ -422,7 +429,9 @@ export class PostgresObjectivesService implements ObjectivesService {
         parsed,
       );
       const [maxRow] = await transaction
-        .select({ max: sql<number>`coalesce(max(${learningObjectives.order}), 0)` })
+        .select({
+          max: sql<number>`coalesce(max(${learningObjectives.order}), 0)`,
+        })
         .from(learningObjectives)
         .where(eq(learningObjectives.setId, set.id));
       const order = (maxRow?.max ?? 0) + 1;
@@ -455,11 +464,18 @@ export class PostgresObjectivesService implements ObjectivesService {
         eventType: "objectives.edited",
         target: { type: "objective_set", id: set.id },
         correlationId: input.correlationId,
-        metadata: { operation: "add", order, revision: parsed.expectedRevision + 1 },
+        metadata: {
+          operation: "add",
+          order,
+          revision: parsed.expectedRevision + 1,
+        },
         occurredAt: timestamp,
       });
     });
-    return this.current({ ownerUserId: input.ownerUserId, projectId: input.projectId });
+    return this.current({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+    });
   }
 
   public async update(input: {
@@ -530,11 +546,17 @@ export class PostgresObjectivesService implements ObjectivesService {
         eventType: "objectives.edited",
         target: { type: "learning_objective", id: input.objectiveId },
         correlationId: input.correlationId,
-        metadata: { operation: "update", revision: parsed.expectedRevision + 1 },
+        metadata: {
+          operation: "update",
+          revision: parsed.expectedRevision + 1,
+        },
         occurredAt: timestamp,
       });
     });
-    return this.current({ ownerUserId: input.ownerUserId, projectId: input.projectId });
+    return this.current({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+    });
   }
 
   public async remove(input: {
@@ -595,11 +617,17 @@ export class PostgresObjectivesService implements ObjectivesService {
         eventType: "objectives.edited",
         target: { type: "learning_objective", id: input.objectiveId },
         correlationId: input.correlationId,
-        metadata: { operation: "remove", revision: parsed.expectedRevision + 1 },
+        metadata: {
+          operation: "remove",
+          revision: parsed.expectedRevision + 1,
+        },
         occurredAt: timestamp,
       });
     });
-    return this.current({ ownerUserId: input.ownerUserId, projectId: input.projectId });
+    return this.current({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+    });
   }
 
   public async reorder(input: {
@@ -665,7 +693,10 @@ export class PostgresObjectivesService implements ObjectivesService {
         occurredAt: timestamp,
       });
     });
-    return this.current({ ownerUserId: input.ownerUserId, projectId: input.projectId });
+    return this.current({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+    });
   }
 
   public async approve(input: {
@@ -753,7 +784,10 @@ export class PostgresObjectivesService implements ObjectivesService {
         occurredAt: timestamp,
       });
     });
-    return this.current({ ownerUserId: input.ownerUserId, projectId: input.projectId });
+    return this.current({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+    });
   }
 
   private async resolveRefsForCreate(
@@ -765,7 +799,13 @@ export class PostgresObjectivesService implements ObjectivesService {
   ): Promise<SourceRef[]> {
     if (input.sourceBlockIds === undefined || input.sourceBlockIds.length === 0)
       return [];
-    return this.resolveRefs(executor, ownerUserId, projectId, set, input.sourceBlockIds);
+    return this.resolveRefs(
+      executor,
+      ownerUserId,
+      projectId,
+      set,
+      input.sourceBlockIds,
+    );
   }
 
   private async resolveRefs(
@@ -1036,7 +1076,11 @@ export class PostgresObjectivesService implements ObjectivesService {
     ownerUserId: Identifier,
     projectId: Identifier,
   ): Promise<ObjectiveSetRow | undefined> {
-    const draft = await this.latestDraftRow(this.database, ownerUserId, projectId);
+    const draft = await this.latestDraftRow(
+      this.database,
+      ownerUserId,
+      projectId,
+    );
     if (draft !== undefined) return draft;
     return this.approvedSetRow(this.database, ownerUserId, projectId);
   }
@@ -1123,7 +1167,9 @@ export class PostgresObjectivesService implements ObjectivesService {
     return row;
   }
 
-  private async assembleSet(row: ObjectiveSetRow): Promise<LearningObjectiveSet> {
+  private async assembleSet(
+    row: ObjectiveSetRow,
+  ): Promise<LearningObjectiveSet> {
     const objectiveRows = await this.database
       .select()
       .from(learningObjectives)
@@ -1270,9 +1316,9 @@ function parseBoundary<T>(schema: z.ZodType<T>, input: unknown): T {
   return result.data;
 }
 
-function errorDetails(
-  error: { issues: { path: (string | number)[]; message: string }[] },
-): Record<string, string> {
+function errorDetails(error: {
+  issues: { path: (string | number)[]; message: string }[];
+}): Record<string, string> {
   return Object.fromEntries(
     error.issues.map((issue) => [
       issue.path.join(".") || "root",

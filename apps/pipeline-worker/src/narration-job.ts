@@ -37,7 +37,10 @@ import {
   type SourceSnapshot,
 } from "@avlp/schemas";
 import { and, eq } from "drizzle-orm";
-import { createModelCallGenerationHandler, type ModelCallHandlerOptions } from "./model-call.js";
+import {
+  createModelCallGenerationHandler,
+  type ModelCallHandlerOptions,
+} from "./model-call.js";
 import { resolveObjectiveSourceRefs as resolveSourceRefs } from "./objectives-job.js";
 
 /**
@@ -107,10 +110,7 @@ export type ApprovedOutlineSetResult =
     }
   | {
       status:
-        | "missing"
-        | "not_approved"
-        | "revision_mismatch"
-        | "snapshot_mismatch";
+        "missing" | "not_approved" | "revision_mismatch" | "snapshot_mismatch";
     };
 
 /**
@@ -218,23 +218,51 @@ function collectPackageBlockIds(sourcePackage: SourcePackage): Set<string> {
 }
 
 function countWords(text: string): number {
-  const words = text.trim().split(/\s+/).filter((word) => word.length > 0);
+  const words = text
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 0);
   return words.length;
 }
 
 function longestCopiedWordRun(sentence: string, sourceText: string): number {
-  const sentenceWords = sentence.trim().split(/\s+/).filter((word) => word.length > 0);
-  const sourceWords = sourceText.trim().split(/\s+/).filter((word) => word.length > 0);
+  const sentenceWords = sentence
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 0);
+  const sourceWords = sourceText
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 0);
   if (sentenceWords.length === 0 || sourceWords.length === 0) return 0;
   const sourceNGrams = new Set<string>();
-  for (let index = 0; index + narrationCopiedPassageMinimumRun <= sourceWords.length; index += 1)
-    sourceNGrams.add(sourceWords.slice(index, index + narrationCopiedPassageMinimumRun).join(" "));
+  for (
+    let index = 0;
+    index + narrationCopiedPassageMinimumRun <= sourceWords.length;
+    index += 1
+  )
+    sourceNGrams.add(
+      sourceWords
+        .slice(index, index + narrationCopiedPassageMinimumRun)
+        .join(" "),
+    );
   let longest = 0;
-  for (let index = 0; index + narrationCopiedPassageMinimumRun <= sentenceWords.length; index += 1) {
-    const run = sentenceWords.slice(index, index + narrationCopiedPassageMinimumRun);
+  for (
+    let index = 0;
+    index + narrationCopiedPassageMinimumRun <= sentenceWords.length;
+    index += 1
+  ) {
+    const run = sentenceWords.slice(
+      index,
+      index + narrationCopiedPassageMinimumRun,
+    );
     if (!sourceNGrams.has(run.join(" "))) continue;
     let end = index + narrationCopiedPassageMinimumRun;
-    while (end < sentenceWords.length && sourceWords.includes(sentenceWords[end]!)) end += 1;
+    while (
+      end < sentenceWords.length &&
+      sourceWords.includes(sentenceWords[end]!)
+    )
+      end += 1;
     longest = Math.max(longest, end - index);
   }
   return longest;
@@ -264,7 +292,10 @@ export function assertNarrationDeterministicChecks(
       "OUTLINE_ITEM_UNCOVERED",
       "The narration operation context is missing the approved outline items.",
     );
-  if (output.targetDurationSeconds !== operationContext.params.targetDurationSeconds)
+  if (
+    output.targetDurationSeconds !==
+    operationContext.params.targetDurationSeconds
+  )
     throw new NarrationDeterministicCheckError(
       "TARGET_DURATION_MISMATCH",
       "The narration target duration must match the lesson configuration.",
@@ -375,8 +406,7 @@ export async function persistNarrationSet(input: {
 }): Promise<{ id: Identifier }> {
   const params = narrationGenerationParamsSchema.parse(input.params);
   const operationContext = input.operationContext as
-    | NarrationOperationContext
-    | undefined;
+    NarrationOperationContext | undefined;
   if (operationContext === undefined || operationContext.items.length === 0)
     throw new Error(
       "The narration operation context is missing the approved outline items.",
@@ -390,7 +420,9 @@ export async function persistNarrationSet(input: {
     resolveSourceRefs(input.sourcePackage, blockIds);
   const blocks = input.output.blocks.map((block, index) => {
     const item = itemByOutputId.get(block.outlineItemId)!;
-    const blockIds = block.sentences.flatMap((sentence) => sentence.sourceBlockIds);
+    const blockIds = block.sentences.flatMap(
+      (sentence) => sentence.sourceBlockIds,
+    );
     const generatedAdditions: GeneratedAddition[] = block.sentences.flatMap(
       (sentence) =>
         sentence.generatedAddition === undefined
@@ -428,7 +460,8 @@ export async function persistNarrationSet(input: {
     };
   });
   const totalEstimatedSeconds = input.output.blocks.reduce(
-    (sum, block) => sum + (itemByOutputId.get(block.outlineItemId)?.estimatedSeconds ?? 0),
+    (sum, block) =>
+      sum + (itemByOutputId.get(block.outlineItemId)?.estimatedSeconds ?? 0),
     0,
   );
   const contentHash = computeNarrationSetContentHash(
@@ -583,7 +616,7 @@ export function createNarrationGenerationJobHandler(input: {
 }): ReturnType<typeof createModelCallGenerationHandler<NarrationOutputV1>> {
   const options: ModelCallHandlerOptions<NarrationOutputV1> = {
     jobType: "narration.generate",
-    payloadVersion: 1,
+    payloadVersion: 2,
     operationType: "ai.narration",
     outputSchema: narrationOutputV1Schema,
     provider: input.provider,
@@ -638,9 +671,7 @@ export function createNarrationGenerationJobHandler(input: {
         now: candidate.now,
       }),
     ...(input.pricing === undefined ? {} : { pricing: input.pricing }),
-    ...(input.maxRepairs === undefined
-      ? {}
-      : { maxRepairs: input.maxRepairs }),
+    ...(input.maxRepairs === undefined ? {} : { maxRepairs: input.maxRepairs }),
     ...(input.now === undefined ? {} : { now: input.now }),
   };
   return createModelCallGenerationHandler<NarrationOutputV1>(options);

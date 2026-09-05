@@ -22,6 +22,7 @@ import {
   type DatabaseExecutor,
 } from "@avlp/database";
 import { createIdempotencyKey, createJobEnvelope } from "@avlp/jobs";
+import { createModelCallProviderApproval } from "./model-call-approval.js";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
   currentNarrationGenerationCompatibility,
@@ -111,7 +112,10 @@ function outlineItemsContentHash(
 }
 
 function countWords(text: string): number {
-  return text.trim().split(/\s+/).filter((word) => word.length > 0).length;
+  return text
+    .trim()
+    .split(/\s+/)
+    .filter((word) => word.length > 0).length;
 }
 
 export interface NarrationService {
@@ -178,12 +182,7 @@ export interface NarrationService {
 
 type NarrationSetRow = typeof narrationSets.$inferSelect;
 type GenerationJobState =
-  | "queued"
-  | "running"
-  | "retry_wait"
-  | "succeeded"
-  | "failed"
-  | "cancelled";
+  "queued" | "running" | "retry_wait" | "succeeded" | "failed" | "cancelled";
 
 export class PostgresNarrationService implements NarrationService {
   public constructor(
@@ -258,13 +257,18 @@ export class PostgresNarrationService implements NarrationService {
           outlineSetId: approvedOutline.id,
           outlineSetRevision: approvedOutline.revision,
         });
+      const requestedJobId = createId(timestamp);
       const payload = modelCallJobPayloadSchema.parse({
-        schemaVersion: 1,
+        schemaVersion: 2,
         operationType: "ai.narration",
         sourceSnapshotId: approval.snapshotId,
         promptId: currentNarrationGenerationCompatibility.promptId,
         promptVersion: currentNarrationGenerationCompatibility.promptVersion,
         model: currentNarrationGenerationCompatibility.model,
+        providerApproval: createModelCallProviderApproval({
+          jobId: requestedJobId,
+          model: currentNarrationGenerationCompatibility.model,
+        }),
         ...(blockIds.length === 0 ? {} : { narrowing: { blockIds } }),
         params,
       });
@@ -277,7 +281,7 @@ export class PostgresNarrationService implements NarrationService {
         paramsHash,
       ].join(":");
       const envelope = createJobEnvelope(modelCallJobPayloadSchema, {
-        jobId: createId(timestamp),
+        jobId: requestedJobId,
         jobType: "narration.generate",
         projectId: input.projectId,
         ownerUserId: input.ownerUserId,
@@ -289,7 +293,7 @@ export class PostgresNarrationService implements NarrationService {
           options: { requestKey: idempotencyKey },
         }),
         correlationId: input.correlationId,
-        payloadVersion: 1,
+        payloadVersion: 2,
         payload,
         requestedAt: timestamp,
       });
@@ -364,23 +368,30 @@ export class PostgresNarrationService implements NarrationService {
     ownerUserId: Identifier;
     projectId: Identifier;
   }): Promise<NarrationResponse> {
-    const [workingRow, approvedRow, latestJob, latestTransformJob, configuration, approval, approvedOutline] =
-      await Promise.all([
-        this.workingSetRow(input.ownerUserId, input.projectId),
-        this.approvedSetRow(this.database, input.ownerUserId, input.projectId),
-        this.latestGenerationJob(input.ownerUserId, input.projectId),
-        this.latestTransformJob(input.ownerUserId, input.projectId),
-        this.loadConfiguration(this.database, input.ownerUserId, input.projectId),
-        this.sourceApprovalStatus({
-          ownerUserId: input.ownerUserId,
-          projectId: input.projectId,
-        }),
-        this.latestApprovedOutlineSetRow(
-          this.database,
-          input.ownerUserId,
-          input.projectId,
-        ),
-      ]);
+    const [
+      workingRow,
+      approvedRow,
+      latestJob,
+      latestTransformJob,
+      configuration,
+      approval,
+      approvedOutline,
+    ] = await Promise.all([
+      this.workingSetRow(input.ownerUserId, input.projectId),
+      this.approvedSetRow(this.database, input.ownerUserId, input.projectId),
+      this.latestGenerationJob(input.ownerUserId, input.projectId),
+      this.latestTransformJob(input.ownerUserId, input.projectId),
+      this.loadConfiguration(this.database, input.ownerUserId, input.projectId),
+      this.sourceApprovalStatus({
+        ownerUserId: input.ownerUserId,
+        projectId: input.projectId,
+      }),
+      this.latestApprovedOutlineSetRow(
+        this.database,
+        input.ownerUserId,
+        input.projectId,
+      ),
+    ]);
     const set =
       workingRow === undefined ? null : await this.assembleSet(workingRow);
     const approved =
@@ -604,9 +615,7 @@ export class PostgresNarrationService implements NarrationService {
     set: LessonNarrationSet | null;
     configuration: typeof lessonConfigurations.$inferSelect | undefined;
     approval: SourceApprovalStatus;
-    approvedOutline:
-      | typeof lessonOutlineSets.$inferSelect
-      | undefined;
+    approvedOutline: typeof lessonOutlineSets.$inferSelect | undefined;
     approvedOutlineItems: readonly {
       id: Identifier;
       order: number;
@@ -626,7 +635,8 @@ export class PostgresNarrationService implements NarrationService {
     )
       return {
         stale: true,
-        staleReason: "The reviewed source changed after this narration was generated.",
+        staleReason:
+          "The reviewed source changed after this narration was generated.",
       };
     if (
       input.configuration !== undefined &&
@@ -634,7 +644,8 @@ export class PostgresNarrationService implements NarrationService {
     )
       return {
         stale: true,
-        staleReason: "The lesson configuration changed after this narration was generated.",
+        staleReason:
+          "The lesson configuration changed after this narration was generated.",
       };
     if (input.approvedOutline === undefined)
       return {
@@ -644,7 +655,8 @@ export class PostgresNarrationService implements NarrationService {
     if (set.outlineSetId !== input.approvedOutline.id)
       return {
         stale: true,
-        staleReason: "The lesson outline was re-approved after this narration was generated.",
+        staleReason:
+          "The lesson outline was re-approved after this narration was generated.",
       };
     if (
       outlineItemsContentHash(input.approvedOutlineItems) !==
@@ -652,7 +664,8 @@ export class PostgresNarrationService implements NarrationService {
     )
       return {
         stale: true,
-        staleReason: "The approved lesson outline changed after this narration was generated.",
+        staleReason:
+          "The approved lesson outline changed after this narration was generated.",
       };
     return { stale: false, staleReason: null };
   }
@@ -731,12 +744,21 @@ export class PostgresNarrationService implements NarrationService {
           operation: "update",
           setRevision: parsed.expectedRevision + 1,
           blockRevision: current.revision + 1,
-          invalidatedScope: ["audio", "captions", "preview", "validation", "render"],
+          invalidatedScope: [
+            "audio",
+            "captions",
+            "preview",
+            "validation",
+            "render",
+          ],
         },
         occurredAt: timestamp,
       });
     });
-    return this.current({ ownerUserId: input.ownerUserId, projectId: input.projectId });
+    return this.current({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+    });
   }
 
   public async regenerateBlock(input: {
@@ -747,7 +769,10 @@ export class PostgresNarrationService implements NarrationService {
     idempotencyKey: string | undefined;
     correlationId: Identifier;
   }): Promise<NarrationTransformResponse> {
-    const parsed = parseBoundary(narrationBlockTransformInputSchema, input.body);
+    const parsed = parseBoundary(
+      narrationBlockTransformInputSchema,
+      input.body,
+    );
     const idempotencyKey = input.idempotencyKey?.trim();
     if (
       idempotencyKey === undefined ||
@@ -831,13 +856,18 @@ export class PostgresNarrationService implements NarrationService {
         targetDurationSeconds: configuration.targetDurationSeconds,
         includeRecallQuestions: configuration.includeRecallQuestions,
       });
+      const requestedJobId = createId(timestamp);
       const payload = modelCallJobPayloadSchema.parse({
-        schemaVersion: 1,
+        schemaVersion: 2,
         operationType: "ai.narration",
         sourceSnapshotId: set.sourceSnapshotId,
         promptId: currentNarrationTransformCompatibility.promptId,
         promptVersion: currentNarrationTransformCompatibility.promptVersion,
         model: currentNarrationTransformCompatibility.model,
+        providerApproval: createModelCallProviderApproval({
+          jobId: requestedJobId,
+          model: currentNarrationTransformCompatibility.model,
+        }),
         ...(blockIds.length === 0 ? {} : { narrowing: { blockIds } }),
         params,
       });
@@ -850,7 +880,7 @@ export class PostgresNarrationService implements NarrationService {
         paramsHash,
       ].join(":");
       const envelope = createJobEnvelope(modelCallJobPayloadSchema, {
-        jobId: createId(timestamp),
+        jobId: requestedJobId,
         jobType: "narration.transform",
         projectId: input.projectId,
         ownerUserId: input.ownerUserId,
@@ -862,7 +892,7 @@ export class PostgresNarrationService implements NarrationService {
           options: { requestKey: idempotencyKey },
         }),
         correlationId: input.correlationId,
-        payloadVersion: 1,
+        payloadVersion: 2,
         payload,
         requestedAt: timestamp,
       });
@@ -898,7 +928,9 @@ export class PostgresNarrationService implements NarrationService {
             .limit(1)
         )[0]?.id;
       if (jobId === undefined)
-        throw new Error("The idempotent narration transform job could not be read.");
+        throw new Error(
+          "The idempotent narration transform job could not be read.",
+        );
       if (created !== undefined) {
         await transaction.insert(outboxEvents).values({
           id: createId(timestamp),
@@ -942,7 +974,10 @@ export class PostgresNarrationService implements NarrationService {
     body: unknown;
     correlationId: Identifier;
   }): Promise<NarrationResponse> {
-    const parsed = parseBoundary(narrationCandidateDecisionInputSchema, input.body);
+    const parsed = parseBoundary(
+      narrationCandidateDecisionInputSchema,
+      input.body,
+    );
     const timestamp = this.now();
     await this.database.transaction(async (transaction) => {
       const set = await this.mutableDraftSet(
@@ -1024,12 +1059,21 @@ export class PostgresNarrationService implements NarrationService {
           setRevision: parsed.expectedRevision + 1,
           blockRevision: block.revision + 1,
           modelCallId: candidate.modelCallId,
-          invalidatedScope: ["audio", "captions", "preview", "validation", "render"],
+          invalidatedScope: [
+            "audio",
+            "captions",
+            "preview",
+            "validation",
+            "render",
+          ],
         },
         occurredAt: timestamp,
       });
     });
-    return this.current({ ownerUserId: input.ownerUserId, projectId: input.projectId });
+    return this.current({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+    });
   }
 
   public async rejectCandidate(input: {
@@ -1040,7 +1084,10 @@ export class PostgresNarrationService implements NarrationService {
     body: unknown;
     correlationId: Identifier;
   }): Promise<NarrationResponse> {
-    const parsed = parseBoundary(narrationCandidateDecisionInputSchema, input.body);
+    const parsed = parseBoundary(
+      narrationCandidateDecisionInputSchema,
+      input.body,
+    );
     const timestamp = this.now();
     await this.database.transaction(async (transaction) => {
       const set = await this.mutableDraftSet(
@@ -1095,7 +1142,10 @@ export class PostgresNarrationService implements NarrationService {
         occurredAt: timestamp,
       });
     });
-    return this.current({ ownerUserId: input.ownerUserId, projectId: input.projectId });
+    return this.current({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+    });
   }
 
   public async listBlockRevisions(input: {
@@ -1226,12 +1276,21 @@ export class PostgresNarrationService implements NarrationService {
           restoredRevision: parsed.revision,
           setRevision: parsed.expectedRevision + 1,
           blockRevision: current.revision + 1,
-          invalidatedScope: ["audio", "captions", "preview", "validation", "render"],
+          invalidatedScope: [
+            "audio",
+            "captions",
+            "preview",
+            "validation",
+            "render",
+          ],
         },
         occurredAt: timestamp,
       });
     });
-    return this.current({ ownerUserId: input.ownerUserId, projectId: input.projectId });
+    return this.current({
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+    });
   }
 
   private async mutableDraftSet(
@@ -1469,15 +1528,15 @@ export class PostgresNarrationService implements NarrationService {
     );
     const structurallyValid =
       set.blocks.length >= 1 &&
-      set.blocks.every((block) =>
-        block.sourceRefs.length > 0 || block.generatedAdditions.length > 0,
+      set.blocks.every(
+        (block) =>
+          block.sourceRefs.length > 0 || block.generatedAdditions.length > 0,
       );
     const target = configuration?.targetDurationSeconds;
     let durationStatus: NarrationBudgetStatus = "within";
     let durationWarning: string | null = null;
     if (target !== undefined && set.totalEstimatedSeconds !== target) {
-      durationStatus =
-        set.totalEstimatedSeconds < target ? "under" : "over";
+      durationStatus = set.totalEstimatedSeconds < target ? "under" : "over";
       durationWarning = `The narration's estimated total (${set.totalEstimatedSeconds} seconds) is ${
         durationStatus === "under" ? "under" : "over"
       } the lesson target (${target} seconds).`;
@@ -1632,7 +1691,8 @@ export class PostgresNarrationService implements NarrationService {
       .orderBy(narrationBlocks.order);
     const blocks = blockRows.map((block) => {
       const sourceRefs = block.sourceRefs as SourceRef[];
-      const generatedAdditions = block.generatedAdditions as GeneratedAddition[];
+      const generatedAdditions =
+        block.generatedAdditions as GeneratedAddition[];
       return {
         id: block.id,
         outlineItemId: block.outlineItemId,
@@ -1857,9 +1917,7 @@ function narrationNotApprovable(message: string): PublicError {
   return new PublicError("bad_request", message, 409);
 }
 
-function inFlight(
-  job: { state: GenerationJobState } | undefined,
-): boolean {
+function inFlight(job: { state: GenerationJobState } | undefined): boolean {
   return (
     job !== undefined &&
     (job.state === "queued" ||
@@ -1889,9 +1947,9 @@ function parseBoundary<T>(schema: z.ZodType<T>, input: unknown): T {
   return result.data;
 }
 
-function errorDetails(
-  error: { issues: { path: (string | number)[]; message: string }[] },
-): Record<string, string> {
+function errorDetails(error: {
+  issues: { path: (string | number)[]; message: string }[];
+}): Record<string, string> {
   return Object.fromEntries(
     error.issues.map((issue) => [
       issue.path.join(".") || "root",

@@ -127,9 +127,16 @@ async function requestWithRetry<T>(input: {
       // streamed responses, and a truncated stream is retried like a transport
       // failure rather than surfacing as an invalid response.
       if (response.ok)
-        return { value: await input.consume(response, keepAlive), retries: attempt };
+        return {
+          value: await input.consume(response, keepAlive),
+          retries: attempt,
+        };
       const failure = classifyHttpFailure(response.status);
-      if (!failure.retryable || !transientStatuses.has(response.status) || attempt >= input.maxRetries)
+      if (
+        !failure.retryable ||
+        !transientStatuses.has(response.status) ||
+        attempt >= input.maxRetries
+      )
         throw failure;
       await sleep(delayMs(attempt));
     } catch (error) {
@@ -163,10 +170,14 @@ function stringValue(value: unknown): string | undefined {
 }
 
 function numberValue(value: unknown): number | undefined {
-  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
 }
 
-function mapFinishReason(value: unknown): ProviderCompletionResponse["finishReason"] {
+function mapFinishReason(
+  value: unknown,
+): ProviderCompletionResponse["finishReason"] {
   if (value === "length") return "length";
   if (value === "content_filter") return "content_filter";
   if (value === "stop" || value === "eos" || value === "end") return "stop";
@@ -195,7 +206,9 @@ type ChatPayload = {
   outputTokens?: number;
 };
 
-function readUsage(value: unknown): Pick<ChatPayload, "inputTokens" | "outputTokens"> {
+function readUsage(
+  value: unknown,
+): Pick<ChatPayload, "inputTokens" | "outputTokens"> {
   if (typeof value !== "object" || value === null) return {};
   const usage = value as TogetherJson;
   const inputTokens = numberValue(usage.prompt_tokens);
@@ -293,16 +306,25 @@ function handleEvent(event: string, payload: ChatPayload): boolean {
         message: "Together returned an unreadable chat stream chunk.",
       });
     }
-    applyChunk(payload, jsonObject(parsed, "Together returned an invalid chat chunk."));
+    applyChunk(
+      payload,
+      jsonObject(parsed, "Together returned an invalid chat chunk."),
+    );
   }
   return true;
 }
 
 function readChatJson(value: unknown): ChatPayload {
-  const parsed = jsonObject(value, "Together returned an invalid chat response.");
+  const parsed = jsonObject(
+    value,
+    "Together returned an invalid chat response.",
+  );
   const choices = Array.isArray(parsed.choices) ? parsed.choices : [];
   const choice = jsonObject(choices[0], "Together returned no chat choice.");
-  const message = jsonObject(choice.message, "Together returned no assistant message.");
+  const message = jsonObject(
+    choice.message,
+    "Together returned no assistant message.",
+  );
   const model = stringValue(parsed.model);
   return {
     ...(model === undefined ? {} : { model }),
@@ -324,6 +346,7 @@ async function readChatResponse(
 
 export class TogetherLanguageModelProvider implements LanguageModelProvider {
   public readonly providerId = "together";
+  public readonly supportedModels = [togetherModelDefaults.llm] as const;
   private readonly baseUrl: string;
   private readonly fetcher: FetchLike;
   private readonly timeoutMs: number;
@@ -331,7 +354,9 @@ export class TogetherLanguageModelProvider implements LanguageModelProvider {
 
   public constructor(private readonly options: TogetherProviderOptions) {
     if (options.apiKey.trim().length === 0)
-      throw new Error("Together API key is required for the production provider.");
+      throw new Error(
+        "Together API key is required for the production provider.",
+      );
     this.baseUrl = normalizeBaseUrl(options.baseUrl);
     this.fetcher = options.fetcher ?? fetch;
     this.timeoutMs = requestTimeout(options.requestTimeoutMs);
@@ -345,9 +370,15 @@ export class TogetherLanguageModelProvider implements LanguageModelProvider {
     const body: TogetherJson = {
       model: request.model,
       messages: request.messages,
-      ...(request.temperature === undefined ? {} : { temperature: request.temperature }),
-      ...(request.maxOutputTokens === undefined ? {} : { max_tokens: request.maxOutputTokens }),
-      ...(responseFormat(request) === undefined ? {} : { response_format: responseFormat(request) }),
+      ...(request.temperature === undefined
+        ? {}
+        : { temperature: request.temperature }),
+      ...(request.maxOutputTokens === undefined
+        ? {}
+        : { max_tokens: request.maxOutputTokens }),
+      ...(responseFormat(request) === undefined
+        ? {}
+        : { response_format: responseFormat(request) }),
       // Several Together chat models (the default LLM among them) reject
       // non-streaming requests with `streaming_required`, so always stream.
       stream: true,
@@ -389,16 +420,22 @@ export class TogetherLanguageModelProvider implements LanguageModelProvider {
   }
 }
 
-function requestedDimensions(size: IllustrationRequest["size"]): { width: number; height: number } {
+function requestedDimensions(size: IllustrationRequest["size"]): {
+  width: number;
+  height: number;
+} {
   return size === "1536x1024"
     ? { width: 1536, height: 1024 }
     : { width: 1024, height: 1024 };
 }
 
-function pngDimensions(bytes: Uint8Array): { width: number; height: number } | undefined {
+function pngDimensions(
+  bytes: Uint8Array,
+): { width: number; height: number } | undefined {
   if (bytes.length < 24) return undefined;
   const signature = [137, 80, 78, 71, 13, 10, 26, 10];
-  if (!signature.every((value, index) => bytes[index] === value)) return undefined;
+  if (!signature.every((value, index) => bytes[index] === value))
+    return undefined;
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   return { width: view.getUint32(16), height: view.getUint32(20) };
 }
@@ -412,10 +449,14 @@ export class TogetherIllustrationProvider implements IllustrationProvider {
   private readonly maxRetries: number;
 
   public constructor(
-    private readonly options: TogetherProviderOptions & { costUsdPerImage?: number },
+    private readonly options: TogetherProviderOptions & {
+      costUsdPerImage?: number;
+    },
   ) {
     if (options.apiKey.trim().length === 0)
-      throw new Error("Together API key is required for the production provider.");
+      throw new Error(
+        "Together API key is required for the production provider.",
+      );
     this.baseUrl = normalizeBaseUrl(options.baseUrl);
     this.fetcher = options.fetcher ?? fetch;
     this.timeoutMs = requestTimeout(options.requestTimeoutMs);
@@ -425,7 +466,9 @@ export class TogetherIllustrationProvider implements IllustrationProvider {
       throw new RangeError("Together image cost cannot be negative.");
   }
 
-  public async generate(request: IllustrationRequest): Promise<IllustrationResponse> {
+  public async generate(
+    request: IllustrationRequest,
+  ): Promise<IllustrationResponse> {
     const startedAt = Date.now();
     const parsedRequest = illustrationRequestSchema.parse(request);
     const dimensions = requestedDimensions(parsedRequest.size);
@@ -465,7 +508,8 @@ export class TogetherIllustrationProvider implements IllustrationProvider {
         code: "PROVIDER_INVALID_IMAGE",
         message: "Together returned an invalid PNG image.",
       });
-    const providerCallId = stringValue(parsed.id) ??
+    const providerCallId =
+      stringValue(parsed.id) ??
       `together-image-${createHash("sha256").update(bytes).digest("hex").slice(0, 24)}`;
     return illustrationResponseSchema.parse({
       providerId: this.providerId,
