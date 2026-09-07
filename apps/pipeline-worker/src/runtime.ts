@@ -204,6 +204,8 @@ export async function runPipelineWorker(
               defaultVoice: workerEnvironment.TOGETHER_TTS_VOICE,
               requestTimeoutMs: workerEnvironment.TOGETHER_REQUEST_TIMEOUT_MS,
               maxRetries: workerEnvironment.TOGETHER_MAX_RETRIES,
+              costUsdPerMillionCharacters:
+                workerEnvironment.TOGETHER_TTS_COST_USD_PER_MILLION_CHARACTERS,
             });
       const alignmentProvider =
         workerEnvironment.TOGETHER_API_KEY === undefined

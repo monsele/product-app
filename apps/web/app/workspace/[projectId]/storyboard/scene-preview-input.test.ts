@@ -1,8 +1,41 @@
 import { describe, expect, it } from "vitest";
-import type { StoryboardSceneDetailResponse } from "@avlp/schemas";
+import type {
+  PreviewManifest,
+  StoryboardSceneDetailResponse,
+} from "@avlp/schemas";
+import { parseScenePreviewInput } from "@avlp/scene-library";
 import { buildScenePreviewInput, canPreviewScene } from "./scene-preview-input";
 
 const sceneId = "019ffbf1-6151-738a-b087-6775ff97568c";
+const assetId = "019ffbf1-eeee-7000-8000-000000000099";
+
+const resolvedManifest: PreviewManifest = {
+  assets: {
+    [assetId]: {
+      assetId,
+      altText: "Evaporation illustration",
+      provenance: "ai_generated",
+      source: "source",
+      src: "https://storage.example.test/evaporation.png",
+    },
+  },
+  canvas: { fps: 30, height: 1080, width: 1920 },
+  generatedAt: "2026-09-07T10:00:00.000Z",
+  scenes: [
+    {
+      sceneId,
+      audio: {
+        status: "failed",
+        url: null,
+        expiresAt: null,
+      },
+      captions: [],
+      missingAssetIds: [],
+      stale: true,
+    },
+  ],
+  storyboard: {} as PreviewManifest["storyboard"],
+};
 
 function detailWithBindings(
   assetBindings: StoryboardSceneDetailResponse["scene"]["scene"]["assetBindings"],
@@ -49,16 +82,21 @@ function detailWithBindings(
 
 describe("canPreviewScene", () => {
   it("allows a scene without asset bindings", () => {
-    expect(canPreviewScene(detailWithBindings([]))).toBe(true);
+    expect(canPreviewScene(detailWithBindings([]), undefined)).toBe(true);
   });
 
   it("blocks a scene with asset bindings until media is resolved", () => {
     const binding = {
-      assetId: "019ffbf1-eeee-7000-8000-000000000099",
+      assetId,
       role: "illustration" as const,
       slot: "visual-example",
     };
-    expect(canPreviewScene(detailWithBindings([binding]))).toBe(false);
+    expect(canPreviewScene(detailWithBindings([binding]), undefined)).toBe(
+      false,
+    );
+    expect(
+      canPreviewScene(detailWithBindings([binding]), resolvedManifest),
+    ).toBe(true);
   });
 
   it("blocks a scene with planned assets before a binding exists", () => {
@@ -68,6 +106,7 @@ describe("canPreviewScene", () => {
           [],
           [{ slot: "visual-example", purpose: "A supporting illustration." }],
         ),
+        undefined,
       ),
     ).toBe(false);
   });
@@ -75,15 +114,35 @@ describe("canPreviewScene", () => {
 
 describe("buildScenePreviewInput", () => {
   it("uses the authoritative scene spec with an empty manifest", () => {
-    const input = buildScenePreviewInput(detailWithBindings([]), [
-      { startMs: 1_000, endMs: 2_500, text: "Water evaporates." },
-    ]);
+    const input = buildScenePreviewInput(detailWithBindings([]), undefined);
     expect(input.scene.narration).toBe("Water evaporates when heated.");
     expect(input.manifest.assets).toEqual({});
     expect(input.manifest.audio).toBeUndefined();
-    expect(input.captions).toEqual([
-      { startFrame: 30, endFrame: 75, text: "Water evaporates." },
-    ]);
+    expect(input.captions).toEqual([]);
     expect(input.transitionContext).toBeUndefined();
+  });
+
+  it("uses authorized resolved media while allowing an audio retry", () => {
+    const binding = {
+      assetId,
+      role: "illustration" as const,
+      slot: "visual-example",
+    };
+    const input = buildScenePreviewInput(
+      detailWithBindings([binding]),
+      resolvedManifest,
+    );
+
+    expect(input.manifest.assets).toEqual({
+      [assetId]: {
+        assetId,
+        altText: "Evaporation illustration",
+        source: "source",
+        src: "https://storage.example.test/evaporation.png",
+      },
+    });
+    expect(input.manifest.audio).toBeUndefined();
+    expect(input.captions).toEqual([]);
+    expect(parseScenePreviewInput(input).ok).toBe(true);
   });
 });

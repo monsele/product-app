@@ -388,7 +388,7 @@ export const ingestionServiceEnvironmentSchema = z.object({
 /** Together model IDs selected for the current production provider wiring. */
 export const togetherModelDefaults = {
   llm: "Qwen/Qwen3.8-Flash",
-  tts: "hexgrad/Kokoro-82M",
+  tts: "canopylabs/orpheus-3b-0.1-ft",
   image: "prunaai/p-image-ideogram",
   alignment: "openai/whisper-large-v3",
 } as const;
@@ -408,7 +408,12 @@ const togetherEnvironmentSchema = z.object({
   ),
   TOGETHER_API_BASE_URL: z.string().url().default("https://api.together.ai/v1"),
   TOGETHER_TTS_MODEL: z.string().trim().min(1).max(200).default(togetherModelDefaults.tts),
-  TOGETHER_TTS_VOICE: z.string().trim().min(1).max(100).default("af_bella"),
+  TOGETHER_TTS_VOICE: z.string().trim().min(1).max(100).default("tara"),
+  TOGETHER_TTS_COST_USD_PER_MILLION_CHARACTERS: z.coerce
+    .number()
+    .finite()
+    .nonnegative()
+    .default(15),
   TOGETHER_ALIGNMENT_MODEL: z.string().trim().min(1).max(200).default(togetherModelDefaults.alignment),
   TOGETHER_IMAGE_MODEL: z.string().trim().min(1).max(200).default(togetherModelDefaults.image),
   TOGETHER_IMAGE_COST_USD: z.coerce.number().finite().nonnegative().default(0.00225),

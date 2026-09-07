@@ -24,9 +24,9 @@ export type TogetherKokoroTtsOptions = {
 
 const defaultBaseUrl = "https://api.together.ai/v1";
 const publicVoiceMap: Readonly<Record<string, string>> = {
-  "english-aria": "af_bella",
-  "english-james": "am_michael",
-  "english-luna": "af_sky",
+  "english-aria": "tara",
+  "english-james": "leo",
+  "english-luna": "zoe",
 };
 
 function parseOptions(options: TogetherKokoroTtsOptions): {
@@ -50,7 +50,7 @@ function parseOptions(options: TogetherKokoroTtsOptions): {
   const maxRetries = options.maxRetries ?? 2;
   if (!Number.isInteger(maxRetries) || maxRetries < 0 || maxRetries > 5)
     throw new RangeError("Together retry limit must be between 0 and 5.");
-  const costUsdPerMillionCharacters = options.costUsdPerMillionCharacters ?? 4;
+  const costUsdPerMillionCharacters = options.costUsdPerMillionCharacters ?? 15;
   if (costUsdPerMillionCharacters < 0)
     throw new RangeError("Together TTS cost cannot be negative.");
   return {
@@ -295,7 +295,7 @@ export class TogetherKokoroTtsProvider implements SceneAudioTtsProvider {
               input: input.narration,
               voice: voiceFor(
                 input.voiceId,
-                this.options.defaultVoice ?? "af_bella",
+                this.options.defaultVoice ?? "tara",
               ),
               response_format: "wav",
               language: "en",

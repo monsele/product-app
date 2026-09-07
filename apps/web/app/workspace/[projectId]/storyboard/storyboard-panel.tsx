@@ -6,6 +6,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { ScenePreviewPlayer } from "@avlp/scene-library";
 import {
   sceneTemplateValues,
+  previewManifestSchema,
   storyboardResponseSchema,
   lessonVersionsResponseSchema,
   lessonVersionDetailSchema,
@@ -13,6 +14,7 @@ import {
   lessonAudioGenerationResponseSchema,
   lessonIllustrationGenerationResponseSchema,
   type LessonValidationRun,
+  type PreviewManifest,
   type ProjectAsset,
   type SceneTemplate,
   type StoryboardResponse,
@@ -137,6 +139,11 @@ export function StoryboardPanel({
   const [teacherAssets, setTeacherAssets] = useState<readonly ProjectAsset[]>(
     [],
   );
+  const [previewManifest, setPreviewManifest] = useState<
+    PreviewManifest | undefined
+  >();
+  const [previewManifestAttempt, setPreviewManifestAttempt] = useState(0);
+  const [previewManifestError, setPreviewManifestError] = useState(false);
   const [mobileTab, setMobileTab] = useState<MobileViewTab>("preview");
   const reduceMotion = useReducedMotion();
 
@@ -816,11 +823,53 @@ export function StoryboardPanel({
   );
 
   const selectedDetail = detail.kind === "ready" ? detail.value : null;
+  // Do not key this request on the detail object itself. Scene-list polling can
+  // replace that object while a signed-media request is in flight, repeatedly
+  // cancelling a successful response and leaving the canvas in its fallback.
+  const previewMediaKey = selectedDetail
+    ? [
+        selectedDetail.scene.stableSceneId,
+        ...selectedDetail.scene.scene.assetBindings.map(
+          (binding) => binding.assetId,
+        ),
+      ].join(":")
+    : null;
+  useEffect(() => {
+    if (previewMediaKey === null) {
+      setPreviewManifest(undefined);
+      setPreviewManifestError(false);
+      return;
+    }
+    let cancelled = false;
+    setPreviewManifestError(false);
+    void fetch(
+      apiUrl(
+        `/projects/${encodeURIComponent(projectId)}/preview-manifest?quality=low`,
+      ),
+      { credentials: "include", cache: "no-store" },
+    )
+      .then(async (response) => {
+        const payload: unknown = await response.json().catch(() => null);
+        const parsed = previewManifestSchema.safeParse(payload);
+        if (!response.ok || !parsed.success)
+          throw new Error("preview-manifest");
+        if (!cancelled) setPreviewManifest(parsed.data);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPreviewManifest(undefined);
+          setPreviewManifestError(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, previewManifestAttempt, previewMediaKey]);
   const teacherReplacement = selectedDetail
     ? teacherReplacementPreviewForScene(selectedDetail, teacherAssets)
     : undefined;
   const previewInput = selectedDetail
-    ? buildScenePreviewInput(selectedDetail, undefined)
+    ? buildScenePreviewInput(selectedDetail, previewManifest)
     : null;
 
   const totalDuration = listScenes.reduce(
@@ -1249,7 +1298,8 @@ export function StoryboardPanel({
                       />
                       <figcaption>Teacher replacement preview</figcaption>
                     </figure>
-                  ) : canPreviewScene(detail.value) && previewInput !== null ? (
+                  ) : canPreviewScene(detail.value, previewManifest) &&
+                    previewInput !== null ? (
                     <div className={styles.canvasFill}>
                       <ScenePreviewPlayer input={previewInput} />
                     </div>
@@ -1262,9 +1312,21 @@ export function StoryboardPanel({
                     >
                       <h4>Preview unavailable</h4>
                       <p>
-                        This scene references media that is not available yet. A
-                        preview will appear once scene media is generated.
+                        {previewManifestError
+                          ? "The authorized preview media could not be refreshed."
+                          : "Preparing the authorized preview media…"}
                       </p>
+                      {previewManifestError ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPreviewManifestAttempt((value) => value + 1)
+                          }
+                          className={`${styles.button} ${styles.buttonPrimary} ${styles.buttonCompact}`}
+                        >
+                          Refresh preview
+                        </button>
+                      ) : null}
                     </section>
                   )}
                 </section>

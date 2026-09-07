@@ -57,9 +57,9 @@ describe("Together Kokoro TTS adapter", () => {
       fetcher.mock.calls[0]![1]?.body as string,
     ) as Record<string, unknown>;
     expect(body).toMatchObject({
-      model: "hexgrad/Kokoro-82M",
+      model: "canopylabs/orpheus-3b-0.1-ft",
       input: "Water moves. It changes state.",
-      voice: "af_bella",
+      voice: "tara",
       response_format: "wav",
       stream: false,
       extra_params: { pronunciation_dict: ["Water/H2O"] },

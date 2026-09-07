@@ -1374,7 +1374,15 @@ export function IngestionReviewViewer({
                         border: "1px solid var(--color-border)",
                       }}
                     >
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          minWidth: 0,
+                          flex: "1 1 180px",
+                        }}
+                      >
                         <button
                           type="button"
                           onClick={() => void toggleSection(section.id)}
@@ -1394,7 +1402,7 @@ export function IngestionReviewViewer({
                             <CaretRight size={18} weight="bold" />
                           )}
                         </button>
-                        <div>
+                        <div style={{ minWidth: 0 }}>
                           <h3
                             style={{
                               margin: 0,
@@ -1406,7 +1414,13 @@ export function IngestionReviewViewer({
                           >
                             {effectiveHeading || "(untitled section)"}
                           </h3>
-                          <span style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>
+                          <span
+                            style={{
+                              display: "block",
+                              fontSize: "12px",
+                              color: "var(--color-text-muted)",
+                            }}
+                          >
                             Pages {section.pageStart}
                             {section.pageEnd !== section.pageStart
                               ? `–${section.pageEnd}`
@@ -1419,7 +1433,15 @@ export function IngestionReviewViewer({
                       {/* Section Controls */}
                       <div
                         data-section-selection
-                        style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                        style={{
+                          display: "flex",
+                          flex: "0 1 auto",
+                          flexWrap: "wrap",
+                          alignItems: "center",
+                          justifyContent: "flex-end",
+                          gap: "8px",
+                          minWidth: 0,
+                        }}
                       >
                         <span
                           data-included={included}
