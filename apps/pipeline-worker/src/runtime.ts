@@ -350,6 +350,7 @@ export async function runPipelineWorker(
         createSceneAudioGenerationJobHandler({
           database: database.client,
           storage,
+          logger,
           ...(ttsProvider === undefined ? {} : { provider: ttsProvider }),
           ...(alignmentProvider === undefined ? {} : { alignmentProvider }),
         }),

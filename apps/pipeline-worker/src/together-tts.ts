@@ -48,8 +48,8 @@ function parseOptions(options: TogetherKokoroTtsOptions): {
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1_000 || timeoutMs > 300_000)
     throw new RangeError("Together request timeout must be 1-300 seconds.");
   const maxRetries = options.maxRetries ?? 2;
-  if (!Number.isInteger(maxRetries) || maxRetries < 0 || maxRetries > 5)
-    throw new RangeError("Together retry limit must be between 0 and 5.");
+  if (!Number.isInteger(maxRetries) || maxRetries < 0 || maxRetries > 8)
+    throw new RangeError("Together retry limit must be between 0 and 8.");
   const costUsdPerMillionCharacters = options.costUsdPerMillionCharacters ?? 15;
   if (costUsdPerMillionCharacters < 0)
     throw new RangeError("Together TTS cost cannot be negative.");
@@ -72,27 +72,62 @@ function shouldRetry(status: number): boolean {
   );
 }
 
-function providerError(status: number): ProviderCallError {
-  if (status === 401 || status === 403)
+function diagnosticString(value: unknown, maximumLength: number): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length === 0) return undefined;
+  return normalized
+    .replace(/\bbearer\s+[a-z0-9._~+/=-]+/gi, "Bearer [REDACTED]")
+    .replace(/https?:\/\/\S+/gi, "[URL]")
+    .slice(0, maximumLength);
+}
+
+async function providerError(response: Response): Promise<ProviderCallError> {
+  let providerCode: string | undefined;
+  let providerReason: string | undefined;
+  try {
+    const payload: unknown = await response.json();
+    if (typeof payload === "object" && payload !== null && !Array.isArray(payload)) {
+      const error = (payload as { error?: unknown }).error;
+      const detail =
+        typeof error === "object" && error !== null && !Array.isArray(error)
+          ? error as { code?: unknown; message?: unknown }
+          : payload as { code?: unknown; message?: unknown };
+      providerCode = diagnosticString(detail.code, 100);
+      providerReason = diagnosticString(detail.message, 300);
+    }
+  } catch {
+    // Error bodies are diagnostics only. Never log or persist an unparsed raw body.
+  }
+  const details = {
+    providerStatus: response.status,
+    ...(providerCode === undefined ? {} : { providerCode }),
+    ...(providerReason === undefined ? {} : { providerReason }),
+  };
+  if (response.status === 401 || response.status === 403)
     return new ProviderCallError({
       code: "PROVIDER_AUTHENTICATION_FAILED",
       message: "Together rejected the provider credentials.",
+      ...details,
     });
-  if (status === 429)
+  if (response.status === 429)
     return new ProviderCallError({
       code: "PROVIDER_RATE_LIMITED",
       message: "Together rate-limited the provider request.",
       retryable: true,
+      ...details,
     });
-  if (status >= 500)
+  if (response.status >= 500)
     return new ProviderCallError({
       code: "PROVIDER_UNAVAILABLE",
       message: "Together is temporarily unavailable.",
       retryable: true,
+      ...details,
     });
   return new ProviderCallError({
     code: "PROVIDER_REQUEST_REJECTED",
     message: "Together rejected the provider request.",
+    ...details,
   });
 }
 
@@ -308,7 +343,7 @@ export class TogetherKokoroTtsProvider implements SceneAudioTtsProvider {
           },
         );
         if (!response.ok) {
-          const error = providerError(response.status);
+          const error = await providerError(response);
           if (
             !shouldRetry(response.status) ||
             attempt >= this.parsed.maxRetries
@@ -325,7 +360,7 @@ export class TogetherKokoroTtsProvider implements SceneAudioTtsProvider {
         return {
           bytes,
           durationMs,
-          // Kokoro's non-streaming response contains audio only. The worker
+          // The configured provider's non-streaming response contains audio only. The worker
           // runs the configured forced-alignment adapter before completing the
           // scene, so no proportional estimate can be mistaken for provider
           // timing.

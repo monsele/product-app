@@ -1,0 +1,40 @@
+Job execution error: JobExecutionError: The configured audio provider could not complete this scene.
+    at <anonymous> (C:\Users\eoaikhina\Documents\repos\product-app\apps\pipeline-worker\src\scene-audio-job.ts:673:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async executeJobDelivery (C:\Users\eoaikhina\Documents\repos\product-app\packages\jobs\src\worker.ts:138:7)
+    at async C:\Users\eoaikhina\Documents\repos\product-app\node_modules\.pnpm\bullmq@5.81.3\node_modules\bullmq\dist\cjs\classes\worker.js:612:32 {
+  classification: 'retryable',
+  code: 'PROVIDER_UNAVAILABLE',
+  details: undefined
+}
+Job execution error: JobExecutionError: The configured audio provider could not complete this scene.
+    at <anonymous> (C:\Users\eoaikhina\Documents\repos\product-app\apps\pipeline-worker\src\scene-audio-job.ts:673:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async executeJobDelivery (C:\Users\eoaikhina\Documents\repos\product-app\packages\jobs\src\worker.ts:138:7)
+    at async C:\Users\eoaikhina\Documents\repos\product-app\node_modules\.pnpm\bullmq@5.81.3\node_modules\bullmq\dist\cjs\classes\worker.js:612:32 {
+  classification: 'retryable',
+  code: 'PROVIDER_UNAVAILABLE',
+  details: undefined
+}
+Job execution error: JobExecutionError: The configured audio provider could not complete this scene.
+    at <anonymous> (C:\Users\eoaikhina\Documents\repos\product-app\apps\pipeline-worker\src\scene-audio-job.ts:673:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async executeJobDelivery (C:\Users\eoaikhina\Documents\repos\product-app\packages\jobs\src\worker.ts:138:7)
+    at async C:\Users\eoaikhina\Documents\repos\product-app\node_modules\.pnpm\bullmq@5.81.3\node_modules\bullmq\dist\cjs\classes\worker.js:612:32 {
+  classification: 'retryable',
+  code: 'PROVIDER_UNAVAILABLE',
+  details: undefined
+}
+C:\Users\eoaikhina\Documents\repos\product-app\packages\provider-adapters\src\together-provider.ts:61
+    throw new RangeError("Together retry limit must be between 0 and 5.");
+          ^
+
+RangeError: Together retry limit must be between 0 and 5.
+    at retryLimit (C:\Users\eoaikhina\Documents\repos\product-app\packages\provider-adapters\src\together-provider.ts:61:11)
+    at new TogetherLanguageModelProvider (C:\Users\eoaikhina\Documents\repos\product-app\packages\provider-adapters\src\together-provider.ts:363:23)
+    at createLanguageModelProvider (C:\Users\eoaikhina\Documents\repos\product-app\apps\pipeline-worker\src\runtime.ts:122:10)
+    at runPipelineWorker (C:\Users\eoaikhina\Documents\repos\product-app\apps\pipeline-worker\src\runtime.ts:185:9)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async bootstrap (C:\Users\eoaikhina\Documents\repos\product-app\apps\pipeline-worker\src\main.ts:12:5)
+
+Node.js v24.14.0

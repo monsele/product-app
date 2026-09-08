@@ -198,6 +198,12 @@ export function SceneAudioPanel({
       {audio?.fitWarning !== null && audio?.fitWarning !== undefined ? (
         <p role="alert">{audio.fitWarning}</p>
       ) : null}
+      {audio?.status === "ready" &&
+      audio.captionTimingSource === "estimated" ? (
+        <p role="status">
+          Captions use estimated sentence timing. Review them before export.
+        </p>
+      ) : null}
       {audio?.status === "failed" && audio.failureCode !== null ? (
         <p role="alert">{sceneAudioFailureMessage(audio.failureCode)}</p>
       ) : null}

@@ -414,6 +414,13 @@
       "when": 1787663000000,
       "tag": "0058_narration_approved_audit_event",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1788906000000,
+      "tag": "0059_scene_audio_caption_timing_source",
+      "breakpoints": true
     }
   ]
 }

@@ -57,8 +57,8 @@ function requestTimeout(value: number | undefined): number {
 
 function retryLimit(value: number | undefined): number {
   if (value === undefined) return 2;
-  if (!Number.isInteger(value) || value < 0 || value > 5)
-    throw new RangeError("Together retry limit must be between 0 and 5.");
+  if (!Number.isInteger(value) || value < 0 || value > 8)
+    throw new RangeError("Together retry limit must be between 0 and 8.");
   return value;
 }
 

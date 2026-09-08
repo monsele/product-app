@@ -24,7 +24,10 @@ import {
   ProviderEnvelopeViolationError,
   resolveJobAdapter,
 } from "@avlp/provider-adapters";
-import { PostgresAuditWriter } from "@avlp/observability";
+import {
+  PostgresAuditWriter,
+  type StructuredLogger,
+} from "@avlp/observability";
 import {
   narrationPauseReservation,
   narrationWordsPerMinute,
@@ -91,6 +94,7 @@ export type SceneAudioAlignmentResult = {
   latencyMs?: number;
   retryCount?: number;
 };
+type CaptionTimingSource = "provider" | "estimated";
 const digest = (value: unknown) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
 
@@ -103,6 +107,18 @@ export function isCurrentAudioCompletion(input: {
   return (
     input.storedNarrationHash === input.payloadNarrationHash &&
     input.storedVoiceConfigurationHash === input.payloadVoiceConfigurationHash
+  );
+}
+
+/** Alignment verifies and enriches captions; it must never discard a valid,
+ * stored narration track. The approved narration remains the caption text and
+ * the measured waveform remains the timeline authority. */
+function canFallBackToEstimatedCaptions(error: unknown): boolean {
+  if (error instanceof ProviderCallError) return true;
+  return (
+    error instanceof JobExecutionError &&
+    (error.code === "FORCED_ALIGNMENT_UNAVAILABLE" ||
+      error.code === "FORCED_ALIGNMENT_INVALID")
   );
 }
 
@@ -207,6 +223,7 @@ export function createSceneAudioGenerationJobHandler(input: {
   storage: Pick<ObjectStorage, "putBytes">;
   provider?: SceneAudioTtsProvider;
   alignmentProvider?: SceneAudioAlignmentProvider;
+  logger?: Pick<StructuredLogger, "warn">;
   now?: () => Date;
 }): RegisteredJobHandler {
   const now = input.now ?? (() => new Date());
@@ -357,7 +374,17 @@ export function createSceneAudioGenerationJobHandler(input: {
           await input.database.transaction(async (tx) => {
             await tx
               .update(sceneAudio)
-              .set({ status: "ready", failureCode: null, updatedAt: now() })
+              .set({
+                status: "ready",
+                // Records created before provenance existed remain usable. We
+                // conservatively surface their restored captions as estimated.
+                captionTimingSource:
+                  audio.captionTimingSource === "provider"
+                    ? "provider"
+                    : "estimated",
+                failureCode: null,
+                updatedAt: now(),
+              })
               .where(
                 and(
                   eq(sceneAudio.id, audio.id),
@@ -426,27 +453,63 @@ export function createSceneAudioGenerationJobHandler(input: {
           },
         });
         alignmentAttempted = output.timing.length === 0;
-        const aligned: SceneAudioAlignmentResult =
-          output.timing.length > 0
-            ? {
-                timing: alignSentences({
-                  narration,
-                  durationMs: output.durationMs,
-                  timing: output.timing,
-                }),
-              }
-            : await alignWithoutProvider(
-                alignmentProvider,
-                output.bytes,
+        let aligned: SceneAudioAlignmentResult;
+        let captionTimingSource: CaptionTimingSource;
+        if (output.timing.length > 0) {
+          aligned = {
+            timing: alignSentences({
+              narration,
+              durationMs: output.durationMs,
+              timing: output.timing,
+            }),
+          };
+          captionTimingSource = "provider";
+        } else {
+          try {
+            aligned = await alignWithoutProvider(
+              alignmentProvider,
+              output.bytes,
+              narration,
+              output.durationMs,
+            );
+            captionTimingSource = "provider";
+          } catch (error) {
+            if (!canFallBackToEstimatedCaptions(error)) throw error;
+            input.logger?.warn("tts.caption_alignment_estimated", {
+              jobId: context.jobId,
+              provider: alignmentProvider?.providerId ?? null,
+              model: alignmentProvider?.model ?? null,
+              failureCode:
+                error instanceof ProviderCallError ||
+                error instanceof JobExecutionError
+                  ? error.code
+                  : "UNKNOWN",
+            });
+            aligned = {
+              timing: alignSentences({
                 narration,
-                output.durationMs,
-              );
-        const warning =
+                durationMs: output.durationMs,
+                timing: [],
+              }),
+            };
+            captionTimingSource = "estimated";
+          }
+        }
+        const fitWarning =
           audio.plannedDurationMs !== null &&
           Math.abs(output.durationMs - audio.plannedDurationMs) >
             sceneAudioFitToleranceMs
             ? "Narration audio differs from the planned scene duration by more than the audio-fit tolerance."
             : null;
+        const warning =
+          captionTimingSource === "estimated"
+            ? [
+                fitWarning,
+                "Captions use estimated sentence timing; review recommended.",
+              ]
+                .filter((value): value is string => value !== null)
+                .join(" ")
+            : fitWarning;
         await input.database.transaction(async (tx) => {
           const [completed] = await tx
             .update(sceneAudio)
@@ -457,6 +520,7 @@ export function createSceneAudioGenerationJobHandler(input: {
               contentType: provider.contentType,
               durationMs: output.durationMs,
               timing: aligned.timing,
+              captionTimingSource,
               fitWarning: warning,
               failureCode: null,
               updatedAt: now(),
@@ -608,6 +672,23 @@ export function createSceneAudioGenerationJobHandler(input: {
           error instanceof ProviderCallError
             ? error.code
             : "TTS_GENERATION_FAILED";
+        if (error instanceof ProviderCallError)
+          input.logger?.warn("tts.provider_request_failed", {
+            jobId: context.jobId,
+            phase: alignmentAttempted ? "forced_alignment" : "synthesis",
+            provider: alignmentAttempted
+              ? (alignmentProvider?.providerId ?? null)
+              : provider.providerId,
+            model:
+              (alignmentAttempted
+                ? alignmentProvider?.model
+                : provider.model) ?? null,
+            failureCode,
+            retryable: error.retryable,
+            providerStatus: error.providerStatus ?? null,
+            providerCode: error.providerCode ?? null,
+            providerReason: error.providerReason ?? null,
+          });
         await input.database
           .update(sceneAudio)
           .set({
@@ -623,7 +704,7 @@ export function createSceneAudioGenerationJobHandler(input: {
             ownerUserId: context.ownerUserId,
             projectId: context.projectId,
             operationType: "tts.generation",
-            idempotencyKey: `tts:${audio.id}:failed:${context.attempt}`,
+            idempotencyKey: `tts:${audio.id}:failed:${context.jobId}:${context.attempt}`,
             provider: provider.providerId,
             model: provider.model ?? null,
             unit: "audio_second",
@@ -647,7 +728,7 @@ export function createSceneAudioGenerationJobHandler(input: {
               ownerUserId: context.ownerUserId,
               projectId: context.projectId,
               operationType: "tts.generation",
-              idempotencyKey: `tts-alignment:${audio.id}:failed:${context.attempt}`,
+              idempotencyKey: `tts-alignment:${audio.id}:failed:${context.jobId}:${context.attempt}`,
               provider: alignmentProvider.providerId,
               model: alignmentProvider.model ?? null,
               unit: "audio_minute",

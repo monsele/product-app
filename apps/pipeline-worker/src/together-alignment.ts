@@ -1,7 +1,10 @@
 import { createHash } from "node:crypto";
 import { Buffer } from "node:buffer";
 import { clearTimeout, setTimeout } from "node:timers";
-import { togetherModelDefaults, ProviderCallError } from "@avlp/provider-adapters";
+import {
+  togetherModelDefaults,
+  ProviderCallError,
+} from "@avlp/provider-adapters";
 import type {
   SceneAudioAlignmentProvider,
   SceneAudioAlignmentResult,
@@ -33,7 +36,9 @@ function parseOptions(options: TogetherWhisperAlignmentOptions): {
   costUsdPerAudioMinute: number;
 } {
   if (options.apiKey.trim().length === 0)
-    throw new Error("Together API key is required for the production provider.");
+    throw new Error(
+      "Together API key is required for the production provider.",
+    );
   const baseUrl = (options.baseUrl ?? defaultBaseUrl).replace(/\/+$/, "");
   const parsed = new URL(baseUrl);
   if (parsed.protocol !== "https:")
@@ -42,9 +47,10 @@ function parseOptions(options: TogetherWhisperAlignmentOptions): {
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1_000 || timeoutMs > 300_000)
     throw new RangeError("Together request timeout must be 1-300 seconds.");
   const maxRetries = options.maxRetries ?? 2;
-  if (!Number.isInteger(maxRetries) || maxRetries < 0 || maxRetries > 5)
-    throw new RangeError("Together retry limit must be between 0 and 5.");
-  const costUsdPerAudioMinute = options.costUsdPerAudioMinute ?? defaultCostUsdPerAudioMinute;
+  if (!Number.isInteger(maxRetries) || maxRetries < 0 || maxRetries > 8)
+    throw new RangeError("Together retry limit must be between 0 and 8.");
+  const costUsdPerAudioMinute =
+    options.costUsdPerAudioMinute ?? defaultCostUsdPerAudioMinute;
   if (costUsdPerAudioMinute < 0)
     throw new RangeError("Together transcription cost cannot be negative.");
   return {
@@ -57,30 +63,75 @@ function parseOptions(options: TogetherWhisperAlignmentOptions): {
 }
 
 function shouldRetry(status: number): boolean {
-  return status === 408 || status === 409 || status === 425 || status === 429 || status >= 500;
+  return (
+    status === 408 ||
+    status === 409 ||
+    status === 425 ||
+    status === 429 ||
+    status >= 500
+  );
 }
 
-function providerError(status: number): ProviderCallError {
+async function providerError(response: Response): Promise<ProviderCallError> {
+  const status = response.status;
+  // Only fixed diagnostic terms may leave this boundary. Provider messages can
+  // echo the narration or credentials, so never retain their free-form text.
+  let providerReason: string | undefined;
+  try {
+    const body = (await response.text()).toLowerCase();
+    const terms = [
+      "model",
+      "unsupported",
+      "not supported",
+      "invalid",
+      "file",
+      "required",
+      "timestamp",
+      "granularities",
+      "whisper",
+      "parakeet",
+      "audio",
+      "missing",
+      "not found",
+      "unavailable",
+      "sample rate",
+      "format",
+      "prompt",
+      "language",
+    ];
+    providerReason =
+      terms.filter((term) => body.includes(term)).join(", ") || undefined;
+  } catch {
+    /* Diagnostics must not replace the HTTP failure. */
+  }
+  const details = {
+    providerStatus: status,
+    ...(providerReason ? { providerReason } : {}),
+  };
   if (status === 401 || status === 403)
     return new ProviderCallError({
       code: "PROVIDER_AUTHENTICATION_FAILED",
       message: "Together rejected the provider credentials.",
+      ...details,
     });
   if (status === 429)
     return new ProviderCallError({
       code: "PROVIDER_RATE_LIMITED",
       message: "Together rate-limited the provider request.",
+      ...details,
       retryable: true,
     });
   if (status >= 500)
     return new ProviderCallError({
       code: "PROVIDER_UNAVAILABLE",
       message: "Together is temporarily unavailable.",
+      ...details,
       retryable: true,
     });
   return new ProviderCallError({
     code: "PROVIDER_REQUEST_REJECTED",
     message: "Together rejected the provider request.",
+    ...details,
   });
 }
 
@@ -113,7 +164,10 @@ function parseTimedWords(value: unknown): TimedWord[] {
     });
   const words: TimedWord[] = [];
   for (const item of value) {
-    const object = jsonObject(item, "Together returned an invalid word timestamp.");
+    const object = jsonObject(
+      item,
+      "Together returned an invalid word timestamp.",
+    );
     const word = object.word;
     const start = object.start;
     const end = object.end;
@@ -124,18 +178,24 @@ function parseTimedWords(value: unknown): TimedWord[] {
       !Number.isFinite(start) ||
       !Number.isFinite(end) ||
       start < 0 ||
-      end <= start
+      end < start
     )
       throw new ProviderCallError({
         code: "PROVIDER_INVALID_ALIGNMENT",
         message: "Together returned invalid word timing data.",
+        providerReason:
+          typeof start === "number" && start === end
+            ? "zero_duration_word"
+            : "invalid_word_timestamp",
       });
     words.push({ word, start, end });
   }
   return words;
 }
 
-function narrationWordGroups(narration: string): Array<{ text: string; wordIndexes: number[] }> {
+function narrationWordGroups(
+  narration: string,
+): Array<{ text: string; wordIndexes: number[] }> {
   const groups: Array<{ text: string; wordIndexes: number[] }> = [];
   let wordIndex = 0;
   for (const match of narration.matchAll(/[^.!?]+[.!?]+|[^.!?]+$/g)) {
@@ -144,7 +204,10 @@ function narrationWordGroups(narration: string): Array<{ text: string; wordIndex
     if (count > 0) {
       groups.push({
         text,
-        wordIndexes: Array.from({ length: count }, (_, index) => wordIndex + index),
+        wordIndexes: Array.from(
+          { length: count },
+          (_, index) => wordIndex + index,
+        ),
       });
       wordIndex += count;
     }
@@ -152,8 +215,49 @@ function narrationWordGroups(narration: string): Array<{ text: string; wordIndex
   return groups;
 }
 
-function alignWords(narration: string, words: readonly TimedWord[]): SceneAudioTiming[] {
+function alignWords(
+  narration: string,
+  words: readonly TimedWord[],
+): SceneAudioTiming[] {
   const groups = narrationWordGroups(narration);
+  // Match exact text independently of ASR word splitting (hyphens,
+  // contractions and standalone punctuation). Keep provider timing anchors.
+  const transcript = words.map((word) => normalizedWord(word.word)).join("");
+  const normalizedNarration = groups
+    .map((group) => normalizedWord(group.text))
+    .join("");
+  const offset =
+    normalizedNarration.length > 0
+      ? transcript.indexOf(normalizedNarration)
+      : -1;
+  if (offset >= 0) {
+    const anchors: TimedWord[] = words.flatMap((word) =>
+      normalizedWord(word.word)
+        .split("")
+        .map(() => word),
+    );
+    let cursor = offset;
+    return groups.map((group) => {
+      const count = normalizedWord(group.text).length;
+      const first = anchors[cursor];
+      const last = anchors[cursor + count - 1];
+      cursor += count;
+      if (
+        !first ||
+        !last ||
+        Math.round(last.end * 1000) <= Math.round(first.start * 1000)
+      )
+        throw new ProviderCallError({
+          code: "PROVIDER_INVALID_ALIGNMENT",
+          message: "Together returned a sentence without a positive duration.",
+        });
+      return {
+        startMs: Math.round(first.start * 1000),
+        endMs: Math.round(last.end * 1000),
+        text: group.text,
+      };
+    });
+  }
   const narrationWords = groups.flatMap((group) =>
     [...group.text.matchAll(/\S+/g)].map((match) => match[0] ?? ""),
   );
@@ -161,6 +265,7 @@ function alignWords(narration: string, words: readonly TimedWord[]): SceneAudioT
     throw new ProviderCallError({
       code: "PROVIDER_ALIGNMENT_MISMATCH",
       message: "Together transcription did not cover the approved narration.",
+      providerReason: `word_counts:${narrationWords.length}:${words.length}`,
     });
 
   const matched: TimedWord[] = [];
@@ -181,7 +286,9 @@ function alignWords(narration: string, words: readonly TimedWord[]): SceneAudioT
       if (words.length !== narrationWords.length)
         throw new ProviderCallError({
           code: "PROVIDER_ALIGNMENT_MISMATCH",
-          message: "Together transcription did not match the approved narration.",
+          message:
+            "Together transcription did not match the approved narration.",
+          providerReason: `word_counts:${narrationWords.length}:${words.length};matched:${matched.length}`,
         });
       found = cursor;
     }
@@ -197,6 +304,14 @@ function alignWords(narration: string, words: readonly TimedWord[]): SceneAudioT
         code: "PROVIDER_INVALID_ALIGNMENT",
         message: "Together returned incomplete word timing data.",
       });
+    // Some ASR models quantize individual words to a single instant. Those
+    // anchors are usable inside a sentence, but the resulting caption still
+    // needs a positive duration at millisecond precision.
+    if (Math.round(last.end * 1_000) <= Math.round(first.start * 1_000))
+      throw new ProviderCallError({
+        code: "PROVIDER_INVALID_ALIGNMENT",
+        message: "Together returned a sentence without a positive duration.",
+      });
     return {
       startMs: Math.round(first.start * 1_000),
       endMs: Math.round(last.end * 1_000),
@@ -210,7 +325,9 @@ export class TogetherWhisperAlignmentProvider implements SceneAudioAlignmentProv
   public readonly model: string;
   private readonly parsed: ReturnType<typeof parseOptions>;
 
-  public constructor(private readonly options: TogetherWhisperAlignmentOptions) {
+  public constructor(
+    private readonly options: TogetherWhisperAlignmentOptions,
+  ) {
     this.parsed = parseOptions(options);
     this.model = options.model ?? togetherModelDefaults.alignment;
   }
@@ -223,7 +340,10 @@ export class TogetherWhisperAlignmentProvider implements SceneAudioAlignmentProv
     const startedAt = Date.now();
     for (let attempt = 0; attempt <= this.parsed.maxRetries; attempt += 1) {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), this.parsed.timeoutMs);
+      const timeout = setTimeout(
+        () => controller.abort(),
+        this.parsed.timeoutMs,
+      );
       try {
         const form = new FormData();
         form.append(
@@ -233,19 +353,26 @@ export class TogetherWhisperAlignmentProvider implements SceneAudioAlignmentProv
         );
         form.append("model", this.model);
         form.append("language", "en");
-        form.append("prompt", input.narration);
+        if (this.model.startsWith("openai/whisper"))
+          form.append("prompt", input.narration);
         form.append("response_format", "verbose_json");
-        form.append("temperature", "0");
-        form.append("timestamp_granularities[0]", "word");
-        const response = await this.parsed.fetcher(`${this.parsed.baseUrl}/audio/transcriptions`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${this.options.apiKey}` },
-          body: form,
-          signal: controller.signal,
-        });
+        form.append("timestamp_granularities", "word");
+        const response = await this.parsed.fetcher(
+          `${this.parsed.baseUrl}/audio/transcriptions`,
+          {
+            method: "POST",
+            headers: { Authorization: `Bearer ${this.options.apiKey}` },
+            body: form,
+            signal: controller.signal,
+          },
+        );
         if (!response.ok) {
-          const error = providerError(response.status);
-          if (!shouldRetry(response.status) || attempt >= this.parsed.maxRetries) throw error;
+          const error = await providerError(response);
+          if (
+            !shouldRetry(response.status) ||
+            attempt >= this.parsed.maxRetries
+          )
+            throw error;
           await wait(Math.min(4_000, 250 * 2 ** attempt));
           continue;
         }
@@ -253,11 +380,15 @@ export class TogetherWhisperAlignmentProvider implements SceneAudioAlignmentProv
           await response.json(),
           "Together returned an invalid transcription response.",
         );
-        const timing = alignWords(input.narration, parseTimedWords(parsed.words));
+        const timing = alignWords(
+          input.narration,
+          parseTimedWords(parsed.words),
+        );
         return {
           timing,
           providerCallId: `together-alignment-${createHash("sha256").update(input.audio).digest("hex").slice(0, 24)}`,
-          costUsd: (input.durationMs / 60_000) * this.parsed.costUsdPerAudioMinute,
+          costUsd:
+            (input.durationMs / 60_000) * this.parsed.costUsdPerAudioMinute,
           latencyMs: Math.max(0, Date.now() - startedAt),
           retryCount: attempt,
         };

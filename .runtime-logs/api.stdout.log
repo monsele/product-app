@@ -130,3 +130,557 @@
 {"timestamp":"2026-09-07T21:25:44.947Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dc3-4772-7fd1-8578-93b202fd4944","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
 {"level":30,"time":1788816344946,"pid":29028,"hostname":"QORE-WIN-AA653","reqId":"req-16","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58514},"msg":"incoming request"}
 {"level":30,"time":1788816344990,"pid":29028,"hostname":"QORE-WIN-AA653","reqId":"req-16","res":{"statusCode":200},"responseTime":43.90630000003148,"msg":"request completed"}
+10:30:38 PM [tsx] change in ./..\..\packages\config\dist\index.js Restarting...
+10:30:55 PM [tsx] change in ./..\..\packages\storage\dist\contracts.js Restarting...
+10:30:55 PM [tsx] change in ./..\..\packages\storage\dist\keys.js Restarting...
+10:30:55 PM [tsx] change in ./..\..\packages\storage\dist\authorized-project-storage.js Restarting...
+10:30:55 PM [tsx] change in ./..\..\packages\storage\dist\index.js Restarting...
+10:31:02 PM [tsx] change in ./..\..\packages\schemas\dist\index.js Restarting...
+{"level":30,"time":1788816687337,"pid":64920,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1788816687339,"pid":64920,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://172.26.240.1:3001"}
+{"level":30,"time":1788816687339,"pid":64920,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://172.26.192.1:3001"}
+{"level":30,"time":1788816687339,"pid":64920,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://10.240.148.11:3001"}
+10:31:33 PM [tsx] change in ./..\..\packages\database\dist\client.js Restarting...
+10:31:33 PM [tsx] change in ./..\..\packages\database\dist\concurrency.js Restarting...
+10:31:33 PM [tsx] change in ./..\..\packages\database\dist\migrations.js Restarting...
+10:31:33 PM [tsx] change in ./..\..\packages\database\dist\schema.js Restarting...
+10:31:34 PM [tsx] change in ./..\..\packages\schemas\dist\index.js Restarting...
+10:31:39 PM [tsx] change in ./..\..\packages\database\dist\index.js Restarting...
+10:31:52 PM [tsx] change in ./..\..\packages\scene-library\dist\layout.js Restarting...
+10:31:52 PM [tsx] change in ./..\..\packages\scene-library\dist\process-scene.js Restarting...
+10:31:52 PM [tsx] change in ./..\..\packages\scene-library\dist\diagram-layout.js Restarting...
+10:31:52 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Restarting...
+10:31:54 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.fixture.js Restarting...
+10:31:54 PM [tsx] change in ./..\..\packages\scene-library\dist\scene-preview.js Restarting...
+10:31:54 PM [tsx] change in ./..\..\packages\scene-library\dist\index.js Restarting...
+10:32:03 PM [tsx] change in ./..\..\packages\observability\dist\contracts.js Restarting...
+10:32:03 PM [tsx] change in ./..\..\packages\observability\dist\metrics.js Restarting...
+10:32:03 PM [tsx] change in ./..\..\packages\observability\dist\index.js Restarting...
+10:32:14 PM [tsx] change in ./..\..\packages\observability\dist\contracts.js Restarting...
+10:32:15 PM [tsx] change in ./..\..\packages\observability\dist\redaction.js Restarting...
+10:32:15 PM [tsx] change in ./..\..\packages\observability\dist\index.js Restarting...
+10:32:20 PM [tsx] change in ./..\..\packages\scene-library\dist\timing.js Restarting...
+10:32:21 PM [tsx] change in ./..\..\packages\scene-library\dist\labelled-diagram-scene.js Restarting...
+10:32:21 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Restarting...
+10:32:22 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.fixture.js Restarting...
+10:32:23 PM [tsx] change in ./..\..\packages\scene-library\dist\scene-preview.js Restarting...
+10:32:23 PM [tsx] change in ./..\..\packages\scene-library\dist\index.js Restarting...
+10:32:24 PM [tsx] change in ./..\..\packages\jobs\dist\contracts.js Restarting...
+10:32:24 PM [tsx] change in ./..\..\packages\jobs\dist\idempotency.js Restarting...
+10:32:24 PM [tsx] change in ./..\..\packages\jobs\dist\index.js Restarting...
+10:32:31 PM [tsx] change in ./..\..\packages\jobs\dist\contracts.js Restarting...
+10:32:32 PM [tsx] change in ./..\..\packages\jobs\dist\index.js Restarting...
+{"level":30,"time":1788816765584,"pid":82964,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1788816765585,"pid":82964,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://172.26.240.1:3001"}
+{"level":30,"time":1788816765585,"pid":82964,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://172.26.192.1:3001"}
+{"level":30,"time":1788816765585,"pid":82964,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://10.240.148.11:3001"}
+{"level":30,"time":1788816838304,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-1","req":{"method":"GET","url":"[REDACTED]","host":"127.0.0.1:3001","remoteAddress":"127.0.0.1","remotePort":62959},"msg":"incoming request"}
+{"timestamp":"2026-09-07T21:33:58.314Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dca-cea3-7dc0-83d0-b7da4ef130a8","method":"GET","route":"/health","service":"api"}}
+{"level":30,"time":1788816838377,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-1","res":{"statusCode":200},"responseTime":70.75260000000708,"msg":"request completed"}
+{"level":30,"time":1788818307077,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-2","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58616},"msg":"incoming request"}
+{"timestamp":"2026-09-07T21:58:27.179Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de1-3831-73eb-b1de-51b9aa39d32e","method":"GET","route":"/projects/:projectId","service":"api"}}
+{"level":30,"time":1788818307675,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-2","res":{"statusCode":200},"responseTime":578.3162000000011,"msg":"request completed"}
+{"level":30,"time":1788818310961,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-3","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":60298},"msg":"incoming request"}
+{"timestamp":"2026-09-07T21:58:30.964Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de1-4733-7a62-aeb4-e4147df3ae5d","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+{"level":30,"time":1788818310981,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-4","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52954},"msg":"incoming request"}
+{"timestamp":"2026-09-07T21:58:30.985Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de1-4747-79ec-b1be-2db1ff4085d3","method":"GET","route":"/projects/:projectId/validation","service":"api"}}
+{"timestamp":"2026-09-07T21:58:30.991Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de1-474e-7993-b825-b7b05135f72c","method":"GET","route":"/projects/:projectId/storyboard","service":"api"}}
+{"timestamp":"2026-09-07T21:58:30.997Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de1-4755-7c33-a7b9-6529d7f56af4","method":"GET","route":"/projects/:projectId/versions","service":"api"}}
+{"level":30,"time":1788818310989,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-5","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":56240},"msg":"incoming request"}
+{"level":30,"time":1788818310996,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-6","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":54553},"msg":"incoming request"}
+{"level":30,"time":1788818311064,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-3","res":{"statusCode":200},"responseTime":101.20280000008643,"msg":"request completed"}
+{"level":30,"time":1788818311314,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-6","res":{"statusCode":200},"responseTime":318.0714000000153,"msg":"request completed"}
+{"level":30,"time":1788818311550,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-5","res":{"statusCode":200},"responseTime":560.6780999999028,"msg":"request completed"}
+{"level":30,"time":1788818311617,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-4","res":{"statusCode":200},"responseTime":634.7594999999274,"msg":"request completed"}
+{"level":30,"time":1788818311630,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-7","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52954},"msg":"incoming request"}
+{"timestamp":"2026-09-07T21:58:31.633Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de1-49cf-7982-ab9d-c903d2a4c075","method":"GET","route":"/projects/:projectId/storyboard/scenes","service":"api"}}
+{"level":30,"time":1788818311838,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-7","res":{"statusCode":200},"responseTime":206.48939999984577,"msg":"request completed"}
+{"level":30,"time":1788818311901,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-8","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52954},"msg":"incoming request"}
+{"timestamp":"2026-09-07T21:58:31.903Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de1-4adf-7d63-88ee-0bd6b10e43c3","method":"GET","route":"/projects/:projectId/storyboard/scenes/:sceneId","service":"api"}}
+{"level":30,"time":1788818312038,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-8","res":{"statusCode":200},"responseTime":135.79850000003353,"msg":"request completed"}
+{"level":30,"time":1788818312084,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-9","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52954},"msg":"incoming request"}
+{"timestamp":"2026-09-07T21:58:32.085Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de1-4b94-7ecb-a9c0-5a4ece0ce2df","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+{"level":30,"time":1788818312094,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-a","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":56240},"msg":"incoming request"}
+{"timestamp":"2026-09-07T21:58:32.096Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de1-4b9f-7d43-9bad-57ed34395819","method":"GET","route":"/projects/:projectId/preview-manifest","service":"api"}}
+{"level":30,"time":1788818312127,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-9","res":{"statusCode":200},"responseTime":43.294299999950454,"msg":"request completed"}
+{"timestamp":"2026-09-07T21:58:32.130Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de1-4bc1-71a1-8838-55a1d61b61c9","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+{"level":30,"time":1788818312129,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-b","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52954},"msg":"incoming request"}
+{"level":30,"time":1788818312314,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-b","res":{"statusCode":200},"responseTime":183.7339000001084,"msg":"request completed"}
+{"level":30,"time":1788818312345,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-a","res":{"statusCode":200},"responseTime":250.47259999997914,"msg":"request completed"}
+{"level":30,"time":1788818321544,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-c","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":56240},"msg":"incoming request"}
+{"timestamp":"2026-09-07T21:58:41.545Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de1-7089-7bfb-b7c5-c18f685ae97b","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788818321598,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-c","res":{"statusCode":200},"responseTime":53.2219000000041,"msg":"request completed"}
+{"level":30,"time":1788818321601,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-d","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":56240},"msg":"incoming request"}
+{"timestamp":"2026-09-07T21:58:41.602Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de1-70c1-7213-ac29-dadbfd54f6e8","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788818321632,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-d","res":{"statusCode":200},"responseTime":31.250400000019,"msg":"request completed"}
+{"level":30,"time":1788818324920,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-e","req":{"method":"OPTIONS","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57935},"msg":"incoming request"}
+{"level":30,"time":1788818324929,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-e","res":{"statusCode":204},"responseTime":8.57949999999255,"msg":"request completed"}
+{"level":30,"time":1788818324933,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-f","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":56240},"msg":"incoming request"}
+{"timestamp":"2026-09-07T21:58:44.934Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de1-7dc6-7a33-9f31-f02c4f84b4ac","method":"POST","route":"/projects/:projectId/scenes/:sceneId/audio/generate","service":"api"}}
+{"level":30,"time":1788818325086,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-f","res":{"statusCode":202},"responseTime":152.29850000003353,"msg":"request completed"}
+{"level":30,"time":1788818328353,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-g","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58616},"msg":"incoming request"}
+{"timestamp":"2026-09-07T21:58:48.353Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de1-8b21-7e37-a8b3-a4aa46604ec7","method":"GET","route":"/projects/:projectId","service":"api"}}
+{"level":30,"time":1788818328368,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-g","res":{"statusCode":200},"responseTime":15.029799999902025,"msg":"request completed"}
+{"level":30,"time":1788818329186,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-h","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":56240},"msg":"incoming request"}
+{"timestamp":"2026-09-07T21:58:49.187Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de1-8e62-742d-aebc-d3a108c405c7","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788818329208,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-h","res":{"statusCode":200},"responseTime":21.487800000002608,"msg":"request completed"}
+{"level":30,"time":1788818332233,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-i","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":56240},"msg":"incoming request"}
+{"timestamp":"2026-09-07T21:58:52.234Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de1-9a49-7516-beec-b4f6d3122d35","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788818332272,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-i","res":{"statusCode":200},"responseTime":39.061999999918044,"msg":"request completed"}
+{"level":30,"time":1788818335229,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-j","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":56240},"msg":"incoming request"}
+{"timestamp":"2026-09-07T21:58:55.231Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de1-a5fe-7006-87eb-9d96e64edbd2","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788818335272,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-j","res":{"statusCode":200},"responseTime":42.62309999996796,"msg":"request completed"}
+{"level":30,"time":1788818338227,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-k","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":56240},"msg":"incoming request"}
+{"timestamp":"2026-09-07T21:58:58.228Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de1-b1b3-720b-a5a7-85e7ae7ab11e","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788818338300,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-k","res":{"statusCode":200},"responseTime":72.69090000004508,"msg":"request completed"}
+{"level":30,"time":1788818341218,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-l","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":56240},"msg":"incoming request"}
+{"timestamp":"2026-09-07T21:59:01.221Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de1-bd62-746e-b674-214327ddff41","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788818341251,"pid":82964,"hostname":"QORE-WIN-AA653","reqId":"req-l","res":{"statusCode":200},"responseTime":33.16680000000633,"msg":"request completed"}
+11:03:42 PM [tsx] change in ./..\..\packages\config\dist\index.js Restarting...
+11:03:55 PM [tsx] change in ./..\..\packages\storage\dist\contracts.js Restarting...
+11:03:55 PM [tsx] change in ./..\..\packages\storage\dist\keys.js Restarting...
+11:03:55 PM [tsx] change in ./..\..\packages\storage\dist\authorized-project-storage.js Restarting...
+11:03:55 PM [tsx] change in ./..\..\packages\storage\dist\index.js Restarting...
+11:04:16 PM [tsx] change in ./..\..\packages\schemas\dist\index.js Restarting...
+{"level":30,"time":1788818714529,"pid":24092,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1788818714530,"pid":24092,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://172.26.240.1:3001"}
+{"level":30,"time":1788818714530,"pid":24092,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://172.26.192.1:3001"}
+{"level":30,"time":1788818714530,"pid":24092,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://10.240.148.11:3001"}
+{"level":30,"time":1788818729973,"pid":24092,"hostname":"QORE-WIN-AA653","reqId":"req-1","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":62615},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:05:29.983Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de7-abf9-7999-9ffb-7ed2380a2a53","method":"GET","route":"/projects/:projectId/validation","service":"api"}}
+{"timestamp":"2026-09-07T22:05:29.998Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de7-ac0e-7d7f-a322-17222affad62","method":"GET","route":"/projects/:projectId/storyboard","service":"api"}}
+{"level":30,"time":1788818729998,"pid":24092,"hostname":"QORE-WIN-AA653","reqId":"req-2","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50978},"msg":"incoming request"}
+{"level":30,"time":1788818730067,"pid":24092,"hostname":"QORE-WIN-AA653","reqId":"req-3","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":64612},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:05:30.069Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07de7-ac54-7900-a0f8-7f2d6d92f46e","method":"GET","route":"/projects/:projectId/versions","service":"api"}}
+{"level":30,"time":1788818730311,"pid":24092,"hostname":"QORE-WIN-AA653","reqId":"req-3","res":{"statusCode":200},"responseTime":243.3075000000099,"msg":"request completed"}
+{"level":30,"time":1788818730765,"pid":24092,"hostname":"QORE-WIN-AA653","reqId":"req-1","res":{"statusCode":200},"responseTime":790.0280000000057,"msg":"request completed"}
+{"level":30,"time":1788818730820,"pid":24092,"hostname":"QORE-WIN-AA653","reqId":"req-2","res":{"statusCode":200},"responseTime":822.1264999999985,"msg":"request completed"}
+11:05:32 PM [tsx] change in ./..\..\packages\config\dist\identifiers.js Restarting...
+11:05:33 PM [tsx] change in ./..\..\packages\config\dist\index.js Restarting...
+{"level":30,"time":1788818764265,"pid":83504,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1788818764266,"pid":83504,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://172.26.240.1:3001"}
+{"level":30,"time":1788818764266,"pid":83504,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://172.26.192.1:3001"}
+{"level":30,"time":1788818764266,"pid":83504,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://10.240.148.11:3001"}
+{"level":30,"time":1788820072989,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-1","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52771},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:27:53.154Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-2a59-7501-a5e1-1bb2b95a565a","method":"GET","route":"/projects/:projectId/storyboard","service":"api"}}
+{"level":30,"time":1788820073770,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-1","res":{"statusCode":200},"responseTime":755.1814000001177,"msg":"request completed"}
+{"level":30,"time":1788820073858,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-2","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52771},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:27:53.862Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-2d84-73fb-aa90-861915ee4f6c","method":"GET","route":"/projects/:projectId/storyboard/scenes","service":"api"}}
+{"timestamp":"2026-09-07T22:27:53.868Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-2d8b-74fa-9c50-d13881add493","method":"GET","route":"/projects/:projectId/storyboard/scenes/:sceneId","service":"api"}}
+{"level":30,"time":1788820073866,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-3","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50399},"msg":"incoming request"}
+{"level":30,"time":1788820074141,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-2","res":{"statusCode":200},"responseTime":281.08199999993667,"msg":"request completed"}
+{"level":30,"time":1788820074143,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-3","res":{"statusCode":200},"responseTime":276.1728000000585,"msg":"request completed"}
+{"level":30,"time":1788820074257,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-4","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50399},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:27:54.258Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-2f12-7324-a3ae-3705cc2942a9","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+{"level":30,"time":1788820074266,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-5","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52771},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:27:54.267Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-2f1a-7694-9ea7-076f5eef42be","method":"GET","route":"/projects/:projectId/preview-manifest","service":"api"}}
+{"level":30,"time":1788820074297,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-4","res":{"statusCode":200},"responseTime":39.966600000159815,"msg":"request completed"}
+{"level":30,"time":1788820074300,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-6","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50399},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:27:54.302Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-2f3d-7a37-a81c-8687e7aff05a","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+{"level":30,"time":1788820074407,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-6","res":{"statusCode":200},"responseTime":106.20510000013746,"msg":"request completed"}
+{"level":30,"time":1788820074429,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-5","res":{"statusCode":200},"responseTime":162.6011999999173,"msg":"request completed"}
+{"level":30,"time":1788820084430,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-7","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52771},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:28:04.432Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-56cf-721a-ac15-db4428040a03","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820084490,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-7","res":{"statusCode":200},"responseTime":59.49809999996796,"msg":"request completed"}
+{"level":30,"time":1788820084496,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-8","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52771},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:28:04.497Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-5710-752a-bd6b-a5f177a1317e","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820084522,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-8","res":{"statusCode":200},"responseTime":25.767900000093505,"msg":"request completed"}
+{"level":30,"time":1788820089403,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-9","req":{"method":"OPTIONS","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":61209},"msg":"incoming request"}
+{"level":30,"time":1788820089405,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-9","res":{"statusCode":204},"responseTime":2.229300000006333,"msg":"request completed"}
+{"level":30,"time":1788820089410,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-a","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52771},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:28:09.411Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-6a42-727e-93a8-2f37832a2942","method":"POST","route":"/projects/:projectId/scenes/:sceneId/audio/generate","service":"api"}}
+{"level":30,"time":1788820089613,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-a","res":{"statusCode":202},"responseTime":203.1091000000015,"msg":"request completed"}
+{"level":30,"time":1788820092639,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-b","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52771},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:28:12.640Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-76e0-7187-accf-9296045fdece","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820092695,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-b","res":{"statusCode":200},"responseTime":54.99430000013672,"msg":"request completed"}
+{"level":30,"time":1788820095721,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-c","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52771},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:28:15.722Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-82ea-7761-8526-cc9a47cd7e7c","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820095762,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-c","res":{"statusCode":200},"responseTime":40.20889999996871,"msg":"request completed"}
+{"level":30,"time":1788820098719,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-d","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52771},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:28:18.720Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-8e9f-72e3-9f29-caea69b27210","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820098765,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-d","res":{"statusCode":200},"responseTime":46.20160000002943,"msg":"request completed"}
+{"level":30,"time":1788820101721,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-e","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52771},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:28:21.722Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-9a5a-7df5-a228-fc7bfae2870d","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820101768,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-e","res":{"statusCode":200},"responseTime":46.39409999991767,"msg":"request completed"}
+{"level":30,"time":1788820104721,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-f","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52771},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:28:24.721Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-a611-71d8-a575-3b6b021c01df","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820104762,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-f","res":{"statusCode":200},"responseTime":41.253100000089034,"msg":"request completed"}
+{"level":30,"time":1788820107711,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-g","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52771},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:28:27.711Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-b1bf-76df-9e40-9991ec7b2d99","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820107744,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-g","res":{"statusCode":200},"responseTime":33.299000000115484,"msg":"request completed"}
+{"level":30,"time":1788820110722,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-h","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52771},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:28:30.723Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-bd82-737b-bf1b-65dcfe903ae1","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820110754,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-h","res":{"statusCode":200},"responseTime":31.42739999992773,"msg":"request completed"}
+{"level":30,"time":1788820113717,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-i","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52771},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:28:33.717Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-c935-71d2-b9fa-283e67dbf63f","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820113745,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-i","res":{"statusCode":200},"responseTime":27.82299999985844,"msg":"request completed"}
+{"level":30,"time":1788820116719,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-j","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52771},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:28:36.720Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-d4ef-7bf4-ad3c-ceeebfa6a329","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820116755,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-j","res":{"statusCode":200},"responseTime":35.938700000057,"msg":"request completed"}
+{"level":30,"time":1788820119716,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-k","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52771},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:28:39.717Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-e0a4-7942-ac09-6018595e7072","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820119754,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-k","res":{"statusCode":200},"responseTime":37.97210000013001,"msg":"request completed"}
+{"level":30,"time":1788820122721,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-l","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52771},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:28:42.722Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-ec61-738e-91a2-797b28b30a1f","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820122754,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-l","res":{"statusCode":200},"responseTime":33.15399999986403,"msg":"request completed"}
+{"level":30,"time":1788820125709,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-m","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52771},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:28:45.710Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfc-f80d-787f-a0f2-fd3d18235de3","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820125746,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-m","res":{"statusCode":200},"responseTime":36.7398000000976,"msg":"request completed"}
+{"level":30,"time":1788820128717,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-n","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52771},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:28:48.717Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07dfd-03cd-7e8e-925e-4599a347f1ff","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820128751,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-n","res":{"statusCode":200},"responseTime":34.47409999999218,"msg":"request completed"}
+{"level":30,"time":1788820405506,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-o","req":{"method":"OPTIONS","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":65393},"msg":"incoming request"}
+{"level":30,"time":1788820405507,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-o","res":{"statusCode":204},"responseTime":0.7410999999847263,"msg":"request completed"}
+{"level":30,"time":1788820405821,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-p","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":53137},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:33:25.822Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e01-3e3e-7792-8fbd-5253e2981b32","method":"POST","route":"/projects/:projectId/scenes/:sceneId/audio/generate","service":"api"}}
+{"level":30,"time":1788820405927,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-p","res":{"statusCode":202},"responseTime":105.71970000001602,"msg":"request completed"}
+{"level":30,"time":1788820408936,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-q","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":53137},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:33:28.937Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e01-4a68-704f-b877-3bc667695bc2","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820408970,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-q","res":{"statusCode":200},"responseTime":33.87860000017099,"msg":"request completed"}
+{"level":30,"time":1788820411991,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-r","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":53137},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:33:31.991Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e01-5657-718a-aacc-ddab5802980d","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820412022,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-r","res":{"statusCode":200},"responseTime":30.988700000103563,"msg":"request completed"}
+{"timestamp":"2026-09-07T22:33:34.990Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e01-620d-7254-b92e-d8a250801dde","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820414989,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-s","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":53137},"msg":"incoming request"}
+{"level":30,"time":1788820415016,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-s","res":{"statusCode":200},"responseTime":26.38660000008531,"msg":"request completed"}
+{"timestamp":"2026-09-07T22:33:37.997Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e01-6dcd-781b-8e26-a2135376d5d1","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820417996,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-t","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":53137},"msg":"incoming request"}
+{"level":30,"time":1788820418014,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-t","res":{"statusCode":200},"responseTime":17.380700000096112,"msg":"request completed"}
+{"level":30,"time":1788820420982,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-u","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":53137},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:33:40.983Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e01-7977-7863-aa51-5937d514163a","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820421009,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-u","res":{"statusCode":200},"responseTime":26.613200000021607,"msg":"request completed"}
+{"level":30,"time":1788820423981,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-v","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":53137},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:33:43.982Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e01-852d-7ba4-bfd0-1e9389020b01","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820424019,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-v","res":{"statusCode":200},"responseTime":37.432599999941885,"msg":"request completed"}
+{"level":30,"time":1788820426988,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-w","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":53137},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:33:46.989Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e01-90ec-7b7a-aa24-7734eec28065","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820427014,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-w","res":{"statusCode":200},"responseTime":26.288100000005215,"msg":"request completed"}
+{"timestamp":"2026-09-07T22:33:49.990Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e01-9ca5-79b6-990a-e9b761be306a","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820429989,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-x","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":53137},"msg":"incoming request"}
+{"level":30,"time":1788820430016,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-x","res":{"statusCode":200},"responseTime":26.322699999902397,"msg":"request completed"}
+{"level":30,"time":1788820432992,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-y","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":53137},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:33:52.993Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e01-a860-706f-a373-91467f635870","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820433016,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-y","res":{"statusCode":200},"responseTime":23.42090000002645,"msg":"request completed"}
+{"level":30,"time":1788820435992,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-z","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":53137},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:33:55.993Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e01-b418-7698-816a-5b156ca0d839","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820436022,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-z","res":{"statusCode":200},"responseTime":29.902199999894947,"msg":"request completed"}
+{"level":30,"time":1788820438989,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-10","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":53137},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:33:58.990Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e01-bfcd-7f55-b0c3-1279997dfee6","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820439018,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-10","res":{"statusCode":200},"responseTime":29.090099999913946,"msg":"request completed"}
+{"level":30,"time":1788820441997,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-11","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":53137},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:34:01.997Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e01-cb8d-7169-83e0-cb9a06446b00","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820442026,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-11","res":{"statusCode":200},"responseTime":28.88549999985844,"msg":"request completed"}
+{"level":30,"time":1788820444988,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-12","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":53137},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:34:04.989Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e01-d73c-7ae9-b03c-606a3eed78c7","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820445016,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-12","res":{"statusCode":200},"responseTime":28.29150000005029,"msg":"request completed"}
+{"level":30,"time":1788820447988,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-13","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":53137},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:34:07.988Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e01-e2f4-78a5-ae28-3c9a2990ebf8","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820448027,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-13","res":{"statusCode":200},"responseTime":39.61049999995157,"msg":"request completed"}
+{"level":30,"time":1788820451016,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-14","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":53137},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:34:11.017Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e01-eec8-77c0-8904-97de5ff0fc5e","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820451056,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-14","res":{"statusCode":200},"responseTime":40.1203000000678,"msg":"request completed"}
+{"level":30,"time":1788820453998,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-15","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":53137},"msg":"incoming request"}
+{"timestamp":"2026-09-07T22:34:13.999Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e01-fa6f-7620-a883-97f58e1732d6","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788820454019,"pid":83504,"hostname":"QORE-WIN-AA653","reqId":"req-15","res":{"statusCode":200},"responseTime":20.558599999872968,"msg":"request completed"}
+11:49:20 PM [tsx] change in ./..\..\packages\observability\dist\redaction.js Restarting...
+11:49:26 PM [tsx] change in ./..\..\packages\jobs\dist\contracts.js Restarting...
+11:49:27 PM [tsx] change in ./..\..\packages\config\dist\index.js Restarting...
+11:49:39 PM [tsx] change in ./..\..\packages\storage\dist\contracts.js Restarting...
+11:49:39 PM [tsx] change in ./..\..\packages\storage\dist\authorized-project-storage.js Restarting...
+11:49:40 PM [tsx] change in ./..\..\packages\storage\dist\index.js Restarting...
+11:49:58 PM [tsx] change in ./..\..\packages\schemas\dist\index.js Restarting...
+{"level":30,"time":1788821429058,"pid":96436,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1788821429062,"pid":96436,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://172.26.240.1:3001"}
+{"level":30,"time":1788821429062,"pid":96436,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://172.26.192.1:3001"}
+{"level":30,"time":1788821429062,"pid":96436,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://10.240.148.11:3001"}
+11:50:42 PM [tsx] change in ./..\..\packages\database\dist\migrations.js Restarting...
+11:50:42 PM [tsx] change in ./..\..\packages\database\dist\schema.js Restarting...
+11:50:45 PM [tsx] change in ./..\..\packages\database\dist\index.js Restarting...
+11:50:49 PM [tsx] change in ./..\..\packages\scene-library\dist\timing.js Restarting...
+11:50:49 PM [tsx] change in ./..\..\packages\scene-library\dist\definition-scene.js Restarting...
+11:50:49 PM [tsx] change in ./..\..\packages\scene-library\dist\graph-diagram.js Restarting...
+11:50:49 PM [tsx] change in ./..\..\packages\scene-library\dist\process-scene.js Restarting...
+11:50:50 PM [tsx] change in ./..\..\packages\scene-library\dist\analogy-scene.js Restarting...
+11:50:50 PM [tsx] change in ./..\..\packages\scene-library\dist\summary-scene.js Restarting...
+11:50:50 PM [tsx] change in ./..\..\packages\scene-library\dist\definition-scene.fixtures.js Restarting...
+11:50:50 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Restarting...
+11:50:52 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.fixture.js Restarting...
+11:50:52 PM [tsx] change in ./..\..\packages\scene-library\dist\process-scene.fixtures.js Restarting...
+11:50:52 PM [tsx] change in ./..\..\packages\scene-library\dist\scene-preview.js Restarting...
+11:50:53 PM [tsx] change in ./..\..\packages\scene-library\dist\index.js Restarting...
+11:51:09 PM [tsx] change in ./..\..\packages\observability\dist\contracts.js Restarting...
+11:51:09 PM [tsx] change in ./..\..\packages\observability\dist\metrics.js Restarting...
+11:51:10 PM [tsx] change in ./..\..\packages\observability\dist\index.js Restarting...
+11:51:33 PM [tsx] change in ./..\..\packages\auth\dist\contracts.js Restarting...
+11:51:33 PM [tsx] change in ./..\..\packages\auth\dist\index.js Restarting...
+11:51:35 PM [tsx] change in ./..\..\packages\jobs\dist\contracts.js Restarting...
+11:51:35 PM [tsx] change in ./..\..\packages\jobs\dist\index.js Restarting...
+{"level":30,"time":1788821510200,"pid":91796,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1788821510200,"pid":91796,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://172.26.240.1:3001"}
+{"level":30,"time":1788821510201,"pid":91796,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://172.26.192.1:3001"}
+{"level":30,"time":1788821510201,"pid":91796,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://10.240.148.11:3001"}
+12:06:47 AM [tsx] change in ./..\..\packages\config\dist\index.js Restarting...
+12:06:55 AM [tsx] change in ./..\..\packages\storage\dist\authorized-project-storage.js Restarting...
+12:06:55 AM [tsx] change in ./..\..\packages\storage\dist\index.js Restarting...
+12:07:01 AM [tsx] change in ./..\..\packages\schemas\dist\index.js Restarting...
+{"level":30,"time":1788822465164,"pid":48792,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1788822465165,"pid":48792,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://172.26.240.1:3001"}
+{"level":30,"time":1788822465165,"pid":48792,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://172.26.192.1:3001"}
+{"level":30,"time":1788822465165,"pid":48792,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://10.240.148.11:3001"}
+12:07:51 AM [tsx] change in ./..\..\packages\database\dist\client.js Restarting...
+12:07:52 AM [tsx] change in ./..\..\packages\database\dist\concurrency.js Process hasn't exited. Killing process...
+12:07:52 AM [tsx] change in ./..\..\packages\database\dist\migrations.js Restarting...
+12:07:53 AM [tsx] change in ./..\..\packages\database\dist\schema.js Restarting...
+12:07:58 AM [tsx] change in ./..\..\packages\database\dist\index.js Restarting...
+12:08:01 AM [tsx] change in ./..\..\packages\scene-library\dist\definition-scene.js Restarting...
+12:08:02 AM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Restarting...
+12:08:04 AM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.fixture.js Restarting...
+12:08:04 AM [tsx] change in ./..\..\packages\scene-library\dist\scene-preview.js Restarting...
+12:08:05 AM [tsx] change in ./..\..\packages\scene-library\dist\ipo-scene.fixtures.js Restarting...
+12:08:05 AM [tsx] change in ./..\..\packages\scene-library\dist\worked-example-scene.fixtures.js Restarting...
+12:08:06 AM [tsx] change in ./..\..\packages\scene-library\dist\summary-scene.fixtures.js Restarting...
+12:08:22 AM [tsx] change in ./..\..\packages\observability\dist\contracts.js Restarting...
+12:08:23 AM [tsx] change in ./..\..\packages\observability\dist\logging.js Restarting...
+12:08:23 AM [tsx] change in ./..\..\packages\observability\dist\index.js Process hasn't exited. Killing process...
+12:08:46 AM [tsx] change in ./..\..\packages\auth\dist\contracts.js Restarting...
+12:08:46 AM [tsx] change in ./..\..\packages\auth\dist\gateway.js Restarting...
+12:08:46 AM [tsx] change in ./..\..\packages\auth\dist\rate-limiter.js Process hasn't exited. Killing process...
+12:08:46 AM [tsx] change in ./..\..\packages\auth\dist\project-access.js Restarting...
+12:08:46 AM [tsx] change in ./..\..\packages\auth\dist\project-access-testing.js Restarting...
+12:08:48 AM [tsx] change in ./..\..\packages\jobs\dist\contracts.js Restarting...
+12:08:48 AM [tsx] change in ./..\..\packages\jobs\dist\idempotency.js Restarting...
+12:08:48 AM [tsx] change in ./..\..\packages\jobs\dist\index.js Restarting...
+{"level":30,"time":1788822542380,"pid":52752,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1788822542381,"pid":52752,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://172.26.240.1:3001"}
+{"level":30,"time":1788822542381,"pid":52752,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://172.26.192.1:3001"}
+{"level":30,"time":1788822542381,"pid":52752,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://10.240.148.11:3001"}
+{"level":30,"time":1788826026374,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1","req":{"method":"OPTIONS","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":51498},"msg":"incoming request"}
+{"level":30,"time":1788826026423,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1","res":{"statusCode":204},"responseTime":26.362300000153482,"msg":"request completed"}
+{"level":30,"time":1788826026727,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-2","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":56350},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:07:06.821Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e57-02ef-7875-9bf4-26809627c89b","method":"POST","route":"/auth/login","service":"api"}}
+{"level":30,"time":1788826027482,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-2","res":{"statusCode":201},"responseTime":755.1906000003219,"msg":"request completed"}
+{"level":30,"time":1788826042744,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-3","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":65125},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:07:22.749Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e57-417c-7463-a35a-0378edea2095","method":"GET","route":"/projects","service":"api"}}
+{"level":30,"time":1788826042994,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-3","res":{"statusCode":200},"responseTime":247.53040000004694,"msg":"request completed"}
+{"level":30,"time":1788826054798,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-4","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":65125},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:07:34.801Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e57-708f-77c5-9f14-a662fc380572","method":"GET","route":"/projects/:projectId","service":"api"}}
+{"level":30,"time":1788826054832,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-4","res":{"statusCode":200},"responseTime":33.55899999989197,"msg":"request completed"}
+{"level":30,"time":1788826056035,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-5","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":56350},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:07:36.037Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e57-7564-76c4-aec5-5a34bf775483","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+{"timestamp":"2026-09-08T00:07:36.047Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e57-756e-7358-9c60-09f79319285b","method":"GET","route":"/projects/:projectId/validation","service":"api"}}
+{"level":30,"time":1788826056045,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-6","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":49802},"msg":"incoming request"}
+{"level":30,"time":1788826056088,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-5","res":{"statusCode":200},"responseTime":52.71780000021681,"msg":"request completed"}
+{"timestamp":"2026-09-08T00:07:36.090Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e57-759a-7aca-a268-0d73cac15e59","method":"GET","route":"/projects/:projectId/storyboard","service":"api"}}
+{"level":30,"time":1788826056090,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-7","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":56350},"msg":"incoming request"}
+{"level":30,"time":1788826056361,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-8","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":61264},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:07:36.362Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e57-76a9-795b-941e-cbb4be829fb2","method":"GET","route":"/projects/:projectId/versions","service":"api"}}
+{"timestamp":"2026-09-08T00:07:36.364Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e57-76ac-77e1-809b-09e9a2f79945","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+{"timestamp":"2026-09-08T00:07:36.369Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e57-76b1-738e-8992-39ba337624a3","method":"GET","route":"/projects/:projectId/validation","service":"api"}}
+{"timestamp":"2026-09-08T00:07:36.373Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e57-76b5-7954-b341-b8a172afe378","method":"GET","route":"/projects/:projectId/storyboard","service":"api"}}
+{"level":30,"time":1788826056364,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-9","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":56197},"msg":"incoming request"}
+{"level":30,"time":1788826056367,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-a","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"level":30,"time":1788826056372,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-b","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":62392},"msg":"incoming request"}
+{"level":30,"time":1788826056487,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-9","res":{"statusCode":200},"responseTime":122.94839999964461,"msg":"request completed"}
+{"timestamp":"2026-09-08T00:07:36.493Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e57-772d-7bbb-a26c-433b95143d19","method":"GET","route":"/projects/:projectId/versions","service":"api"}}
+{"level":30,"time":1788826056493,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-c","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":56197},"msg":"incoming request"}
+{"level":30,"time":1788826056622,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-8","res":{"statusCode":200},"responseTime":260.5786000001244,"msg":"request completed"}
+{"level":30,"time":1788826056700,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-c","res":{"statusCode":200},"responseTime":206.93969999998808,"msg":"request completed"}
+{"level":30,"time":1788826056784,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-6","res":{"statusCode":200},"responseTime":738.5789000000805,"msg":"request completed"}
+{"level":30,"time":1788826056800,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-7","res":{"statusCode":200},"responseTime":710.4510999997146,"msg":"request completed"}
+{"level":30,"time":1788826056808,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-b","res":{"statusCode":200},"responseTime":435.2951000002213,"msg":"request completed"}
+{"level":30,"time":1788826056831,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-d","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":62392},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:07:36.831Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e57-787f-7005-963c-8944536c2061","method":"GET","route":"/projects/:projectId/storyboard/scenes","service":"api"}}
+{"level":30,"time":1788826056857,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-a","res":{"statusCode":200},"responseTime":488.6473000003025,"msg":"request completed"}
+{"level":30,"time":1788826057193,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-d","res":{"statusCode":200},"responseTime":362.30660000024363,"msg":"request completed"}
+{"level":30,"time":1788826057242,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-e","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":62392},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:07:37.243Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e57-7a1a-7f29-aa07-3a021defc4c3","method":"GET","route":"/projects/:projectId/storyboard/scenes/:sceneId","service":"api"}}
+{"level":30,"time":1788826057345,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-e","res":{"statusCode":200},"responseTime":103.25019999966025,"msg":"request completed"}
+{"level":30,"time":1788826057381,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-f","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":62392},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:07:37.381Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e57-7aa5-7b8e-a072-14d803c417a9","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+{"level":30,"time":1788826057385,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-g","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:07:37.386Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e57-7aa9-7fd3-8154-4d06b25dd510","method":"GET","route":"/projects/:projectId/preview-manifest","service":"api"}}
+{"timestamp":"2026-09-08T00:07:37.388Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e57-7aab-793a-b44b-46298f546dc6","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+{"level":30,"time":1788826057387,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-h","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":56350},"msg":"incoming request"}
+{"level":30,"time":1788826057409,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-f","res":{"statusCode":200},"responseTime":27.91580000007525,"msg":"request completed"}
+{"level":30,"time":1788826057410,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-h","res":{"statusCode":200},"responseTime":22.698799999896437,"msg":"request completed"}
+{"level":30,"time":1788826057505,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-g","res":{"statusCode":200},"responseTime":119.87089999997988,"msg":"request completed"}
+{"level":30,"time":1788826059915,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-i","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:07:39.916Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e57-848b-754f-9512-52e1361e32bf","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"timestamp":"2026-09-08T00:07:39.919Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e57-848f-7c51-92cb-f7d60b59c438","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826059919,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-j","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":56350},"msg":"incoming request"}
+{"level":30,"time":1788826059969,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-j","res":{"statusCode":200},"responseTime":50.66220000013709,"msg":"request completed"}
+{"level":30,"time":1788826059971,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-i","res":{"statusCode":200},"responseTime":55.4519000002183,"msg":"request completed"}
+{"level":30,"time":1788826073225,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-k","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:07:53.226Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e57-b889-74e7-a050-1680362ad41c","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio","service":"api"}}
+{"level":30,"time":1788826073293,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-k","res":{"statusCode":200},"responseTime":68.41189999971539,"msg":"request completed"}
+{"level":30,"time":1788826101491,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-l","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:08:21.491Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e58-26f3-7b22-bbcf-4762a765367b","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+{"timestamp":"2026-09-08T00:08:21.494Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e58-26f6-7282-b1a6-8b6b759c2918","method":"GET","route":"/projects/:projectId/storyboard/scenes/:sceneId","service":"api"}}
+{"level":30,"time":1788826101494,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-m","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":56350},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:08:21.498Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e58-26f9-74d8-912c-f31a68e47b02","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+{"level":30,"time":1788826101497,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-n","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":62392},"msg":"incoming request"}
+{"level":30,"time":1788826101549,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-l","res":{"statusCode":200},"responseTime":58.50300000002608,"msg":"request completed"}
+{"level":30,"time":1788826101558,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-n","res":{"statusCode":200},"responseTime":60.94389999983832,"msg":"request completed"}
+{"level":30,"time":1788826101712,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-m","res":{"statusCode":200},"responseTime":218.128200000152,"msg":"request completed"}
+{"level":30,"time":1788826101767,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-o","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":56350},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:08:21.768Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e58-2807-706e-957f-b3153aa1fdc7","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+{"timestamp":"2026-09-08T00:08:21.770Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e58-280a-7bfe-9ebd-caef9dc79777","method":"GET","route":"/projects/:projectId/preview-manifest","service":"api"}}
+{"level":30,"time":1788826101770,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-p","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":62392},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:08:21.773Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e58-280c-7150-82bb-90e19f1a04b0","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+{"level":30,"time":1788826101772,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-q","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"level":30,"time":1788826101793,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-o","res":{"statusCode":200},"responseTime":25.261299999896437,"msg":"request completed"}
+{"level":30,"time":1788826101801,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-q","res":{"statusCode":200},"responseTime":28.38040000014007,"msg":"request completed"}
+{"level":30,"time":1788826101861,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-p","res":{"statusCode":200},"responseTime":90.89130000025034,"msg":"request completed"}
+{"level":30,"time":1788826103700,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-r","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":62392},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:08:23.701Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e58-2f94-741d-8d6f-9f14be10f664","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"timestamp":"2026-09-08T00:08:23.704Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e58-2f97-7216-adcc-f934d015a407","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826103703,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-s","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"level":30,"time":1788826103740,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-r","res":{"statusCode":200},"responseTime":40.23270000005141,"msg":"request completed"}
+{"level":30,"time":1788826103748,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-s","res":{"statusCode":200},"responseTime":44.275499999988824,"msg":"request completed"}
+{"level":30,"time":1788826112521,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-t","req":{"method":"OPTIONS","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":55182},"msg":"incoming request"}
+{"level":30,"time":1788826112522,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-t","res":{"statusCode":204},"responseTime":0.6938999998383224,"msg":"request completed"}
+{"level":30,"time":1788826112524,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-u","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:08:32.525Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e58-520c-7803-9628-9ac2fef38722","method":"POST","route":"/projects/:projectId/scenes/:sceneId/audio/generate","service":"api"}}
+{"level":30,"time":1788826112661,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-u","res":{"statusCode":202},"responseTime":136.44860000023618,"msg":"request completed"}
+{"level":30,"time":1788826115687,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-v","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:08:35.688Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e58-5e67-721c-897e-f04a0684a857","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826115746,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-v","res":{"statusCode":200},"responseTime":59.05239999992773,"msg":"request completed"}
+{"level":30,"time":1788826118778,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-w","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:08:38.779Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e58-6a7a-79e9-9b22-54f83a3d709c","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826118819,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-w","res":{"statusCode":200},"responseTime":40.66360000008717,"msg":"request completed"}
+{"level":30,"time":1788826121770,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-x","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:08:41.771Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e58-762a-7cce-a382-6579ca7f7ca3","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826121808,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-x","res":{"statusCode":200},"responseTime":37.40109999990091,"msg":"request completed"}
+{"level":30,"time":1788826124764,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-y","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:08:44.765Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e58-81dd-76ac-874b-90ff131a22bc","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826124790,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-y","res":{"statusCode":200},"responseTime":25.53579999972135,"msg":"request completed"}
+{"level":30,"time":1788826138663,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-z","req":{"method":"OPTIONS","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":55182},"msg":"incoming request"}
+{"level":30,"time":1788826138667,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-z","res":{"statusCode":204},"responseTime":3.69870000006631,"msg":"request completed"}
+{"level":30,"time":1788826138670,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-10","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:08:58.670Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e58-b82e-723b-8693-8e3e93639e35","method":"POST","route":"/projects/:projectId/scenes/:sceneId/audio/generate","service":"api"}}
+{"level":30,"time":1788826138777,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-10","res":{"statusCode":202},"responseTime":106.97789999982342,"msg":"request completed"}
+{"level":30,"time":1788826141796,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-11","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:09:01.797Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e58-c464-763b-b15b-0fb8623cc222","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826141841,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-11","res":{"statusCode":200},"responseTime":44.83100000023842,"msg":"request completed"}
+{"level":30,"time":1788826144864,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-12","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:09:04.865Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e58-d061-7960-8f80-e1630e29aab8","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826144897,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-12","res":{"statusCode":200},"responseTime":31.961799999698997,"msg":"request completed"}
+{"level":30,"time":1788826147868,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-13","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:09:07.869Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e58-dc1c-7e2a-8307-a17762e2403f","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826147905,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-13","res":{"statusCode":200},"responseTime":36.93420000001788,"msg":"request completed"}
+{"level":30,"time":1788826150861,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-14","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:09:10.862Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e58-e7cd-7d5f-a3a9-4c95e812135f","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826150897,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-14","res":{"statusCode":200},"responseTime":35.71629999997094,"msg":"request completed"}
+{"level":30,"time":1788826153869,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-15","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:09:13.869Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e58-f38d-721a-8ea7-c78e3617c517","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826153909,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-15","res":{"statusCode":200},"responseTime":40.61819999990985,"msg":"request completed"}
+{"timestamp":"2026-09-08T00:09:20.114Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e59-0bf2-77ad-9606-8ad76da8ee11","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio","service":"api"}}
+{"level":30,"time":1788826160114,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-16","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"level":30,"time":1788826160140,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-16","res":{"statusCode":200},"responseTime":25.93610000004992,"msg":"request completed"}
+{"level":30,"time":1788826193884,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-17","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:09:53.885Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e59-8fdd-73eb-9ab3-5da83852bce6","method":"GET","route":"/projects/:projectId/scenes/:sceneId/citations","service":"api"}}
+{"level":30,"time":1788826194033,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-17","res":{"statusCode":200},"responseTime":148.913200000301,"msg":"request completed"}
+{"level":30,"time":1788826194035,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-18","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:09:54.035Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e59-9073-77fe-90ca-d15d32018fb3","method":"GET","route":"/projects/:projectId/grounding-checks/latest","service":"api"}}
+{"level":30,"time":1788826194080,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-18","res":{"statusCode":200},"responseTime":45.056499999947846,"msg":"request completed"}
+{"level":30,"time":1788826194081,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-19","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:09:54.082Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e59-90a1-7016-bbd5-aafb70a6728c","method":"GET","route":"/projects/:projectId/scenes/:sceneId/citations","service":"api"}}
+{"level":30,"time":1788826194108,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-19","res":{"statusCode":200},"responseTime":26.385999999940395,"msg":"request completed"}
+{"timestamp":"2026-09-08T00:09:54.109Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e59-90bd-7380-a1a1-83e257f4f0a7","method":"GET","route":"/projects/:projectId/grounding-checks/latest","service":"api"}}
+{"level":30,"time":1788826194108,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1a","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"level":30,"time":1788826194121,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1a","res":{"statusCode":200},"responseTime":12.347999999765307,"msg":"request completed"}
+{"level":30,"time":1788826203825,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1b","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:10:03.826Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e59-b6b1-74fc-8088-3522ed35acb7","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+{"timestamp":"2026-09-08T00:10:03.830Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e59-b6b6-7717-84d4-1620067af0e6","method":"GET","route":"/projects/:projectId/storyboard/scenes/:sceneId","service":"api"}}
+{"level":30,"time":1788826203829,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1c","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":51087},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:10:03.837Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e59-b6bc-7b35-9a0a-e61a57928f07","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+{"level":30,"time":1788826203835,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1d","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52699},"msg":"incoming request"}
+{"level":30,"time":1788826203889,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1b","res":{"statusCode":200},"responseTime":63.72610000008717,"msg":"request completed"}
+{"level":30,"time":1788826203983,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1d","res":{"statusCode":200},"responseTime":147.65700000012293,"msg":"request completed"}
+{"level":30,"time":1788826204050,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1c","res":{"statusCode":200},"responseTime":220.57090000016615,"msg":"request completed"}
+{"level":30,"time":1788826204093,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1e","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":51087},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:10:04.094Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e59-b7bd-7ad2-8431-06168920a80f","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+{"timestamp":"2026-09-08T00:10:04.098Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e59-b7c2-7a1c-9971-193e89337013","method":"GET","route":"/projects/:projectId/preview-manifest","service":"api"}}
+{"timestamp":"2026-09-08T00:10:04.101Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e59-b7c4-799f-82be-288acf3641df","method":"GET","route":"/projects/:projectId/teacher-assets","service":"api"}}
+{"level":30,"time":1788826204097,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1f","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52699},"msg":"incoming request"}
+{"level":30,"time":1788826204100,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1g","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"level":30,"time":1788826204123,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1e","res":{"statusCode":200},"responseTime":29.40679999999702,"msg":"request completed"}
+{"level":30,"time":1788826204129,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1g","res":{"statusCode":200},"responseTime":28.448199999984354,"msg":"request completed"}
+{"level":30,"time":1788826204206,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1f","res":{"statusCode":200},"responseTime":108.39700000034645,"msg":"request completed"}
+{"level":30,"time":1788826207821,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1h","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":52699},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:10:07.822Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e59-c64e-73d4-bee6-1ce6c88c4465","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"timestamp":"2026-09-08T00:10:07.832Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e59-c657-74ab-afe2-a7522628f581","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826207831,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1i","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"level":30,"time":1788826207862,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1h","res":{"statusCode":200},"responseTime":40.791399999987334,"msg":"request completed"}
+{"level":30,"time":1788826207868,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1i","res":{"statusCode":200},"responseTime":37.094900000374764,"msg":"request completed"}
+{"level":30,"time":1788826209468,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1j","req":{"method":"OPTIONS","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":55182},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:10:09.470Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e59-ccbe-798b-818d-458e8038538d","method":"POST","route":"/projects/:projectId/scenes/:sceneId/audio/generate","service":"api"}}
+{"level":30,"time":1788826209469,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1j","res":{"statusCode":204},"responseTime":0.4213999998755753,"msg":"request completed"}
+{"level":30,"time":1788826209470,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1k","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"level":30,"time":1788826209544,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1k","res":{"statusCode":202},"responseTime":73.99250000016764,"msg":"request completed"}
+{"level":30,"time":1788826212559,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1l","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:10:12.560Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e59-d8cf-763d-bf9a-0f5f47535c7e","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826212588,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1l","res":{"statusCode":200},"responseTime":29.170799999963492,"msg":"request completed"}
+{"level":30,"time":1788826215608,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1m","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:10:15.608Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e59-e4b8-700f-812a-688ef2e90232","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826215637,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1m","res":{"statusCode":200},"responseTime":29.401799999643117,"msg":"request completed"}
+{"level":30,"time":1788826218604,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1n","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:10:18.605Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e59-f06c-7b40-8a97-44a7839f0c11","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826218641,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1n","res":{"statusCode":200},"responseTime":37.26630000025034,"msg":"request completed"}
+{"level":30,"time":1788826221605,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1o","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:10:21.606Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e59-fc25-7f1c-92a4-4d9c959bb47c","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826221630,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1o","res":{"statusCode":200},"responseTime":25.28209999995306,"msg":"request completed"}
+{"level":30,"time":1788826225393,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1p","req":{"method":"OPTIONS","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":55182},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:10:25.396Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e5a-0af3-769d-b0d1-aab12767a0b9","method":"POST","route":"/projects/:projectId/scenes/:sceneId/audio/generate","service":"api"}}
+{"level":30,"time":1788826225393,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1p","res":{"statusCode":204},"responseTime":0.5501000001095235,"msg":"request completed"}
+{"level":30,"time":1788826225395,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1q","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"level":30,"time":1788826225514,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1q","res":{"statusCode":202},"responseTime":118.52009999984875,"msg":"request completed"}
+{"level":30,"time":1788826228524,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1r","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:10:28.525Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e5a-172c-7924-b80a-b280787b4879","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826228562,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1r","res":{"statusCode":200},"responseTime":37.35980000020936,"msg":"request completed"}
+{"level":30,"time":1788826231574,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1s","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:10:31.575Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e5a-2317-72f2-a090-3ba34aa13f9b","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826231604,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1s","res":{"statusCode":200},"responseTime":29.77960000000894,"msg":"request completed"}
+{"level":30,"time":1788826234576,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1t","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:10:34.576Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e5a-2ed0-7be1-a2a6-4220e2ef479a","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826234599,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1t","res":{"statusCode":200},"responseTime":23.369799999985844,"msg":"request completed"}
+{"level":30,"time":1788826237584,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1u","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:10:37.584Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e5a-3a90-7424-922f-f07fb9c21567","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826237602,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1u","res":{"statusCode":200},"responseTime":18.374499999918044,"msg":"request completed"}
+{"level":30,"time":1788826240590,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1v","req":{"method":"OPTIONS","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":55182},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:10:40.592Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e5a-4650-7c14-9e29-d1e4016a0aa6","method":"POST","route":"/projects/:projectId/scenes/:sceneId/audio/generate","service":"api"}}
+{"level":30,"time":1788826240590,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1v","res":{"statusCode":204},"responseTime":0.4383999998681247,"msg":"request completed"}
+{"level":30,"time":1788826240592,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1w","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"level":30,"time":1788826240705,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1w","res":{"statusCode":202},"responseTime":113.0402999999933,"msg":"request completed"}
+{"level":30,"time":1788826243720,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1x","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:10:43.722Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e5a-5289-715a-918c-3563e0c1f9f4","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826243757,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1x","res":{"statusCode":200},"responseTime":35.8379000001587,"msg":"request completed"}
+{"level":30,"time":1788826246767,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1y","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:10:46.767Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e5a-5e6f-7480-824c-e9cb2af33618","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826246791,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1y","res":{"statusCode":200},"responseTime":23.468499999959022,"msg":"request completed"}
+{"level":30,"time":1788826249775,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1z","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:10:49.776Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e5a-6a2f-7440-9615-f9cbc498ba28","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826249794,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-1z","res":{"statusCode":200},"responseTime":19.122599999886006,"msg":"request completed"}
+{"level":30,"time":1788826260130,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-20","req":{"method":"OPTIONS","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":55182},"msg":"incoming request"}
+{"level":30,"time":1788826260130,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-20","res":{"statusCode":204},"responseTime":0.3868999998085201,"msg":"request completed"}
+{"level":30,"time":1788826260132,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-21","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:11:00.133Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e5a-92a4-72f5-b45a-366d2cbf0977","method":"POST","route":"/projects/:projectId/scenes/:sceneId/audio/generate","service":"api"}}
+{"level":30,"time":1788826260282,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-21","res":{"statusCode":202},"responseTime":150.03589999955148,"msg":"request completed"}
+{"level":30,"time":1788826263306,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-22","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:11:03.306Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e5a-9f0a-7d4b-bd8f-1647771fc8ed","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826263330,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-22","res":{"statusCode":200},"responseTime":24.572499999776483,"msg":"request completed"}
+{"level":30,"time":1788826266353,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-23","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:11:06.353Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e5a-aaf1-7bce-aba1-4bc110b6b0d1","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826266392,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-23","res":{"statusCode":200},"responseTime":38.857499999925494,"msg":"request completed"}
+{"level":30,"time":1788826269342,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-24","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:11:09.343Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e5a-b69e-7ddd-a047-2304fd6da42a","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826269388,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-24","res":{"statusCode":200},"responseTime":45.48519999999553,"msg":"request completed"}
+{"level":30,"time":1788826272349,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-25","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:11:12.350Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e5a-c25e-785e-abd9-fc6080ba8369","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826272382,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-25","res":{"statusCode":200},"responseTime":32.80029999976978,"msg":"request completed"}
+{"level":30,"time":1788826275350,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-26","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50376},"msg":"incoming request"}
+{"timestamp":"2026-09-08T00:11:15.351Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a07e5a-ce17-73a3-82d3-c00d924c961e","method":"GET","route":"/projects/:projectId/scenes/:sceneId/audio-status","service":"api"}}
+{"level":30,"time":1788826275403,"pid":52752,"hostname":"QORE-WIN-AA653","reqId":"req-26","res":{"statusCode":200},"responseTime":52.846599999815226,"msg":"request completed"}
+C:\Users\eoaikhina\Documents\repos\product-app\apps\api:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @avlp/api@0.0.0 dev: `tsx watch --env-file=../../.env src/main.ts`
+Exit status 1073807364

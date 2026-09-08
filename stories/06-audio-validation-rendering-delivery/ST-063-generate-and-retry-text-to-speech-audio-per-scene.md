@@ -124,6 +124,16 @@ Do not start this story until every dependency is marked **Done** in `STORY_INDE
 
 ## Dev Agent Record
 
+### Audio failure repair — 2026-09-08
+
+- **Problem:** Reported job `01a07e01-3e71-7326-b97f-519d025df851` exhausted retries. Live reproduction confirmed successful speech synthesis followed by repeated HTTP 503 responses from Together's `openai/whisper-large-v3` alignment endpoint. Existing diagnostics incorrectly named the speech model for alignment failures.
+- **Changes:** Configure Together Parakeet (`nvidia/parakeet-tdt-0.6b-v3`) for alignment in shared defaults, `.env.example`, and local `.env`. Send scalar `timestamp_granularities=word`; omit Whisper-only prompting for other models. Accept zero-duration word anchors only within positive-duration sentences, and align exact normalized text across punctuation/word-splitting differences. Preserve approved caption text and provider timing. Log the actual failing phase/model and HTTP status without provider response text; include job IDs in failed usage-record keys so explicit retries do not collide.
+- **Files:** `packages/config/src/index.ts`, `.env.example`, `apps/pipeline-worker/src/together-alignment.ts`, its tests, `scene-audio-job.ts`, its tests, this record, and `STORY_INDEX.md`. Existing uncommitted provider/retry/diagnostic changes were preserved.
+- **Migrations / public contract changes:** None. Internal failure metering keys now distinguish separate retry jobs. The legacy configurable alignment adapter class name remains compatible.
+- **Validation:** Focused TTS/alignment/scene-job tests; worker TypeScript and ESLint checks; workspace package builds. Re-ran the reported scene through `SceneAudioService.generate`, retaining tenant checks, quota checks, queue dispatch, and usage records. Final job `01a07e1e-0c77-7f64-9428-8feea5ba88c0` succeeded on attempt 1. Verified `ready`, 11,776 ms, three sentence timings and three caption cues; downloaded the private 565,292-byte WAV and verified its header and stored SHA-256 checksum. Successful speech and alignment usage records are present.
+- **Decisions / risks:** Parakeet uses the same Together account and listed $0.0015/min alignment price. No automatic provider fallback or estimated caption timings were introduced. Whisper remained unavailable during verification; its upstream outage is outside this repository. A development-watch restart also exposed an existing interrupted-job claim issue (`generating` could produce an `already_processing` success); the affected verification attempt was repaired before the final uninterrupted retry. That general lease-recovery issue remains a follow-up.
+- **Deviations:** Maintenance repair to the completed story; no UI changes or unrelated story work.
+
 - **Agent:** Codex
 - **Started:** 2026-08-24
 - **Completed:** 2026-08-24

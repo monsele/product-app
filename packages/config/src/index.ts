@@ -390,7 +390,7 @@ export const togetherModelDefaults = {
   llm: "Qwen/Qwen3.8-Flash",
   tts: "canopylabs/orpheus-3b-0.1-ft",
   image: "prunaai/p-image-ideogram",
-  alignment: "openai/whisper-large-v3",
+  alignment: "nvidia/parakeet-tdt-0.6b-v3",
 } as const;
 
 export const togetherTtsProviderOptions = {
@@ -418,7 +418,7 @@ const togetherEnvironmentSchema = z.object({
   TOGETHER_IMAGE_MODEL: z.string().trim().min(1).max(200).default(togetherModelDefaults.image),
   TOGETHER_IMAGE_COST_USD: z.coerce.number().finite().nonnegative().default(0.00225),
   TOGETHER_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(300_000).default(60_000),
-  TOGETHER_MAX_RETRIES: z.coerce.number().int().min(0).max(5).default(2),
+  TOGETHER_MAX_RETRIES: z.coerce.number().int().min(0).max(8).default(8),
 });
 export const apiEnvironmentSchema = baseEnvironmentSchema
   .merge(databaseEnvironmentSchema)

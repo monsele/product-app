@@ -1984,6 +1984,9 @@ export const sceneAudio = pgTable(
     contentType: text("content_type"),
     durationMs: integer("duration_ms"),
     timing: jsonb("timing"),
+    /** How caption timing was produced. Audio readiness never depends on ASR
+     * reproducing the narration word-for-word. */
+    captionTimingSource: text("caption_timing_source"),
     plannedDurationMs: integer("planned_duration_ms"),
     fitWarning: text("fit_warning"),
     jobId: uuid("job_id"),

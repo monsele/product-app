@@ -365,6 +365,62 @@ describe("scene audio generation job", () => {
     );
   });
 
+  it("keeps valid audio ready with estimated captions when alignment fails", async () => {
+    const inserts: Array<Record<string, unknown>> = [];
+    const updates: Array<Record<string, unknown>> = [];
+    const warn = vi.fn();
+    const handler = createSceneAudioGenerationJobHandler({
+      database: databaseFor(
+        [[queuedAudio], [scene], [voice], [], [{ status: "ready" }]],
+        updates,
+        inserts,
+      ),
+      storage: {
+        putBytes: vi.fn().mockResolvedValue({ checksumSha256: "a".repeat(64) }),
+      },
+      provider: {
+        providerId: "fixture-v1",
+        model: "speech-model",
+        outputFormat: "wav",
+        contentType: "audio/wav",
+        synthesize: () => ({
+          ...synthesizeFixtureAudio("Water enters through roots.", 1),
+          timing: [],
+        }),
+      },
+      alignmentProvider: {
+        providerId: "together",
+        model: "openai/whisper-large-v3",
+        align: () => {
+          throw new ProviderCallError({
+            code: "PROVIDER_ALIGNMENT_MISMATCH",
+            message: "Transcript differs from narration.",
+          });
+        },
+      },
+      logger: { warn },
+      now,
+    });
+    // The lightweight database double does not retain writes for the final
+    // read-after-write check; readiness is asserted from the durable update.
+    await expect(execute(handler)).resolves.toBeDefined();
+    expect(warn).toHaveBeenCalledWith(
+      "tts.caption_alignment_estimated",
+      expect.objectContaining({
+        provider: "together",
+        model: "openai/whisper-large-v3",
+        failureCode: "PROVIDER_ALIGNMENT_MISMATCH",
+      }),
+    );
+    expect(updates).toContainEqual(
+      expect.objectContaining({
+        status: "ready",
+        captionTimingSource: "estimated",
+        failureCode: null,
+      }),
+    );
+  });
+
   it("marks a provider or storage failure retryable and meters the failed attempt", async () => {
     const updates: Array<Record<string, unknown>> = [];
     const inserts: Array<Record<string, unknown>> = [];

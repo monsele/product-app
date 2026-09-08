@@ -3573,6 +3573,10 @@ export const sceneAudioStatusResponseSchema = z
     jobId: identifierSchema.nullable(),
     durationMs: z.number().int().positive().nullable(),
     fitWarning: z.string().nullable(),
+    captionTimingSource: z
+      .enum(["provider", "estimated"])
+      .nullable()
+      .default(null),
     failureCode: z.string().trim().min(1).max(100).nullable(),
     captions: z
       .array(

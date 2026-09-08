@@ -28,3 +28,27 @@
  ○ Compiling /workspace/[projectId]/storyboard ...
  ✓ Compiled /workspace/[projectId]/storyboard in 28.2s (13983 modules)
  GET /workspace/01a07b78-83ee-76fd-92e8-fac9b0e0ec85/storyboard 200 in 33614ms
+ ✓ Compiled in 21.2s (13983 modules)
+ GET /workspace/01a07b78-83ee-76fd-92e8-fac9b0e0ec85/storyboard 200 in 1562ms
+ ✓ Compiled in 5.9s (13983 modules)
+ ✓ Compiled in 15.1s (13983 modules)
+ ✓ Compiled in 15.6s (13983 modules)
+ ✓ Compiled in 10.5s (13983 modules)
+ ○ Compiling /register ...
+ ✓ Compiled /register in 5s (8640 modules)
+ GET /register 200 in 5112ms
+ GET /register 200 in 87ms
+ GET /workspace/01a07b78-83ee-76fd-92e8-fac9b0e0ec85/storyboard 200 in 4522ms
+ GET /workspace/01a07b78-83ee-76fd-92e8-fac9b0e0ec85/storyboard 200 in 917ms
+ ✓ Compiled in 95.5s (13983 modules)
+ GET /workspace/01a07b78-83ee-76fd-92e8-fac9b0e0ec85/storyboard 200 in 1174ms
+ ✓ Compiled in 23.7s (13983 modules)
+ GET /workspace/01a07b78-83ee-76fd-92e8-fac9b0e0ec85/storyboard 200 in 1822ms
+ ✓ Compiled in 42.5s (13983 modules)
+ ✓ Compiled in 22.4s (13983 modules)
+ ✓ Compiled in 65.8s (13983 modules)
+ ✓ Compiled in 17.5s (13983 modules)
+ GET / 200 in 10159ms
+ GET /sign-in 200 in 737ms
+ GET /workspace 200 in 15583ms
+ GET /workspace/01a07b78-83ee-76fd-92e8-fac9b0e0ec85/storyboard 200 in 1043ms

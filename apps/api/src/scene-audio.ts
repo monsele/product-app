@@ -542,6 +542,7 @@ export class SceneAudioService {
         jobId: null,
         durationMs: null,
         fitWarning: null,
+        captionTimingSource: null,
         failureCode: null,
         captions: [],
         retryable: false,
@@ -579,6 +580,11 @@ function response(
     jobId: row.jobId as Identifier | null,
     durationMs: row.durationMs,
     fitWarning: row.fitWarning,
+    captionTimingSource:
+      row.captionTimingSource === "provider" ||
+      row.captionTimingSource === "estimated"
+        ? row.captionTimingSource
+        : null,
     failureCode: row.failureCode,
     captions,
     retryable: row.status === "failed" || row.status === "stale",

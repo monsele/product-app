@@ -104,15 +104,27 @@ export interface IllustrationProvider {
 export class ProviderCallError extends Error {
   public readonly code: string;
   public readonly retryable: boolean;
+  /** Safe, provider-originated diagnostics. Never attach request or response payloads. */
+  public readonly providerStatus?: number;
+  public readonly providerCode?: string;
+  public readonly providerReason?: string;
 
   public constructor(input: {
     code: string;
     message: string;
     retryable?: boolean;
+    providerStatus?: number;
+    providerCode?: string;
+    providerReason?: string;
   }) {
     super(input.message);
     this.name = "ProviderCallError";
     this.code = input.code;
     this.retryable = input.retryable ?? false;
+    if (input.providerStatus !== undefined)
+      this.providerStatus = input.providerStatus;
+    if (input.providerCode !== undefined) this.providerCode = input.providerCode;
+    if (input.providerReason !== undefined)
+      this.providerReason = input.providerReason;
   }
 }

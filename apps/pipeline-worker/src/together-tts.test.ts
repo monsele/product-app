@@ -25,15 +25,20 @@ function wavOneSecond(): Uint8Array {
   return bytes;
 }
 
-function audioResponse(audio: Uint8Array, status = 200): Response {
+function audioResponse(
+  audio: Uint8Array,
+  status = 200,
+  error?: { code: string; message: string },
+): Response {
   return {
     ok: status >= 200 && status < 300,
     status,
     arrayBuffer: async () => audio.buffer as ArrayBuffer,
+    json: async () => ({ error }),
   } as Response;
 }
 
-describe("Together Kokoro TTS adapter", () => {
+describe("Together TTS adapter", () => {
   it("synthesizes WAV audio, maps public voices, and defers timing to alignment", async () => {
     const audio = wavOneSecond();
     const fetcher = vi
@@ -87,6 +92,29 @@ describe("Together Kokoro TTS adapter", () => {
       provider.synthesize({ narration: "A sentence.", speakingRate: 1 }),
     ).resolves.toMatchObject({ durationMs: 1_000 });
     expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("surfaces safe Together HTTP diagnostics after retries are exhausted", async () => {
+    const provider = new TogetherKokoroTtsProvider({
+      apiKey: "test-key",
+      fetcher: vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(
+          audioResponse(new Uint8Array(), 503, {
+            code: "model_unavailable",
+            message: "The requested model is temporarily unavailable.",
+          }),
+        ),
+      maxRetries: 0,
+    });
+    await expect(
+      provider.synthesize({ narration: "A sentence.", speakingRate: 1 }),
+    ).rejects.toMatchObject({
+      code: "PROVIDER_UNAVAILABLE",
+      providerStatus: 503,
+      providerCode: "model_unavailable",
+      providerReason: "The requested model is temporarily unavailable.",
+    });
   });
 });
 
