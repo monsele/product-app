@@ -3576,7 +3576,7 @@ export const sceneAudioStatusResponseSchema = z
     captionTimingSource: z
       .enum(["provider", "estimated"])
       .nullable()
-      .default(null),
+      .optional(),
     failureCode: z.string().trim().min(1).max(100).nullable(),
     captions: z
       .array(

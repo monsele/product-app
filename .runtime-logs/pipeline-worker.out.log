@@ -3,3 +3,14 @@
 > tsx watch --env-file=../../.env src/main.ts
 
 {"timestamp":"2026-09-08T22:29:05.440Z","level":"info","event":"worker.started","fields":{"status":"ok","service":"pipeline-worker"}}
+12:11:58 AM [tsx] change in ./..\..\packages\schemas\dist\index.js Restarting...
+{"timestamp":"2026-09-08T23:12:10.882Z","level":"info","event":"worker.started","fields":{"status":"ok","service":"pipeline-worker"}}
+{"timestamp":"2026-09-08T23:16:28.701Z","level":"info","event":"queue.job_dispatched","fields":{"outboxEventId":"01a0834e-fe96-7c53-ae01-478203c64b0e","jobId":"01a0834e-fe96-7808-8beb-55e2ad175f2d","projectId":"01a0834c-ff0c-70a7-ac6f-1c1bf845dee5","correlationId":"01a0834e-fe57-7c89-88e6-55c5746e65b3","queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-09-08T23:16:28.715Z","level":"info","event":"job.started","fields":{"jobId":"01a0834e-fe96-7808-8beb-55e2ad175f2d","jobType":"document.validation","projectId":"01a0834c-ff0c-70a7-ac6f-1c1bf845dee5","correlationId":"01a0834e-fe57-7c89-88e6-55c5746e65b3","attempt":1,"service":"pipeline-worker"}}
+{"timestamp":"2026-09-08T23:16:29.061Z","level":"info","event":"job.completed","fields":{"jobId":"01a0834e-fe96-7808-8beb-55e2ad175f2d","jobType":"document.validation","projectId":"01a0834c-ff0c-70a7-ac6f-1c1bf845dee5","correlationId":"01a0834e-fe57-7c89-88e6-55c5746e65b3","attempt":1,"status":"succeeded","errorClassification":"none","durationMs":349,"service":"pipeline-worker"}}
+{"timestamp":"2026-09-08T23:21:29.958Z","level":"info","event":"queue.job_dispatched","fields":{"outboxEventId":"01a08353-9ab6-735a-9071-e40233322631","jobId":"01a08353-9ab6-7e0b-a2b6-2d58f006fc50","projectId":"01a08353-6213-7bed-814d-31c297098564","correlationId":"01a08353-9a73-7a9f-8065-55b0b0f4fde4","queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-09-08T23:21:29.965Z","level":"info","event":"job.started","fields":{"jobId":"01a08353-9ab6-7e0b-a2b6-2d58f006fc50","jobType":"document.validation","projectId":"01a08353-6213-7bed-814d-31c297098564","correlationId":"01a08353-9a73-7a9f-8065-55b0b0f4fde4","attempt":1,"service":"pipeline-worker"}}
+{"timestamp":"2026-09-08T23:21:30.137Z","level":"info","event":"job.completed","fields":{"jobId":"01a08353-9ab6-7e0b-a2b6-2d58f006fc50","jobType":"document.validation","projectId":"01a08353-6213-7bed-814d-31c297098564","correlationId":"01a08353-9a73-7a9f-8065-55b0b0f4fde4","attempt":1,"status":"succeeded","errorClassification":"none","durationMs":173,"service":"pipeline-worker"}}
+C:\Users\eoaikhina\Documents\repos\product-app\apps\pipeline-worker:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @avlp/pipeline-worker@0.0.0 dev: `tsx watch --env-file=../../.env src/main.ts`
+Exit status 4294967295

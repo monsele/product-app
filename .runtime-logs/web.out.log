@@ -12,3 +12,39 @@
  ✓ Compiled / in 12.6s (10487 modules)
  GET / 200 in 1537ms
  GET / 200 in 98ms
+ GET / 200 in 462ms
+ ○ Compiling /sign-in ...
+ ✓ Compiled /sign-in in 18.2s (10529 modules)
+ GET /sign-in 200 in 23001ms
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 1482ms (158 modules)
+ ○ Compiling /workspace ...
+ ✓ Compiled /workspace in 17.6s (10711 modules)
+ GET /workspace 200 in 24309ms
+ ○ Compiling /workspace/[projectId]/storyboard ...
+ ✓ Compiled /workspace/[projectId]/storyboard in 31.3s (13979 modules)
+ GET /workspace/01a07b78-83ee-76fd-92e8-fac9b0e0ec85/storyboard 200 in 35927ms
+ ✓ Compiled in 6.9s (13979 modules)
+ GET /workspace/01a07b78-83ee-76fd-92e8-fac9b0e0ec85/storyboard 200 in 1021ms
+ ○ Compiling /api/projects ...
+ ✓ Compiled /api/projects in 14.9s (13998 modules)
+ POST /api/projects 303 in 15726ms
+ ○ Compiling /workspace/[projectId]/upload ...
+ ✓ Compiled /workspace/[projectId]/upload in 2.3s (14012 modules)
+ GET /workspace/01a0834c-ff0c-70a7-ac6f-1c1bf845dee5/upload 200 in 5149ms
+ ○ Compiling /workspace/[projectId]/review ...
+ ✓ Compiled /workspace/[projectId]/review in 24.9s (14013 modules)
+ GET /workspace/01a0834c-ff0c-70a7-ac6f-1c1bf845dee5/review 200 in 28304ms
+ GET /workspace/01a0834c-ff0c-70a7-ac6f-1c1bf845dee5/upload 200 in 404ms
+ GET /workspace 200 in 2604ms
+ ○ Compiling /api/projects/[projectId]/delete ...
+ ✓ Compiled /api/projects/[projectId]/delete in 21.2s (14032 modules)
+ POST /api/projects/01a0834c-ff0c-70a7-ac6f-1c1bf845dee5/delete 303 in 25670ms
+ GET /workspace?done=delete 200 in 2683ms
+ ○ Compiling /api/projects ...
+ ✓ Compiled /api/projects in 3s (8676 modules)
+ POST /api/projects 303 in 4467ms
+ GET /workspace/01a08353-6213-7bed-814d-31c297098564/upload 200 in 1943ms
+C:\Users\eoaikhina\Documents\repos\product-app\apps\web:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @avlp/web@0.0.0 dev: `next dev`
+Exit status 4294967295

@@ -3,3 +3,8 @@
 > tsx watch --env-file=../../.env src/main.ts
 
 {"timestamp":"2026-09-08T22:29:05.443Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
+12:11:58 AM [tsx] change in ./..\..\packages\schemas\dist\index.js Restarting...
+{"timestamp":"2026-09-08T23:12:10.854Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
+C:\Users\eoaikhina\Documents\repos\product-app\apps\renderer:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @avlp/renderer@0.0.0 dev: `tsx watch --env-file=../../.env src/main.ts`
+Exit status 4294967295

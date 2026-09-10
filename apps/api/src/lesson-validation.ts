@@ -407,14 +407,21 @@ export function evaluateLessonValidation(
       (total, duration) => total + (duration ?? 0),
       0,
     );
-    // Both sides of this comparison are planning estimates, and reconciliation
-    // moves the scene duration onto measured audio afterwards. The band is the
-    // audio-fit tolerance so a scene re-timed within it stays consistent here.
+    const measuredAudioIsReady =
+      input.mediaByStableSceneId.get(storyboardScene.stableSceneId)?.audio
+        ?.status === "ready" &&
+      input.mediaByStableSceneId.get(storyboardScene.stableSceneId)?.audio
+        ?.durationMs !== null;
+    // The narration allocation is a planning check only. Once a ready track
+    // has a measured duration, reconciliation makes that waveform—not the
+    // word-budget estimate—the scene's timing authority. Keeping this error
+    // after reconciliation deadlocks otherwise valid lessons at render.
     if (
-      narrationDurations.length === 0 ||
-      narrationDurations.some((duration) => duration === undefined) ||
-      Math.abs(plannedNarrationSeconds - scene.durationSeconds) * 1000 >
-        sceneNarrationPlanToleranceMs
+      !measuredAudioIsReady &&
+      (narrationDurations.length === 0 ||
+        narrationDurations.some((duration) => duration === undefined) ||
+        Math.abs(plannedNarrationSeconds - scene.durationSeconds) * 1000 >
+          sceneNarrationPlanToleranceMs)
     )
       issues.push(
         issue("narration_duration_mismatch", {

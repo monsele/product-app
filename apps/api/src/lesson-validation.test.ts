@@ -378,6 +378,12 @@ describe("deterministic lesson validation", () => {
 
   it("blocks a narration plan that does not fit its scene", () => {
     const fixture = input();
+    const sceneId = fixture.storyboard.scenes[0]!.stableSceneId;
+    const media = fixture.mediaByStableSceneId.get(sceneId)!;
+    fixture.mediaByStableSceneId.set(sceneId, {
+      ...media,
+      audio: { ...media.audio!, durationMs: null },
+    });
     fixture.narrationDurationSecondsByBlockId.set(
       fixture.storyboard.scenes[0]!.narrationBlockIds[0]!,
       10,
@@ -388,6 +394,17 @@ describe("deterministic lesson validation", () => {
         fieldPath: "scenes.0.narrationBlockIds",
         severity: "error",
       }),
+    );
+  });
+
+  it("uses measured ready audio rather than the narration estimate after reconciliation", () => {
+    const fixture = input();
+    fixture.narrationDurationSecondsByBlockId.set(
+      fixture.storyboard.scenes[0]!.narrationBlockIds[0]!,
+      10,
+    );
+    expect(evaluateLessonValidation(fixture)).not.toContainEqual(
+      expect.objectContaining({ code: "narration_duration_mismatch" }),
     );
   });
 
