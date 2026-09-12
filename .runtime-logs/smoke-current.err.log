@@ -1,0 +1,14 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+page.fill: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('input[type="email"]')[22m
+
+    at C:\Users\eoaikhina\Documents\repos\product-app\.claude\skills\run-app\smoke.mjs:70:12 {
+  log: [ `  - waiting for locator('input[type="email"]')` ],
+  name: 'TimeoutError'
+}
+
+Node.js v24.14.0

@@ -14,14 +14,34 @@ const scene1 = createDefaultStoryboardSceneSpec("hook", {
   durationSeconds: 10,
 });
 
-const scene2 = createDefaultStoryboardSceneSpec("definition", {
-  id: "01989a3d-8e00-7000-8000-000000000002",
-  order: 2,
-  durationSeconds: 15,
-});
+const previewAssetId = "01989a3d-8e00-7000-8000-000000000087";
+const scene2 = {
+  ...createDefaultStoryboardSceneSpec("definition", {
+    id: "01989a3d-8e00-7000-8000-000000000002",
+    order: 2,
+    durationSeconds: 15,
+  }),
+  assetBindings: [
+    {
+      assetId: previewAssetId,
+      provenance: "ai_generated" as const,
+      role: "illustration" as const,
+      slot: "visual-example",
+      visualRole: "decorative" as const,
+    },
+  ],
+};
 
 const readyManifest: PreviewManifest = {
-  assets: {},
+  assets: {
+    [previewAssetId]: {
+      altText: "AI-generated visual example",
+      assetId: previewAssetId,
+      provenance: "ai_generated",
+      source: "source",
+      src: "https://storage.example.test/generated-preview.png",
+    },
+  },
   canvas: { fps: 30, height: 1080, width: 1920 },
   generatedAt: "2026-08-26T10:00:00.000Z",
   storyboard: {
@@ -181,6 +201,9 @@ describe("FullLessonPreview (Playwright)", () => {
       const seekBar = page.getByLabel("Seek lesson");
       expect(await seekBar.isVisible()).toBe(true);
       expect(await seekBar.getAttribute("type")).toBe("range");
+      expect(
+        await page.getByText("Full lesson preview unavailable").count(),
+      ).toBe(0);
 
       // Scene buttons
       expect(await page.getByRole("button", { name: "Scene 1" }).isVisible()).toBe(true);

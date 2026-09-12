@@ -5,8 +5,8 @@ import {
   lessonValidationRulesetVersion,
   lessonValidationRunSchema,
   reconcileSceneDurations,
+  reconciledLessonDurationToleranceSeconds,
   sceneAudioFitToleranceMs,
-  storyboardDurationToleranceSeconds,
   type LessonStoryboard,
   type SceneTemplate,
 } from "@avlp/schemas";
@@ -125,7 +125,7 @@ function input(source = storyboard()) {
             contentHash: sourceHash,
             // Nullable in the contract: a provider may return audio whose
             // duration was never measured, and preflight must block on it.
-            durationMs: scene.durationSeconds * 1000 as number | null,
+            durationMs: (scene.durationSeconds * 1000) as number | null,
             fitWarning: null as string | null,
             status: "ready" as const,
           },
@@ -216,7 +216,9 @@ describe("scene monotony advisory", () => {
   });
 
   it("reports a run of five as a single finding naming all five scenes", () => {
-    const source = storyboardWithTemplates(Array<SceneTemplate>(5).fill("definition"));
+    const source = storyboardWithTemplates(
+      Array<SceneTemplate>(5).fill("definition"),
+    );
     const issues = monotonyIssues(source);
     expect(issues).toHaveLength(1);
     expect(issues[0]!.details).toMatchObject({
@@ -244,19 +246,21 @@ describe("scene monotony advisory", () => {
     // rule must add exactly one scene_monotony warning (the fixture is all-hook)
     // and change nothing else.
     const issues = evaluateLessonValidation(input());
-    expect(
-      issues.filter((issue) => issue.code !== "scene_monotony"),
-    ).toEqual([]);
-    expect(issues.filter((issue) => issue.code === "scene_monotony")).toHaveLength(
-      1,
+    expect(issues.filter((issue) => issue.code !== "scene_monotony")).toEqual(
+      [],
     );
+    expect(
+      issues.filter((issue) => issue.code === "scene_monotony"),
+    ).toHaveLength(1);
   });
 
   it("uses the exported threshold as the boundary", () => {
     expect(sceneMonotonyThreshold).toBe(3);
     const run = (length: number) =>
       monotonyIssues(
-        storyboardWithTemplates(Array<SceneTemplate>(length).fill("definition")),
+        storyboardWithTemplates(
+          Array<SceneTemplate>(length).fill("definition"),
+        ),
       );
     expect(run(sceneMonotonyThreshold - 1)).toEqual([]);
     expect(run(sceneMonotonyThreshold)).toHaveLength(1);
@@ -481,11 +485,15 @@ describe("deterministic lesson validation", () => {
   });
 
   it("raises the matching issue one millisecond outside each boundary", () => {
-    const under = withSceneAudioDurationMs(36_000 - sceneAudioFitToleranceMs - 1);
+    const under = withSceneAudioDurationMs(
+      36_000 - sceneAudioFitToleranceMs - 1,
+    );
     expect(audioFitIssues(under.fixture, under.sceneId)).toEqual([
       expect.objectContaining({ severity: "warning", acknowledgeable: true }),
     ]);
-    const over = withSceneAudioDurationMs(36_000 + sceneAudioFitToleranceMs + 1);
+    const over = withSceneAudioDurationMs(
+      36_000 + sceneAudioFitToleranceMs + 1,
+    );
     expect(audioFitIssues(over.fixture, over.sceneId)).toEqual([
       expect.objectContaining({ severity: "error", acknowledgeable: false }),
     ]);
@@ -501,11 +509,11 @@ describe("deterministic lesson validation", () => {
     ]);
   });
 
-  it("accepts a lesson total inside the target tolerance and rejects it outside", () => {
+  it("reports target drift as information once audio is measured", () => {
     // Reconciled scene durations follow measured audio, so the total drifts off
     // the configured target. The band is the same one the allocator is held to.
     const target = 180;
-    const tolerance = storyboardDurationToleranceSeconds(target);
+    const tolerance = reconciledLessonDurationToleranceSeconds(target, 5);
     const withTotalDrift = (driftSeconds: number) => {
       const source = storyboard();
       const first = source.scenes[0]!;
@@ -530,7 +538,7 @@ describe("deterministic lesson validation", () => {
     expect(withTotalDrift(tolerance + 1)).toEqual([
       expect.objectContaining({
         code: "lesson_duration_mismatch",
-        severity: "error",
+        severity: "info",
         details: expect.objectContaining({ toleranceSeconds: tolerance }),
       }),
     ]);
@@ -852,6 +860,32 @@ describe("audio to reconciliation to preflight", () => {
       ).toEqual([]);
   });
 
+  it("accepts natural speech far outside the planned timing after reconciliation", () => {
+    for (const measuredMs of [24_400, 49_400]) {
+      const issues = evaluateLessonValidation(
+        reconciledFixture(Array(5).fill(measuredMs)),
+      );
+      expect(issues.filter((issue) => issue.severity === "error")).toEqual([]);
+      expect(issues).toContainEqual(
+        expect.objectContaining({
+          code: "lesson_duration_mismatch",
+          severity: "info",
+        }),
+      );
+    }
+  });
+
+  it("keeps target drift blocking while audio is missing", () => {
+    const fixture = reconciledFixture(Array(5).fill(49_400));
+    fixture.mediaByStableSceneId.clear();
+    expect(evaluateLessonValidation(fixture)).toContainEqual(
+      expect.objectContaining({
+        code: "lesson_duration_mismatch",
+        severity: "error",
+      }),
+    );
+  });
+
   it("passes preflight across the whole band of per-scene drift", () => {
     for (let driftMs = -1_500; driftMs <= 1_500; driftMs += 100) {
       const measured = Array.from({ length: 5 }, (_, index) =>
@@ -875,9 +909,9 @@ describe("audio to reconciliation to preflight", () => {
     const measured = Array.from({ length: 5 }, (_, index) =>
       index === 2 ? 75_000 : plannedSeconds * 1_000,
     );
-    const errors = evaluateLessonValidation(
-      reconciledFixture(measured),
-    ).filter((issue) => issue.severity === "error");
+    const errors = evaluateLessonValidation(reconciledFixture(measured)).filter(
+      (issue) => issue.severity === "error",
+    );
     expect(errors).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -888,7 +922,10 @@ describe("audio to reconciliation to preflight", () => {
       ]),
     );
     expect(
-      errors.every((issue) => issue.sceneId !== null || issue.code === "lesson_duration_mismatch"),
+      errors.every(
+        (issue) =>
+          issue.sceneId !== null || issue.code === "lesson_duration_mismatch",
+      ),
     ).toBe(true);
   });
 

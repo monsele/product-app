@@ -305,28 +305,39 @@ export function evaluateLessonValidation(
     (sum, storyboardScene) => sum + storyboardScene.durationSeconds,
     0,
   );
-  // Scene durations are re-timed from measured audio (ST-084), so the total can
-  // no longer be an exact equality: a conforming TTS engine lands inside a band
-  // around each planned duration, never on it, and those per-scene deviations do
-  // not cancel across the lesson. The band therefore scales with the scene
-  // count, and stays at least as wide as the storyboard-time allocator band so a
-  // not-yet-reconciled draft is judged exactly as before.
+  // The target is a writing estimate. Measured speech can differ by any
+  // amount; report that drift without blocking an otherwise valid lesson.
+  // Per-scene audio-fit checks continue to reject truncated narration.
   const lessonToleranceSeconds = reconciledLessonDurationToleranceSeconds(
     input.storyboard.targetDurationSeconds,
     input.storyboard.scenes.length,
   );
+  const hasMeasuredAudio =
+    input.storyboard.scenes.length > 0 &&
+    input.storyboard.scenes.every((scene) => {
+      const audio = input.mediaByStableSceneId.get(scene.stableSceneId)?.audio;
+      return (
+        audio?.status === "ready" &&
+        audio.durationMs !== null &&
+        audio.durationMs !== undefined &&
+        Number.isFinite(audio.durationMs) &&
+        audio.durationMs > 0
+      );
+    });
   if (
     Math.abs(total - input.storyboard.targetDurationSeconds) >
     lessonToleranceSeconds
   )
     issues.push(
       issue("lesson_duration_mismatch", {
-        severity: "error",
+        severity: hasMeasuredAudio ? "info" : "error",
         scopeType: "lesson",
         scopeId: null,
         sceneId: null,
         fieldPath: "targetDurationSeconds",
-        message: `Scene durations total ${total}s, outside the ${lessonToleranceSeconds}s tolerance of the ${input.storyboard.targetDurationSeconds}s lesson duration.`,
+        message: hasMeasuredAudio
+          ? `Your lesson runs for ${total}s to follow the narration. The original target was ${input.storyboard.targetDurationSeconds}s.`
+          : `Scene durations total ${total}s, outside the ${lessonToleranceSeconds}s tolerance of the ${input.storyboard.targetDurationSeconds}s lesson duration.`,
         details: {
           actualSeconds: total,
           expectedSeconds: input.storyboard.targetDurationSeconds,

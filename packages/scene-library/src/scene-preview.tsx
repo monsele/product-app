@@ -4,7 +4,11 @@ import { Player, type PlayerRef } from "@remotion/player";
 import { Audio, useCurrentFrame } from "remotion";
 import React, { useEffect, useRef, useState, type JSX } from "react";
 import { z } from "zod";
-import { sceneSpecSchema, type SceneSpec } from "@avlp/schemas";
+import {
+  previewAssetSchema,
+  sceneSpecSchema,
+  type SceneSpec,
+} from "@avlp/schemas";
 import {
   ScenePreviewRuntime,
   validateScene,
@@ -54,14 +58,7 @@ export type CaptionCue = z.infer<typeof captionCueSchema>;
 export const previewAssetManifestSchema = z
   .object({
     assets: z.record(
-      z
-        .object({
-          altText: z.string().min(1).max(2_000),
-          assetId: z.string().uuid(),
-          source: z.enum(["library", "source"]),
-          src: fixtureOrSignedUrlSchema,
-        })
-        .strict(),
+      previewAssetSchema.extend({ src: fixtureOrSignedUrlSchema }),
     ),
     audio: z
       .object({

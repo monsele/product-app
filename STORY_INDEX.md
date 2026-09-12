@@ -97,5 +97,14 @@ Status values: `Ready`, `In Progress`, `Blocked`, `In Review`, `Done`.
 |    89 | Product UI                                 | [ST-089 - Add Contact-Sheet Candidate Review for Generated Illustrations](stories/08-product-ui/ST-089-add-contact-sheet-candidate-review-for-generated-illustrations.md) | ST-059, ST-085 | Done |
 |    90 | Provider Readiness                         | [ST-090 - Constrain Provider Adapters per Job and Forbid Silent Fallback](stories/09-provider-readiness/ST-090-constrain-provider-adapters-per-job-and-forbid-silent-fallback.md) | ST-006, ST-059 | Done |
 |    91 | Product UI                                 | [ST-091 - Structured Node and Edge Editor for Graph Process and Cause-Effect Scenes](stories/08-product-ui/ST-091-structured-node-and-edge-editor-for-graph-scenes.md) | ST-056, ST-087 | Done      |
+|    92 | Storyboard Editing, Assets, and Versions   | [ST-092 - Explain Blocked Lesson-Version Saves and Guide Recovery](stories/05-editor-assets-versioning/ST-092-explain-blocked-lesson-version-saves-and-guide-recovery.md) | ST-060, ST-079, ST-080 | Ready |
 
 Maintenance 2026-09-08: ST-063 audio-provider failure repair verified on the reported scene (11,776 ms WAV and three caption cues). See its Dev Agent Record for the Together alignment configuration change and regression checks. Story status remains Done.
+
+
+## 2026-09-10 storyboard repair follow-up
+
+ST-080 / ST-084: product-owner requested timing and interface repair on
+`fix/audio-first-storyboard`. See [repair record](docs/audio-first-storyboard-repair.md)
+and [ADR-004](docs/adr/ADR-004-measured-narration-controls-playback-duration.md).
+Original story statuses are unchanged; live end-to-end verification is outstanding.

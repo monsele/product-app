@@ -499,7 +499,7 @@ export function createSceneAudioGenerationJobHandler(input: {
           audio.plannedDurationMs !== null &&
           Math.abs(output.durationMs - audio.plannedDurationMs) >
             sceneAudioFitToleranceMs
-            ? "Narration audio differs from the planned scene duration by more than the audio-fit tolerance."
+            ? "Audio is ready. Scene timing will follow the narration when all scene audio is ready."
             : null;
         const warning =
           captionTimingSource === "estimated"

@@ -203,3 +203,11 @@ Do not start this story until every dependency is marked **Done** in
   - Ensured only a single real `ScenePreviewPlayer` is mounted in the center stage.
 - **Known risks or follow-up:** None.
 - **Deviations from story or technical guide:** None.
+
+
+### 2026-09-10 product-owner repair follow-up
+
+See [repair record](../../docs/audio-first-storyboard-repair.md) for files, tests,
+contract decisions and remaining verification limits. Timing policy is refined
+by [ADR-004](../../docs/adr/ADR-004-measured-narration-controls-playback-duration.md).
+Original story completion records above are retained.

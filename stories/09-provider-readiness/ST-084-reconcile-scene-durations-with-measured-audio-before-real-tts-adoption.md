@@ -212,3 +212,11 @@ Reconciliation against real Postgres (`duration-reconciliation.integration.test.
 - **`@avlp/design-system` and `@avlp/scene-library` tests fail on this machine**, both before and after this change (confirmed by stashing). They are Remotion pixel visual-regression comparisons; no file in either package was touched.
 - **Reconciliation only ever grows or shrinks scenes to fit speech.** Solving for `speakingRate` to hit the target duration, and redistributing slack as inter-scene padding, remain the follow-ups the story records as out of scope. Until one of them exists, a lesson whose narration is written well below budget will render shorter than its configured target, within the 5% lesson band.
 - **A scene whose audio exceeds the 60s ceiling is still a hard stop** for the teacher: preflight names the scene, but the only remedies are shortening that scene's narration or splitting the scene. That is the intended behaviour, not a gap.
+
+
+### 2026-09-10 product-owner repair follow-up
+
+See [repair record](../../docs/audio-first-storyboard-repair.md) for files, tests,
+contract decisions and remaining verification limits. Timing policy is refined
+by [ADR-004](../../docs/adr/ADR-004-measured-narration-controls-playback-duration.md).
+Original story completion records above are retained.

@@ -9,6 +9,7 @@ import {
   fetchTeacherAssets,
   uploadTeacherAsset,
 } from "./storyboard-scene-query";
+import styles from "./storyboard.module.css";
 
 /** Private-image selector kept separate from the immutable approved catalog. */
 export function TeacherAssetPicker({
@@ -115,10 +116,12 @@ export function TeacherAssetPicker({
     }
   };
   return (
-    <fieldset disabled={disabled || uploading} style={{ marginTop: 8 }}>
+    <fieldset className={styles.teacherAssetPicker} disabled={disabled || uploading}>
       <legend>Teacher replacement image: {slot}</legend>
+      <p className={styles.assetPickerHint}>Use a project-private image when the approved catalog is not suitable.</p>
       <select
         aria-label={`Teacher replacement image: ${slot}`}
+        className={styles.assetPickerInput}
         value={selectedId}
         onChange={(event) => onChange(event.target.value)}
       >
@@ -129,7 +132,7 @@ export function TeacherAssetPicker({
           </option>
         ))}
       </select>
-      <label style={{ display: "block", marginTop: 4 }}>
+      <label className={styles.fileField}>
         Upload PNG, JPEG, or WebP
         <input
           aria-label={`Upload replacement image: ${slot}`}
@@ -138,33 +141,30 @@ export function TeacherAssetPicker({
           onChange={(event) => setFile(event.target.files?.[0])}
         />
       </label>
-      <button
-        type="button"
-        onClick={() => void upload()}
-        disabled={file === undefined || uploading}
-      >
-        Upload image
-      </button>
-      <button
-        type="button"
-        onClick={() => void remove()}
-        disabled={selectedId === "" || uploading}
-      >
-        Remove selected uploaded image
-      </button>
+      <div className={styles.assetPickerActions}>
+        <button
+          type="button"
+          onClick={() => void upload()}
+          disabled={file === undefined || uploading}
+        >
+          {uploading ? "Uploading image…" : "Upload image"}
+        </button>
+        <button
+          type="button"
+          onClick={() => void remove()}
+          disabled={selectedId === "" || uploading}
+        >
+          Remove selected uploaded image
+        </button>
+      </div>
       {assets.find((asset) => asset.assetId === selectedId) !== undefined ? (
         <img
           alt="Selected teacher uploaded asset preview"
           src={assets.find((asset) => asset.assetId === selectedId)?.previewUrl}
-          style={{
-            display: "block",
-            maxWidth: 160,
-            maxHeight: 120,
-            marginTop: 4,
-          }}
+          className={styles.teacherAssetPreview}
         />
       ) : null}
-      {message === undefined ? null : <p role="status">{message}</p>}
+      {message === undefined ? null : <p className={styles.assetPickerStatus} role="status">{message}</p>}
     </fieldset>
   );
 }

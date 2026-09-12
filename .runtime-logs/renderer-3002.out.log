@@ -1,0 +1,5 @@
+
+> @avlp/renderer@0.0.0 dev C:\Users\eoaikhina\Documents\repos\product-app\apps\renderer
+> tsx watch --env-file=../../.env src/main.ts
+
+{"timestamp":"2026-09-10T09:26:07.999Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}

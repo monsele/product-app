@@ -6178,21 +6178,20 @@ export type StoryboardResponse = z.infer<typeof storyboardResponseSchema>;
 
 /** `GET /projects/:id/preview-manifest` response. URLs are short-lived and
  * intentionally excluded from every persisted lesson contract. */
+export const previewAssetSchema = z
+  .object({
+    altText: boundedText(2_000),
+    assetId: identifierSchema,
+    provenance: assetProvenanceSchema.optional(),
+    source: z.enum(["library", "source"]),
+    src: z.string().min(1).max(4_096),
+  })
+  .strict();
+export type PreviewAsset = z.infer<typeof previewAssetSchema>;
+
 export const previewManifestSchema = z
   .object({
-    assets: z
-      .record(
-        z
-          .object({
-            altText: boundedText(2_000),
-            assetId: identifierSchema,
-            provenance: assetProvenanceSchema.optional(),
-            source: z.enum(["library", "source"]),
-            src: z.string().min(1).max(4_096),
-          })
-          .strict(),
-      )
-      .default({}),
+    assets: z.record(previewAssetSchema).default({}),
     canvas: z
       .object({
         fps: z.number().int().positive().max(120),
@@ -7522,7 +7521,7 @@ export const sceneAudioFitToleranceMs = 1_500 as const;
  * Worst-case residual left by rounding a measured duration to whole seconds,
  * which is what reconciliation applies to a scene.
  */
-export const sceneDurationRoundingMs = 500 as const;
+export const sceneDurationRoundingMs = 1000 as const;
 
 /**
  * How far a scene's duration may sit from the narration plan it was written
@@ -7598,8 +7597,8 @@ export type SceneDurationReconciliation = z.infer<
 /**
  * Deterministic re-timing of scenes from measured audio. Speech is the hard
  * constraint and visuals are elastic, so a scene takes the duration its audio
- * actually needs, never the reverse. Rounding to whole seconds leaves at most
- * 500ms of residual drift, well inside `sceneAudioFitToleranceMs`; a scene
+ * actually needs, never the reverse. Rounding up to whole seconds prevents
+ * clipping and leaves less than 1000ms of trailing silence; a scene
  * whose audio cannot fit the per-scene bounds is reported as `unfittable`
  * rather than silently truncated. The same measured input always produces the
  * same output, which is what makes re-running reconciliation a no-op.
@@ -7612,7 +7611,7 @@ export function reconcileSceneDurations(
   }[],
 ): readonly SceneDurationReconciliation[] {
   return scenes.map((scene) => {
-    const rounded = Math.round(scene.measuredAudioDurationMs / 1_000);
+    const rounded = Math.ceil(scene.measuredAudioDurationMs / 1_000);
     const applied = Math.min(
       storyboardSceneMaximumSeconds,
       Math.max(storyboardSceneMinimumSeconds, rounded),
@@ -7659,7 +7658,8 @@ export function reconcileSceneDurations(
  *   rejected, so the read path and render preflight keep working until the
  *   teacher re-runs validation.
  */
-export const lessonValidationRulesetVersion = "3" as const;
+// "4": measured narration makes target lesson duration advisory.
+export const lessonValidationRulesetVersion = "4" as const;
 
 export const validationSeveritySchema = z.enum(["error", "warning", "info"]);
 export type ValidationSeverity = z.infer<typeof validationSeveritySchema>;

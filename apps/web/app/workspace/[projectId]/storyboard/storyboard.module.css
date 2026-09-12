@@ -740,3 +740,222 @@
     margin-bottom: 16px;
   }
 }
+
+/* Consistent controls for inspector sections that predate Focus Studio. */
+.rightPanel :where(button:not([class]):not([role="tab"])) {
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-subtle);
+  color: var(--color-text);
+  font: var(--text-control);
+  cursor: pointer;
+}
+.rightPanel :where(button:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.rightPanel :where(input:not([type="file"]), select, textarea) {
+  width: 100%;
+  min-height: 38px;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-canvas);
+  color: var(--color-text);
+  font: var(--text-control);
+}
+.rightPanel :where(input:not([type="file"]), select, textarea):hover {
+  border-color: var(--color-text-muted);
+}
+.rightPanel :where(input:not([type="file"]), select, textarea):disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+.panel :where(button, a, select, input, textarea):focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 3px;
+}
+.button {
+  min-height: 44px;
+}
+.buttonCompact {
+  min-height: 36px;
+}
+
+/* Asset selection is a deliberate two-source workflow, not a stack of native
+   controls. These surfaces retain the inspector's dense Focus Studio rhythm. */
+.assetPicker,
+.teacherAssetPicker {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  min-inline-size: 0;
+  margin: 12px 0 0;
+  padding: 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-subtle);
+}
+.assetPickerTitle,
+.teacherAssetPicker legend {
+  margin: 0;
+  padding: 0;
+  color: var(--color-text);
+  font: var(--text-control);
+  font-weight: 650;
+}
+.assetPickerLabel,
+.fileField {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--color-text-muted);
+  font: var(--text-supporting);
+  font-weight: 600;
+}
+.assetPickerInput {
+  margin: 0;
+}
+.assetPickerHint,
+.assetPickerProvenance,
+.assetPickerStatus {
+  margin: 0;
+  color: var(--color-text-muted);
+  font: var(--text-supporting);
+  line-height: 1.45;
+}
+.assetPickerProvenance {
+  padding-top: 9px;
+  border-top: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+.teacherAssetPicker {
+  background: var(--color-surface);
+}
+.teacherAssetPicker legend {
+  padding-right: 6px;
+}
+.fileField input[type="file"] {
+  width: 100%;
+  box-sizing: border-box;
+  color: var(--color-text-muted);
+  font: var(--text-supporting);
+}
+.fileField input[type="file"]::file-selector-button {
+  margin-right: 10px;
+  padding: 7px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-subtle);
+  color: var(--color-text);
+  font: var(--text-supporting);
+  font-weight: 600;
+  cursor: pointer;
+}
+.assetPickerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.assetPickerActions button:first-child {
+  background: var(--color-surface-brand);
+  border-color: var(--color-brand-line);
+  color: var(--color-text);
+}
+.teacherAssetPreview {
+  display: block;
+  max-width: 100%;
+  max-height: 180px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  object-fit: contain;
+}
+.assetPickerStatus {
+  padding: 9px 10px;
+  border: 1px solid var(--color-brand-line);
+  border-radius: var(--radius-control);
+  background: var(--color-surface-brand);
+  color: var(--color-text);
+}
+.audioPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.audioPanel p {
+  margin: 0;
+  line-height: 1.6;
+}
+.audioPanel audio {
+  width: 100%;
+  min-width: 0;
+}
+.audioTitle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+}
+.audioTitle svg {
+  color: var(--color-brand);
+}
+.audioPanel [role="alert"] {
+  padding: 12px;
+  border-radius: var(--radius-control);
+  background: var(--color-warning-surface);
+  color: var(--color-warning-text);
+}
+.audioPanel .buttonPrimary {
+  width: 100%;
+}
+.stage {
+  border-color: var(--color-brand-line);
+}
+.stageHeader {
+  background: linear-gradient(
+    100deg,
+    var(--color-surface-brand),
+    var(--color-surface)
+  );
+}
+.sceneRowSelected {
+  box-shadow: inset 3px 0 0 var(--color-brand);
+}
+.sceneRowSelected .sceneIndex {
+  color: var(--color-brand);
+  text-shadow: 0 0 18px var(--color-brand-line);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .inspectorContent {
+    animation: inspectorEnter 220ms var(--motion-easing) both;
+  }
+  .button:not(:disabled):hover {
+    transform: translateY(-2px);
+  }
+  .sceneRow {
+    transition:
+      background-color 180ms ease,
+      box-shadow 180ms ease;
+  }
+  @keyframes inspectorEnter {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .panel *,
+  .panel *::before,
+  .panel *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

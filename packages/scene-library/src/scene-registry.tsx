@@ -8,6 +8,7 @@ import {
   hookVisualSchema,
   ipoVisualSchema,
   processVisualSchema,
+  type PreviewAsset,
   summaryVisualSchema,
   workedExampleVisualSchema,
   sceneSpecSchema,
@@ -78,13 +79,7 @@ type SceneLayout = Readonly<{
 export const resolvedSceneAssetSourceValues = ["library", "source"] as const;
 export type ResolvedSceneAssetSource =
   (typeof resolvedSceneAssetSourceValues)[number];
-export type ResolvedSceneAsset = Readonly<{
-  altText: string;
-  assetId: string;
-  source: ResolvedSceneAssetSource;
-  provenance?: "catalog" | "source_figure" | "teacher_uploaded" | "ai_generated";
-  src: string;
-}>;
+export type ResolvedSceneAsset = Readonly<PreviewAsset>;
 export type SceneRuntimeMode = "preview" | "render";
 export type SceneComponentProps = Readonly<{
   resolvedAssets?: Readonly<Record<string, ResolvedSceneAsset>>;

@@ -22,19 +22,22 @@ describe("reconcileSceneDurations", () => {
     expect(reconcileSceneDurations([scene(41_400)])[0]).toMatchObject({
       previousDurationSeconds: 36,
       measuredAudioDurationMs: 41_400,
-      appliedDurationSeconds: 41,
+      appliedDurationSeconds: 42,
       clampReason: null,
       unfittable: false,
     });
   });
 
-  it("leaves at most half a second of residual drift, well inside the tolerance", () => {
+  it("rounds up without clipping audio and leaves less than a second of silence", () => {
     for (let measured = 20_000; measured <= 21_000; measured += 37) {
       const [outcome] = reconcileSceneDurations([scene(measured)]);
       const residual = Math.abs(
         outcome!.appliedDurationSeconds * 1_000 - measured,
       );
-      expect(residual).toBeLessThanOrEqual(500);
+      expect(outcome!.appliedDurationSeconds * 1_000).toBeGreaterThanOrEqual(
+        measured,
+      );
+      expect(residual).toBeLessThan(1000);
       expect(residual).toBeLessThan(sceneAudioFitToleranceMs);
     }
   });
@@ -66,16 +69,16 @@ describe("reconcileSceneDurations", () => {
   });
 
   it("does not call audio unfittable while the overrun stays inside the tolerance", () => {
-    const withinBand = storyboardSceneMaximumSeconds * 1_000 +
-      sceneAudioFitToleranceMs;
+    const withinBand =
+      storyboardSceneMaximumSeconds * 1_000 + sceneAudioFitToleranceMs;
     expect(reconcileSceneDurations([scene(withinBand)])[0]).toMatchObject({
       appliedDurationSeconds: storyboardSceneMaximumSeconds,
       clampReason: "scene_maximum",
       unfittable: false,
     });
-    expect(
-      reconcileSceneDurations([scene(withinBand + 1)])[0],
-    ).toMatchObject({ unfittable: true });
+    expect(reconcileSceneDurations([scene(withinBand + 1)])[0]).toMatchObject({
+      unfittable: true,
+    });
   });
 
   it("is deterministic and order-preserving across scenes", () => {
@@ -109,7 +112,8 @@ describe("reconcileSceneDurations", () => {
       const scenes = Array.from({ length: sceneCount }, (_, index) => ({
         stableSceneId: `01989a3d-8e00-7000-8000-${String(index + 10).padStart(12, "0")}`,
         durationSeconds: plannedSeconds,
-        measuredAudioDurationMs: plannedSeconds * 1_000 + sceneAudioFitToleranceMs,
+        measuredAudioDurationMs:
+          plannedSeconds * 1_000 + sceneAudioFitToleranceMs,
       }));
       const total = reconcileSceneDurations(scenes).reduce(
         (sum, outcome) => sum + outcome.appliedDurationSeconds,
@@ -139,9 +143,7 @@ describe("reconcileSceneDurations", () => {
         storyboardDurationToleranceSeconds(target),
       );
       expect(band).toBeGreaterThanOrEqual(
-        Math.ceil(
-          (sceneCount * (sceneAudioFitToleranceMs + 500)) / 1_000,
-        ),
+        Math.ceil((sceneCount * (sceneAudioFitToleranceMs + 500)) / 1_000),
       );
     }
   });
@@ -152,8 +154,9 @@ describe("reconcileSceneDurations", () => {
     for (const plannedSeconds of [15, 30, 45, 60]) {
       expect(narrationWordCountRange(plannedSeconds).target).toBeGreaterThan(0);
       expect(
-        reconcileSceneDurations([scene(plannedSeconds * 1_000, plannedSeconds)])[0]!
-          .appliedDurationSeconds,
+        reconcileSceneDurations([
+          scene(plannedSeconds * 1_000, plannedSeconds),
+        ])[0]!.appliedDurationSeconds,
       ).toBe(plannedSeconds);
     }
   });

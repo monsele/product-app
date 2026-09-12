@@ -43,6 +43,39 @@ describe("scene preview input", () => {
     });
   });
 
+  it("accepts provenance-bearing resolved assets", () => {
+    const assetId = "00000000-0000-7000-8000-000000000004";
+    const scene = {
+      ...createDefaultScene("definition"),
+      assetBindings: [
+        {
+          assetId,
+          provenance: "ai_generated" as const,
+          role: "illustration" as const,
+          slot: "visual-example",
+          visualRole: "decorative" as const,
+        },
+      ],
+    };
+    const input = createScenePreviewFixture(scene);
+    const result = parseScenePreviewInput({
+      ...input,
+      manifest: {
+        assets: {
+          [assetId]: {
+            altText: "Generated visual example",
+            assetId,
+            provenance: "ai_generated",
+            source: "source",
+            src: "/assets/generated-example.png",
+          },
+        },
+      },
+    });
+
+    expect(result).toMatchObject({ ok: true });
+  });
+
   it("rejects an unapproved media URL", () => {
     const input = createScenePreviewFixture(createDefaultScene("hook"));
     const result = parseScenePreviewInput({

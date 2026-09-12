@@ -71,6 +71,33 @@ describe("three-minute photosynthesis full lesson", () => {
     );
   });
 
+  it("accepts provenance-bearing assets from the preview manifest", () => {
+    const assetIds = [
+      "00000000-0000-7000-8000-000000000301",
+      "00000000-0000-7000-8000-000000000302",
+      "00000000-0000-7000-8000-000000000303",
+    ];
+    const preview = {
+      ...photosynthesisThreeMinutePreview,
+      assets: Object.fromEntries(
+        assetIds.map((assetId, index) => [
+          assetId,
+          {
+            altText: `Generated illustration ${index + 1}`,
+            assetId,
+            provenance: "ai_generated" as const,
+            source: "source" as const,
+            src: `https://storage.example.test/${assetId}.png`,
+          },
+        ]),
+      ),
+    };
+
+    expect(fullLessonCompositionPropsSchema.safeParse(preview).success).toBe(
+      true,
+    );
+  });
+
   it("rejects caption timing that could drift from its scene", () => {
     const unsafe = {
       ...photosynthesisThreeMinutePreview,

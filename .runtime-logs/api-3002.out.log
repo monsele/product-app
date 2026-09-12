@@ -1,0 +1,34 @@
+
+> @avlp/api@0.0.0 dev C:\Users\eoaikhina\Documents\repos\product-app\apps\api
+> tsx watch --env-file=../../.env src/main.ts
+
+{"level":30,"time":1789032369460,"pid":24196,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1789032369461,"pid":24196,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://172.29.208.1:3001"}
+{"level":30,"time":1789032369461,"pid":24196,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://192.168.0.115:3001"}
+{"level":30,"time":1789032369461,"pid":24196,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://172.26.192.1:3001"}
+{"level":30,"time":1789032369503,"pid":24196,"hostname":"QORE-WIN-AA653","reqId":"req-1","req":{"method":"GET","url":"[REDACTED]","host":"127.0.0.1:3001","remoteAddress":"127.0.0.1","remotePort":62638},"msg":"incoming request"}
+{"timestamp":"2026-09-10T09:26:09.508Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a08aa3-8d61-753c-abc7-87022e801a60","method":"GET","route":"/health","service":"api"}}
+{"level":30,"time":1789032369518,"pid":24196,"hostname":"QORE-WIN-AA653","reqId":"req-1","res":{"statusCode":200},"responseTime":13.194900000000416,"msg":"request completed"}
+{"level":30,"time":1789032374804,"pid":24196,"hostname":"QORE-WIN-AA653","reqId":"req-2","req":{"method":"GET","url":"[REDACTED]","host":"127.0.0.1:3001","remoteAddress":"127.0.0.1","remotePort":62638},"msg":"incoming request"}
+{"timestamp":"2026-09-10T09:26:14.805Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a08aa3-a214-762a-8b27-5e8f7b9c9853","method":"GET","route":"/health","service":"api"}}
+{"level":30,"time":1789032374808,"pid":24196,"hostname":"QORE-WIN-AA653","reqId":"req-2","res":{"statusCode":200},"responseTime":3.827500000001237,"msg":"request completed"}
+{"level":30,"time":1789032379850,"pid":24196,"hostname":"QORE-WIN-AA653","reqId":"req-3","req":{"method":"GET","url":"[REDACTED]","host":"127.0.0.1:3001","remoteAddress":"127.0.0.1","remotePort":62638},"msg":"incoming request"}
+{"timestamp":"2026-09-10T09:26:19.851Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a08aa3-b5ca-756b-ac49-b74f936fd1ab","method":"GET","route":"/health","service":"api"}}
+{"level":30,"time":1789032379853,"pid":24196,"hostname":"QORE-WIN-AA653","reqId":"req-3","res":{"statusCode":200},"responseTime":2.6284000000014203,"msg":"request completed"}
+{"level":30,"time":1789032384901,"pid":24196,"hostname":"QORE-WIN-AA653","reqId":"req-4","req":{"method":"GET","url":"[REDACTED]","host":"127.0.0.1:3001","remoteAddress":"127.0.0.1","remotePort":62638},"msg":"incoming request"}
+{"timestamp":"2026-09-10T09:26:24.902Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a08aa3-c985-7de6-8a13-5eeac23e68bf","method":"GET","route":"/health","service":"api"}}
+{"level":30,"time":1789032384905,"pid":24196,"hostname":"QORE-WIN-AA653","reqId":"req-4","res":{"statusCode":200},"responseTime":4.530699999999342,"msg":"request completed"}
+{"level":30,"time":1789032389953,"pid":24196,"hostname":"QORE-WIN-AA653","reqId":"req-5","req":{"method":"GET","url":"[REDACTED]","host":"127.0.0.1:3001","remoteAddress":"127.0.0.1","remotePort":62638},"msg":"incoming request"}
+{"timestamp":"2026-09-10T09:26:29.955Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a08aa3-dd41-759f-a5ae-9852d5684f01","method":"GET","route":"/health","service":"api"}}
+{"level":30,"time":1789032389961,"pid":24196,"hostname":"QORE-WIN-AA653","reqId":"req-5","res":{"statusCode":200},"responseTime":8.107899999999063,"msg":"request completed"}
+{"level":30,"time":1789032395003,"pid":24196,"hostname":"QORE-WIN-AA653","reqId":"req-6","req":{"method":"GET","url":"[REDACTED]","host":"127.0.0.1:3001","remoteAddress":"127.0.0.1","remotePort":62638},"msg":"incoming request"}
+{"timestamp":"2026-09-10T09:26:35.004Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a08aa3-f0fb-734a-89e5-8648d79c5d20","method":"GET","route":"/health","service":"api"}}
+{"level":30,"time":1789032395009,"pid":24196,"hostname":"QORE-WIN-AA653","reqId":"req-6","res":{"statusCode":200},"responseTime":6.0129999999990105,"msg":"request completed"}
+{"level":30,"time":1789032406417,"pid":24196,"hostname":"QORE-WIN-AA653","reqId":"req-7","req":{"method":"GET","url":"[REDACTED]","host":"127.0.0.1:3001","remoteAddress":"127.0.0.1","remotePort":49885},"msg":"incoming request"}
+{"timestamp":"2026-09-10T09:26:46.418Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a08aa4-1d92-735c-aba7-70af5b78c06c","method":"GET","route":"/health","service":"api"}}
+{"level":30,"time":1789032406421,"pid":24196,"hostname":"QORE-WIN-AA653","reqId":"req-7","res":{"statusCode":200},"responseTime":3.4060000000026776,"msg":"request completed"}
+{"level":30,"time":1789032450518,"pid":24196,"hostname":"QORE-WIN-AA653","reqId":"req-8","req":{"method":"GET","url":"[REDACTED]","host":"127.0.0.1:3001","remoteAddress":"127.0.0.1","remotePort":62124},"msg":"incoming request"}
+{"timestamp":"2026-09-10T09:27:30.518Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a08aa4-c9d6-705c-a1c6-27b30698648a","method":"GET","route":"/health","service":"api"}}
+{"level":30,"time":1789032450556,"pid":24196,"hostname":"QORE-WIN-AA653","reqId":"req-8","res":{"statusCode":200},"responseTime":38.08629999999539,"msg":"request completed"}
+{"level":30,"time":1789032455636,"pid":24196,"hostname":"QORE-WIN-AA653","reqId":"req-9","req":{"method":"OPTIONS","url":"[REDACTED]","host":"127.0.0.1:3001","remoteAddress":"127.0.0.1","remotePort":62124},"msg":"incoming request"}
+{"level":30,"time":1789032455637,"pid":24196,"hostname":"QORE-WIN-AA653","reqId":"req-9","res":{"statusCode":204},"responseTime":0.6189000000013039,"msg":"request completed"}

@@ -20,6 +20,7 @@ import { SceneGrounding } from "./grounding-panel";
 import { SceneEditorForm } from "./scene-editor-form";
 import { IllustrationCandidatePanel } from "./illustration-candidate-panel";
 import { SceneAudioPanel } from "./scene-audio-panel";
+import styles from "./storyboard.module.css";
 import { ValidationPanel } from "./validation-panel";
 import { VersionBrowser, type VersionBrowserMetadata } from "./version-browser";
 import { fetchTeacherAssets } from "./storyboard-scene-query";
@@ -367,6 +368,8 @@ export function SceneDetailPanel({
 
       {/* Tab Contents */}
       <div
+        key={activeTab}
+        className={styles.inspectorContent}
         style={{
           flex: 1,
           overflowY: "auto",

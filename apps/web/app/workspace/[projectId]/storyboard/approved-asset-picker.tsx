@@ -1,5 +1,6 @@
 import React, { type JSX } from "react";
 import type { AssetCatalogEntry } from "@avlp/schemas";
+import styles from "./storyboard.module.css";
 
 export function ApprovedAssetPicker({
   assets,
@@ -20,11 +21,12 @@ export function ApprovedAssetPicker({
 }): JSX.Element {
   const selected = assets.find((asset) => asset.id === selectedId);
   return (
-    <label style={{ display: "block", marginTop: 8 }}>
-      Approved asset: {slot}
-      <span style={{ display: "block", marginTop: 4 }}>Filter by tags</span>
+    <label className={styles.assetPicker}>
+      <span className={styles.assetPickerTitle}>Approved asset: {slot}</span>
+      <span className={styles.assetPickerLabel}>Filter by tags</span>
       <input
         aria-label={`Filter approved assets by tags: ${slot}`}
+        className={styles.assetPickerInput}
         data-testid={`asset-tag-filter-${slot}`}
         disabled={disabled}
         onChange={(event) => onTagFilterChange(event.target.value)}
@@ -33,6 +35,7 @@ export function ApprovedAssetPicker({
       />
       <select
         aria-label={`Approved asset: ${slot}`}
+        className={styles.assetPickerInput}
         data-testid={`asset-picker-${slot}`}
         value={selectedId}
         disabled={disabled}
@@ -49,9 +52,9 @@ export function ApprovedAssetPicker({
         ))}
       </select>
       {selected === undefined ? (
-        <small>Choose an approved compatible asset, then save the scene.</small>
+        <small className={styles.assetPickerHint}>Choose an approved compatible asset, then save the scene.</small>
       ) : (
-        <small data-testid={`asset-provenance-${slot}`}>
+        <small className={styles.assetPickerProvenance} data-testid={`asset-provenance-${slot}`}>
           {selected.source} · {selected.license} ·{" "}
           {selected.usageConstraints.join(" ")}
         </small>

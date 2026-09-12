@@ -1,7 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState, type JSX } from "react";
-import type { SceneAudioStatusResponse } from "@avlp/schemas";
+import React, { useCallback, useEffect, useState, type JSX } from "react";
+import {
+  sceneAudioStatusResponseSchema,
+  type SceneAudioStatusResponse,
+} from "@avlp/schemas";
+import { Waveform } from "@phosphor-icons/react";
+import styles from "./storyboard.module.css";
 import { toast } from "../../../../components/ui/toast-provider";
 import { useTaskStatusNotification } from "../../../../lib/use-task-notification";
 
@@ -94,8 +99,9 @@ export function SceneAudioPanel({
     });
     const payload: unknown = await response.json().catch(() => null);
     if (!response.ok) throw new Error(errorMessage(payload));
-    setAudio(payload as SceneAudioStatusResponse);
-    onStatusChange?.(payload as SceneAudioStatusResponse);
+    const next = sceneAudioStatusResponseSchema.parse(payload);
+    setAudio(next);
+    onStatusChange?.(next);
   }, [base, onStatusChange]);
   useEffect(() => {
     void refresh().catch((error: unknown) =>
@@ -140,8 +146,9 @@ export function SceneAudioPanel({
       });
       const payload: unknown = await response.json().catch(() => null);
       if (!response.ok) throw new Error(errorMessage(payload));
-      setAudio(payload as SceneAudioStatusResponse);
-      onStatusChange?.(payload as SceneAudioStatusResponse);
+      const next = sceneAudioStatusResponseSchema.parse(payload);
+      setAudio(next);
+      onStatusChange?.(next);
     } catch (error) {
       const errorMsg =
         error instanceof Error
@@ -183,10 +190,18 @@ export function SceneAudioPanel({
   const retry = audio?.retryable === true;
   return (
     <section
+      className={styles.audioPanel}
       aria-label="Scene narration audio"
       data-testid={`scene-audio-${sceneId}`}
     >
-      <h4>Narration audio</h4>
+      <h4 className={styles.audioTitle}>
+        <Waveform size={20} aria-hidden="true" />
+        Narration audio
+      </h4>
+      <p className={styles.noteMuted}>
+        Generate natural speech. Video timing adapts to the audio once every
+        scene is ready.
+      </p>
       <p role="status">
         {audio === null
           ? "Loading audio status…"
@@ -212,6 +227,7 @@ export function SceneAudioPanel({
         playbackUrl === null ? (
           <button
             type="button"
+            className={`${styles.button} ${styles.buttonSecondary}`}
             data-testid={`scene-audio-listen-${sceneId}`}
             disabled={loadingPlayback}
             onClick={() => void loadPlayback()}
@@ -236,6 +252,7 @@ export function SceneAudioPanel({
       ) : null}
       <button
         type="button"
+        className={`${styles.button} ${styles.buttonPrimary}`}
         data-testid={`scene-audio-generate-${sceneId}`}
         disabled={isSceneAudioGenerationDisabled({
           disabled,
@@ -244,7 +261,13 @@ export function SceneAudioPanel({
         })}
         onClick={() => void generate()}
       >
-        {busy ? "Starting…" : retry ? "Retry audio" : "Generate audio"}
+        {busy
+          ? "Starting…"
+          : shouldPollSceneAudio(audio?.status)
+            ? "Generating audio…"
+            : retry
+              ? "Retry audio"
+              : "Generate audio"}
       </button>
     </section>
   );

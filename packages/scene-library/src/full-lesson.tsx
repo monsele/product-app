@@ -4,7 +4,11 @@ import { Player, type PlayerRef } from "@remotion/player";
 import { Audio, interpolate, Sequence, useCurrentFrame } from "remotion";
 import React, { useEffect, useRef, useState, type JSX } from "react";
 import { z } from "zod";
-import { sceneSpecSchema, type LessonSpec } from "@avlp/schemas";
+import {
+  previewAssetSchema,
+  sceneSpecSchema,
+  type LessonSpec,
+} from "@avlp/schemas";
 import { videoTheme } from "@avlp/design-system/video-theme";
 import {
   ScenePreviewRuntime,
@@ -19,6 +23,18 @@ import { secondsToFrames } from "./timing.js";
  * must be HTTPS. */
 const LOOPBACK_HTTP_URL_PATTERN =
   /^http:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\/[^\s]*$/i;
+
+const fullLessonPreviewAssetSchema = previewAssetSchema.extend({
+  src: z
+    .string()
+    .refine(
+      (value) =>
+        /^https:\/\/[^\s]+$/i.test(value) ||
+        /^\/catalog\/[a-z0-9/_-]+\.svg$/i.test(value) ||
+        LOOPBACK_HTTP_URL_PATTERN.test(value),
+      "Assets must be signed HTTPS URLs or approved catalog paths.",
+    ),
+});
 
 export const narrationTrackSchema = z.discriminatedUnion("kind", [
   z
@@ -57,26 +73,7 @@ export type FullLessonCaptionCue = z.infer<typeof fullLessonCaptionCueSchema>;
 
 export const fullLessonCompositionPropsSchema = z
   .object({
-    assets: z
-      .record(
-        z
-          .object({
-            altText: z.string().min(1).max(2_000),
-            assetId: z.string().uuid(),
-            source: z.enum(["library", "source"]),
-            src: z
-              .string()
-              .refine(
-                (value) =>
-                  /^https:\/\/[^\s]+$/i.test(value) ||
-                  /^\/catalog\/[a-z0-9/_-]+\.svg$/i.test(value) ||
-                  LOOPBACK_HTTP_URL_PATTERN.test(value),
-                "Assets must be signed HTTPS URLs or approved catalog paths.",
-              ),
-          })
-          .strict(),
-      )
-      .default({}),
+    assets: z.record(fullLessonPreviewAssetSchema).default({}),
     captions: z.array(fullLessonCaptionCueSchema),
     lesson: z
       .object({ scenes: z.array(sceneSpecSchema).min(1).max(100) })
