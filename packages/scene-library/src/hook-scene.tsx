@@ -1,7 +1,10 @@
 import { videoTheme } from "@avlp/design-system/video-theme";
 import { Easing, interpolate, useCurrentFrame } from "remotion";
 import type { CSSProperties, JSX } from "react";
-import type { SceneComponentProps } from "./scene-registry.js";
+import {
+  resolveSafeDiagramAsset,
+  type SceneComponentProps,
+} from "./scene-registry.js";
 import { getSceneFrameTiming } from "./timing.js";
 
 export type HookSceneFrameState = Readonly<{
@@ -64,11 +67,16 @@ function firstSubjectAsset(scene: SceneComponentProps["scene"]) {
 export function HookSceneFrame({
   scene,
   frame,
+  resolvedAssets,
+  runtimeMode = "preview",
 }: SceneComponentProps & Readonly<{ frame: number }>): JSX.Element {
   if (scene.template !== "hook")
     throw new Error("HookScene requires a hook scene.");
   const state = getHookSceneFrameState(frame, scene.durationSeconds);
   const asset = firstSubjectAsset(scene);
+  const resolvedAsset = resolveSafeDiagramAsset(asset?.assetId, resolvedAssets);
+  if (asset !== undefined && runtimeMode === "render" && resolvedAsset === undefined)
+    throw new Error("Hook render requires a resolved subject asset.");
   const contentStyle: CSSProperties = {
     boxSizing: "border-box",
     display: "grid",
@@ -159,7 +167,7 @@ export function HookSceneFrame({
             </ul>
           )}
         </div>
-        {asset === undefined ? null : (
+        {asset === undefined ? null : resolvedAsset === undefined ? (
           <aside
             aria-label={asset.altText ?? "Supporting lesson illustration"}
             data-hook-subject-asset={asset.assetId}
@@ -188,12 +196,37 @@ export function HookSceneFrame({
               />
             </svg>
           </aside>
+        ) : (
+          <img
+            alt={resolvedAsset.altText}
+            data-hook-subject-asset={asset.assetId}
+            src={resolvedAsset.src}
+            style={{
+              alignSelf: "center",
+              border: `${videoTheme.lineWidths.emphasis}px solid ${videoTheme.colors.accent}`,
+              borderRadius: "50%",
+              height: 360,
+              objectFit: "cover",
+              width: 360,
+            }}
+          />
         )}
       </section>
     </main>
   );
 }
 
-export function HookScene({ scene }: SceneComponentProps): JSX.Element {
-  return <HookSceneFrame frame={useCurrentFrame()} scene={scene} />;
+export function HookScene({
+  resolvedAssets,
+  runtimeMode,
+  scene,
+}: SceneComponentProps): JSX.Element {
+  return (
+    <HookSceneFrame
+      frame={useCurrentFrame()}
+      {...(resolvedAssets === undefined ? {} : { resolvedAssets })}
+      {...(runtimeMode === undefined ? {} : { runtimeMode })}
+      scene={scene}
+    />
+  );
 }

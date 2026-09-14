@@ -512,6 +512,9 @@ export function SceneDetailPanel({
               revision={lessonSpecRevision}
               disabled={pending || generating}
               onPersisted={onChanged}
+              onTemplateChanged={(requiresNewVisual) => {
+                if (requiresNewVisual) setActiveTab("visual");
+              }}
             />
 
             <IllustrationCandidatePanel

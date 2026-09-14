@@ -2,7 +2,11 @@ import { videoTheme } from "@avlp/design-system/video-theme";
 import { Easing, interpolate, useCurrentFrame } from "remotion";
 import type { CSSProperties, JSX } from "react";
 import type { ComparisonSubject } from "@avlp/schemas";
-import type { SceneComponentProps } from "./scene-registry.js";
+import {
+  resolveSafeDiagramAsset,
+  type ResolvedSceneAsset,
+  type SceneComponentProps,
+} from "./scene-registry.js";
 import { getSceneFrameTiming } from "./timing.js";
 
 export type ComparisonSceneFrameState = Readonly<{
@@ -67,7 +71,7 @@ function SubjectCard({
   opacity,
   side,
 }: Readonly<{
-  asset: ReturnType<typeof subjectAsset>;
+  asset: ResolvedSceneAsset | undefined;
   label: string;
   opacity: number;
   side: "left" | "right";
@@ -94,7 +98,7 @@ function SubjectCard({
       {asset === undefined ? null : (
         <div
           aria-label={asset.altText ?? `Image for ${label}`}
-          data-comparison-asset-slot={asset.slot}
+          data-comparison-asset={asset.assetId}
           style={{
             background: videoTheme.colors.background,
             borderRadius: videoTheme.radii.md,
@@ -104,7 +108,12 @@ function SubjectCard({
             width: 112,
           }}
         >
-          <span aria-hidden="true" style={{ color: videoTheme.colors.accent, fontSize: 48 }}>
+          <img
+            alt={asset.altText}
+            src={asset.src}
+            style={{ borderRadius: videoTheme.radii.md, height: "100%", objectFit: "cover", width: "100%" }}
+          />
+          <span aria-hidden="true" style={{ color: videoTheme.colors.accent, display: "none", fontSize: 48 }}>
             ◉
           </span>
         </div>
@@ -166,13 +175,23 @@ function TraitList({
 
 export function ComparisonSceneFrame({
   frame,
+  resolvedAssets,
+  runtimeMode = "preview",
   scene,
 }: SceneComponentProps & Readonly<{ frame: number }>): JSX.Element {
   if (scene.template !== "comparison")
     throw new Error("ComparisonScene requires a comparison scene.");
   const state = getComparisonSceneFrameState(frame, scene.durationSeconds);
-  const leftAsset = subjectAsset(scene, scene.visual.leftSubject, "left-subject-image");
-  const rightAsset = subjectAsset(scene, scene.visual.rightSubject, "right-subject-image");
+  const leftBinding = subjectAsset(scene, scene.visual.leftSubject, "left-subject-image");
+  const rightBinding = subjectAsset(scene, scene.visual.rightSubject, "right-subject-image");
+  const leftAsset = resolveSafeDiagramAsset(leftBinding?.assetId, resolvedAssets);
+  const rightAsset = resolveSafeDiagramAsset(rightBinding?.assetId, resolvedAssets);
+  if (
+    runtimeMode === "render" &&
+    ((leftBinding !== undefined && leftAsset === undefined) ||
+      (rightBinding !== undefined && rightAsset === undefined))
+  )
+    throw new Error("Comparison render requires resolved subject assets.");
   const sectionStyle: CSSProperties = {
     boxSizing: "border-box",
     display: "grid",
@@ -205,6 +224,17 @@ export function ComparisonSceneFrame({
   );
 }
 
-export function ComparisonScene({ scene }: SceneComponentProps): JSX.Element {
-  return <ComparisonSceneFrame frame={useCurrentFrame()} scene={scene} />;
+export function ComparisonScene({
+  resolvedAssets,
+  runtimeMode,
+  scene,
+}: SceneComponentProps): JSX.Element {
+  return (
+    <ComparisonSceneFrame
+      frame={useCurrentFrame()}
+      {...(resolvedAssets === undefined ? {} : { resolvedAssets })}
+      {...(runtimeMode === undefined ? {} : { runtimeMode })}
+      scene={scene}
+    />
+  );
 }

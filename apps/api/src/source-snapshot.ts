@@ -10,7 +10,6 @@ import {
   contentBlocks,
   extractedFigures,
   figureInclusionOverlays,
-  parsedDocuments,
   parsedSections,
   parsedTables,
   sourceSectionOverlays,
@@ -50,6 +49,7 @@ import {
   type SourceSnapshotTable,
 } from "@avlp/schemas";
 import { and, desc, eq } from "drizzle-orm";
+import { findLatestProjectParsedDocument } from "./project-parsed-document.js";
 
 /** Immutable section shape needed to materialize the effective source. */
 export interface EffectiveSectionInput {
@@ -581,17 +581,10 @@ export class PostgresSourceSnapshotService implements SourceSnapshotService {
     ownerUserId: Identifier,
     projectId: Identifier,
   ): Promise<EffectiveSourceInput | undefined> {
-    const [document] = await executor
-      .select()
-      .from(parsedDocuments)
-      .where(
-        and(
-          eq(parsedDocuments.ownerUserId, ownerUserId),
-          eq(parsedDocuments.projectId, projectId),
-        ),
-      )
-      .orderBy(desc(parsedDocuments.createdAt))
-      .limit(1);
+    const document = await findLatestProjectParsedDocument(executor, {
+      ownerUserId,
+      projectId,
+    });
     if (document === undefined) return undefined;
     const [
       sections,

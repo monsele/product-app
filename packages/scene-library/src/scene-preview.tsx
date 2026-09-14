@@ -2,7 +2,7 @@
 
 import { Player, type PlayerRef } from "@remotion/player";
 import { Audio, useCurrentFrame } from "remotion";
-import React, { useEffect, useRef, useState, type JSX } from "react";
+import React, { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { z } from "zod";
 import {
   previewAssetSchema,
@@ -187,6 +187,7 @@ export function ScenePreviewComposition({
       </div>
       {manifest.audio === undefined ? null : (
         <Audio
+          pauseWhenBuffering
           onError={(error) => onAudioError?.(formatAudioPlaybackError(error))}
           src={manifest.audio.src}
         />
@@ -228,6 +229,16 @@ export function ScenePreviewPlayer({
   const [previewFrame, setPreviewFrame] = useState(0);
   const [isMuted, setIsMuted] = useState(muted);
   const [isPlaying, setIsPlaying] = useState(false);
+  const result = useMemo(() => parseScenePreviewInput(input), [input]);
+  // Keep the playback configuration stable while the transport updates its
+  // frame/playing state, otherwise Remotion restarts its clock every frame.
+  const playerInput = useMemo(
+    () =>
+      result.ok
+        ? { ...result.input, onAudioError: setPlaybackError }
+        : undefined,
+    [result],
+  );
   useEffect(() => {
     setPlaybackError(undefined);
     setPreviewFrame(0);
@@ -255,7 +266,6 @@ export function ScenePreviewPlayer({
       player.removeEventListener("ended", onEnded);
     };
   }, [input]);
-  const result = parseScenePreviewInput(input);
   if (!result.ok)
     return (
       <section data-testid="scene-preview-error" role="alert">
@@ -302,7 +312,7 @@ export function ScenePreviewPlayer({
         )}
         fps={videoTheme.canvas.fps}
         initiallyMuted={muted}
-        inputProps={{ ...result.input, onAudioError: setPlaybackError }}
+        inputProps={playerInput!}
         ref={playerRef}
         renderLoading={() => <p role="status">Loading scene preview…</p>}
         spaceKeyToPlayOrPause={false}
@@ -343,14 +353,16 @@ export function ScenePreviewPlayer({
           max={durationInFrames - 1}
           min={0}
           onChange={(event) => seekTo(Number(event.currentTarget.value))}
-          style={{
-            // Drives the played-portion fill; the track itself is CSS.
-            "--sp-progress": `${
-              durationInFrames > 1
-                ? (previewFrame / (durationInFrames - 1)) * 100
-                : 0
-            }%`,
-          } as React.CSSProperties}
+          style={
+            {
+              // Drives the played-portion fill; the track itself is CSS.
+              "--sp-progress": `${
+                durationInFrames > 1
+                  ? (previewFrame / (durationInFrames - 1)) * 100
+                  : 0
+              }%`,
+            } as React.CSSProperties
+          }
           type="range"
           value={previewFrame}
         />

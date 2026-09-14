@@ -69,3 +69,37 @@
 1:14:15 AM [tsx] change in ./..\..\packages\scene-library\dist\scene-preview.js Restarting...
 1:14:15 AM [tsx] change in ./..\..\packages\scene-library\dist\index.js Restarting...
 {"timestamp":"2026-09-12T00:14:49.041Z","level":"info","event":"worker.started","fields":{"status":"ok","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:31.206Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:36.346Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:36.362Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:36.460Z","level":"error","event":"queue.lease_sweep_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:37.361Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:37.363Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:37.373Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:38.372Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:38.374Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:38.378Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:39.391Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:39.392Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:39.395Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:40.414Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:40.415Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:40.506Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:41.422Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:41.426Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:42.450Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:42.530Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:43.472Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:43.505Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:44.503Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:45.535Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:45.536Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:46.568Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:47.600Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:48.626Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:49.638Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:50.677Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:51.626Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:53.645Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:55.989Z","level":"error","event":"queue.lease_sweep_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-12T00:35:56.193Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}

@@ -68,6 +68,19 @@ export function SceneGrounding({
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    if (
+      state.kind !== "ready" ||
+      state.value.latestJob === null ||
+      !["queued", "running", "retry_wait"].includes(
+        state.value.latestJob.state,
+      )
+    )
+      return;
+    const timer = window.setInterval(() => void refresh(), 2_000);
+    return () => window.clearInterval(timer);
+  }, [refresh, state]);
+
   const runCheck = useCallback(async () => {
     setSubmitting(true);
     try {
@@ -135,7 +148,11 @@ export function SceneGrounding({
       <h4>Grounding</h4>
 
       {check === null ? (
-        <p role="status">No grounding check has run for this lesson yet.</p>
+        <p role="status">
+          {running
+            ? "Checking grounding. This can take a few minutes for a long lesson."
+            : "No grounding check has run for this lesson yet."}
+        </p>
       ) : (
         <>
           <p role="status" data-testid={`grounding-summary-${sceneId}`}>

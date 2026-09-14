@@ -1,0 +1,13 @@
+
+> @avlp/web@0.0.0 dev C:\Users\eoaikhina\Documents\repos\product-app\apps\web
+> next dev
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3001
+   - Network:      http://192.168.21.3:3001
+
+ ✓ Starting...
+ ✓ Ready in 8.9s
+C:\Users\eoaikhina\Documents\repos\product-app\apps\web:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @avlp/web@0.0.0 dev: `next dev`
+Exit status 4294967295

@@ -2,7 +2,4 @@
 > @avlp/renderer@0.0.0 dev C:\Users\eoaikhina\Documents\repos\product-app\apps\renderer
 > tsx watch --env-file=../../.env src/main.ts
 
-{"timestamp":"2026-09-10T09:14:35.450Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
-C:\Users\eoaikhina\Documents\repos\product-app\apps\renderer:
- ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @avlp/renderer@0.0.0 dev: `tsx watch --env-file=../../.env src/main.ts`
-Exit status 4294967295
+{"timestamp":"2026-09-13T23:40:00.453Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}

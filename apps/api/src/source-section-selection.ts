@@ -1,8 +1,4 @@
-import {
-  createId,
-  PublicError,
-  type Identifier,
-} from "@avlp/config";
+import { createId, PublicError, type Identifier } from "@avlp/config";
 import {
   nextRevision,
   parsedDocuments,
@@ -19,8 +15,9 @@ import {
   type SourceSectionSelection,
   type SourceSectionSelectionResponse,
 } from "@avlp/schemas";
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { findLatestProjectParsedDocument } from "./project-parsed-document.js";
 
 /** Immutable section shape needed to build the effective projection. */
 export interface EffectiveSectionInput {
@@ -83,9 +80,7 @@ export interface SourceSectionSelectionService {
   }): Promise<SourceSectionSelection>;
 }
 
-export class PostgresSourceSectionSelectionService
-  implements SourceSectionSelectionService
-{
+export class PostgresSourceSectionSelectionService implements SourceSectionSelectionService {
   public constructor(
     private readonly database: DatabaseClient,
     private readonly now: () => Date = () => new Date(),
@@ -159,15 +154,16 @@ export class PostgresSourceSectionSelectionService
         reviewOrder: nextReviewOrder,
         revision: (current?.revision ?? 0) + 1,
       });
-      if (!projectEffectiveSections(sections, candidateOverlays).some(
-        (entry) => entry.included,
-      ))
+      if (
+        !projectEffectiveSections(sections, candidateOverlays).some(
+          (entry) => entry.included,
+        )
+      )
         throw atLeastOneSectionRequired();
 
       const timestamp = this.now();
-      const nextRevisionValue = current === undefined
-        ? 1
-        : nextRevision(current.revision);
+      const nextRevisionValue =
+        current === undefined ? 1 : nextRevision(current.revision);
 
       if (current === undefined) {
         const [created] = await transaction
@@ -254,18 +250,10 @@ export class PostgresSourceSectionSelectionService
     ownerUserId: Identifier,
     projectId: Identifier,
   ): Promise<typeof parsedDocuments.$inferSelect | undefined> {
-    const [document] = await this.database
-      .select()
-      .from(parsedDocuments)
-      .where(
-        and(
-          eq(parsedDocuments.ownerUserId, ownerUserId),
-          eq(parsedDocuments.projectId, projectId),
-        ),
-      )
-      .orderBy(desc(parsedDocuments.createdAt))
-      .limit(1);
-    return document;
+    return findLatestProjectParsedDocument(this.database, {
+      ownerUserId,
+      projectId,
+    });
   }
 
   private async loadSectionsAndOverlays(

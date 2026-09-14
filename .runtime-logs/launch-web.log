@@ -1,0 +1,37 @@
+
+> @avlp/web@0.0.0 dev C:\Users\eoaikhina\Documents\repos\product-app\apps\web
+> next dev
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3000
+   - Network:      http://172.29.208.1:3000
+
+ ✓ Starting...
+ ✓ Ready in 13.1s
+ ○ Compiling / ...
+ ✓ Compiled / in 38.8s (10487 modules)
+ GET / 200 in 16371ms
+ GET / 200 in 55ms
+ GET / 200 in 1170ms
+ ○ Compiling /sign-in ...
+ ✓ Compiled /sign-in in 7.9s (10533 modules)
+ GET /sign-in 200 in 9722ms
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 546ms (158 modules)
+ ○ Compiling /workspace ...
+ ✓ Compiled /workspace in 5.6s (10711 modules)
+ GET /workspace 200 in 7499ms
+ ○ Compiling /workspace/[projectId]/preview ...
+ ✓ Compiled /workspace/[projectId]/preview in 10.4s (13940 modules)
+ GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/preview 200 in 13335ms
+ ○ Compiling /workspace/[projectId]/storyboard ...
+ ✓ Compiled /workspace/[projectId]/storyboard in 11.8s (13987 modules)
+ GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/storyboard 200 in 14193ms
+ ✓ Compiled in 23.2s (13987 modules)
+ ✓ Compiled in 7.8s (13987 modules)
+ ✓ Compiled in 50.2s (13987 modules)
+ ✓ Compiled in 14.5s (13987 modules)
+ ✓ Compiled in 12.9s (13987 modules)
+ ✓ Compiled in 12.1s (13987 modules)
+ ✓ Compiled in 17.9s (13987 modules)
+[?25h

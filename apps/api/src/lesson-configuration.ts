@@ -1,8 +1,12 @@
-import { createId, PublicError, serializeUtcTimestamp, type Identifier } from "@avlp/config";
+import {
+  createId,
+  PublicError,
+  serializeUtcTimestamp,
+  type Identifier,
+} from "@avlp/config";
 import {
   ingestionQualityReports,
   lessonConfigurations,
-  parsedDocuments,
   projects,
   sourceSnapshots,
   type DatabaseClient,
@@ -18,8 +22,9 @@ import {
   type LessonConfigurationInput,
   type LessonConfigurationResponse,
 } from "@avlp/schemas";
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
+import { findLatestProjectParsedDocument } from "./project-parsed-document.js";
 import { assertProjectStageTransition } from "./projects.js";
 
 export interface LessonConfigurationService {
@@ -41,9 +46,7 @@ type SourceContext = {
   sourceReviewComplete: boolean;
 };
 
-export class PostgresLessonConfigurationService
-  implements LessonConfigurationService
-{
+export class PostgresLessonConfigurationService implements LessonConfigurationService {
   public constructor(
     private readonly database: DatabaseClient,
     private readonly now: () => Date = () => new Date(),
@@ -68,8 +71,7 @@ export class PostgresLessonConfigurationService
         configuration === undefined
           ? null
           : narrationWordCountRange(configuration.targetDurationSeconds),
-      canProceed:
-        configuration !== undefined && source.sourceReviewComplete,
+      canProceed: configuration !== undefined && source.sourceReviewComplete,
     });
   }
 
@@ -268,20 +270,10 @@ export class PostgresLessonConfigurationService
     ownerUserId: Identifier,
     projectId: Identifier,
   ): Promise<SourceContext> {
-    const [doc] = await this.database
-      .select({
-        id: parsedDocuments.id,
-        version: parsedDocuments.version,
-      })
-      .from(parsedDocuments)
-      .where(
-        and(
-          eq(parsedDocuments.ownerUserId, ownerUserId),
-          eq(parsedDocuments.projectId, projectId),
-        ),
-      )
-      .orderBy(desc(parsedDocuments.createdAt))
-      .limit(1);
+    const doc = await findLatestProjectParsedDocument(this.database, {
+      ownerUserId,
+      projectId,
+    });
     if (doc === undefined)
       return { parsedDocumentVersion: null, sourceReviewComplete: false };
 
@@ -316,21 +308,10 @@ export class PostgresLessonConfigurationService
     ownerUserId: Identifier,
     projectId: Identifier,
   ): Promise<SourceContext> {
-    const [doc] = await executor
-      .select({
-        id: parsedDocuments.id,
-        version: parsedDocuments.version,
-      })
-      .from(parsedDocuments)
-      .where(
-        and(
-          eq(parsedDocuments.ownerUserId, ownerUserId),
-          eq(parsedDocuments.projectId, projectId),
-        ),
-      )
-      .orderBy(desc(parsedDocuments.createdAt))
-      .limit(1)
-      .for("update");
+    const doc = await findLatestProjectParsedDocument(executor, {
+      ownerUserId,
+      projectId,
+    });
     if (doc === undefined)
       return { parsedDocumentVersion: null, sourceReviewComplete: false };
 
@@ -361,9 +342,7 @@ export class PostgresLessonConfigurationService
   }
 }
 
-function toConfiguration(
-  row: ConfigRow,
-): NonNullable<LessonConfiguration> {
+function toConfiguration(row: ConfigRow): NonNullable<LessonConfiguration> {
   return lessonConfigurationSchema.parse({
     version: row.version,
     ageBand: row.ageBand,

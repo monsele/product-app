@@ -17,8 +17,9 @@ import {
   type ContentBlockCorrectionInput,
   type ReviewContentBlock,
 } from "@avlp/schemas";
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { findLatestProjectParsedDocument } from "./project-parsed-document.js";
 
 /** Immutable block shape needed to build the effective-content projection. */
 export interface EffectiveContentBlockInput {
@@ -403,18 +404,10 @@ export class PostgresContentBlockCorrectionService implements ContentBlockCorrec
     ownerUserId: Identifier,
     projectId: Identifier,
   ): Promise<typeof parsedDocuments.$inferSelect | undefined> {
-    const [document] = await this.database
-      .select()
-      .from(parsedDocuments)
-      .where(
-        and(
-          eq(parsedDocuments.ownerUserId, ownerUserId),
-          eq(parsedDocuments.projectId, projectId),
-        ),
-      )
-      .orderBy(desc(parsedDocuments.createdAt))
-      .limit(1);
-    return document;
+    return findLatestProjectParsedDocument(this.database, {
+      ownerUserId,
+      projectId,
+    });
   }
 
   private async loadBlock(

@@ -1,7 +1,10 @@
 import { videoTheme } from "@avlp/design-system/video-theme";
 import { Easing, interpolate, useCurrentFrame } from "remotion";
 import type { JSX } from "react";
-import type { SceneComponentProps } from "./scene-registry.js";
+import {
+  resolveSafeDiagramAsset,
+  type SceneComponentProps,
+} from "./scene-registry.js";
 import { getSceneFrameTiming } from "./timing.js";
 
 export type AnalogySceneFrameState = Readonly<{
@@ -53,12 +56,28 @@ function isGeneratedAnalogy(scene: SceneComponentProps["scene"]): boolean {
 
 export function AnalogySceneFrame({
   frame,
+  resolvedAssets,
+  runtimeMode = "preview",
   scene,
 }: SceneComponentProps & Readonly<{ frame: number }>): JSX.Element {
   if (scene.template !== "analogy")
     throw new Error("AnalogyScene requires an analogy scene.");
   const state = getAnalogySceneFrameState(frame, scene.durationSeconds);
   const generated = isGeneratedAnalogy(scene);
+  const assetBinding = scene.assetBindings.find(
+    (binding) =>
+      binding.slot === "central-visual" && binding.role === "illustration",
+  );
+  const resolvedAsset = resolveSafeDiagramAsset(
+    assetBinding?.assetId,
+    resolvedAssets,
+  );
+  if (
+    assetBinding !== undefined &&
+    runtimeMode === "render" &&
+    resolvedAsset === undefined
+  )
+    throw new Error("Analogy render requires a resolved central visual.");
   return (
     <main
       aria-label="Concept analogy"
@@ -106,6 +125,22 @@ export function AnalogySceneFrame({
           </p>
         ) : null}
       </header>
+      {resolvedAsset === undefined ? null : (
+        <img
+          alt={resolvedAsset.altText}
+          data-analogy-central-asset={resolvedAsset.assetId}
+          src={resolvedAsset.src}
+          style={{
+            border: `${videoTheme.lineWidths.emphasis}px solid ${videoTheme.colors.accent}`,
+            borderRadius: videoTheme.radii.md,
+            height: 160,
+            marginTop: videoTheme.spacing.md,
+            objectFit: "cover",
+            opacity: state.mappingOpacity,
+            width: "100%",
+          }}
+        />
+      )}
       <section
         data-analogy-panels
         style={{
@@ -234,6 +269,17 @@ export function AnalogySceneFrame({
   );
 }
 
-export function AnalogyScene({ scene }: SceneComponentProps): JSX.Element {
-  return <AnalogySceneFrame frame={useCurrentFrame()} scene={scene} />;
+export function AnalogyScene({
+  resolvedAssets,
+  runtimeMode,
+  scene,
+}: SceneComponentProps): JSX.Element {
+  return (
+    <AnalogySceneFrame
+      frame={useCurrentFrame()}
+      {...(resolvedAssets === undefined ? {} : { resolvedAssets })}
+      {...(runtimeMode === undefined ? {} : { runtimeMode })}
+      scene={scene}
+    />
+  );
 }

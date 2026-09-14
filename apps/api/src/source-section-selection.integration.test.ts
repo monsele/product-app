@@ -6,6 +6,7 @@ import {
   parsedSections,
   sourceDocuments,
   sourceDocumentIngestionArtifacts,
+  sourceDocumentIngestionReuses,
   sourceSectionOverlays,
 } from "@avlp/database";
 import { createTestDatabase, type TestDatabase } from "@avlp/database/testing";
@@ -24,6 +25,8 @@ const parsedDocumentId: Identifier = "019ffbf1-ffff-7000-8000-000000000001";
 const sectionOneId: Identifier = "019ffbf1-1111-7000-8000-000000000001";
 const sectionTwoId: Identifier = "019ffbf1-2222-7000-8000-000000000001";
 const correlationId: Identifier = "019ffbf1-3333-7000-8000-000000000001";
+const reusedProjectId: Identifier = "019ffbf1-4444-7000-8000-000000000001";
+const reusedDocumentId: Identifier = "019ffbf1-5555-7000-8000-000000000001";
 
 describeWithPostgres("PostgresSourceSectionSelectionService", () => {
   let database: TestDatabase | undefined;
@@ -36,6 +39,7 @@ describeWithPostgres("PostgresSourceSectionSelectionService", () => {
 
   beforeEach(async () => {
     await database!.client.delete(sourceSectionOverlays);
+    await database!.client.delete(sourceDocumentIngestionReuses);
     await database!.client.delete(parsedSections);
     await database!.client.delete(parsedDocuments);
     await database!.client.delete(sourceDocumentIngestionArtifacts);
@@ -134,6 +138,52 @@ describeWithPostgres("PostgresSourceSectionSelectionService", () => {
     });
   });
 
+  it("resolves a reused immutable document and keeps its selection overlay project-local", async () => {
+    const timestamp = new Date("2026-08-14T10:01:00.000Z");
+    await database!.client.insert(sourceDocuments).values({
+      id: reusedDocumentId,
+      ownerUserId,
+      projectId: reusedProjectId,
+      originalName: "water-cycle-copy.pdf",
+      mediaType: "application/pdf",
+      sizeBytes: 1_000,
+      sha256: "a".repeat(64),
+      storageKey: "users/tenant/water-cycle-copy.pdf",
+      pageCount: 2,
+      status: "active",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+    await database!.client.insert(sourceDocumentIngestionReuses).values({
+      id: "019ffbf1-6666-7000-8000-000000000001",
+      ownerUserId,
+      projectId: reusedProjectId,
+      sourceDocumentId: reusedDocumentId,
+      ingestionArtifactId: artifactId,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+
+    const listed = await service.list(ownerUserId, reusedProjectId);
+    expect(listed.documentId).toBe(parsedDocumentId);
+    await service.update({
+      ownerUserId,
+      projectId: reusedProjectId,
+      sectionId: sectionOneId,
+      body: { revision: 0, displayHeading: "Reused opening" },
+      correlationId,
+    });
+    const [overlay] = await database!.client
+      .select()
+      .from(sourceSectionOverlays)
+      .where(eq(sourceSectionOverlays.projectId, reusedProjectId));
+    expect(overlay).toMatchObject({
+      parsedDocumentId,
+      sectionId: sectionOneId,
+      displayHeading: "Reused opening",
+    });
+  });
+
   it("renames a section and projects the override without mutating the original", async () => {
     const updated = await service.update({
       ownerUserId,
@@ -212,7 +262,12 @@ describeWithPostgres("PostgresSourceSectionSelectionService", () => {
       ownerUserId,
       projectId,
       sectionId: sectionOneId,
-      body: { revision: 1, included: true, displayHeading: null, reviewOrder: null },
+      body: {
+        revision: 1,
+        included: true,
+        displayHeading: null,
+        reviewOrder: null,
+      },
       correlationId,
     });
     expect(restored).toMatchObject({

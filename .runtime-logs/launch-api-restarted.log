@@ -1,0 +1,15 @@
+
+> @avlp/api@0.0.0 dev C:\Users\eoaikhina\Documents\repos\product-app\apps\api
+> tsx watch --env-file=../../.env src/main.ts
+
+{"level":30,"time":1789219658343,"pid":25592,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1789219658344,"pid":25592,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://192.168.21.3:3001"}
+{"level":30,"time":1789219658344,"pid":25592,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://172.29.208.1:3001"}
+{"level":30,"time":1789219658344,"pid":25592,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://172.26.192.1:3001"}
+{"level":30,"time":1789219658344,"pid":25592,"hostname":"QORE-WIN-AA653","msg":"Server listening at http://192.168.0.115:3001"}
+{"level":30,"time":1789219672269,"pid":25592,"hostname":"QORE-WIN-AA653","reqId":"req-1","req":{"method":"GET","url":"[REDACTED]","host":"127.0.0.1:3001","remoteAddress":"127.0.0.1","remotePort":60566},"msg":"incoming request"}
+{"timestamp":"2026-09-12T13:27:52.279Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a095cd-90d0-7e43-8ad9-badcf82edf25","method":"GET","route":"/health","service":"api"}}
+{"level":30,"time":1789219672293,"pid":25592,"hostname":"QORE-WIN-AA653","reqId":"req-1","res":{"statusCode":200},"responseTime":21.80749999999898,"msg":"request completed"}
+{"level":30,"time":1789219823494,"pid":25592,"hostname":"QORE-WIN-AA653","reqId":"req-2","req":{"method":"GET","url":"[REDACTED]","host":"127.0.0.1:3001","remoteAddress":"127.0.0.1","remotePort":61423},"msg":"incoming request"}
+{"timestamp":"2026-09-12T13:30:23.705Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a095cf-e01e-72d4-ac5f-259dcc574701","method":"GET","route":"/health","service":"api"}}
+{"level":30,"time":1789219824206,"pid":25592,"hostname":"QORE-WIN-AA653","reqId":"req-2","res":{"statusCode":200},"responseTime":578.2650999999896,"msg":"request completed"}

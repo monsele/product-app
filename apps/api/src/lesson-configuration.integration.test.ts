@@ -7,6 +7,7 @@ import {
   parsedDocuments,
   projects,
   sourceDocumentIngestionArtifacts,
+  sourceDocumentIngestionReuses,
   sourceDocuments,
   users,
 } from "@avlp/database";
@@ -25,6 +26,8 @@ const sourceDocumentId: Identifier = "019ffbf1-dddd-7000-8000-000000000003";
 const artifactId: Identifier = "019ffbf1-eeee-7000-8000-000000000003";
 const parsedDocumentId: Identifier = "019ffbf1-ffff-7000-8000-000000000003";
 const correlationId: Identifier = "019ffbf1-4444-7000-8000-000000000003";
+const reusedProjectId: Identifier = "019ffbf1-5555-7000-8000-000000000003";
+const reusedDocumentId: Identifier = "019ffbf1-6666-7000-8000-000000000003";
 
 const validBody = {
   expectedVersion: 0,
@@ -49,6 +52,7 @@ describeWithPostgres("PostgresLessonConfigurationService", () => {
   beforeEach(async () => {
     await database!.client.delete(lessonConfigurations);
     await database!.client.delete(ingestionQualityReports);
+    await database!.client.delete(sourceDocumentIngestionReuses);
     await database!.client.delete(parsedDocuments);
     await database!.client.delete(sourceDocumentIngestionArtifacts);
     await database!.client.delete(sourceDocuments);
@@ -76,6 +80,14 @@ describeWithPostgres("PostgresLessonConfigurationService", () => {
       id: projectId,
       ownerUserId,
       title: "Water cycle lesson",
+      stage: "ingestion_review",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+    await database!.client.insert(projects).values({
+      id: reusedProjectId,
+      ownerUserId,
+      title: "Reused water cycle lesson",
       stage: "ingestion_review",
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -164,6 +176,48 @@ describeWithPostgres("PostgresLessonConfigurationService", () => {
     });
     expect(response.narrationTarget).toBeNull();
     expect(response.canProceed).toBe(false);
+  });
+
+  it("recognizes a confirmed source whose immutable artifact was reused in this project", async () => {
+    const timestamp = new Date("2026-08-14T10:01:00.000Z");
+    await database!.client.insert(sourceDocuments).values({
+      id: reusedDocumentId,
+      ownerUserId,
+      projectId: reusedProjectId,
+      originalName: "water-cycle-copy.pdf",
+      mediaType: "application/pdf",
+      sizeBytes: 1_000,
+      sha256: "c".repeat(64),
+      storageKey: "users/tenant/water-cycle-copy.pdf",
+      pageCount: 2,
+      status: "active",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+    await database!.client.insert(sourceDocumentIngestionReuses).values({
+      id: "019ffbf1-7777-7000-8000-000000000003",
+      ownerUserId,
+      projectId: reusedProjectId,
+      sourceDocumentId: reusedDocumentId,
+      ingestionArtifactId: artifactId,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    });
+    await markSourceReady();
+
+    const response = await service.get(ownerUserId, reusedProjectId);
+    expect(response.source).toEqual({
+      parsedDocumentVersion: 1,
+      sourceReviewComplete: true,
+    });
+    await expect(
+      service.save({
+        ownerUserId,
+        projectId: reusedProjectId,
+        body: validBody,
+        correlationId,
+      }),
+    ).resolves.toMatchObject({ canProceed: true });
   });
 
   it("persists a valid configuration and exposes the narration target", async () => {

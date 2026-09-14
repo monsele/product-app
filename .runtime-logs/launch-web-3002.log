@@ -1,0 +1,15 @@
+
+> @avlp/web@0.0.0 dev C:\Users\eoaikhina\Documents\repos\product-app\apps\web
+> next dev
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3002
+   - Network:      http://192.168.21.3:3002
+
+ ✓ Starting...
+ ✓ Ready in 8s
+ ○ Compiling / ...
+ ✓ Compiled / in 26.8s (10487 modules)
+ GET / 200 in 6501ms
+ GET / 200 in 3468ms
+ GET / 200 in 1109ms

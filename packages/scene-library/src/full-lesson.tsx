@@ -2,7 +2,14 @@
 
 import { Player, type PlayerRef } from "@remotion/player";
 import { Audio, interpolate, Sequence, useCurrentFrame } from "remotion";
-import React, { useEffect, useRef, useState, type JSX } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type JSX,
+} from "react";
 import { z } from "zod";
 import {
   previewAssetSchema,
@@ -324,7 +331,11 @@ export function FullLessonComposition({
               scene={scene}
             />
             {narration?.kind === "browser-audio" ? (
-              <Audio onError={onAudioError} src={narration.src} />
+              <Audio
+                pauseWhenBuffering
+                onError={onAudioError}
+                src={narration.src}
+              />
             ) : null}
           </Sequence>
         );
@@ -351,10 +362,33 @@ export function FullLessonPreviewPlayer({
   onMediaError?: () => void;
   quality?: PreviewQuality;
 }>): JSX.Element {
-  const parsed = fullLessonCompositionPropsSchema.safeParse(input);
+  const parsed = useMemo(
+    () => fullLessonCompositionPropsSchema.safeParse(input),
+    [input],
+  );
   const playerRef = useRef<PlayerRef>(null);
   const [frame, setFrame] = useState(0);
   const [playbackError, setPlaybackError] = useState<string>();
+  const onAudioError = useCallback(() => {
+    setPlaybackError(
+      "Preview audio could not be played. Renewing preview media.",
+    );
+    onMediaError?.();
+  }, [onMediaError]);
+  const previewSettings = getPreviewCompositionSettings(quality);
+  // Remotion includes inputProps in its playback-clock dependencies. Recreating
+  // them on frameupdate restarts that clock and makes audio seek backward.
+  const playerInput = useMemo(
+    () =>
+      parsed.success
+        ? {
+            ...parsed.data,
+            onAudioError,
+            viewportScale: previewSettings.scale,
+          }
+        : undefined,
+    [parsed, onAudioError, previewSettings.scale],
+  );
   useEffect(() => {
     setFrame(0);
     setPlaybackError(undefined);
@@ -376,7 +410,6 @@ export function FullLessonPreviewPlayer({
     );
   const timeline = calculateLessonTimeline(parsed.data.lesson);
   const durationInFrames = getLessonDurationInFrames(parsed.data.lesson);
-  const previewSettings = getPreviewCompositionSettings(quality);
   const active = getTimelineSegmentAtFrame(timeline, frame);
   const seek = (nextFrame: number): void => {
     const safeFrame = Math.min(
@@ -412,16 +445,7 @@ export function FullLessonPreviewPlayer({
           </section>
         )}
         fps={videoTheme.canvas.fps}
-        inputProps={{
-          ...parsed.data,
-          onAudioError: () => {
-            setPlaybackError(
-              "Preview audio could not be played. Renewing preview media.",
-            );
-            onMediaError?.();
-          },
-          viewportScale: previewSettings.scale,
-        }}
+        inputProps={playerInput!}
         ref={playerRef}
         style={{ width: "100%" }}
       />
@@ -457,9 +481,7 @@ export function FullLessonPreviewPlayer({
             max={durationInFrames - 1}
             min={0}
             onChange={(event) => seek(Number(event.currentTarget.value))}
-            style={
-              { "--sp-progress": `${progress}%` } as React.CSSProperties
-            }
+            style={{ "--sp-progress": `${progress}%` } as React.CSSProperties}
             type="range"
             value={frame}
           />

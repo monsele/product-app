@@ -712,12 +712,14 @@ export function SceneEditorForm({
   revision,
   disabled,
   onPersisted,
+  onTemplateChanged,
 }: {
   projectId: string;
   detail: StoryboardSceneDetailResponse;
   revision: number;
   disabled: boolean;
   onPersisted: (message?: string) => void;
+  onTemplateChanged?: (requiresNewVisual: boolean) => void;
 }): JSX.Element {
   const [draft, setDraft] = useState<SceneSpec>(detail.scene.scene);
   const [saveState, setSaveState] = useState<SaveState>("saved");
@@ -841,8 +843,13 @@ export function SceneEditorForm({
       }
       setDraft(result.scene.scene);
       setSaveState("saved");
-      const changedMessage = `Template changed. Invalidated: ${result.invalidated.join(", ")}.`;
+      const requiresNewVisual =
+        sceneEditorMetadata(template).assetSlots.length > 0;
+      const changedMessage = requiresNewVisual
+        ? "Template changed. The previous visual was removed because it does not match this layout. In Visual, generate and review a new template-specific image before previewing."
+        : `Template changed. Invalidated: ${result.invalidated.join(", ")}.`;
       onPersisted(changedMessage);
+      onTemplateChanged?.(requiresNewVisual);
     } catch (error) {
       setSaveState("failed");
       setMessage(

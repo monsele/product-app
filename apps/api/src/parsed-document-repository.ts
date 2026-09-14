@@ -10,9 +10,11 @@ import {
   parsedSections,
   parsedTableCells,
   parsedTables,
+  sourceDocumentIngestionReuses,
   type DatabaseClient,
 } from "@avlp/database";
-import { and, count, desc, eq, inArray } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
+import { findLatestProjectParsedDocument } from "./project-parsed-document.js";
 
 /** Tenant-scoped read model for ingestion review and downstream source lookup. */
 export class ParsedDocumentRepository {
@@ -37,17 +39,10 @@ export class ParsedDocumentRepository {
       }
     | undefined
   > {
-    const [document] = await this.database
-      .select()
-      .from(parsedDocuments)
-      .where(
-        and(
-          eq(parsedDocuments.ownerUserId, input.ownerUserId),
-          eq(parsedDocuments.projectId, input.projectId),
-        ),
-      )
-      .orderBy(desc(parsedDocuments.createdAt))
-      .limit(1);
+    const document = await findLatestProjectParsedDocument(
+      this.database,
+      input,
+    );
     if (document === undefined) return undefined;
     const [qualityRow] = await this.database
       .select({
@@ -141,18 +136,11 @@ export class ParsedDocumentRepository {
       }
     | undefined
   > {
-    const [document] = await this.database
-      .select({ id: parsedDocuments.id })
-      .from(parsedDocuments)
-      .where(
-        and(
-          eq(parsedDocuments.id, input.parsedDocumentId),
-          eq(parsedDocuments.ownerUserId, input.ownerUserId),
-          eq(parsedDocuments.projectId, input.projectId),
-        ),
-      )
-      .limit(1);
-    if (document === undefined) return undefined;
+    const document = await findLatestProjectParsedDocument(
+      this.database,
+      input,
+    );
+    if (document?.id !== input.parsedDocumentId) return undefined;
     const [section] = await this.database
       .select()
       .from(parsedSections)
@@ -231,19 +219,32 @@ export class ParsedDocumentRepository {
       }
     | undefined
   > {
-    const [document] = await this.database
-      .select()
-      .from(parsedDocuments)
-      .where(
-        and(
-          eq(parsedDocuments.ownerUserId, input.ownerUserId),
-          eq(parsedDocuments.projectId, input.projectId),
-          eq(parsedDocuments.sourceDocumentId, input.sourceDocumentId),
-        ),
-      )
-      .orderBy(parsedDocuments.createdAt)
-      .limit(1);
+    const document = await findLatestProjectParsedDocument(
+      this.database,
+      input,
+    );
     if (document === undefined) return undefined;
+    if (document.sourceDocumentId !== input.sourceDocumentId) {
+      const [reuse] = await this.database
+        .select({ id: sourceDocumentIngestionReuses.id })
+        .from(sourceDocumentIngestionReuses)
+        .where(
+          and(
+            eq(sourceDocumentIngestionReuses.ownerUserId, input.ownerUserId),
+            eq(sourceDocumentIngestionReuses.projectId, input.projectId),
+            eq(
+              sourceDocumentIngestionReuses.sourceDocumentId,
+              input.sourceDocumentId,
+            ),
+            eq(
+              sourceDocumentIngestionReuses.ingestionArtifactId,
+              document.ingestionArtifactId,
+            ),
+          ),
+        )
+        .limit(1);
+      if (reuse === undefined) return undefined;
+    }
     const [sections, blocks, figures, tables, warnings] = await Promise.all([
       this.database
         .select()
