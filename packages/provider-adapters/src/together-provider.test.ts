@@ -8,10 +8,10 @@ import {
 } from "./together-provider.js";
 
 const png1x1 = new Uint8Array([
-  137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1,
-  0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65,
-  84, 8, 215, 99, 248, 207, 192, 240, 31, 0, 5, 0, 1, 255, 137, 153, 61,
-  29, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
+  137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0,
+  0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 8, 215,
+  99, 248, 207, 192, 240, 31, 0, 5, 0, 1, 255, 137, 153, 61, 29, 0, 0, 0, 0, 73,
+  69, 78, 68, 174, 66, 96, 130,
 ]);
 
 function response(body: unknown, status = 200): Response {
@@ -91,23 +91,35 @@ describe("Together provider adapters", () => {
       usage: { inputTokens: 12, outputTokens: 4 },
       retries: 0,
     });
-    expect(JSON.parse(fetcher.mock.calls[0]![1]?.body as string)).toMatchObject({
-      model: togetherModelDefaults.llm,
-    });
-    expect(JSON.parse(fetcher.mock.calls[0]![1]?.body as string)).not.toHaveProperty("response_format");
-    expect(JSON.parse(fetcher.mock.calls[0]![1]?.body as string)).not.toHaveProperty("reasoning");
+    expect(JSON.parse(fetcher.mock.calls[0]![1]?.body as string)).toMatchObject(
+      {
+        model: togetherModelDefaults.llm,
+      },
+    );
+    expect(JSON.parse(fetcher.mock.calls[0]![1]?.body as string)).toMatchObject(
+      {
+        response_format: { type: "json_object" },
+      },
+    );
+    expect(JSON.parse(fetcher.mock.calls[0]![1]?.body as string)).toMatchObject(
+      {
+        reasoning: { enabled: false },
+      },
+    );
   });
 
   it("streams chat completions and drops reasoning deltas", async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
-      streamResponse([
-        chunk({ reasoning: "thinking about the answer" }),
-        chunk({ content: '{"ok":' }),
-        chunk({ content: "true}" }),
-        chunk({ finishReason: "stop" }),
-        chunk({ usage: { prompt_tokens: 73, completion_tokens: 41 } }),
-      ]),
-    );
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        streamResponse([
+          chunk({ reasoning: "thinking about the answer" }),
+          chunk({ content: '{"ok":' }),
+          chunk({ content: "true}" }),
+          chunk({ finishReason: "stop" }),
+          chunk({ usage: { prompt_tokens: 73, completion_tokens: 41 } }),
+        ]),
+      );
     const provider = new TogetherLanguageModelProvider({
       apiKey: "test-key",
       fetcher,
@@ -123,10 +135,12 @@ describe("Together provider adapters", () => {
       finishReason: "stop",
       usage: { inputTokens: 73, outputTokens: 41 },
     });
-    expect(JSON.parse(fetcher.mock.calls[0]![1]?.body as string)).toMatchObject({
-      stream: true,
-      stream_options: { include_usage: true },
-    });
+    expect(JSON.parse(fetcher.mock.calls[0]![1]?.body as string)).toMatchObject(
+      {
+        stream: true,
+        stream_options: { include_usage: true },
+      },
+    );
   });
 
   it("treats the request timeout as a stall guard rather than a total duration cap", async () => {
@@ -141,7 +155,9 @@ describe("Together provider adapters", () => {
         const encoder = new TextEncoder();
         for (const part of chunks) {
           await new Promise((resolve) => setTimeout(resolve, 700));
-          controller.enqueue(encoder.encode(`data: ${JSON.stringify(part)}\n\n`));
+          controller.enqueue(
+            encoder.encode(`data: ${JSON.stringify(part)}\n\n`),
+          );
         }
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         controller.close();
@@ -219,18 +235,22 @@ describe("Together provider adapters", () => {
       units: 1,
       moderation: { status: "approved", code: "together_safety_checker" },
     });
-    expect(JSON.parse(fetcher.mock.calls[0]![1]?.body as string)).toMatchObject({
-      model: togetherModelDefaults.image,
-      response_format: "base64",
-      output_format: "png",
-      disable_safety_checker: false,
-    });
+    expect(JSON.parse(fetcher.mock.calls[0]![1]?.body as string)).toMatchObject(
+      {
+        model: togetherModelDefaults.image,
+        response_format: "base64",
+        output_format: "png",
+        disable_safety_checker: false,
+      },
+    );
   });
 
   it("does not expose response bodies in provider errors", async () => {
-    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
-      response({ error: { message: "secret upstream detail" } }, 400),
-    );
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        response({ error: { message: "secret upstream detail" } }, 400),
+      );
     const provider = new TogetherLanguageModelProvider({
       apiKey: "test-key",
       fetcher,

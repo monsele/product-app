@@ -1,7 +1,10 @@
 import { videoTheme } from "@avlp/design-system/video-theme";
 import { Easing, interpolate, useCurrentFrame } from "remotion";
 import type { CSSProperties, JSX } from "react";
-import type { SceneComponentProps } from "./scene-registry.js";
+import {
+  resolveSafeDiagramAsset,
+  type SceneComponentProps,
+} from "./scene-registry.js";
 import { getSceneFrameTiming } from "./timing.js";
 import { GraphDiagram } from "./graph-diagram.js";
 
@@ -71,6 +74,7 @@ function stepIcon(
 
 export function ProcessSceneFrame({
   frame,
+  resolvedAssets,
   scene,
 }: SceneComponentProps & Readonly<{ frame: number }>): JSX.Element {
   if (scene.template !== "process")
@@ -144,6 +148,10 @@ export function ProcessSceneFrame({
           {steps.map((step, index) => {
             const isRevealed = index <= state.activeStep;
             const icon = stepIcon(scene, index);
+            const resolvedIcon = resolveSafeDiagramAsset(
+              icon?.assetId,
+              resolvedAssets,
+            );
             return (
               <li
                 key={`${index}-${step}`}
@@ -170,10 +178,23 @@ export function ProcessSceneFrame({
                   {index + 1}
                 </span>
                 <span style={{ display: "grid", gap: videoTheme.spacing.xs, minWidth: 0 }}>
-                  {icon === undefined ? null : (
+                  {icon === undefined ? null : resolvedIcon === undefined ? (
                     <span aria-label={icon.altText ?? `Icon for step ${index + 1}`} data-process-step-icon={index + 1} style={{ color: videoTheme.colors.accent, fontSize: 24 }}>
                       ●
                     </span>
+                  ) : (
+                    <img
+                      alt={resolvedIcon.altText}
+                      data-process-step-image={index + 1}
+                      data-process-step-image-source={resolvedIcon.source}
+                      src={resolvedIcon.src}
+                      style={{
+                        borderRadius: videoTheme.radii.md,
+                        height: 72,
+                        objectFit: "cover",
+                        width: 72,
+                      }}
+                    />
                   )}
                   <span style={{ fontSize: layout === "horizontal" ? 34 : 30, fontWeight: index === state.activeStep ? 700 : 500, lineHeight: videoTheme.typography.lineHeight, overflowWrap: "anywhere" }}>
                     {step}

@@ -4,87 +4,47 @@
 
    ▲ Next.js 15.5.23
    - Local:        http://localhost:3000
-   - Network:      http://172.29.208.1:3000
+   - Network:      http://192.168.0.115:3000
 
  ✓ Starting...
- ✓ Ready in 8.5s
+ ✓ Ready in 6.2s
  ○ Compiling / ...
- ✓ Compiled / in 16.3s (10487 modules)
- GET / 200 in 121ms
- GET / 200 in 52ms
- GET / 200 in 48ms
- GET / 200 in 91ms
- GET / 200 in 74ms
- GET / 200 in 86ms
- GET / 200 in 52ms
- GET / 200 in 55ms
- ○ Compiling /register ...
- ✓ Compiled /register in 2.5s (10533 modules)
- GET /register 200 in 3185ms
+ ✓ Compiled / in 27.6s (10487 modules)
+ GET / 200 in 10732ms
+ GET / 200 in 30125ms
+ GET / 200 in 206ms
+ GET / 200 in 146ms
+ ○ Compiling /sign-in ...
+ ✓ Compiled /sign-in in 6.2s (10533 modules)
+ GET /sign-in 200 in 8075ms
  ○ Compiling /middleware ...
- ✓ Compiled /middleware in 564ms (158 modules)
+ ✓ Compiled /middleware in 1034ms (158 modules)
  ○ Compiling /workspace ...
- ✓ Compiled /workspace in 4.1s (10715 modules)
- GET /workspace 200 in 6264ms
- ○ Compiling /api/projects ...
- ✓ Compiled /api/projects in 3.6s (10732 modules)
- POST /api/projects 303 in 4592ms
- ○ Compiling /workspace/[projectId]/upload ...
- ✓ Compiled /workspace/[projectId]/upload in 6.9s (13891 modules)
- GET /workspace/01a092ac-56c3-736b-82ad-b2093130b6cc/upload 200 in 10604ms
- ○ Compiling /workspace/[projectId]/review ...
- ✓ Compiled /workspace/[projectId]/review in 3.6s (13911 modules)
- GET /workspace/01a092ac-56c3-736b-82ad-b2093130b6cc/review 200 in 5978ms
- GET / 200 in 80ms
- GET / 200 in 2056ms
- GET / 200 in 217ms
- ○ Compiling /sign-in ...
- ✓ Compiled /sign-in in 11.5s (13896 modules)
- GET /sign-in 200 in 8238ms
- GET /register 200 in 205ms
- GET /workspace 200 in 1619ms
- ○ Compiling /api/projects ...
- ✓ Compiled /api/projects in 4.3s (8605 modules)
- POST /api/projects 303 in 5336ms
- ○ Compiling /workspace/[projectId]/upload ...
- ✓ Compiled /workspace/[projectId]/upload in 2.6s (8616 modules)
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/upload 200 in 4024ms
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/review 200 in 325ms
- ○ Compiling /workspace/[projectId]/configuration ...
- ✓ Compiled /workspace/[projectId]/configuration in 13.2s (13910 modules)
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/configuration 200 in 16531ms
+ ✓ Compiled /workspace in 6.6s (10715 modules)
+ GET /workspace 200 in 8895ms
  ○ Compiling /workspace/[projectId]/objectives ...
- ✓ Compiled /workspace/[projectId]/objectives in 9.5s (13902 modules)
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/objectives 200 in 12111ms
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/objectives 200 in 1191ms
+ ✓ Compiled /workspace/[projectId]/objectives in 17.6s (13876 modules)
+ GET /workspace/01a09d3a-816f-784c-aa79-d34f36fbcab8/objectives 200 in 21152ms
  ○ Compiling /workspace/[projectId]/outline ...
- ✓ Compiled /workspace/[projectId]/outline in 20.6s (13843 modules)
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/outline 200 in 23024ms
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/outline 200 in 775ms
+ GET /workspace/01a09d3a-816f-784c-aa79-d34f36fbcab8/objectives 200 in 8915ms
+ ✓ Compiled /workspace/[projectId]/outline in 16s (13886 modules)
+ GET /workspace/01a09d3a-816f-784c-aa79-d34f36fbcab8/outline 200 in 18375ms
+ GET /workspace/01a09d3a-816f-784c-aa79-d34f36fbcab8/outline 200 in 2087ms
  ○ Compiling /workspace/[projectId]/narration ...
- ✓ Compiled /workspace/[projectId]/narration in 15s (13843 modules)
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/narration 200 in 17160ms
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/outline 200 in 2481ms
+ ✓ Compiled /workspace/[projectId]/narration in 17.9s (13898 modules)
+ GET /workspace/01a09d3a-816f-784c-aa79-d34f36fbcab8/narration 200 in 20211ms
+ GET / 200 in 1065ms
+ ✓ Compiled in 49.1s (13890 modules)
+ ○ Compiling /workspace/[projectId]/narration ...
+ ✓ Compiled /workspace/[projectId]/narration in 4.8s (8601 modules)
+ GET /workspace/01a09d3a-816f-784c-aa79-d34f36fbcab8/narration 200 in 7471ms
  ○ Compiling /workspace/[projectId]/storyboard ...
- ✓ Compiled /workspace/[projectId]/storyboard in 43.2s (13965 modules)
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/storyboard 200 in 47733ms
+ ✓ Compiled /workspace/[projectId]/storyboard in 27.4s (14019 modules)
+ GET /workspace/01a09d3a-816f-784c-aa79-d34f36fbcab8/storyboard 200 in 29866ms
+ GET /workspace/01a09d3a-816f-784c-aa79-d34f36fbcab8/storyboard 200 in 6076ms
+ GET /workspace/01a09d3a-816f-784c-aa79-d34f36fbcab8/storyboard 200 in 1280ms
+ ✓ Compiled in 25.5s (13995 modules)
+ ✓ Compiled in 40.7s (13995 modules)
  ○ Compiling /workspace/[projectId]/preview ...
- ✓ Compiled /workspace/[projectId]/preview in 23.5s (14009 modules)
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/preview 200 in 28553ms
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/storyboard 200 in 6448ms
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/preview 200 in 950ms
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/storyboard 200 in 457ms
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/preview 200 in 850ms
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/narration 200 in 654ms
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/storyboard 200 in 390ms
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/preview 200 in 534ms
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/preview 200 in 1392ms
- ○ Compiling /sign-in ...
- ✓ Compiled /sign-in in 38.5s (8651 modules)
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/storyboard 200 in 1715ms
- ✓ Compiled in 124.3s (14015 modules)
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/storyboard 200 in 1319ms
- ✓ Compiled in 139.6s (14005 modules)
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/storyboard 200 in 1877ms
- ✓ Compiled in 73.2s (14005 modules)
- GET /workspace/01a092b5-8f02-794d-a205-2055ae5a1084/preview 200 in 3750ms
+ ✓ Compiled /workspace/[projectId]/preview in 22.1s (14003 modules)
+ GET /workspace/01a09d3a-816f-784c-aa79-d34f36fbcab8/preview 200 in 25576ms

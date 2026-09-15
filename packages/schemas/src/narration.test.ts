@@ -64,8 +64,10 @@ function blockRow(overrides: Record<string, unknown> = {}) {
         ? merged.contentHash
         : computeNarrationBlockContentHash({
             text: merged.text as string,
-            sourceRefs: merged.sourceRefs as LessonNarrationSet["blocks"][number]["sourceRefs"],
-            generatedAdditions: merged.generatedAdditions as LessonNarrationSet["blocks"][number]["generatedAdditions"],
+            sourceRefs:
+              merged.sourceRefs as LessonNarrationSet["blocks"][number]["sourceRefs"],
+            generatedAdditions:
+              merged.generatedAdditions as LessonNarrationSet["blocks"][number]["generatedAdditions"],
             generated: merged.generated as boolean,
           }),
   });
@@ -95,7 +97,10 @@ function setRow(overrides: Record<string, unknown> = {}): LessonNarrationSet {
   const blocks = (overrides.blocks ?? row.blocks) as typeof row.blocks;
   return lessonNarrationSetSchema.parse({
     ...row,
-    contentHash: computeNarrationSetContentHash(blocks, row.totalEstimatedSeconds),
+    contentHash: computeNarrationSetContentHash(
+      blocks,
+      row.totalEstimatedSeconds,
+    ),
     ...overrides,
   });
 }
@@ -278,9 +283,7 @@ describe("persisted narration schemas", () => {
   });
 
   it("rejects an invalid narration set status", () => {
-    expect(() =>
-      narrationSetStatusSchema.parse("invalid"),
-    ).toThrow();
+    expect(() => narrationSetStatusSchema.parse("invalid")).toThrow();
   });
 
   it("rejects a non-SHA256 content hash", () => {
@@ -357,11 +360,11 @@ describe("narration response schema", () => {
 });
 
 describe("narration generation compatibility", () => {
-  it("targets the narration v2 prompt with the Together model", () => {
+  it("targets the narration v3 prompt with the Together model", () => {
     expect(currentNarrationGenerationCompatibility).toMatchObject({
       promptId: "narration",
-      promptVersion: "v2",
-      model: "Qwen/Qwen3.8-Flash",
+      promptVersion: "v3",
+      model: "moonshotai/Kimi-K3",
     });
   });
 });
@@ -376,11 +379,14 @@ describe("narration content hashes", () => {
     };
     expect(computeNarrationBlockContentHash(input)).toMatch(/^[0-9a-f]{64}$/);
     expect(computeNarrationBlockContentHash(input)).toBe(
-      computeNarrationBlockContentHash({ ...input, sourceRefs: [...input.sourceRefs] }),
+      computeNarrationBlockContentHash({
+        ...input,
+        sourceRefs: [...input.sourceRefs],
+      }),
     );
-    expect(computeNarrationBlockContentHash({ ...input, text: "Changed." })).not.toBe(
-      computeNarrationBlockContentHash(input),
-    );
+    expect(
+      computeNarrationBlockContentHash({ ...input, text: "Changed." }),
+    ).not.toBe(computeNarrationBlockContentHash(input));
   });
 
   it("derives a set content hash that changes when a block changes", () => {
@@ -395,7 +401,9 @@ describe("narration content hashes", () => {
   });
 
   it("rejects a block or set with an invalid content hash", () => {
-    expect(() => lessonNarrationBlockSchema.parse({ ...blockRow(), contentHash: "x" })).toThrow();
+    expect(() =>
+      lessonNarrationBlockSchema.parse({ ...blockRow(), contentHash: "x" }),
+    ).toThrow();
     expect(() => setRow({ contentHash: "x" })).toThrow();
   });
 });
@@ -421,9 +429,15 @@ describe("narration block update input", () => {
   });
 
   it("rejects unknown fields and a missing expected revision", () => {
-    expect(() => narrationBlockUpdateInputSchema.parse({ text: "x" })).toThrow();
     expect(() =>
-      narrationBlockUpdateInputSchema.parse({ text: "x", expectedRevision: 0, surprise: true }),
+      narrationBlockUpdateInputSchema.parse({ text: "x" }),
+    ).toThrow();
+    expect(() =>
+      narrationBlockUpdateInputSchema.parse({
+        text: "x",
+        expectedRevision: 0,
+        surprise: true,
+      }),
     ).toThrow();
   });
 });
@@ -438,7 +452,10 @@ describe("narration block transform input", () => {
 
   it("rejects an unknown mode", () => {
     expect(() =>
-      narrationBlockTransformInputSchema.parse({ mode: "rewrite", expectedRevision: 0 }),
+      narrationBlockTransformInputSchema.parse({
+        mode: "rewrite",
+        expectedRevision: 0,
+      }),
     ).toThrow();
   });
 });
@@ -482,7 +499,10 @@ describe("narration transform contracts", () => {
         block: {
           outlineItemId: outlineItemA,
           sentences: [
-            { text: "Water turns into vapour when heated.", sourceBlockIds: [blockId] },
+            {
+              text: "Water turns into vapour when heated.",
+              sourceBlockIds: [blockId],
+            },
           ],
         },
       }),
@@ -497,7 +517,10 @@ describe("narration transform contracts", () => {
         block: {
           outlineItemId: outlineItemA,
           sentences: [
-            { text: "Water turns into vapour when heated.", sourceBlockIds: [blockId] },
+            {
+              text: "Water turns into vapour when heated.",
+              sourceBlockIds: [blockId],
+            },
           ],
         },
       }),
@@ -508,7 +531,7 @@ describe("narration transform contracts", () => {
     expect(currentNarrationTransformCompatibility).toMatchObject({
       promptId: "narration-block",
       promptVersion: "v1",
-      model: "Qwen/Qwen3.8-Flash",
+      model: "moonshotai/Kimi-K3",
     });
   });
 });
@@ -554,7 +577,10 @@ describe("narration candidates and revisions", () => {
       narrationCandidateDecisionInputSchema.parse({ expectedRevision: 0 }),
     ).not.toThrow();
     expect(() =>
-      narrationBlockRestoreInputSchema.parse({ revision: 1, expectedRevision: 0 }),
+      narrationBlockRestoreInputSchema.parse({
+        revision: 1,
+        expectedRevision: 0,
+      }),
     ).not.toThrow();
   });
 });

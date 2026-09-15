@@ -4,6 +4,7 @@ import {
   type ProviderCompletionResponse,
   providerCompletionResponseSchema,
 } from "./contracts.js";
+import { togetherModelDefaults } from "@avlp/config";
 
 /** Mirrors the storyboard scene bounds in `@avlp/schemas`. */
 const STORYBOARD_SCENE_MIN_SECONDS = 3;
@@ -986,7 +987,7 @@ function generateGroundingCheckJson(text: string, allUuids: string[]): string {
  */
 export class DynamicMockLanguageModelProvider implements LanguageModelProvider {
   public readonly providerId: string;
-  public readonly supportedModels = ["Qwen/Qwen3.8-Flash"] as const;
+  public readonly supportedModels = [togetherModelDefaults.llm] as const;
   public readonly requests: ProviderCompletionRequest[] = [];
   public readonly completions: string[] = [];
 

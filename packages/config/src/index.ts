@@ -18,7 +18,9 @@ export function createId(now = new Date()): Identifier {
   }
   bytes[6] = (bytes[6]! & 0x0f) | 0x70;
   bytes[8] = (bytes[8]! & 0x3f) | 0x80;
-  const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+  const hex = Array.from(bytes, (value) =>
+    value.toString(16).padStart(2, "0"),
+  ).join("");
   return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
@@ -387,7 +389,9 @@ export const ingestionServiceEnvironmentSchema = z.object({
 
 /** Together model IDs selected for the current production provider wiring. */
 export const togetherModelDefaults = {
-  llm: "Qwen/Qwen3.8-Flash",
+  // Kimi K3 supports Together's structured-output mode and is the current
+  // default for source-grounded generation.
+  llm: "moonshotai/Kimi-K3",
   tts: "canopylabs/orpheus-3b-0.1-ft",
   image: "prunaai/p-image-ideogram",
   alignment: "nvidia/parakeet-tdt-0.6b-v3",
@@ -407,17 +411,41 @@ const togetherEnvironmentSchema = z.object({
     z.string().trim().min(1).optional(),
   ),
   TOGETHER_API_BASE_URL: z.string().url().default("https://api.together.ai/v1"),
-  TOGETHER_TTS_MODEL: z.string().trim().min(1).max(200).default(togetherModelDefaults.tts),
+  TOGETHER_TTS_MODEL: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .default(togetherModelDefaults.tts),
   TOGETHER_TTS_VOICE: z.string().trim().min(1).max(100).default("tara"),
   TOGETHER_TTS_COST_USD_PER_MILLION_CHARACTERS: z.coerce
     .number()
     .finite()
     .nonnegative()
     .default(15),
-  TOGETHER_ALIGNMENT_MODEL: z.string().trim().min(1).max(200).default(togetherModelDefaults.alignment),
-  TOGETHER_IMAGE_MODEL: z.string().trim().min(1).max(200).default(togetherModelDefaults.image),
-  TOGETHER_IMAGE_COST_USD: z.coerce.number().finite().nonnegative().default(0.00225),
-  TOGETHER_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(300_000).default(60_000),
+  TOGETHER_ALIGNMENT_MODEL: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .default(togetherModelDefaults.alignment),
+  TOGETHER_IMAGE_MODEL: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .default(togetherModelDefaults.image),
+  TOGETHER_IMAGE_COST_USD: z.coerce
+    .number()
+    .finite()
+    .nonnegative()
+    .default(0.00225),
+  TOGETHER_REQUEST_TIMEOUT_MS: z.coerce
+    .number()
+    .int()
+    .min(1_000)
+    .max(300_000)
+    .default(60_000),
   TOGETHER_MAX_RETRIES: z.coerce.number().int().min(0).max(8).default(8),
 });
 export const apiEnvironmentSchema = baseEnvironmentSchema
@@ -561,10 +589,7 @@ export const workerEnvironmentSchema = baseEnvironmentSchema
         path: ["INGESTION_SERVICE_TOKEN"],
         message: "INGESTION_SERVICE_TOKEN is required in production.",
       });
-    if (
-      value.NODE_ENV === "production" &&
-      value.TOGETHER_API_KEY === undefined
-    )
+    if (value.NODE_ENV === "production" && value.TOGETHER_API_KEY === undefined)
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["TOGETHER_API_KEY"],

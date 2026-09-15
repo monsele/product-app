@@ -4,48 +4,12 @@
 
    ▲ Next.js 15.5.23
    - Local:        http://localhost:3000
-   - Network:      http://172.29.208.1:3000
+   - Network:      http://192.168.0.115:3000
 
  ✓ Starting...
- ✓ Ready in 17.3s
- ○ Compiling /_not-found ...
- ✓ Compiled /register in 93.2s (10533 modules)
- GET /register 200 in 10135ms
- GET /register 200 in 7739ms
- ○ Compiling / ...
- ✓ Compiled /sign-in in 21.7s (10533 modules)
- GET / 200 in 28982ms
- GET /sign-in 200 in 26050ms
- ○ Compiling /middleware ...
- ✓ Compiled /middleware in 1120ms (158 modules)
- ○ Compiling /workspace ...
- ✓ Compiled /workspace in 13.4s (10711 modules)
- GET /workspace 200 in 17502ms
- ○ Compiling /api/projects ...
- ✓ Compiled /api/projects in 14.3s (10730 modules)
- POST /api/projects 303 in 15803ms
- ○ Compiling /workspace/[projectId]/upload ...
- ✓ Compiled /workspace/[projectId]/upload in 22.5s (13889 modules)
- GET /workspace/01a09d35-627a-7461-8693-2b1b57b396a4/upload 200 in 27637ms
- ○ Compiling /workspace/[projectId]/review ...
- ✓ Compiled /workspace/[projectId]/review in 22.4s (13890 modules)
- GET /workspace/01a09d35-627a-7461-8693-2b1b57b396a4/review 200 in 25571ms
- GET /workspace 200 in 2412ms
- ○ Compiling /api/projects/[projectId]/delete ...
- ✓ Compiled /api/projects/[projectId]/delete in 14s (13909 modules)
- POST /api/projects/01a09d35-627a-7461-8693-2b1b57b396a4/delete 303 in 17230ms
- GET /workspace?done=delete 200 in 2257ms
- ○ Compiling /api/projects ...
- ✓ Compiled /api/projects in 3.3s (8614 modules)
- POST /api/projects 303 in 4032ms
- GET /workspace/01a09d3a-816f-784c-aa79-d34f36fbcab8/upload 200 in 2926ms
- GET /workspace/01a09d3a-816f-784c-aa79-d34f36fbcab8/review 200 in 636ms
- ○ Compiling /workspace/[projectId]/configuration ...
- ✓ Compiled /workspace/[projectId]/configuration in 23.1s (13904 modules)
- GET /workspace/01a09d3a-816f-784c-aa79-d34f36fbcab8/configuration 200 in 26543ms
- GET /workspace/01a09d3a-816f-784c-aa79-d34f36fbcab8/review 200 in 373ms
- GET /workspace/01a09d3a-816f-784c-aa79-d34f36fbcab8/configuration 200 in 236ms
- GET /workspace/01a09d3a-816f-784c-aa79-d34f36fbcab8/configuration 200 in 2563ms
- ○ Compiling /workspace/[projectId]/objectives ...
- ✓ Compiled /workspace/[projectId]/objectives in 21.6s (13922 modules)
- GET /workspace/01a09d3a-816f-784c-aa79-d34f36fbcab8/objectives 200 in 23747ms
+ ✓ Ready in 10s
+ ○ Compiling /register ...
+ ✓ Compiled /register in 33.7s (10528 modules)
+ GET /register 200 in 787ms
+ GET /register 200 in 319ms
+ GET /register 200 in 419ms

@@ -14,9 +14,9 @@ export type ModelPricing = {
 export type ModelPricingTable = Readonly<Record<string, ModelPricing>>;
 
 export const defaultModelPricing: ModelPricingTable = {
-  "Qwen/Qwen3.8-Flash": {
-    inputUsdPerMillionTokens: 0.15,
-    outputUsdPerMillionTokens: 0.47,
+  "moonshotai/Kimi-K3": {
+    inputUsdPerMillionTokens: 3,
+    outputUsdPerMillionTokens: 15,
   },
   "mock-model-1": {
     inputUsdPerMillionTokens: 0.5,

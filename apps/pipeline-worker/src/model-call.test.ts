@@ -108,6 +108,8 @@ function handlerOptions(
     database?: { client: unknown };
     modelCalls?: ModelCallRepository;
     maxRepairs?: number;
+    deterministicChecks?: ModelCallHandlerOptions<ObjectivesOutput>["deterministicChecks"];
+    deterministicRepairInstruction?: ModelCallHandlerOptions<ObjectivesOutput>["deterministicRepairInstruction"];
     persistCandidate?: ModelCallHandlerOptions<{
       objectives: { statement: string; sourceBlockIds: string[] }[];
     }>["persistCandidate"];
@@ -191,6 +193,15 @@ function handlerOptions(
     ...(overrides.maxRepairs === undefined
       ? {}
       : { maxRepairs: overrides.maxRepairs }),
+    ...(overrides.deterministicChecks === undefined
+      ? {}
+      : { deterministicChecks: overrides.deterministicChecks }),
+    ...(overrides.deterministicRepairInstruction === undefined
+      ? {}
+      : {
+          deterministicRepairInstruction:
+            overrides.deterministicRepairInstruction,
+        }),
     ...(overrides.persistCandidate === undefined
       ? {}
       : { persistCandidate: overrides.persistCandidate }),
@@ -381,6 +392,48 @@ describe("model-call lifecycle", () => {
     expect(input.context.ownerUserId).toBe(ownerUserId);
     expect(input.context.projectId).toBe(projectId);
     expect(input.value.objectives).toHaveLength(1);
+  });
+
+  it("repairs one safe deterministic failure before persisting a candidate", async () => {
+    const provider = new MockLanguageModelProvider({
+      model: "mock-model-1",
+      completion: sequenceCompletion([
+        JSON.stringify({
+          objectives: [
+            { statement: "Copy source wording.", sourceBlockIds: [blockId] },
+          ],
+        }),
+        JSON.stringify({
+          objectives: [
+            { statement: "Explain evaporation.", sourceBlockIds: [blockId] },
+          ],
+        }),
+      ]),
+    });
+    const deterministicChecks = (value: ObjectivesOutput): void => {
+      if (value.objectives[0]?.statement === "Copy source wording.")
+        throw Object.assign(new Error("Copied source wording."), {
+          code: "LONG_COPIED_PASSAGE",
+        });
+    };
+    const { handler, recorded } = handlerOptions({
+      provider,
+      deterministicChecks,
+      deterministicRepairInstruction: ({ error }) =>
+        (error as { code?: string }).code === "LONG_COPIED_PASSAGE"
+          ? "Rewrite the copied text."
+          : undefined,
+    });
+    const result = await execute(handler, payload());
+    expect(result.outcome).toBe("succeeded");
+    expect(provider.requests).toHaveLength(2);
+    expect(provider.requests[1]?.messages.at(-1)?.content).toContain(
+      "Rewrite the copied text.",
+    );
+    expect(recorded[0]).toMatchObject({
+      status: "succeeded",
+      validationStatus: "repaired",
+    });
   });
 
   it("classifies a candidate persistence failure as retryable", async () => {

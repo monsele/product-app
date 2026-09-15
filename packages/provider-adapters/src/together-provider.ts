@@ -19,8 +19,8 @@ export { togetherModelDefaults } from "@avlp/config";
 
 export const togetherPricing = {
   [togetherModelDefaults.llm]: {
-    inputUsdPerMillionTokens: 0.15,
-    outputUsdPerMillionTokens: 0.47,
+    inputUsdPerMillionTokens: 3,
+    outputUsdPerMillionTokens: 15,
   },
 } as const;
 
@@ -185,10 +185,6 @@ function mapFinishReason(
 }
 
 function responseFormat(request: ProviderCompletionRequest): unknown {
-  // Qwen3.8 Flash is currently catalogued as chat/vision without JSON Mode.
-  // Its prompts already require JSON, and the shared structured-output
-  // lifecycle validates and repairs the response when needed.
-  if (request.model === togetherModelDefaults.llm) return undefined;
   if (request.responseFormat === "json_schema")
     return {
       type: "json_schema",
@@ -379,8 +375,14 @@ export class TogetherLanguageModelProvider implements LanguageModelProvider {
       ...(responseFormat(request) === undefined
         ? {}
         : { response_format: responseFormat(request) }),
-      // Several Together chat models (the default LLM among them) reject
-      // non-streaming requests with `streaming_required`, so always stream.
+      // Objective generation needs a concise, valid structured answer. Kimi's
+      // instant mode preserves the output budget for final content instead of
+      // its optional reasoning trace.
+      ...(request.model === togetherModelDefaults.llm
+        ? { reasoning: { enabled: false } }
+        : {}),
+      // Streaming keeps long generations responsive and lets the timeout act
+      // as a silence guard rather than a cap on total generation time.
       stream: true,
       stream_options: { include_usage: true },
     };

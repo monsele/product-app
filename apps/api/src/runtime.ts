@@ -131,8 +131,6 @@ export async function runApi(input: {
         projectAssetService: new ProjectAssetService(database.client, storage),
         illustrationGenerationService: new IllustrationGenerationService(
           database.client,
-          undefined,
-          environment.MAX_REGENERATIONS_PER_HOUR,
         ),
         ingestionStatusService: new PostgresIngestionStatusService(
           database.client,

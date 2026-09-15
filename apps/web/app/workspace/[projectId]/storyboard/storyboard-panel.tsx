@@ -584,7 +584,6 @@ export function StoryboardPanel({
           method: "POST",
           credentials: "include",
           cache: "no-store",
-          headers: { "content-type": "application/json" },
         },
       );
       const payload: unknown = await response.json().catch(() => null);

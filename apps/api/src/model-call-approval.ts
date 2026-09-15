@@ -1,8 +1,8 @@
 import { type Identifier } from "@avlp/config";
 
 const maximumCostEstimateUsdByModel: Readonly<Record<string, number>> = {
-  // Together Qwen: 200k input tokens × $0.15/M + 32k output × $0.47/M.
-  "Qwen/Qwen3.8-Flash": 0.04504,
+  // Together Kimi K3: 200k input tokens × $3.00/M + 32k output × $15.00/M.
+  "moonshotai/Kimi-K3": 1.08,
 };
 
 /**

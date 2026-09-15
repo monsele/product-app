@@ -29,10 +29,8 @@ import {
   type LessonIllustrationGenerationResponse,
   type VisualRole,
 } from "@avlp/schemas";
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
-
-export const defaultMaximumIllustrationsPerHour = 10;
 
 /** Shape of the persisted `scenes.asset_requirements` column. */
 const sceneAssetRequirementsSchema = z.array(
@@ -174,7 +172,6 @@ export class IllustrationGenerationService {
   public constructor(
     private readonly database: DatabaseClient,
     private readonly now: () => Date = () => new Date(),
-    private readonly maximumIllustrationsPerHour = defaultMaximumIllustrationsPerHour,
   ) {}
 
   /**
@@ -182,10 +179,7 @@ export class IllustrationGenerationService {
    * no binding yet, so a teacher does not have to click through each scene.
    *
    * Each slot goes through `request` so the per-slot revision check, template
-   * validation, idempotency key and rate-limit accounting stay identical to the
-   * single-slot path. The hourly cap is typically lower than the number of
-   * empty slots, so hitting it stops the run and is reported as `skipped`
-   * rather than failing -- the already-queued work is real and worth keeping.
+   * validation and idempotency key stay identical to the single-slot path.
    */
   public async generateMissing(input: {
     ownerUserId: Identifier;
@@ -255,36 +249,26 @@ export class IllustrationGenerationService {
     }
 
     const requests: LessonIllustrationGenerationResponse["requests"] = [];
-    let rateLimited = false;
     for (const entry of missing) {
-      if (rateLimited) break;
-      try {
-        const queued = await this.request({
-          ownerUserId: input.ownerUserId,
-          projectId: input.projectId,
-          sceneId: entry.sceneId,
-          slot: entry.slot,
-          correlationId: input.correlationId,
-          body: {
-            useCase: "conceptual-supporting-illustration",
-            expectedSceneRevision: entry.revision,
-            idempotencyKey: createId(this.now()),
-          },
-        });
-        requests.push({
-          sceneId: entry.sceneId,
-          slot: entry.slot,
-          candidateId: queued.candidateId,
-          jobId: queued.jobId,
-          status: "queued",
-        });
-      } catch (error: unknown) {
-        if (error instanceof PublicError && error.code === "rate_limited") {
-          rateLimited = true;
-          break;
-        }
-        throw error;
-      }
+      const queued = await this.request({
+        ownerUserId: input.ownerUserId,
+        projectId: input.projectId,
+        sceneId: entry.sceneId,
+        slot: entry.slot,
+        correlationId: input.correlationId,
+        body: {
+          useCase: "conceptual-supporting-illustration",
+          expectedSceneRevision: entry.revision,
+          idempotencyKey: createId(this.now()),
+        },
+      });
+      requests.push({
+        sceneId: entry.sceneId,
+        slot: entry.slot,
+        candidateId: queued.candidateId,
+        jobId: queued.jobId,
+        status: "queued",
+      });
     }
 
     // Guarded slots are still missing an asset, so they count toward the total
@@ -295,7 +279,7 @@ export class IllustrationGenerationService {
       totalMissing,
       queued: requests.length,
       skipped: totalMissing - requests.length,
-      rateLimited,
+      rateLimited: false,
       requests,
     });
   }
@@ -382,28 +366,6 @@ export class IllustrationGenerationService {
           ),
         )
         .limit(1);
-      const [usage] = await transaction
-        .select({ count: sql<number>`count(*)::int` })
-        .from(illustrationGenerationCandidates)
-        .where(
-          and(
-            eq(illustrationGenerationCandidates.ownerUserId, input.ownerUserId),
-            eq(illustrationGenerationCandidates.projectId, input.projectId),
-            gte(
-              illustrationGenerationCandidates.createdAt,
-              new Date(now.getTime() - 60 * 60 * 1000),
-            ),
-          ),
-        );
-      if (
-        existing === undefined &&
-        (usage?.count ?? 0) >= this.maximumIllustrationsPerHour
-      )
-        throw new PublicError(
-          "rate_limited",
-          "This project has reached its illustration-generation limit.",
-          429,
-        );
       const candidateId = createId(now);
       const [candidate] = await transaction
         .insert(illustrationGenerationCandidates)

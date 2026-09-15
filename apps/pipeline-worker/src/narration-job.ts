@@ -658,6 +658,11 @@ export function createNarrationGenerationJobHandler(input: {
         sourcePackage,
         operationContext as NarrationOperationContext | undefined,
       ),
+    deterministicRepairInstruction: ({ error }) =>
+      error instanceof NarrationDeterministicCheckError &&
+      error.code === "LONG_COPIED_PASSAGE"
+        ? "Rewrite only the sentence identified by the copied-passage rule in different words. Keep its sourceBlockIds, meaning, outlineItemId, and all other narration unchanged."
+        : undefined,
     persistCandidate: (candidate) =>
       persistNarrationSet({
         executor: input.database,

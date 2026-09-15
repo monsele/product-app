@@ -18,11 +18,11 @@ describe("cost estimation", () => {
   it("includes the selected Together LLM pricing", () => {
     expect(
       estimateCostUsd({
-        model: "Qwen/Qwen3.8-Flash",
+        model: "moonshotai/Kimi-K3",
         inputTokens: 1_000_000,
         outputTokens: 1_000_000,
       }),
-    ).toBe(0.62);
+    ).toBe(18);
   });
 
   it("accepts an explicit pricing table", () => {

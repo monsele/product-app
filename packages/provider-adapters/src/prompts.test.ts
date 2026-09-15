@@ -14,7 +14,9 @@ describe("prompt registry", () => {
   it("registers every versioned repository prompt", () => {
     const registry = new StaticPromptRegistry(repositoryPrompts);
     const definitions = registry.list();
-    expect([...new Set(definitions.map((definition) => definition.kind))].sort()).toEqual([
+    expect(
+      [...new Set(definitions.map((definition) => definition.kind))].sort(),
+    ).toEqual([
       "grounding",
       "narration",
       "objectives",
@@ -40,6 +42,14 @@ describe("prompt registry", () => {
     expect(v2.purpose).toContain("measurable");
     expect(v2.evaluationCases).toContain("objectives-v1-faithfulness");
     expect(v2.evaluationCases).toContain("objectives-v1-age-appropriateness");
+  });
+
+  it("registers the narration v3 prompt with the copied-passage guard", () => {
+    const registry = new StaticPromptRegistry(repositoryPrompts);
+    const definition = registry.latest("narration");
+    expect(definition.version).toBe("v3");
+    expect(definition.system).toContain("eight or more consecutive words");
+    expect(definition.system).toContain("check each cited sentence");
   });
 
   it("registers the narration-block v1 prompt with every mode rendered", () => {
@@ -106,9 +116,14 @@ describe("prompt registry", () => {
     ]) {
       const { system, user } = renderPrompt(definition, {
         templateCatalog: JSON.stringify([{ template: "definition" }]),
-        currentScene: JSON.stringify({ id: "scene-1", narrationBlockIds: ["block-1"] }),
+        currentScene: JSON.stringify({
+          id: "scene-1",
+          narrationBlockIds: ["block-1"],
+        }),
         neighborScenes: JSON.stringify([{ id: "scene-0" }, { id: "scene-2" }]),
-        narrationBlocks: JSON.stringify([{ id: "block-1", text: "Narration." }]),
+        narrationBlocks: JSON.stringify([
+          { id: "block-1", text: "Narration." },
+        ]),
         outline: JSON.stringify([{ id: "item-1" }]),
         sourcePackage: JSON.stringify({ sections: [] }),
         configuration: JSON.stringify({ targetDurationSeconds: 300 }),
@@ -120,7 +135,9 @@ describe("prompt registry", () => {
       expect(system).toContain("narrationBlockIds");
       expect(user).toContain("scene-regeneration-v1");
       expect(user).toContain(`Regeneration mode: ${mode}`);
-      expect(user).toContain("MUST equal the current scene's narrationBlockIds");
+      expect(user).toContain(
+        "MUST equal the current scene's narrationBlockIds",
+      );
       expect(user).not.toContain("{{templateCatalog}}");
       expect(user).not.toContain("{{currentScene}}");
       expect(user).not.toContain("{{neighborScenes}}");

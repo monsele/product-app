@@ -264,6 +264,17 @@ export type ModelCallHandlerOptions<T> = {
     sourcePackage: SourcePackage,
     operationContext: unknown,
   ) => readonly DeterministicWarning[] | void;
+  /**
+   * Returns one operation-specific instruction for correcting a deterministic
+   * failure, or undefined when the rule is not safe to repair automatically.
+   * The lifecycle allows exactly one such provider call and validates it again.
+   */
+  deterministicRepairInstruction?: (input: {
+    error: unknown;
+    value: T;
+    sourcePackage: SourcePackage;
+    operationContext: unknown;
+  }) => string | undefined;
   renderVariables?: (input: {
     sourcePackage: SourcePackage;
     params: ModelCallParams;
@@ -434,16 +445,17 @@ export function createModelCallGenerationHandler<T>(
         operationType: payload.operationType,
         now: timestamp,
       });
-      const structured = await generateStructuredOutput<T>({
+      const generationRequest = {
+        model: payload.model,
+        messages: [
+          { role: "system" as const, content: rendered.system },
+          { role: "user" as const, content: rendered.user },
+        ],
+        responseFormat: "json_object" as const,
+      };
+      let structured = await generateStructuredOutput<T>({
         provider: resolvedProvider.adapter,
-        request: {
-          model: payload.model,
-          messages: [
-            { role: "system", content: rendered.system },
-            { role: "user", content: rendered.user },
-          ],
-          responseFormat: "json_object",
-        },
+        request: generationRequest,
         schema: options.outputSchema,
         ...(options.maxRepairs === undefined
           ? {}
@@ -472,29 +484,98 @@ export function createModelCallGenerationHandler<T>(
             operationContext?.context,
           ) ?? [];
       } catch (error) {
-        await recordFailedCall({
-          context,
-          payload,
-          timestamp,
-          inputVersion,
-          inputHash,
-          responses: structured.responses,
-          providerId: resolvedProvider.adapter.providerId,
-          errorCode: "DETERMINISTIC_CHECK_FAILED",
-          modelCallsRepository,
-          usageMeter,
-          ...(pricing === undefined ? {} : { pricing }),
+        const repairInstruction = options.deterministicRepairInstruction?.({
+          error,
+          value: structured.value,
+          sourcePackage,
+          operationContext: operationContext?.context,
         });
-        // The rule that rejected the output is the only actionable part of
-        // this failure: without it a caller cannot tell an uncited source
-        // block from an over-long sentence, and the generation is already
-        // discarded. Provider text never enters the details.
-        throw new JobExecutionError(
-          "terminal",
-          "MODEL_OUTPUT_DETERMINISTIC_FAILURE",
-          "The model output failed deterministic checks.",
-          deterministicFailureDetails(error),
-        );
+        let repairedSuccessfully = false;
+        if (repairInstruction !== undefined) {
+          try {
+            const repaired = await generateStructuredOutput<T>({
+              provider: resolvedProvider.adapter,
+              request: {
+                ...generationRequest,
+                messages: [
+                  ...generationRequest.messages,
+                  {
+                    role: "user",
+                    content:
+                      "Correct the previous JSON response. " +
+                      `${repairInstruction} Preserve every other valid field and return JSON only.\n` +
+                      `Previous JSON response:\n${structured.rawText.slice(0, 20_000)}`,
+                  },
+                ],
+              },
+              schema: options.outputSchema,
+              // One corrective completion only: a failed repair remains a
+              // clear teacher-facing failure rather than an unbounded loop.
+              maxRepairs: 0,
+            });
+            const repairedExecuted = repaired.responses.at(-1);
+            if (
+              repairedExecuted === undefined ||
+              repairedExecuted.providerId !==
+                resolvedProvider.adapter.providerId ||
+              repairedExecuted.model !== payload.model
+            )
+              throw new ApprovedProviderUnavailableError({
+                approvedProvider: resolvedProvider.adapter.providerId,
+                approvedModel: payload.model,
+                foundProvider: repairedExecuted?.providerId ?? "unknown",
+                ...(repairedExecuted?.model === undefined
+                  ? {}
+                  : { foundModel: repairedExecuted.model }),
+              });
+            structured = {
+              value: repaired.value,
+              rawText: repaired.rawText,
+              repairAttempts:
+                structured.repairAttempts + repaired.repairAttempts + 1,
+              responses: [...structured.responses, ...repaired.responses],
+            };
+            warnings =
+              options.deterministicChecks?.(
+                structured.value,
+                sourcePackage,
+                operationContext?.context,
+              ) ?? [];
+            repairedSuccessfully = true;
+          } catch (repairError) {
+            error = repairError;
+            if (repairError instanceof StructuredOutputError)
+              structured = {
+                ...structured,
+                responses: [...structured.responses, ...repairError.responses],
+              };
+          }
+        }
+        if (!repairedSuccessfully) {
+          await recordFailedCall({
+            context,
+            payload,
+            timestamp,
+            inputVersion,
+            inputHash,
+            responses: structured.responses,
+            providerId: resolvedProvider.adapter.providerId,
+            errorCode: "DETERMINISTIC_CHECK_FAILED",
+            modelCallsRepository,
+            usageMeter,
+            ...(pricing === undefined ? {} : { pricing }),
+          });
+          // The rule that rejected the output is the only actionable part of
+          // this failure: without it a caller cannot tell an uncited source
+          // block from an over-long sentence, and the generation is already
+          // discarded. Provider text never enters the details.
+          throw new JobExecutionError(
+            "terminal",
+            "MODEL_OUTPUT_DETERMINISTIC_FAILURE",
+            "The model output failed deterministic checks.",
+            deterministicFailureDetails(error),
+          );
+        }
       }
       const record = buildSucceededRecord({
         context,

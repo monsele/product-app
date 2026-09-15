@@ -63,7 +63,7 @@ const request = {
 };
 
 describe("IllustrationGenerationService.request", () => {
-  it("enforces the configured per-project hourly regeneration limit", async () => {
+  it("queues an illustration regardless of prior project illustration volume", async () => {
     const { database, inserts } = fakeDatabase(
       [
         [
@@ -75,21 +75,19 @@ describe("IllustrationGenerationService.request", () => {
           },
         ],
         [],
-        [{ count: 2 }],
       ],
-      [],
+      [[{ id: candidateId }], [{ id: jobId }]],
     );
-    const service = new IllustrationGenerationService(
-      database,
-      () => new Date("2026-08-23T12:00:00.000Z"),
-      2,
+    const service = new IllustrationGenerationService(database, () =>
+      new Date("2026-08-23T12:00:00.000Z"),
     );
 
-    await expect(service.request(request)).rejects.toMatchObject({
-      code: "rate_limited",
-      statusCode: 429,
+    await expect(service.request(request)).resolves.toEqual({
+      candidateId,
+      jobId,
+      status: "queued",
     });
-    expect(inserts).toEqual([]);
+    expect(inserts).toHaveLength(3);
   });
 
   it("returns the existing candidate and job for a repeated idempotency key", async () => {
@@ -104,16 +102,13 @@ describe("IllustrationGenerationService.request", () => {
           },
         ],
         [{ id: candidateId }],
-        [{ count: 10 }],
         [{ id: candidateId }],
         [{ id: jobId }],
       ],
       [[], []],
     );
-    const service = new IllustrationGenerationService(
-      database,
-      () => new Date("2026-08-23T12:00:00.000Z"),
-      1,
+    const service = new IllustrationGenerationService(database, () =>
+      new Date("2026-08-23T12:00:00.000Z"),
     );
 
     await expect(service.request(request)).resolves.toEqual({
@@ -217,7 +212,7 @@ describe("IllustrationGenerationService.request", () => {
     ).toEqual(["subject", "left-subject-image", "right-subject-image"]);
   });
 
-  it("reports a partial run instead of failing when the hourly cap is hit", async () => {
+  it("queues every eligible missing slot without an application hourly cap", async () => {
     const sceneRows = [
       {
         stableSceneId: "019ffbf1-eeee-7000-8000-000000000104",
@@ -239,13 +234,7 @@ describe("IllustrationGenerationService.request", () => {
     const request = vi
       .fn()
       .mockResolvedValueOnce({ candidateId, jobId, status: "queued" })
-      .mockRejectedValueOnce(
-        new PublicError(
-          "rate_limited",
-          "This project has reached its illustration-generation limit.",
-          429,
-        ),
-      );
+      .mockResolvedValueOnce({ candidateId, jobId, status: "queued" });
     service.request = request as unknown as typeof service.request;
 
     const result = await service.generateMissing({
@@ -256,9 +245,9 @@ describe("IllustrationGenerationService.request", () => {
 
     expect(result).toMatchObject({
       totalMissing: 2,
-      queued: 1,
-      skipped: 1,
-      rateLimited: true,
+      queued: 2,
+      skipped: 0,
+      rateLimited: false,
     });
   });
 

@@ -79,7 +79,8 @@ describe("ST-053 Grounding Check Schemas", () => {
         sourceRefs: [],
         generatedAddition: {
           kind: "analogy",
-          content: "Think of photosynthesis like a kitchen where sunlight is the chef.",
+          content:
+            "Think of photosynthesis like a kitchen where sunlight is the chef.",
           rationale: "Helps students visualize the process.",
         },
         location: {
@@ -128,9 +129,7 @@ describe("ST-053 Grounding Check Schemas", () => {
       const result: GroundingClaimResult = {
         claimId: testId,
         status: "supported",
-        supportedSpans: [
-          { start: 0, end: 50, sourceBlockId: testId },
-        ],
+        supportedSpans: [{ start: 0, end: 50, sourceBlockId: testId }],
         unsupportedSpans: [],
         modelAssisted: true,
         modelCallId: testId,
@@ -145,7 +144,11 @@ describe("ST-053 Grounding Check Schemas", () => {
         status: "unsupported",
         supportedSpans: [],
         unsupportedSpans: [
-          { start: 0, end: 50, reason: "No source mentions glucose production." },
+          {
+            start: 0,
+            end: 50,
+            reason: "No source mentions glucose production.",
+          },
         ],
         modelAssisted: true,
         modelCallId: testId,
@@ -172,7 +175,9 @@ describe("ST-053 Grounding Check Schemas", () => {
         claimId: testId,
         status: "needs_review",
         supportedSpans: [{ start: 0, end: 20, sourceBlockId: testId }],
-        unsupportedSpans: [{ start: 20, end: 50, reason: "Partial support only." }],
+        unsupportedSpans: [
+          { start: 20, end: 50, reason: "Partial support only." },
+        ],
         modelAssisted: true,
         modelCallId: testId,
         checkedAt: now,
@@ -190,7 +195,9 @@ describe("ST-053 Grounding Check Schemas", () => {
         modelCallId: testId,
         checkedAt: now,
       };
-      expect(() => groundingClaimResultSchema.parse(result)).toThrow(z.ZodError);
+      expect(() => groundingClaimResultSchema.parse(result)).toThrow(
+        z.ZodError,
+      );
     });
 
     it("rejects an unsupported span whose start is not before its end", () => {
@@ -203,7 +210,9 @@ describe("ST-053 Grounding Check Schemas", () => {
         modelCallId: testId,
         checkedAt: now,
       };
-      expect(() => groundingClaimResultSchema.parse(result)).toThrow(z.ZodError);
+      expect(() => groundingClaimResultSchema.parse(result)).toThrow(
+        z.ZodError,
+      );
     });
   });
 
@@ -269,7 +278,13 @@ describe("ST-053 Grounding Check Schemas", () => {
         sourceSnapshotContentHash: "b".repeat(64),
         claims: [],
         results: [],
-        summary: { total: 0, supported: 0, unsupported: 0, generatedAddition: 0, needsReview: 0 },
+        summary: {
+          total: 0,
+          supported: 0,
+          unsupported: 0,
+          generatedAddition: 0,
+          needsReview: 0,
+        },
         modelCalls: [],
         createdAt: now,
       };
@@ -335,7 +350,9 @@ describe("ST-053 Grounding Check Schemas", () => {
         lessonSpecId: testId,
         lessonSpecRevision: 5,
       };
-      expect(() => groundingCheckRequestSchema.parse(request)).toThrow(z.ZodError);
+      expect(() => groundingCheckRequestSchema.parse(request)).toThrow(
+        z.ZodError,
+      );
     });
   });
 
@@ -381,7 +398,13 @@ describe("ST-053 Grounding Check Schemas", () => {
           sourceSnapshotContentHash: "b".repeat(64),
           claims: [],
           results: [],
-          summary: { total: 0, supported: 0, unsupported: 0, generatedAddition: 0, needsReview: 0 },
+          summary: {
+            total: 0,
+            supported: 0,
+            unsupported: 0,
+            generatedAddition: 0,
+            needsReview: 0,
+          },
           modelCalls: [],
           createdAt: now,
         },
@@ -392,7 +415,9 @@ describe("ST-053 Grounding Check Schemas", () => {
           updatedAt: now,
         },
       };
-      expect(groundingCheckResultResponseSchema.parse(response)).toEqual(response);
+      expect(groundingCheckResultResponseSchema.parse(response)).toEqual(
+        response,
+      );
     });
 
     it("accepts a response with null check and job", () => {
@@ -400,7 +425,9 @@ describe("ST-053 Grounding Check Schemas", () => {
         check: null,
         latestJob: null,
       };
-      expect(groundingCheckResultResponseSchema.parse(response)).toEqual(response);
+      expect(groundingCheckResultResponseSchema.parse(response)).toEqual(
+        response,
+      );
     });
   });
 
@@ -439,7 +466,9 @@ describe("ST-053 Grounding Check Schemas", () => {
         sourceSnapshotContentHash: "b".repeat(64),
         scope: "scene",
       };
-      expect(() => groundingCheckParamsSchema.parse(params)).toThrow(z.ZodError);
+      expect(() => groundingCheckParamsSchema.parse(params)).toThrow(
+        z.ZodError,
+      );
     });
 
     it("rejects invalid content hash format", () => {
@@ -451,7 +480,9 @@ describe("ST-053 Grounding Check Schemas", () => {
         sourceSnapshotContentHash: "b".repeat(64),
         scope: "lesson",
       };
-      expect(() => groundingCheckParamsSchema.parse(params)).toThrow(z.ZodError);
+      expect(() => groundingCheckParamsSchema.parse(params)).toThrow(
+        z.ZodError,
+      );
     });
   });
 
@@ -488,15 +519,15 @@ describe("ST-053 Grounding Check Schemas", () => {
 
   describe("groundingCompatibilitySchema", () => {
     it("accepts the current grounding compatibility", () => {
-      expect(groundingCompatibilitySchema.parse(currentGroundingCompatibility)).toEqual(
-        currentGroundingCompatibility
-      );
+      expect(
+        groundingCompatibilitySchema.parse(currentGroundingCompatibility),
+      ).toEqual(currentGroundingCompatibility);
     });
 
     it("has correct current values", () => {
       expect(currentGroundingCompatibility.promptId).toBe("grounding");
       expect(currentGroundingCompatibility.promptVersion).toBe("v2");
-      expect(currentGroundingCompatibility.model).toBe("Qwen/Qwen3.8-Flash");
+      expect(currentGroundingCompatibility.model).toBe("moonshotai/Kimi-K3");
     });
   });
 });

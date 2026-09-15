@@ -4837,7 +4837,7 @@ export type NarrationGenerationCompatibility = z.infer<
 export const currentNarrationGenerationCompatibility =
   narrationGenerationCompatibilitySchema.parse({
     promptId: "narration",
-    promptVersion: "v2",
+    promptVersion: "v3",
     model: togetherModelDefaults.llm,
   });
 

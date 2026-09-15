@@ -273,6 +273,24 @@ describe("scene registry runtime", () => {
     );
     expect(iconMarkup).toContain('data-process-step-icon="2"');
     expect(iconMarkup).not.toContain('data-process-step-icon="1"');
+    const resolvedIconMarkup = renderToStaticMarkup(
+      createElement(ProcessSceneFrame, {
+        frame: 36,
+        resolvedAssets: {
+          "00000000-0000-7000-8000-000000000004": {
+            altText: "Evaporation icon",
+            assetId: "00000000-0000-7000-8000-000000000004",
+            source: "source",
+            src: "https://storage.example.test/evaporation.png",
+          },
+        },
+        scene: iconAssistedProcessFixture,
+      }),
+    );
+    expect(resolvedIconMarkup).toContain('data-process-step-image="2"');
+    expect(resolvedIconMarkup).toContain(
+      'src="https://storage.example.test/evaporation.png"',
+    );
   });
 
   it("keeps maximum process content inside the 1080p canvas", async () => {

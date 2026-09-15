@@ -862,6 +862,23 @@ export function createStoryboardGenerationJobHandler(input: {
         sourcePackage,
         operationContext as StoryboardOperationContext | undefined,
       ),
+    deterministicRepairInstruction: ({ error, operationContext }) => {
+      if (
+        !(error instanceof StoryboardDeterministicCheckError) ||
+        error.code !== "BLOCK_ORDER_VIOLATED"
+      )
+        return undefined;
+      const context = operationContext as
+        StoryboardOperationContext | undefined;
+      if (context === undefined) return undefined;
+      const orderedBlockIds = context.narrationSet.blocks.map(
+        (block) => block.id,
+      );
+      return (
+        "Reorder the scenes and their narrationBlockIds so the flattened narrationBlockIds array is exactly this ordered list: " +
+        `${JSON.stringify(orderedBlockIds)}. Every ID must occur exactly once. Preserve all other valid scene content.`
+      );
+    },
     persistCandidate: (candidate) =>
       persistLessonStoryboard({
         executor: input.database,
