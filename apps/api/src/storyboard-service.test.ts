@@ -446,6 +446,7 @@ function createService(
   const service = new PostgresStoryboardService(
     database,
     sourceApprovalStatus,
+    undefined,
     () => new Date("2026-08-18T10:00:00.000Z"),
   );
   return { service, sourceApprovalStatus };

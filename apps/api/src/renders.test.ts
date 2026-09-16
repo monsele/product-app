@@ -315,6 +315,353 @@ describe("render API authorization and explicit commands", () => {
       renderEnvelopePayloadSchema.safeParse(jobWrite?.payload).success,
     ).toBe(true);
   });
+
+  it("includes a bound source_table visual in the render manifest with no media fetch", async () => {
+    const fixture = createCrossUserProjectFixture();
+    const now = new Date("2026-08-25T08:00:00.000Z");
+    const lessonSpecId = createId(now);
+    const sceneId = createId(new Date("2026-08-25T08:00:01.000Z"));
+    const tableAssetId = createId(new Date("2026-08-25T08:00:02.000Z"));
+    const versionId = createId(new Date("2026-08-25T08:00:04.000Z"));
+    const validationId = createId(new Date("2026-08-25T08:00:05.000Z"));
+    const audioId = createId(new Date("2026-08-25T08:00:06.000Z"));
+    const trackId = createId(new Date("2026-08-25T08:00:07.000Z"));
+    const renderId = createId(new Date("2026-08-25T08:00:08.000Z"));
+    const correlationId = createId(new Date("2026-08-25T08:00:09.000Z"));
+    const lesson = {
+      schemaVersion: "1.8",
+      lessonId: lessonSpecId,
+      projectId: fixture.projectId,
+      title: "Group 1 elements",
+      subject: "Chemistry",
+      audience: {
+        ageBand: "11-13",
+        difficulty: "introductory",
+        priorKnowledge: [],
+      },
+      targetDurationSeconds: 180,
+      tone: "friendly",
+      themeId: "mvp-default",
+      objectiveIds: [sceneId],
+      voice: { providerVoiceId: "mvp-default", speakingRate: 1 },
+      scenes: [
+        {
+          id: sceneId,
+          order: 1,
+          narration: "Alkali metals share one outer electron.",
+          durationSeconds: 180,
+          onScreenText: [],
+          transition: "cut",
+          assetBindings: [
+            { assetId: tableAssetId, role: "diagram", slot: "diagram" },
+          ],
+          sourceRefs: [
+            {
+              documentId: createId(new Date("2026-08-25T08:00:03.000Z")),
+              parsedDocumentVersion: 1,
+              pageStart: 3,
+              blockIds: [sceneId],
+            },
+          ],
+          generatedAdditions: [],
+          template: "labelled-diagram",
+          visual: {
+            baseAssetSlot: "diagram",
+            kind: "asset",
+            labels: [{ anchor: "top", id: "note", text: "Alkali metals" }],
+          },
+        },
+      ],
+    };
+    const writes: Array<Record<string, unknown>> = [];
+    const latestApprovedVisuals = vi.fn().mockResolvedValue({
+      snapshotId: createId(new Date("2026-08-25T08:00:10.000Z")),
+      parsedDocumentId: createId(new Date("2026-08-25T08:00:11.000Z")),
+      figures: [],
+      tables: [
+        {
+          tableId: tableAssetId,
+          sectionId: createId(new Date("2026-08-25T08:00:12.000Z")),
+          order: 1,
+          pageStart: 3,
+          columns: ["Element", "Symbol"],
+          rows: [
+            ["Lithium", "Li"],
+            ["Sodium", "Na"],
+          ],
+        },
+      ],
+    });
+    const database = databaseForRenderCommand({
+      writes,
+      rows: [
+        [
+          {
+            id: versionId,
+            contentHash: "a".repeat(64),
+            lessonSpecId,
+            lessonSpecRevision: 1,
+            sceneLibraryVersion: "mvp-v1",
+            snapshot: { lessonSpec: lesson },
+          },
+        ],
+        [{ id: validationId, inputHash: "b".repeat(64) }],
+        [], // blocking validation issues
+        [{ id: createId(new Date("2026-08-25T08:00:13.000Z")) }], // document (direct)
+        [], // projectAssetRows
+        [], // sourceFigureRows
+        [
+          {
+            stableSceneId: sceneId,
+            audio: {
+              id: audioId,
+              storageKey: `users/${fixture.ownerUserId}/projects/${fixture.projectId}/audio/${sceneId}/a.mp3`,
+              checksumSha256: "c".repeat(64),
+              contentType: "audio/mpeg",
+              updatedAt: now,
+            },
+          },
+        ],
+        [{ audioId, track: { id: trackId, updatedAt: now } }],
+        [{ startMs: 0, endMs: 30_000, text: "Alkali metals." }],
+        [], // existing render lookup
+        [], // activeRenders
+        [], // recentRenders
+        [
+          {
+            render: {
+              id: renderId,
+              lessonVersionId: versionId,
+              validationRunId: validationId,
+              createdAt: now,
+              errorCode: null,
+            },
+            job: {
+              state: "queued",
+              progress: 0,
+              attempts: 0,
+              errorMetadata: null,
+              errorClassification: null,
+              correlationId,
+              startedAt: null,
+              completedAt: null,
+            },
+            video: null,
+            thumbnail: null,
+          },
+        ],
+      ],
+    });
+    const service = new PostgresRenderService(
+      database,
+      undefined,
+      undefined,
+      () => now,
+      undefined,
+      { latestApprovedVisuals },
+    );
+
+    await expect(
+      service.start({
+        ownerUserId: fixture.ownerUserId,
+        projectId: fixture.projectId,
+        correlationId,
+        body: { lessonVersionId: versionId },
+      }),
+    ).resolves.toMatchObject({ id: renderId, status: "queued" });
+
+    expect(latestApprovedVisuals).toHaveBeenCalledWith({
+      ownerUserId: fixture.ownerUserId,
+      projectId: fixture.projectId,
+    });
+    const jobWrite = writes.find((value) => value.jobType === "lesson.render");
+    const payload = jobWrite?.payload as {
+      manifest?: { visualAssets?: unknown[] };
+      assetManifest?: { assets?: unknown[] };
+    };
+    expect(payload.manifest?.visualAssets).toEqual([
+      {
+        assetId: tableAssetId,
+        altText: "Table: Element, Symbol",
+        source: "source_table",
+        table: {
+          tableId: tableAssetId,
+          columns: ["Element", "Symbol"],
+          rows: [
+            ["Lithium", "Li"],
+            ["Sodium", "Na"],
+          ],
+          rowCount: 2,
+          truncated: false,
+        },
+      },
+    ]);
+    // The table has no binary media — only the audio track is fetched.
+    expect(payload.assetManifest?.assets).toHaveLength(1);
+  });
+
+  it("marks a source_table visual truncated in the render manifest when the source table has more columns than the display bound", async () => {
+    const fixture = createCrossUserProjectFixture();
+    const now = new Date("2026-08-25T09:00:00.000Z");
+    const lessonSpecId = createId(now);
+    const sceneId = createId(new Date("2026-08-25T09:00:01.000Z"));
+    const tableAssetId = createId(new Date("2026-08-25T09:00:02.000Z"));
+    const versionId = createId(new Date("2026-08-25T09:00:04.000Z"));
+    const validationId = createId(new Date("2026-08-25T09:00:05.000Z"));
+    const audioId = createId(new Date("2026-08-25T09:00:06.000Z"));
+    const trackId = createId(new Date("2026-08-25T09:00:07.000Z"));
+    const renderId = createId(new Date("2026-08-25T09:00:08.000Z"));
+    const correlationId = createId(new Date("2026-08-25T09:00:09.000Z"));
+    const wideColumns = Array.from({ length: 9 }, (_, index) => `Column ${index}`);
+    const lesson = {
+      schemaVersion: "1.8",
+      lessonId: lessonSpecId,
+      projectId: fixture.projectId,
+      title: "Group 1 elements",
+      subject: "Chemistry",
+      audience: {
+        ageBand: "11-13",
+        difficulty: "introductory",
+        priorKnowledge: [],
+      },
+      targetDurationSeconds: 180,
+      tone: "friendly",
+      themeId: "mvp-default",
+      objectiveIds: [sceneId],
+      voice: { providerVoiceId: "mvp-default", speakingRate: 1 },
+      scenes: [
+        {
+          id: sceneId,
+          order: 1,
+          narration: "Alkali metals share one outer electron.",
+          durationSeconds: 180,
+          onScreenText: [],
+          transition: "cut",
+          assetBindings: [
+            { assetId: tableAssetId, role: "diagram", slot: "diagram" },
+          ],
+          sourceRefs: [
+            {
+              documentId: createId(new Date("2026-08-25T09:00:03.000Z")),
+              parsedDocumentVersion: 1,
+              pageStart: 3,
+              blockIds: [sceneId],
+            },
+          ],
+          generatedAdditions: [],
+          template: "labelled-diagram",
+          visual: {
+            baseAssetSlot: "diagram",
+            kind: "asset",
+            labels: [{ anchor: "top", id: "note", text: "Alkali metals" }],
+          },
+        },
+      ],
+    };
+    const writes: Array<Record<string, unknown>> = [];
+    const latestApprovedVisuals = vi.fn().mockResolvedValue({
+      snapshotId: createId(new Date("2026-08-25T09:00:10.000Z")),
+      parsedDocumentId: createId(new Date("2026-08-25T09:00:11.000Z")),
+      figures: [],
+      tables: [
+        {
+          tableId: tableAssetId,
+          sectionId: createId(new Date("2026-08-25T09:00:12.000Z")),
+          order: 1,
+          pageStart: 3,
+          columns: wideColumns,
+          rows: [wideColumns.map((_, index) => `Cell ${index}`)],
+        },
+      ],
+    });
+    const database = databaseForRenderCommand({
+      writes,
+      rows: [
+        [
+          {
+            id: versionId,
+            contentHash: "a".repeat(64),
+            lessonSpecId,
+            lessonSpecRevision: 1,
+            sceneLibraryVersion: "mvp-v1",
+            snapshot: { lessonSpec: lesson },
+          },
+        ],
+        [{ id: validationId, inputHash: "b".repeat(64) }],
+        [], // blocking validation issues
+        [{ id: createId(new Date("2026-08-25T09:00:13.000Z")) }], // document (direct)
+        [], // projectAssetRows
+        [], // sourceFigureRows
+        [
+          {
+            stableSceneId: sceneId,
+            audio: {
+              id: audioId,
+              storageKey: `users/${fixture.ownerUserId}/projects/${fixture.projectId}/audio/${sceneId}/a.mp3`,
+              checksumSha256: "c".repeat(64),
+              contentType: "audio/mpeg",
+              updatedAt: now,
+            },
+          },
+        ],
+        [{ audioId, track: { id: trackId, updatedAt: now } }],
+        [{ startMs: 0, endMs: 30_000, text: "Alkali metals." }],
+        [], // existing render lookup
+        [], // activeRenders
+        [], // recentRenders
+        [
+          {
+            render: {
+              id: renderId,
+              lessonVersionId: versionId,
+              validationRunId: validationId,
+              createdAt: now,
+              errorCode: null,
+            },
+            job: {
+              state: "queued",
+              progress: 0,
+              attempts: 0,
+              errorMetadata: null,
+              errorClassification: null,
+              correlationId,
+              startedAt: null,
+              completedAt: null,
+            },
+            video: null,
+            thumbnail: null,
+          },
+        ],
+      ],
+    });
+    const service = new PostgresRenderService(
+      database,
+      undefined,
+      undefined,
+      () => now,
+      undefined,
+      { latestApprovedVisuals },
+    );
+
+    await expect(
+      service.start({
+        ownerUserId: fixture.ownerUserId,
+        projectId: fixture.projectId,
+        correlationId,
+        body: { lessonVersionId: versionId },
+      }),
+    ).resolves.toMatchObject({ id: renderId, status: "queued" });
+
+    const jobWrite = writes.find((value) => value.jobType === "lesson.render");
+    const payload = jobWrite?.payload as {
+      manifest?: { visualAssets?: Array<{ table?: { columns: unknown[]; truncated: boolean; rowCount: number } }> };
+    };
+    const table = payload.manifest?.visualAssets?.[0]?.table;
+    expect(table?.columns).toHaveLength(8);
+    expect(table?.rowCount).toBe(1);
+    expect(table?.truncated).toBe(true);
+  });
+
   it("renders exactly the reconciled durations the lesson version snapshotted", async () => {
     // Reconciled scenes hold odd, audio-derived lengths that no allocator would
     // have produced. A render must reproduce the timing preflight approved, so

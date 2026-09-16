@@ -531,11 +531,33 @@ function fakeDatabase(options: FakeDbOptions = {}) {
   };
 }
 
-function createService(database: DatabaseClient) {
+function createService(
+  database: DatabaseClient,
+  latestApprovedVisuals?: (input: {
+    ownerUserId: string;
+    projectId: string;
+  }) => Promise<
+    | {
+        snapshotId: string;
+        parsedDocumentId: string;
+        figures: readonly unknown[];
+        tables: readonly {
+          tableId: string;
+          sectionId: string;
+          order: number;
+          pageStart: number;
+          columns: readonly string[];
+          rows: readonly (readonly string[])[];
+        }[];
+      }
+    | undefined
+  >,
+) {
   const sourceApprovalStatus = vi.fn(async () => approvedStatus);
   const service = new PostgresStoryboardService(
     database,
     sourceApprovalStatus,
+    latestApprovedVisuals as never,
     () => new Date("2026-08-18T10:00:00.000Z"),
   );
   return { service, sourceApprovalStatus };
@@ -1190,6 +1212,176 @@ describe("PostgresStoryboardService scene editor", () => {
         correlationId: createId(),
       }),
     ).rejects.toMatchObject({ code: "validation_failed", statusCode: 400 });
+  });
+
+  it("binds an approved source table in a grounding-critical diagram slot", async () => {
+    const payload = storyboardPayload();
+    const current = payload.scenes[0]!;
+    const storyboard = lessonStoryboardSchema.parse({
+      ...payload,
+      scenes: [
+        {
+          ...current,
+          template: "labelled-diagram",
+          assetRequirements: [],
+          scene: {
+            ...current.scene,
+            template: "labelled-diagram",
+            assetBindings: [],
+            visual: {
+              kind: "shapes",
+              shape: "cycle",
+              labels: [{ anchor: "top", id: "part", text: "Part" }],
+            },
+          },
+        },
+        ...payload.scenes.slice(1),
+      ],
+    });
+    const { database } = fakeDatabase({ storyboard });
+    const tableId = "019ffbf1-eeee-7000-8000-000000000060";
+    const { service } = createService(database, async () => ({
+      snapshotId,
+      parsedDocumentId: snapshotId,
+      figures: [],
+      tables: [
+        {
+          tableId,
+          sectionId: "019ffbf1-eeee-7000-8000-000000000061",
+          order: 1,
+          pageStart: 3,
+          columns: ["Name", "Value"],
+          rows: [["Sodium", "11"]],
+        },
+      ],
+    }));
+    const diagramScene = storyboard.scenes[0]!.scene;
+
+    const result = await service.updateScene({
+      ownerUserId,
+      projectId,
+      sceneId: sceneA,
+      body: {
+        expectedRevision: 0,
+        scene: {
+          ...diagramScene,
+          assetBindings: [
+            {
+              assetId: tableId,
+              role: "diagram",
+              slot: "diagram",
+            },
+          ],
+        },
+      },
+      correlationId: createId(),
+    });
+    expect(result.scene.scene.assetBindings).toHaveLength(1);
+  });
+
+  it("rejects a table ID that is not present in the current approved snapshot", async () => {
+    const payload = storyboardPayload();
+    const current = payload.scenes[0]!;
+    const storyboard = lessonStoryboardSchema.parse({
+      ...payload,
+      scenes: [
+        {
+          ...current,
+          template: "labelled-diagram",
+          assetRequirements: [],
+          scene: {
+            ...current.scene,
+            template: "labelled-diagram",
+            assetBindings: [],
+            visual: {
+              kind: "shapes",
+              shape: "cycle",
+              labels: [{ anchor: "top", id: "part", text: "Part" }],
+            },
+          },
+        },
+        ...payload.scenes.slice(1),
+      ],
+    });
+    const { database } = fakeDatabase({ storyboard, sourceFigureIds: [] });
+    const staleTableId = "019ffbf1-eeee-7000-8000-000000000062";
+    const { service } = createService(database, async () => ({
+      snapshotId,
+      parsedDocumentId: snapshotId,
+      figures: [],
+      tables: [],
+    }));
+    const diagramScene = storyboard.scenes[0]!.scene;
+
+    await expect(
+      service.updateScene({
+        ownerUserId,
+        projectId,
+        sceneId: sceneA,
+        body: {
+          expectedRevision: 0,
+          scene: {
+            ...diagramScene,
+            assetBindings: [
+              {
+                assetId: staleTableId,
+                role: "diagram",
+                slot: "diagram",
+              },
+            ],
+          },
+        },
+        correlationId: createId(),
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
+  });
+
+  it("rejects a source table bound to a non-diagram slot", async () => {
+    // The default fixture scene is a "definition" template, whose only slot
+    // ("visual-example") is a decorative illustration slot, not a diagram
+    // slot — exactly the non-diagram case this test targets.
+    const payload = storyboardPayload();
+    const storyboard = lessonStoryboardSchema.parse(payload);
+    const { database } = fakeDatabase({ storyboard, sourceFigureIds: [] });
+    const tableId = "019ffbf1-eeee-7000-8000-000000000063";
+    const { service } = createService(database, async () => ({
+      snapshotId,
+      parsedDocumentId: snapshotId,
+      figures: [],
+      tables: [
+        {
+          tableId,
+          sectionId: "019ffbf1-eeee-7000-8000-000000000064",
+          order: 1,
+          pageStart: 1,
+          columns: ["A"],
+          rows: [["1"]],
+        },
+      ],
+    }));
+    const definitionScene = storyboard.scenes[0]!.scene;
+
+    await expect(
+      service.updateScene({
+        ownerUserId,
+        projectId,
+        sceneId: sceneA,
+        body: {
+          expectedRevision: 0,
+          scene: {
+            ...definitionScene,
+            assetBindings: [
+              {
+                assetId: tableId,
+                role: "illustration",
+                slot: "visual-example",
+              },
+            ],
+          },
+        },
+        correlationId: createId(),
+      }),
+    ).rejects.toMatchObject({ statusCode: 400 });
   });
 
   it("does not require an asset for a labelled diagram that uses shapes", async () => {

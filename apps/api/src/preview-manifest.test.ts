@@ -1,7 +1,10 @@
 import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DatabaseClient } from "@avlp/database";
-import { createDefaultStoryboardSceneSpec } from "@avlp/schemas";
+import {
+  createDefaultStoryboardSceneSpec,
+  type SceneSpec,
+} from "@avlp/schemas";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import {
   InMemoryOwnerScopedProjectRepository,
@@ -22,7 +25,7 @@ const scene = createDefaultStoryboardSceneSpec("hook", {
   durationSeconds: 10,
 });
 
-function storyboard(sourceScene = scene) {
+function storyboard(sourceScene: SceneSpec = scene) {
   return {
     schemaVersion: 1,
     id: "01989a3d-8e00-7000-8000-000000000009",
@@ -186,6 +189,139 @@ describe("preview manifest", () => {
       },
     ).get({ ownerUserId, projectId });
     expect(manifest.scenes[0]).toMatchObject({ captions: [], stale: true });
+  });
+
+  it("resolves a bound source_table visual from the approved snapshot with no media src", async () => {
+    const tableSceneId = "01989a3d-8e00-7000-8000-000000000020";
+    const tableAssetId = "01989a3d-8e00-7000-8000-000000000021";
+    const tableScene: Extract<SceneSpec, { template: "labelled-diagram" }> = {
+      ...createDefaultStoryboardSceneSpec("labelled-diagram", {
+        id: tableSceneId,
+        order: 1,
+        durationSeconds: 10,
+      }),
+      template: "labelled-diagram" as const,
+      assetBindings: [
+        { assetId: tableAssetId, role: "diagram" as const, slot: "diagram" },
+      ],
+      visual: {
+        baseAssetSlot: "diagram" as const,
+        kind: "asset" as const,
+        labels: [{ anchor: "top" as const, id: "note", text: "Alkali metals" }],
+      },
+    };
+    const latestApprovedVisuals = vi.fn().mockResolvedValue({
+      snapshotId: "01989a3d-8e00-7000-8000-000000000022",
+      parsedDocumentId: "01989a3d-8e00-7000-8000-000000000023",
+      figures: [],
+      tables: [
+        {
+          tableId: tableAssetId,
+          sectionId: "01989a3d-8e00-7000-8000-000000000024",
+          order: 1,
+          pageStart: 3,
+          columns: ["Element", "Symbol"],
+          rows: [
+            ["Lithium", "Li"],
+            ["Sodium", "Na"],
+          ],
+        },
+      ],
+    });
+    const manifest = await new PreviewManifestService(
+      databaseFor([
+        [
+          {
+            id: "01989a3d-8e00-7000-8000-000000000015",
+            payload: storyboard(tableScene),
+          },
+        ],
+        [], // projectAssetRows
+        [{ id: "01989a3d-8e00-7000-8000-000000000025" }], // document (direct)
+        [], // sourceFigureRows
+        [{ id: "01989a3d-8e00-7000-8000-000000000016", stableSceneId: tableSceneId }], // sceneRows
+        [], // audio
+      ]),
+      { createSignedDownload: vi.fn() },
+      { latestApprovedVisuals },
+    ).get({ ownerUserId, projectId });
+
+    expect(latestApprovedVisuals).toHaveBeenCalledWith({ ownerUserId, projectId });
+    const asset = manifest.assets[tableAssetId];
+    expect(asset).toMatchObject({
+      assetId: tableAssetId,
+      provenance: "source_table",
+      source: "source_table",
+    });
+    expect(asset && "src" in asset ? asset.src : undefined).toBeUndefined();
+    expect(asset?.table).toMatchObject({
+      tableId: tableAssetId,
+      columns: ["Element", "Symbol"],
+      rowCount: 2,
+      truncated: false,
+    });
+    expect(asset?.table?.rows).toEqual([
+      ["Lithium", "Li"],
+      ["Sodium", "Na"],
+    ]);
+  });
+
+  it("marks a source_table visual truncated when the source table has more columns than the display bound, even with only one row", async () => {
+    const tableSceneId = "01989a3d-8e00-7000-8000-000000000026";
+    const tableAssetId = "01989a3d-8e00-7000-8000-000000000027";
+    const tableScene: Extract<SceneSpec, { template: "labelled-diagram" }> = {
+      ...createDefaultStoryboardSceneSpec("labelled-diagram", {
+        id: tableSceneId,
+        order: 1,
+        durationSeconds: 10,
+      }),
+      template: "labelled-diagram" as const,
+      assetBindings: [
+        { assetId: tableAssetId, role: "diagram" as const, slot: "diagram" },
+      ],
+      visual: {
+        baseAssetSlot: "diagram" as const,
+        kind: "asset" as const,
+        labels: [{ anchor: "top" as const, id: "note", text: "Alkali metals" }],
+      },
+    };
+    const wideColumns = Array.from({ length: 9 }, (_, index) => `Column ${index}`);
+    const latestApprovedVisuals = vi.fn().mockResolvedValue({
+      snapshotId: "01989a3d-8e00-7000-8000-000000000028",
+      parsedDocumentId: "01989a3d-8e00-7000-8000-000000000029",
+      figures: [],
+      tables: [
+        {
+          tableId: tableAssetId,
+          sectionId: "01989a3d-8e00-7000-8000-00000000002a",
+          order: 1,
+          pageStart: 3,
+          columns: wideColumns,
+          rows: [wideColumns.map((_, index) => `Cell ${index}`)],
+        },
+      ],
+    });
+    const manifest = await new PreviewManifestService(
+      databaseFor([
+        [
+          {
+            id: "01989a3d-8e00-7000-8000-00000000002b",
+            payload: storyboard(tableScene),
+          },
+        ],
+        [], // projectAssetRows
+        [{ id: "01989a3d-8e00-7000-8000-00000000002c" }], // document (direct)
+        [], // sourceFigureRows
+        [{ id: "01989a3d-8e00-7000-8000-00000000002d", stableSceneId: tableSceneId }], // sceneRows
+        [], // audio
+      ]),
+      { createSignedDownload: vi.fn() },
+      { latestApprovedVisuals },
+    ).get({ ownerUserId, projectId });
+
+    const asset = manifest.assets[tableAssetId];
+    expect(asset?.table?.columns).toHaveLength(8);
+    expect(asset?.table).toMatchObject({ rowCount: 1, truncated: true });
   });
 
   it("authorizes the manifest route before invoking the resolver", async () => {

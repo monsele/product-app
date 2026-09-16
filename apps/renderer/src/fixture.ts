@@ -95,6 +95,16 @@ export async function hydrateProductionComposition(
             src: asset.staticLocation,
           },
         ] as const;
+      if (asset.source === "source_table")
+        return [
+          asset.assetId,
+          {
+            assetId: asset.assetId,
+            altText: asset.altText,
+            source: "source_table" as const,
+            table: asset.table,
+          },
+        ] as const;
       const signed = await storage.createSignedDownload({
         key: asset.storageKey,
         expiresInSeconds: 3_600,

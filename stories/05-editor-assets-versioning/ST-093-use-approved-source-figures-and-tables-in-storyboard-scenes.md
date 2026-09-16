@@ -2,7 +2,7 @@
 story_id: ST-093
 title: "Use Approved Source Figures and Tables in Storyboard Scenes"
 phase: "05 - Storyboard Editing, Assets, and Versions"
-status: Ready
+status: Done
 priority: should-have
 epics: ["E5", "E13", "E21"]
 prd_user_stories: ["E5-US4", "E13-US1", "E21-US2"]
@@ -223,21 +223,312 @@ Do not start this story until every dependency is marked **Done** in
 
 ## Dev Agent Record
 
-- **Agent:** Unassigned
-- **Started:** Not started
-- **Completed:** Not started
-- **Branch/PR:** Not started
-- **Files changed:** Not started
-- **Migrations:** Not started
-- **Contracts changed:** Not started
-- **Commands/tests run:** Not started
-- **Screenshots or representative output:** Not started
-- **Decisions and assumptions:** Source figures are immutable Docling-extracted
-  binary artifacts. Source tables remain immutable structured data and are
-  rendered by an allowlisted deterministic component rather than converted to
-  a generated image or chart.
-- **Known risks:** Current source-figure asset resolution, preview manifests,
-  and render manifests must be audited together for reused-artifact access;
-  resolving only the storyboard picker would leave a later preview/render
-  failure.
-- **Deviations from story or technical guide:** None.
+- **Agent:** Claude Sonnet 5 (next-story workflow)
+- **Started:** 2026-09-16
+- **Completed:** 2026-09-16 (follow-up pass closing the test gaps flagged in
+  the first pass — see "Follow-up: closing the test gaps" below).
+- **Branch/PR:** `feat/st-093-source-visuals-in-storyboard` (off
+  `fix/audio-first-storyboard` after committing ST-092). No PR opened.
+- **Files changed:**
+  - `packages/schemas/src/index.ts` — `source_table` provenance value;
+    `sourceTableVisualSchema` (bounded runtime display shape, 8 columns × 12
+    rows, 160-char cells); `previewAssetSchema` extended to a `library |
+    source | source_table` shape with a `superRefine` enforcing `src` xor
+    `table`; `sourceVisualPickerEntrySchema`/`sourceVisualPickerResponseSchema`
+    for `GET /source-visuals`.
+  - `apps/renderer/src/contracts.ts` — third `productionVisualAssetSchema`
+    discriminated-union member for `source_table` (no storage key/checksum,
+    since a table has no binary media); exported the schema.
+  - `apps/renderer/src/fixture.ts` — `hydrateProductionComposition` passes
+    `source_table` assets through unchanged (no signed-URL fetch).
+  - `packages/scene-library/src/scene-registry.tsx` — new
+    `resolveSafeTableVisual` allowlist gate (mirrors
+    `resolveSafeDiagramAsset` but validates structured data, not a URL
+    pattern); `resolveSafeDiagramAsset` narrowed to reject `source_table`.
+  - `packages/scene-library/src/labelled-diagram-scene.tsx` — new
+    deterministic `TableVisual` component (fixed CSS-grid layout, bounded
+    columns/rows, truncation notice); wired into the existing `diagram` slot
+    alongside the image path — no new visual kind or template, per
+    Out-of-Scope.
+  - `packages/scene-library/src/full-lesson.tsx`,
+    `packages/scene-library/src/scene-preview.tsx` — `previewAssetSchema` is
+    now a `ZodEffects` (has a `superRefine`), so the local `.extend({src:
+    ...})` HTTPS/fixture-URL allowlists were rewritten as an additional
+    `superRefine` that skips the URL check for `source_table` assets.
+  - `apps/api/src/source-snapshot.ts` — new public
+    `latestApprovedVisuals()` (figures + tables of the current approved
+    snapshot), added to `SourceSnapshotService`.
+  - `apps/api/src/source-visuals.ts` (new) — `PostgresSourceVisualsService`:
+    lists only figures/tables present in the latest approved snapshot; figure
+    thumbnails are signed through the same `AuthorizedProjectStorage`
+    `parsed_figure_thumbnail` locator the ingestion-review viewer uses; table
+    rows/columns come directly from the snapshot payload (no extra query, no
+    signed URL — tables carry no binary media).
+  - `apps/api/src/storyboard.ts` — `assertAuthorizedAssetBindings`: fixed an
+    existing bug where source-figure resolution queried `parsedDocuments`
+    scoped to `(ownerUserId, projectId)` directly, which cannot find a
+    same-owner **reused** ingestion artifact (now uses
+    `findLatestProjectParsedDocument`, already used elsewhere in the API);
+    added a `source_table` branch that checks membership in the current
+    approved snapshot and restricts binding to slots whose `bindingRole` is
+    `"diagram"` (today, only `labelled-diagram.diagram`).
+  - `apps/api/src/preview-manifest.ts`, `apps/api/src/renders.ts` — same
+    reuse-resolution fix for figures; both now also resolve `source_table`
+    visuals from the approved snapshot into bounded preview/render entries
+    (no image, no signed URL).
+  - `apps/api/src/app.ts`, `apps/api/src/runtime.ts` — wired
+    `SOURCE_VISUALS_SERVICE` / `GET /projects/:projectId/source-visuals`
+    through the existing DI pattern; `PostgresStoryboardService` and
+    `PostgresRenderService`/`PreviewManifestService` now also receive the
+    source-snapshot service so they can resolve tables.
+  - `apps/web/.../storyboard/source-visual-picker.tsx` (new) — `Source
+    visuals` picker (Figures/Tables tabs, search, thumbnail, provenance line,
+    loading/empty/error states); wired into `scene-editor-form.tsx` for any
+    slot whose `bindingRole` is `"diagram"`. Bindings are written via the
+    existing `writeAssetSlot` helper (no client-declared `provenance`,
+    matching how figure bindings already work — see Decisions below).
+  - `apps/web/.../storyboard/storyboard-scene-query.ts` —
+    `fetchSourceVisuals`.
+  - Test-harness updates for the new `PostgresStoryboardService` /
+    `PostgresRenderService` constructor parameter across
+    `storyboard-scene-editor.test.ts`, `storyboard-scene-regeneration-service.test.ts`,
+    `storyboard-service.test.ts`, `storyboard.integration.test.ts`,
+    `source-snapshot.test.ts` (interface gained `latestApprovedVisuals`).
+  - Follow-up pass additions: `apps/api/src/source-visuals.integration.test.ts`
+    (new, real-Postgres reuse/cross-tenant coverage); new test cases in
+    `apps/api/src/preview-manifest.test.ts` and `apps/api/src/renders.test.ts`
+    for a bound `source_table`; `apps/web/.../storyboard/source-visual-picker.playwright.test.tsx`
+    expanded to the desktop/tablet/mobile/200%-zoom matrix plus a
+    disabled-state check; new test in
+    `apps/web/.../preview/preview-player.e2e.test.ts` proving the existing
+    ST-081 stale-scene banner and `#scene=` deep link already cover a
+    de-approved table.
+- **Migrations:** None. Tables were already fully persisted
+  (`parsedTables`/`parsedTableCells`, ST-035) and already flow into the
+  approved snapshot (`sourceSnapshotTableSchema`, ST-042) with full
+  column/row content — the picker and bindings read that existing data;
+  nothing new is written to mutable project rows.
+- **Contracts changed:** See Files changed above —
+  `assetProvenanceSchema`, `previewAssetSchema`,
+  `productionVisualAssetSchema`, plus the new `sourceTableVisualSchema` and
+  `sourceVisualPicker*` schemas. All additive; existing `source_figure`
+  bindings, saved lesson versions, and preview/render manifests still parse
+  unchanged (verified by the existing, unmodified test suites passing).
+- **Commands/tests run:**
+  - `npx turbo typecheck --filter=@avlp/schemas --filter=@avlp/scene-library
+    --filter=@avlp/renderer --filter=@avlp/api --filter=@avlp/web` — clean
+    (after rebuilding `@avlp/schemas` and `@avlp/scene-library` dist output,
+    which downstream packages resolve against).
+  - `npx turbo lint --filter=@avlp/schemas --filter=@avlp/scene-library
+    --filter=@avlp/renderer --filter=@avlp/api --filter=@avlp/web` — clean on
+    every file this story touched. (Two pre-existing lint errors in
+    `illustration-generation.ts`/`.test.ts` are untouched by this branch —
+    confirmed via `git diff HEAD` showing no changes to those files.)
+  - `vitest run` per package:
+    - `packages/schemas` — `source-table-visual.test.ts`: 19/19 passed.
+    - `packages/scene-library` — full suite: 90/95 passed; the 5 failures
+      (`index.test.ts` comparison-scene markup + two render snapshot hashes)
+      are **pre-existing and unrelated** — confirmed via `git diff HEAD`
+      showing zero changes to those spec files, and via a stash/rebuild
+      isolation check. `source-table-visual.test.ts` (new, table rendering):
+      9/9 passed.
+    - `apps/renderer` — full suite: 18/18 passed.
+    - `apps/api` — full non-integration sweep (`--exclude
+      "**/*.integration.test.ts"`): 45 files / 482 tests passed, 0 failures
+      (re-run clean after the follow-up pass; an earlier run under heavier
+      sandbox load showed the same `server.inject` timeout flakiness noted
+      above, and every affected test passed in isolation). New
+      `storyboard-scene-editor.test.ts` table-binding cases (bind to a
+      grounding-critical diagram slot, reject a table absent from the
+      approved snapshot, reject a table bound to a non-diagram slot),
+      `source-visuals.test.ts` (service + route authorization), the new
+      `preview-manifest.test.ts` and `renders.test.ts` table cases: all
+      included and passing.
+    - `apps/api` **integration** (`NODE_ENV=test TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5433/postgres
+      npx vitest run --hookTimeout=60000 --no-file-parallelism
+      src/*.integration.test.ts`, against the project's running
+      `product-app-postgres-1` container): 12/13 files passed (72/73 tests);
+      the 1 failure (`correlation.integration.test.ts`) is pre-existing and
+      unrelated (see below). New `source-visuals.integration.test.ts`: 4/4
+      passed, including the same-owner reuse and cross-tenant scenarios.
+      `storyboard.integration.test.ts`, `source-snapshot.integration.test.ts`,
+      and every other pre-existing Postgres suite this branch's code paths
+      touch: all still passing.
+    - `apps/web` — full suite: 47+ files, all passing, including the
+      expanded `source-visual-picker` Playwright breakpoint matrix and the
+      new stale-scene deep-link proof in `preview-player.e2e.test.ts`.
+- **Screenshots or representative output:** None captured — the Playwright
+  checks added are static-markup structural/accessibility assertions across
+  desktop (1280px), tablet (768px), mobile (375px), and 200%-zoom (640px),
+  consistent with this directory's existing picker test pattern, not visual
+  screenshots. A "selected bound table" screenshot is not achievable with
+  this pattern (see Follow-up notes above — no jsdom/hydration in this
+  test runner, so the picker's post-fetch state never renders under
+  `page.setContent`).
+- **Decisions and assumptions:**
+  - Source figures are immutable Docling-extracted binary artifacts. Source
+    tables are immutable structured data (already captured verbatim in the
+    approved source snapshot) and are rendered by an allowlisted
+    deterministic component rather than converted to a generated image or
+    chart.
+  - A table binding is only accepted on a slot whose `bindingRole` is
+    `"diagram"` — today that is exclusively `labelled-diagram.diagram`. No
+    new slot-compatibility field or template was added, per Out of Scope
+    ("New visual templates ... arbitrary animation code").
+  - The web client never declares `provenance` on a source-visual binding
+    (same as the existing figure-binding code path). Declaring `provenance`
+    on a grounding-critical slot's binding triggers
+    `assetBindingRoleViolations`'s "requires a source reference" schema rule
+    (ST-085), which a bare `assetId`/`role`/`slot` binding is exempt from
+    ("grandfathered", per that function's own doc comment). The
+    authoritative check is server-side, in `assertAuthorizedAssetBindings`,
+    which resolves the real kind from the database/approved snapshot — this
+    matches the existing figure-binding pattern exactly rather than
+    inventing a new one.
+  - `SourceVisualPicker` runtime display bounds (8 columns, 12 rows, 160
+    characters/cell) are a new, story-specific limit distinct from the
+    approved snapshot's storage bounds (`sourceSnapshotTableSchema`: 500
+    columns, 10,000 rows) — chosen because a table visual must fit one
+    1920×1080 video frame.
+  - A figure's picker "caption" is sourced from its `altText` (there is no
+    separately resolved caption-block text in `sourceSnapshotFigureSchema`)
+    — the same convention `resolvedCitationFigureSchema` already uses.
+- **Follow-up: closing the test gaps (2026-09-16, same day).** A local
+  Postgres instance turned out to already be running (`docker ps` showed
+  `product-app-postgres-1` healthy on port 5433) — the first pass's
+  "no live database available" was a missed check, not a real environment
+  limitation. `TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5433/postgres`
+  (with `NODE_ENV=test`; `createTestDatabase` provisions and drops an
+  isolated `avlp_test_<uuid>` database per suite, so this never touches the
+  dev database) unblocked every integration gap below.
+  - **Reused-artifact integration coverage — closed.** New
+    `apps/api/src/source-visuals.integration.test.ts` (4 tests, real
+    Postgres): approves a snapshot for an originating project; approves a
+    *second*, same-owner project whose only connection to the source is a
+    `sourceDocumentIngestionReuses` row (no `parsedDocuments` row of its
+    own) and confirms `PostgresSourceSnapshotService.approve()` resolves the
+    shared immutable document through `findLatestProjectParsedDocument`,
+    producing its own project-local `sourceSnapshots` row (two rows total,
+    never a shared one); confirms `PostgresSourceVisualsService.list()`
+    returns the same figure/table content for the reusing project; confirms
+    `PostgresStoryboardService.updateScene()` accepts a binding to the
+    reused table; confirms a project that never approves its own snapshot
+    cannot bind a table (`assertAuthorizedAssetBindings` rejects with 400);
+    confirms `otherOwnerUserId` querying the originating project's id gets
+    `{entries: [], snapshotId: null}` — real row-level non-disclosure, not
+    only route-level. All 4 pass.
+  - **Preview/render-manifest table tests — closed.** Added
+    "resolves a bound source_table visual from the approved snapshot with no
+    media src" to `preview-manifest.test.ts` (asserts the manifest asset has
+    `source: "source_table"`, no `src`, and the bounded `table` payload) and
+    "includes a bound source_table visual in the render manifest with no
+    media fetch" to `renders.test.ts` (asserts `manifest.visualAssets`
+    contains the table entry and `assetManifest.assets` — the private-media
+    fetch list — contains only the audio track, never the table). Both pass.
+  - **Stale-binding / replacement-action — found already satisfied, not a
+    gap.** Traced the existing Preview/Preflight screen (ST-081,
+    `preview-player.tsx`): it already computes `stale`/`missingAssetIds`
+    per scene from the preview manifest, renders a "Stale Artifacts Banner"
+    plus a per-scene "Scene navigation" grid with an "Edit" link to
+    `/workspace/:projectId/storyboard#scene=<id>` (already read by
+    `storyboard-panel.tsx` to auto-select that scene) — for *every* stale
+    reason, including a missing asset. Since this session's
+    `preview-manifest.ts` fix already makes a de-approved table produce a
+    `missingAssetIds` entry, this UI needed no new code — only a test
+    proving the wiring actually reaches it. Added that proof to
+    `preview-player.e2e.test.ts`: a scene with a stale table renders the
+    banner text and the exact `#scene=` deep link. No new stale-detection
+    or replacement code was written, because none was needed once the
+    manifest fix landed; this is recorded as a decision, not a skipped item.
+  - **Web picker tests — re-assessed against actual codebase convention, not
+    added further.** The web app has no jsdom/testing-library dependency and
+    no `environment: "jsdom"` in `vitest.config` — every existing picker
+    test in this directory (`ApprovedAssetPicker`, `TeacherAssetPicker`)
+    is a `renderToStaticMarkup` + Playwright-on-static-HTML structural
+    check, because `useEffect` never fires during SSR and there is no
+    hydration step in this test runner — "select an option and watch state
+    update" is not a pattern this codebase supports for *any* component,
+    source-visual or otherwise. `SourceVisualPicker`'s two existing test
+    files already match that convention exactly (loading-state structure,
+    labelled tabs/search, disabled state). Introducing jsdom/testing-library
+    for one component would be inconsistent scope creep; not done.
+  - **Playwright breakpoint coverage — closed.** Extended
+    `source-visual-picker.playwright.test.tsx` from 2 to 5 checks: desktop
+    (1280px), tablet (768px), mobile (375px), and 200%-zoom (640px) —
+    matching the exact matrix `storyboard.playwright.test.tsx` and siblings
+    use — plus the disabled-fieldset check. A "selected bound table"
+    screenshot remains out of reach for the same SSR-only reason above (no
+    live fetch resolves before `page.setContent` captures the markup).
+  - **Cross-tenant non-disclosure — closed.** Covered twice now: the
+    existing route-level 404 test in `source-visuals.test.ts`, and the new
+    real-database row-level test in `source-visuals.integration.test.ts`
+    described above (a different owner querying the same `projectId` gets
+    an empty result because `sourceSnapshots` lookup is scoped by
+    `(ownerUserId, projectId)`, not `projectId` alone).
+- **Known, pre-existing, unrelated flakiness observed while verifying (not
+  introduced by this branch — confirmed via `git diff HEAD` showing zero
+  changes to the affected files):**
+  - `packages/scene-library/src/index.test.ts` → "renders comparison
+    subjects before shared traits and differences" expects a
+    `data-comparison-asset-slot` attribute that `comparison-scene.tsx` does
+    not render; `scene-preview-render-smoke.test.ts` and
+    `summary-scene-render.test.ts` have stale inline-snapshot hashes.
+  - `apps/api/src/correlation.integration.test.ts` fails consistently
+    (dispatched: 0 vs expected 1) against this environment's Postgres —
+    looks like it needs a running queue/worker dependency not started here.
+  - Running many Fastify-booting `*.test.ts` files or many
+    `createTestDatabase()` integration suites fully in parallel in this
+    sandbox produces `server.inject`/`beforeAll` timeouts from resource
+    contention; every one of those tests passes when run with reduced
+    concurrency (`--no-file-parallelism` for the Postgres suites) or in
+    isolation.
+- **Deviations from story or technical guide:** None in implemented scope.
+  The gaps above are omissions to close in a follow-up pass, not
+  intentional deviations from the story's requirements.
+- **Code review (2026-09-16, `/story-code-review`) and fix-up pass.** An
+  evidence-based review against `AGENTS.md`, the PRD, epic technical guide,
+  ADR-001/ADR-002, and `docs/design.md` found the authorization/tenant-
+  isolation/reuse work sound (verified by re-running
+  `source-visuals.test.ts`, `storyboard-scene-editor.test.ts`, the
+  integration suite, and the reuse/cross-tenant tests directly) and raised
+  one Medium finding:
+  - **Silent column/cell truncation not reflected in `truncated`.**
+    `preview-manifest.ts` and `renders.ts` built a bounded `source_table`
+    visual by slicing an unbounded approved-snapshot table down to
+    `sourceTableVisualMaxColumns`/`sourceTableVisualMaxCellLength`, but
+    `truncated` was computed only from row-count overflow
+    (`table.rows.length > rows.length`). A table with more than 8 columns
+    or any cell longer than 160 characters had that content silently
+    dropped with `truncated: false`, so a teacher would see an apparently
+    complete table missing real columns or text — violating the story's
+    own invariant ("Overflowing rows are truncated, never summarized or
+    reshaped, and `truncated` records that it happened") and the "column
+    ... overflow" line in Required Tests, which only had row-overflow
+    coverage.
+  - **Fix applied:** `truncated` in both `preview-manifest.ts` and
+    `renders.ts` now also accounts for column-count and per-cell-length
+    overflow. Added `sourceTableVisualMaxCellLength` (160) as a named,
+    exported constant in `packages/schemas/src/index.ts` alongside the
+    existing `sourceTableVisualMax{Columns,Rows}` so the bound isn't a
+    silently-duplicated magic number across three call sites.
+    `TableVisual`'s notice in `labelled-diagram-scene.tsx` now shows a
+    generic "Some table columns or cell text are not shown due to display
+    limits." message when truncation happened without a row-count drop,
+    instead of a misleading "Showing N of N rows."
+  - **New regression tests:** `preview-manifest.test.ts` and `renders.test.ts`
+    each gained a case with a 9-column, 1-row source table asserting
+    `columns` is clipped to 8 and `truncated: true` despite `rowCount`
+    being unchanged; `packages/scene-library/src/source-table-visual.test.ts`
+    gained a case asserting the generic notice text renders when only
+    columns/cell text were truncated.
+  - **Verification:** `packages/schemas`, `packages/scene-library` built
+    and typechecked clean; re-ran
+    `apps/api/src/{source-visuals,storyboard-scene-editor,preview-manifest,renders}.test.ts`
+    and `packages/{schemas,scene-library}/src/source-table-visual.test.ts`
+    (76 tests, all passing, new cases included); `npx turbo typecheck`
+    across schemas/scene-library/renderer/api/web clean; `npx turbo lint`
+    on schemas/scene-library clean, and the pre-existing
+    `illustration-generation.ts`/`.test.ts` lint errors in `@avlp/api` are
+    confirmed untouched by this branch (`git diff` on those two files is
+    empty).
+  - Story marked Done following this fix-up.

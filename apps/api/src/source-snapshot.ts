@@ -361,6 +361,21 @@ export interface SourceSnapshotService {
     projectId: Identifier;
     sourceRefs: readonly SourceRef[];
   }): Promise<ResolvedCitation[]>;
+  /** ST-093: the figures and tables of the project's current approved
+   * snapshot, for the source-visual picker and asset-binding authorization.
+   * `undefined` when no snapshot has been approved yet. */
+  latestApprovedVisuals(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+  }): Promise<
+    | {
+        snapshotId: Identifier;
+        parsedDocumentId: Identifier;
+        figures: readonly SourceSnapshotFigure[];
+        tables: readonly SourceSnapshotTable[];
+      }
+    | undefined
+  >;
 }
 
 type SnapshotRow = typeof sourceSnapshots.$inferSelect;
@@ -574,6 +589,33 @@ export class PostgresSourceSnapshotService implements SourceSnapshotService {
       parseSnapshot(latest),
       input.sourceRefs,
     );
+  }
+
+  public async latestApprovedVisuals(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+  }): Promise<
+    | {
+        snapshotId: Identifier;
+        parsedDocumentId: Identifier;
+        figures: readonly SourceSnapshotFigure[];
+        tables: readonly SourceSnapshotTable[];
+      }
+    | undefined
+  > {
+    const latest = await this.latestSnapshot(
+      this.database,
+      input.ownerUserId,
+      input.projectId,
+    );
+    if (latest === undefined) return undefined;
+    const snapshot = parseSnapshot(latest);
+    return {
+      snapshotId: snapshot.id,
+      parsedDocumentId: snapshot.parsedDocumentId,
+      figures: snapshot.figures,
+      tables: snapshot.tables,
+    };
   }
 
   private async loadEffectiveSource(

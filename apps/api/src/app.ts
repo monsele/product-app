@@ -69,6 +69,7 @@ import type { ContentBlockCorrectionService } from "./content-block-corrections.
 import type { FigureInclusionService } from "./source-figure-inclusion.js";
 import type { LessonConfigurationService } from "./lesson-configuration.js";
 import type { SourceSnapshotService } from "./source-snapshot.js";
+import type { SourceVisualsService } from "./source-visuals.js";
 import type { ObjectivesService } from "./objectives.js";
 import type { OutlineService } from "./outline.js";
 import type { NarrationService } from "./narration.js";
@@ -111,6 +112,7 @@ const CONTENT_BLOCK_CORRECTION_SERVICE = Symbol(
 const FIGURE_INCLUSION_SERVICE = Symbol("FIGURE_INCLUSION_SERVICE");
 const LESSON_CONFIGURATION_SERVICE = Symbol("LESSON_CONFIGURATION_SERVICE");
 const SOURCE_SNAPSHOT_SERVICE = Symbol("SOURCE_SNAPSHOT_SERVICE");
+const SOURCE_VISUALS_SERVICE = Symbol("SOURCE_VISUALS_SERVICE");
 const OBJECTIVES_SERVICE = Symbol("OBJECTIVES_SERVICE");
 const OUTLINE_SERVICE = Symbol("OUTLINE_SERVICE");
 const NARRATION_SERVICE = Symbol("NARRATION_SERVICE");
@@ -334,6 +336,7 @@ type SourceSnapshotApiService = Pick<
   SourceSnapshotService,
   "approve" | "metadata" | "status"
 >;
+type SourceVisualsApiService = Pick<SourceVisualsService, "list">;
 type ObjectivesApiService = Pick<
   ObjectivesService,
   "generate" | "current" | "add" | "update" | "remove" | "reorder" | "approve"
@@ -503,6 +506,8 @@ class ProjectsController {
     private readonly lessonConfiguration: LessonConfigurationApiService,
     @Inject(SOURCE_SNAPSHOT_SERVICE)
     private readonly sourceSnapshots: SourceSnapshotApiService,
+    @Inject(SOURCE_VISUALS_SERVICE)
+    private readonly sourceVisuals: SourceVisualsApiService,
     @Inject(OBJECTIVES_SERVICE)
     private readonly objectives: ObjectivesApiService,
     @Inject(OUTLINE_SERVICE)
@@ -1748,6 +1753,18 @@ class ProjectsController {
     );
   }
 
+  @Get(":projectId/source-visuals")
+  public async listSourceVisuals(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    return this.sourceVisuals.list({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+    });
+  }
+
   @Get(":projectId/teacher-assets")
   public async listTeacherAssets(
     @Param("projectId") projectId: string,
@@ -2664,6 +2681,7 @@ function createAppModule(
   figureInclusionService: FigureInclusionApiService,
   lessonConfigurationService: LessonConfigurationApiService,
   sourceSnapshotService: SourceSnapshotApiService,
+  sourceVisualsService: SourceVisualsApiService,
   objectivesService: ObjectivesApiService,
   outlineService: OutlineApiService,
   narrationService: NarrationApiService,
@@ -2713,6 +2731,7 @@ function createAppModule(
         useValue: lessonConfigurationService,
       },
       { provide: SOURCE_SNAPSHOT_SERVICE, useValue: sourceSnapshotService },
+      { provide: SOURCE_VISUALS_SERVICE, useValue: sourceVisualsService },
       { provide: OBJECTIVES_SERVICE, useValue: objectivesService },
       { provide: OUTLINE_SERVICE, useValue: outlineService },
       { provide: NARRATION_SERVICE, useValue: narrationService },
@@ -2753,6 +2772,7 @@ export type CreateAppOptions = {
   figureInclusionService?: FigureInclusionApiService;
   lessonConfigurationService?: LessonConfigurationApiService;
   sourceSnapshotService?: SourceSnapshotApiService;
+  sourceVisualsService?: SourceVisualsApiService;
   objectivesService?: ObjectivesApiService;
   outlineService?: OutlineApiService;
   narrationService?: NarrationApiService;
@@ -3148,6 +3168,18 @@ const unavailableSourceSnapshotService: SourceSnapshotApiService = {
       new PublicError(
         "internal_error",
         "Source review status is unavailable.",
+        503,
+        true,
+      ),
+    ),
+};
+
+const unavailableSourceVisualsService: SourceVisualsApiService = {
+  list: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Source visuals are unavailable.",
         503,
         true,
       ),
@@ -3747,6 +3779,7 @@ export async function createApp(
       options.lessonConfigurationService ??
         unavailableLessonConfigurationService,
       options.sourceSnapshotService ?? unavailableSourceSnapshotService,
+      options.sourceVisualsService ?? unavailableSourceVisualsService,
       options.objectivesService ?? unavailableObjectivesService,
       options.outlineService ?? unavailableOutlineService,
       options.narrationService ?? unavailableNarrationService,

@@ -1,8 +1,10 @@
 import { videoTheme } from "@avlp/design-system/video-theme";
+import type { SourceTableVisual } from "@avlp/schemas";
 import { Easing, interpolate, useCurrentFrame } from "remotion";
 import type { CSSProperties, JSX } from "react";
 import {
   resolveSafeDiagramAsset,
+  resolveSafeTableVisual,
   type SceneComponentProps,
 } from "./scene-registry.js";
 import {
@@ -44,6 +46,99 @@ export function getLabelledDiagramFrameState(
   return Object.freeze({ opacity: entered * exit });
 }
 
+/**
+ * ST-093: a deterministic, allowlisted rendering of an approved source
+ * table. It receives only validated structured data (see
+ * `sourceTableVisualSchema`) — no HTML, pixel coordinates, or AI-generated
+ * markup — and lays it out as a fixed grid within the diagram slot.
+ */
+function TableVisual({ table }: Readonly<{ table: SourceTableVisual }>): JSX.Element {
+  const columnWidth = `${100 / table.columns.length}%`;
+  return (
+    <div
+      aria-label={table.title ?? "Source table"}
+      data-source-table-id={table.tableId}
+      style={{
+        boxSizing: "border-box",
+        display: "grid",
+        height: "100%",
+        overflow: "hidden",
+        padding: videoTheme.spacing.md,
+        width: "100%",
+      }}
+    >
+      <div
+        role="table"
+        style={{
+          border: `2px solid ${videoTheme.colors.accent}`,
+          borderRadius: videoTheme.radii.md,
+          display: "grid",
+          gridTemplateColumns: `repeat(${table.columns.length}, ${columnWidth})`,
+          overflow: "hidden",
+          width: "100%",
+        }}
+      >
+        {table.columns.map((column, columnIndex) => (
+          <div
+            key={`header-${columnIndex}`}
+            role="columnheader"
+            style={{
+              background: videoTheme.colors.primary,
+              borderBottom: `2px solid ${videoTheme.colors.accent}`,
+              boxSizing: "border-box",
+              color: videoTheme.colors.background,
+              fontSize: 22,
+              fontWeight: 700,
+              overflow: "hidden",
+              overflowWrap: "anywhere",
+              padding: videoTheme.spacing.sm,
+              textOverflow: "ellipsis",
+            }}
+          >
+            {column}
+          </div>
+        ))}
+        {table.rows.map((row, rowIndex) =>
+          row.map((cell, columnIndex) => (
+            <div
+              key={`cell-${rowIndex}-${columnIndex}`}
+              role="cell"
+              style={{
+                background:
+                  rowIndex % 2 === 0
+                    ? videoTheme.colors.surface
+                    : videoTheme.colors.background,
+                borderTop: `1px solid ${videoTheme.colors.accent}`,
+                boxSizing: "border-box",
+                color: videoTheme.colors.text,
+                fontSize: 20,
+                overflow: "hidden",
+                overflowWrap: "anywhere",
+                padding: videoTheme.spacing.sm,
+              }}
+            >
+              {cell}
+            </div>
+          )),
+        )}
+      </div>
+      {table.truncated ? (
+        <p
+          style={{
+            color: videoTheme.colors.accent,
+            fontSize: 18,
+            margin: `${videoTheme.spacing.xs}px 0 0`,
+          }}
+        >
+          {table.rows.length < table.rowCount
+            ? `Showing ${table.rows.length} of ${table.rowCount} rows.`
+            : "Some table columns or cell text are not shown due to display limits."}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function LabelledDiagramSceneFrame({
   frame,
   resolvedAssets,
@@ -61,10 +156,12 @@ export function LabelledDiagramSceneFrame({
       binding.slot === scene.visual.baseAssetSlot && binding.role === "diagram",
   );
   const resolvedAsset = resolveSafeDiagramAsset(asset?.assetId, resolvedAssets);
+  const resolvedTable = resolveSafeTableVisual(asset?.assetId, resolvedAssets);
   if (
     scene.visual.kind === "asset" &&
     runtimeMode === "render" &&
-    resolvedAsset === undefined
+    resolvedAsset === undefined &&
+    resolvedTable === undefined
   )
     throw new Error("Labelled diagram render requires a resolved diagram asset.");
   const canvas: CSSProperties = {
@@ -127,7 +224,11 @@ export function LabelledDiagramSceneFrame({
           width: plan.diagramRect.width,
         }}
       >
-        {scene.visual.kind === "asset" && resolvedAsset !== undefined ? (
+        {scene.visual.kind === "asset" &&
+        resolvedTable !== undefined &&
+        resolvedTable.table !== undefined ? (
+          <TableVisual table={resolvedTable.table} />
+        ) : scene.visual.kind === "asset" && resolvedAsset !== undefined ? (
           <img
             alt={resolvedAsset.altText}
             data-diagram-asset-slot="diagram"

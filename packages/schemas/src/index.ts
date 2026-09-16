@@ -65,6 +65,7 @@ export type VisualRole = z.infer<typeof visualRoleSchema>;
 export const assetProvenanceSchema = z.enum([
   "catalog",
   "source_figure",
+  "source_table",
   "teacher_uploaded",
   "ai_generated",
 ]);
@@ -2844,6 +2845,45 @@ export const sourceSnapshotTableSchema = z
         });
   });
 export type SourceSnapshotTable = z.infer<typeof sourceSnapshotTableSchema>;
+
+// ---------------------------------------------------------------------------
+// ST-093 — deterministic source-table visuals
+// ---------------------------------------------------------------------------
+
+/** Runtime display bounds for a `source_table` visual: a scene must fit one
+ * 1920x1080 frame, which is far tighter than `sourceSnapshotTableSchema`'s
+ * storage limits. Overflowing rows are truncated, never summarized or
+ * reshaped, and `truncated` records that it happened. */
+export const sourceTableVisualMaxColumns = 8;
+export const sourceTableVisualMaxRows = 12;
+export const sourceTableVisualMaxCellLength = 160;
+const sourceTableVisualCellText = boundedText(sourceTableVisualMaxCellLength);
+
+export const sourceTableVisualSchema = z
+  .object({
+    tableId: identifierSchema,
+    title: boundedText(1_000).optional(),
+    columns: z
+      .array(boundedText(sourceTableVisualMaxCellLength))
+      .min(1)
+      .max(sourceTableVisualMaxColumns),
+    rows: z
+      .array(z.array(sourceTableVisualCellText))
+      .max(sourceTableVisualMaxRows),
+    rowCount: z.number().int().nonnegative(),
+    truncated: z.boolean(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    for (const [index, row] of value.rows.entries())
+      if (row.length !== value.columns.length)
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["rows", index],
+          message: "Every table row must have one cell per column.",
+        });
+  });
+export type SourceTableVisual = z.infer<typeof sourceTableVisualSchema>;
 
 /**
  * Immutable approved source snapshot. The effective content is a frozen copy
@@ -6243,10 +6283,40 @@ export const previewAssetSchema = z
     altText: boundedText(2_000),
     assetId: identifierSchema,
     provenance: assetProvenanceSchema.optional(),
-    source: z.enum(["library", "source"]),
-    src: z.string().min(1).max(4_096),
+    source: z.enum(["library", "source", "source_table"]),
+    src: z.string().min(1).max(4_096).optional(),
+    table: sourceTableVisualSchema.optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    if (value.source === "source_table") {
+      if (value.table === undefined)
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["table"],
+          message: "A source-table preview asset requires table data.",
+        });
+      if (value.src !== undefined)
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["src"],
+          message: "A source-table preview asset must not carry a media URL.",
+        });
+    } else {
+      if (value.src === undefined)
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["src"],
+          message: "An image preview asset requires a media URL.",
+        });
+      if (value.table !== undefined)
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["table"],
+          message: "Only a source-table preview asset carries table data.",
+        });
+    }
+  });
 export type PreviewAsset = z.infer<typeof previewAssetSchema>;
 
 export const previewManifestSchema = z
@@ -6302,6 +6372,63 @@ export const previewManifestSchema = z
   })
   .strict();
 export type PreviewManifest = z.infer<typeof previewManifestSchema>;
+
+// ---------------------------------------------------------------------------
+// ST-093 — `GET /projects/:projectId/source-visuals` picker contracts
+// ---------------------------------------------------------------------------
+
+export const sourceVisualPickerFigureEntrySchema = z
+  .object({
+    kind: z.literal("figure"),
+    figureId: identifierSchema,
+    sectionId: identifierSchema,
+    sectionHeading: boundedText(1_000).optional(),
+    pageStart: z.number().int().positive(),
+    pageEnd: z.number().int().positive().optional(),
+    caption: boundedText(2_000).optional(),
+    altText: boundedText(2_000).optional(),
+    thumbnailUrl: z.string().min(1).max(4_096).optional(),
+  })
+  .strict();
+export type SourceVisualPickerFigureEntry = z.infer<
+  typeof sourceVisualPickerFigureEntrySchema
+>;
+
+export const sourceVisualPickerTableEntrySchema = z
+  .object({
+    kind: z.literal("table"),
+    tableId: identifierSchema,
+    sectionId: identifierSchema,
+    sectionHeading: boundedText(1_000).optional(),
+    pageStart: z.number().int().positive(),
+    pageEnd: z.number().int().positive().optional(),
+    columns: z.array(boundedText(1_000)).min(1).max(500),
+    rowCount: z.number().int().nonnegative(),
+  })
+  .strict();
+export type SourceVisualPickerTableEntry = z.infer<
+  typeof sourceVisualPickerTableEntrySchema
+>;
+
+export const sourceVisualPickerEntrySchema = z.discriminatedUnion("kind", [
+  sourceVisualPickerFigureEntrySchema,
+  sourceVisualPickerTableEntrySchema,
+]);
+export type SourceVisualPickerEntry = z.infer<
+  typeof sourceVisualPickerEntrySchema
+>;
+
+/** `GET /projects/:id/source-visuals` response. Only figures and tables
+ * present in the project's current approved source snapshot are listed. */
+export const sourceVisualPickerResponseSchema = z
+  .object({
+    entries: z.array(sourceVisualPickerEntrySchema).max(2_000),
+    snapshotId: identifierSchema.nullable(),
+  })
+  .strict();
+export type SourceVisualPickerResponse = z.infer<
+  typeof sourceVisualPickerResponseSchema
+>;
 
 // ---------------------------------------------------------------------------
 // ST-054 — Storyboard scene list, selection, and navigation read model

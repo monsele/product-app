@@ -31,17 +31,25 @@ import { secondsToFrames } from "./timing.js";
 const LOOPBACK_HTTP_URL_PATTERN =
   /^http:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?\/[^\s]*$/i;
 
-const fullLessonPreviewAssetSchema = previewAssetSchema.extend({
-  src: z
-    .string()
-    .refine(
-      (value) =>
-        /^https:\/\/[^\s]+$/i.test(value) ||
-        /^\/catalog\/[a-z0-9/_-]+\.svg$/i.test(value) ||
-        LOOPBACK_HTTP_URL_PATTERN.test(value),
-      "Assets must be signed HTTPS URLs or approved catalog paths.",
-    ),
-});
+const fullLessonPreviewAssetSchema = previewAssetSchema.superRefine(
+  (value, context) => {
+    // ST-093: a source-table visual carries structured data, not a media
+    // URL, so it is exempt from this HTTPS/catalog `src` allowlist.
+    if (value.source === "source_table" || value.src === undefined) return;
+    if (
+      !(
+        /^https:\/\/[^\s]+$/i.test(value.src) ||
+        /^\/catalog\/[a-z0-9/_-]+\.svg$/i.test(value.src) ||
+        LOOPBACK_HTTP_URL_PATTERN.test(value.src)
+      )
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["src"],
+        message: "Assets must be signed HTTPS URLs or approved catalog paths.",
+      });
+  },
+);
 
 export const narrationTrackSchema = z.discriminatedUnion("kind", [
   z

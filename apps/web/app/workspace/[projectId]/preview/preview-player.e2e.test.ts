@@ -146,4 +146,56 @@ describe("full lesson preview route", () => {
       await page.close();
     }
   });
+
+  it("surfaces a stale scene banner and a deep link back to the scene when a bound source table drops out of the manifest", async () => {
+    // ST-093: when a bound `source_table` visual falls out of the project's
+    // current approved snapshot, PreviewManifestService can no longer
+    // resolve it — the asset is absent from `manifest.assets` and its id
+    // lands in `missingAssetIds`, which is exactly what this existing
+    // stale-scene UI (built for ST-081) already surfaces and links back to
+    // Focus Studio for.
+    const staleTableId = "01989a3d-8e00-7000-8000-000000000030";
+    const staleManifest = previewManifestSchema.parse({
+      ...manifest,
+      scenes: [
+        manifest.scenes[0],
+        {
+          ...manifest.scenes[1],
+          missingAssetIds: [staleTableId],
+          stale: true,
+        },
+      ],
+    });
+    const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+    try {
+      const markup = renderToStaticMarkup(
+        React.createElement(FullLessonPreview, {
+          projectId,
+          initialManifest: staleManifest,
+          projectTitle: "Focus Studio Preview Fixture",
+        }),
+      );
+      await page.setContent(
+        `<!DOCTYPE html>
+        <html lang="en">
+          <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          </head>
+          <body class="theme-focus-studio">${markup}</body>
+        </html>`,
+        { waitUntil: "domcontentloaded" },
+      );
+
+      const banner = page.getByRole("alert");
+      expect(await banner.textContent()).toContain("outdated");
+
+      const editLink = page.locator(
+        `a[href="/workspace/${projectId}/storyboard#scene=${secondScene.id}"]`,
+      );
+      expect(await editLink.count()).toBeGreaterThan(0);
+    } finally {
+      await page.close();
+    }
+  });
 });

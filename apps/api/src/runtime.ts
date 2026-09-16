@@ -26,6 +26,7 @@ import { PostgresContentBlockCorrectionService } from "./content-block-correctio
 import { PostgresFigureInclusionService } from "./source-figure-inclusion.js";
 import { PostgresLessonConfigurationService } from "./lesson-configuration.js";
 import { PostgresSourceSnapshotService } from "./source-snapshot.js";
+import { PostgresSourceVisualsService } from "./source-visuals.js";
 import { PostgresObjectivesService } from "./objectives.js";
 import { PostgresOutlineService } from "./outline.js";
 import { PostgresNarrationService } from "./narration.js";
@@ -152,6 +153,11 @@ export async function runApi(input: {
           database.client,
         ),
         sourceSnapshotService,
+        sourceVisualsService: new PostgresSourceVisualsService(
+          database.client,
+          sourceSnapshotService,
+          storage,
+        ),
         objectivesService: new PostgresObjectivesService(
           database.client,
           (input) => sourceSnapshotService.status(input),
@@ -167,6 +173,7 @@ export async function runApi(input: {
         storyboardService: new PostgresStoryboardService(
           database.client,
           (input) => sourceSnapshotService.status(input),
+          (input) => sourceSnapshotService.latestApprovedVisuals(input),
         ),
         citationService: new PostgresCitationService(
           database.client,
@@ -191,6 +198,7 @@ export async function runApi(input: {
       previewManifestService: new PreviewManifestService(
         database.client,
         storage,
+        sourceSnapshotService,
       ),
       lessonValidationService,
       renderService: new PostgresRenderService(
@@ -202,6 +210,7 @@ export async function runApi(input: {
         },
         undefined,
         storage,
+        sourceSnapshotService,
       ),
       exportService: new ExportService(
         database.client,

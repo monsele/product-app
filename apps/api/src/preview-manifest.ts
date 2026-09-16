@@ -4,7 +4,6 @@ import {
   captionTracks,
   extractedFigures,
   lessonSpecs,
-  parsedDocuments,
   projectAssets,
   sceneAudio,
   scenes,
@@ -13,11 +12,16 @@ import {
 import {
   lessonStoryboardSchema,
   previewManifestSchema,
+  sourceTableVisualMaxCellLength,
+  sourceTableVisualMaxColumns,
+  sourceTableVisualMaxRows,
   type PreviewManifest,
 } from "@avlp/schemas";
 import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import { storageKeySchema, type ObjectStorage } from "@avlp/storage";
 import { approvedAssetById } from "./approved-assets.js";
+import { findLatestProjectParsedDocument } from "./project-parsed-document.js";
+import type { SourceSnapshotService } from "./source-snapshot.js";
 
 const previewCanvas = Object.freeze({ fps: 30, height: 1_080, width: 1_920 });
 
@@ -27,6 +31,10 @@ export class PreviewManifestService {
   public constructor(
     private readonly database: DatabaseClient,
     private readonly storage: Pick<ObjectStorage, "createSignedDownload">,
+    private readonly sourceSnapshots?: Pick<
+      SourceSnapshotService,
+      "latestApprovedVisuals"
+    >,
   ) {}
 
   public async get(input: {
@@ -83,43 +91,103 @@ export class PreviewManifestService {
     const projectAssetById = new Map(
       projectAssetRows.map((asset) => [asset.id, asset]),
     );
-    const sourceFigureRows =
+    // ST-093: resolve via the reuse-aware lookup so a same-owner reused
+    // ingestion artifact's figures still preview correctly for this project.
+    const document =
       assetIds.length === 0
+        ? undefined
+        : await findLatestProjectParsedDocument(this.database, {
+            ownerUserId: input.ownerUserId,
+            projectId: input.projectId,
+          });
+    const sourceFigureRows =
+      assetIds.length === 0 || document === undefined
         ? []
         : await this.database
-            .select({ figure: extractedFigures })
+            .select()
             .from(extractedFigures)
-            .innerJoin(
-              parsedDocuments,
-              eq(extractedFigures.parsedDocumentId, parsedDocuments.id),
-            )
             .where(
               and(
-                eq(parsedDocuments.ownerUserId, input.ownerUserId),
-                eq(parsedDocuments.projectId, input.projectId),
+                eq(extractedFigures.parsedDocumentId, document.id),
                 inArray(extractedFigures.id, assetIds),
               ),
             );
     const sourceFigureById = new Map(
-      sourceFigureRows.map(({ figure }) => [figure.id, figure]),
+      sourceFigureRows.map((figure) => [figure.id, figure]),
+    );
+    const latestVisuals =
+      assetIds.length === 0 || this.sourceSnapshots === undefined
+        ? undefined
+        : await this.sourceSnapshots.latestApprovedVisuals(input);
+    const tableById = new Map(
+      (latestVisuals?.tables ?? []).map((table) => [table.tableId, table]),
     );
     const assetEntries: Array<
       readonly [
         string,
-        {
-          assetId: string;
-          altText: string;
-          provenance:
-            | "catalog"
-            | "source_figure"
-            | "teacher_uploaded"
-            | "ai_generated";
-          source: "library" | "source";
-          src: string;
-        },
+        (
+          | {
+              assetId: string;
+              altText: string;
+              provenance:
+                | "catalog"
+                | "source_figure"
+                | "teacher_uploaded"
+                | "ai_generated";
+              source: "library" | "source";
+              src: string;
+            }
+          | {
+              assetId: string;
+              altText: string;
+              provenance: "source_table";
+              source: "source_table";
+              table: {
+                tableId: string;
+                title?: string;
+                columns: string[];
+                rows: string[][];
+                rowCount: number;
+                truncated: boolean;
+              };
+            }
+        ),
       ]
     > = [];
     for (const assetId of assetIds) {
+      const table = tableById.get(assetId);
+      if (table !== undefined) {
+        const rows = table.rows
+          .slice(0, sourceTableVisualMaxRows)
+          .map((row) =>
+            row
+              .slice(0, sourceTableVisualMaxColumns)
+              .map((cell) => cell.slice(0, sourceTableVisualMaxCellLength)),
+          );
+        const truncated =
+          table.rows.length > rows.length ||
+          table.columns.length > sourceTableVisualMaxColumns ||
+          table.rows.some((row) =>
+            row.some((cell) => cell.length > sourceTableVisualMaxCellLength),
+          );
+        assetEntries.push([
+          assetId,
+          {
+            assetId,
+            altText: `Table: ${table.columns.join(", ")}`,
+            provenance: "source_table" as const,
+            source: "source_table" as const,
+            table: {
+              tableId: table.tableId,
+              columns: table.columns.slice(0, sourceTableVisualMaxColumns),
+              rows,
+              rowCount: table.rows.length,
+              truncated,
+            },
+          },
+        ]);
+        continue;
+      }
       const catalogAsset = approvedAssetById(assetId);
       if (catalogAsset !== undefined) {
         assetEntries.push([

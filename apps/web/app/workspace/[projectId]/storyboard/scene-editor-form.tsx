@@ -20,6 +20,7 @@ import {
 import { Button } from "../../../../components/ui/button";
 import { ApprovedAssetPicker } from "./approved-asset-picker";
 import { TeacherAssetPicker } from "./teacher-asset-picker";
+import { SourceVisualPicker } from "./source-visual-picker";
 
 type SaveState = "saved" | "saving" | "conflict" | "failed";
 
@@ -706,6 +707,7 @@ export function writeAssetSlot(
   return next as unknown as SceneSpec;
 }
 
+
 export function SceneEditorForm({
   projectId,
   detail,
@@ -1126,6 +1128,19 @@ export function SceneEditorForm({
               setDraft((current) => writeAssetSlot(current, slot, assetId))
             }
           />
+          {metadata.assetSlotRequirements.find(
+            (requirement) => requirement.slot === slot,
+          )?.bindingRole === "diagram" ? (
+            <SourceVisualPicker
+              projectId={projectId}
+              disabled={disabled || saveState === "saving"}
+              selectedId={assetIdForSlot(draft, slot)}
+              slot={slot}
+              onChange={(assetId) =>
+                setDraft((current) => writeAssetSlot(current, slot, assetId))
+              }
+            />
+          ) : null}
         </div>
       ))}
 

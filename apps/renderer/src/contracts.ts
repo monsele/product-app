@@ -1,7 +1,7 @@
 import { identifierSchema } from "@avlp/config";
 import { hashJobOptions } from "@avlp/jobs";
 import { fullLessonCompositionPropsSchema } from "@avlp/scene-library";
-import { lessonSpecSchema } from "@avlp/schemas";
+import { lessonSpecSchema, sourceTableVisualSchema } from "@avlp/schemas";
 import { sha256ChecksumSchema, storageKeySchema } from "@avlp/storage";
 import { z } from "zod";
 
@@ -68,7 +68,7 @@ export const renderAssetManifestSchema = z
   });
 export type RenderAssetManifest = z.infer<typeof renderAssetManifestSchema>;
 
-const productionVisualAssetSchema = z.discriminatedUnion("source", [
+export const productionVisualAssetSchema = z.discriminatedUnion("source", [
   z
     .object({
       altText: z.string().min(1).max(2_000),
@@ -90,6 +90,16 @@ const productionVisualAssetSchema = z.discriminatedUnion("source", [
       ]),
       source: z.literal("source"),
       storageKey: storageKeySchema,
+    })
+    .strict(),
+  // ST-093: a source table has no binary media to checksum or sign — its
+  // bounded, already-approved data is embedded directly in the manifest.
+  z
+    .object({
+      altText: z.string().min(1).max(2_000),
+      assetId: identifierSchema,
+      source: z.literal("source_table"),
+      table: sourceTableVisualSchema,
     })
     .strict(),
 ]);

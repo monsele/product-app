@@ -533,6 +533,7 @@ describeWithPostgres(
           approvedAt: "2026-08-17T10:00:00.000Z",
           stale: false,
         }),
+        undefined,
         () => new Date("2026-08-17T10:00:00.000Z"),
       );
     });

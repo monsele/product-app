@@ -55,11 +55,23 @@ export const captionCueSchema = z
   });
 export type CaptionCue = z.infer<typeof captionCueSchema>;
 
+const scenePreviewAssetSchema = previewAssetSchema.superRefine(
+  (value, context) => {
+    // ST-093: a source-table visual carries structured data, not a media
+    // URL, so it is exempt from this fixture/signed-URL allowlist.
+    if (value.source === "source_table" || value.src === undefined) return;
+    if (!fixtureOrSignedUrlSchema.safeParse(value.src).success)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["src"],
+        message: "Media URLs must be HTTPS signed URLs or approved local fixtures.",
+      });
+  },
+);
+
 export const previewAssetManifestSchema = z
   .object({
-    assets: z.record(
-      previewAssetSchema.extend({ src: fixtureOrSignedUrlSchema }),
-    ),
+    assets: z.record(scenePreviewAssetSchema),
     audio: z
       .object({
         assetId: z.string().uuid(),

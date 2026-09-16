@@ -16,7 +16,6 @@ import {
   extractedFigures,
   sceneAudio,
   scenes,
-  parsedDocuments,
   projectAssets,
   validationIssues,
   validationRuns,
@@ -32,12 +31,17 @@ import {
   renderRequestSchema,
   renderStatusResponseSchema,
   lessonSpecSchema,
+  sourceTableVisualMaxCellLength,
+  sourceTableVisualMaxColumns,
+  sourceTableVisualMaxRows,
   type RenderStatusResponse,
 } from "@avlp/schemas";
 import { and, asc, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { storageKeySchema, type ObjectStorage } from "@avlp/storage";
 import { approvedAssetById } from "./approved-assets.js";
+import { findLatestProjectParsedDocument } from "./project-parsed-document.js";
+import type { SourceSnapshotService } from "./source-snapshot.js";
 import type { LessonValidationService } from "./lesson-validation.js";
 
 const renderProfile = Object.freeze({
@@ -187,6 +191,10 @@ export class PostgresRenderService implements RenderService {
     }> = defaultRenderLimits,
     private readonly now: () => Date = () => new Date(),
     private readonly storage?: Pick<ObjectStorage, "createSignedDownload">,
+    private readonly sourceSnapshots?: Pick<
+      SourceSnapshotService,
+      "latestApprovedVisuals"
+    >,
   ) {}
 
   public async start(
@@ -282,45 +290,87 @@ export class PostgresRenderService implements RenderService {
           ),
         ),
       ];
-      const [projectAssetRows, sourceFigureRows] = await Promise.all([
+      // ST-093: resolve via the reuse-aware lookup so a same-owner reused
+      // ingestion artifact's figures remain renderable from this project.
+      const document =
         assetIds.length === 0
-          ? []
-          : tx
-              .select()
-              .from(projectAssets)
-              .where(
-                and(
-                  eq(projectAssets.ownerUserId, input.ownerUserId),
-                  eq(projectAssets.projectId, input.projectId),
-                  eq(projectAssets.status, "active"),
-                  isNull(projectAssets.deletedAt),
-                  inArray(projectAssets.id, assetIds),
+          ? undefined
+          : await findLatestProjectParsedDocument(tx, {
+              ownerUserId: input.ownerUserId,
+              projectId: input.projectId,
+            });
+      const [projectAssetRows, sourceFigureRows, latestVisuals] =
+        await Promise.all([
+          assetIds.length === 0
+            ? []
+            : tx
+                .select()
+                .from(projectAssets)
+                .where(
+                  and(
+                    eq(projectAssets.ownerUserId, input.ownerUserId),
+                    eq(projectAssets.projectId, input.projectId),
+                    eq(projectAssets.status, "active"),
+                    isNull(projectAssets.deletedAt),
+                    inArray(projectAssets.id, assetIds),
+                  ),
                 ),
-              ),
-        assetIds.length === 0
-          ? []
-          : tx
-              .select({ figure: extractedFigures })
-              .from(extractedFigures)
-              .innerJoin(
-                parsedDocuments,
-                eq(extractedFigures.parsedDocumentId, parsedDocuments.id),
-              )
-              .where(
-                and(
-                  eq(parsedDocuments.ownerUserId, input.ownerUserId),
-                  eq(parsedDocuments.projectId, input.projectId),
-                  inArray(extractedFigures.id, assetIds),
+          assetIds.length === 0 || document === undefined
+            ? []
+            : tx
+                .select()
+                .from(extractedFigures)
+                .where(
+                  and(
+                    eq(extractedFigures.parsedDocumentId, document.id),
+                    inArray(extractedFigures.id, assetIds),
+                  ),
                 ),
-              ),
-      ]);
+          assetIds.length === 0 || this.sourceSnapshots === undefined
+            ? undefined
+            : this.sourceSnapshots.latestApprovedVisuals({
+                ownerUserId: input.ownerUserId,
+                projectId: input.projectId,
+              }),
+        ]);
       const projectAssetById = new Map(
         projectAssetRows.map((asset) => [asset.id, asset]),
       );
       const sourceFigureById = new Map(
-        sourceFigureRows.map(({ figure }) => [figure.id, figure]),
+        sourceFigureRows.map((figure) => [figure.id, figure]),
+      );
+      const tableById = new Map(
+        (latestVisuals?.tables ?? []).map((table) => [table.tableId, table]),
       );
       const visualAssets = assetIds.map((assetId) => {
+        const table = tableById.get(assetId);
+        if (table !== undefined) {
+          const rows = table.rows
+            .slice(0, sourceTableVisualMaxRows)
+            .map((row) =>
+              row
+                .slice(0, sourceTableVisualMaxColumns)
+                .map((cell) => cell.slice(0, sourceTableVisualMaxCellLength)),
+            );
+          const truncated =
+            table.rows.length > rows.length ||
+            table.columns.length > sourceTableVisualMaxColumns ||
+            table.rows.some((row) =>
+              row.some((cell) => cell.length > sourceTableVisualMaxCellLength),
+            );
+          return {
+            assetId,
+            altText: `Table: ${table.columns.join(", ")}`,
+            source: "source_table" as const,
+            table: {
+              tableId: table.tableId,
+              columns: table.columns.slice(0, sourceTableVisualMaxColumns),
+              rows,
+              rowCount: table.rows.length,
+              truncated,
+            },
+          };
+        }
         const catalog = approvedAssetById(assetId);
         if (catalog)
           return {

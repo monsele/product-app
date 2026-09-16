@@ -3,12 +3,14 @@ import {
   completeProjectAssetUploadResponseSchema,
   projectAssetListResponseSchema,
   projectAssetUploadSessionSchema,
+  sourceVisualPickerResponseSchema,
   storyboardSceneDetailResponseSchema,
   storyboardSceneEditResponseSchema,
   storyboardSceneListResponseSchema,
   type SceneSpec,
   type AssetCatalogSearchResponse,
   type SceneTemplate,
+  type SourceVisualPickerResponse,
   type StoryboardSceneEditResponse,
   type StoryboardSceneDetailResponse,
   type StoryboardSceneListResponse,
@@ -129,6 +131,20 @@ export async function fetchApprovedAssets(
   if (!response.ok) throw new Error("approved-assets");
   const parsed = assetCatalogSearchResponseSchema.safeParse(payload);
   if (!parsed.success) throw new Error("approved-assets");
+  return parsed.data;
+}
+
+export async function fetchSourceVisuals(
+  projectId: string,
+): Promise<SourceVisualPickerResponse> {
+  const response = await fetch(
+    apiUrl(`/projects/${encodeURIComponent(projectId)}/source-visuals`),
+    { credentials: "include", cache: "no-store" },
+  );
+  const payload: unknown = await response.json().catch(() => null);
+  if (!response.ok) throw new Error("source-visuals");
+  const parsed = sourceVisualPickerResponseSchema.safeParse(payload);
+  if (!parsed.success) throw new Error("source-visuals");
   return parsed.data;
 }
 

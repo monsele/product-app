@@ -93,6 +93,7 @@ describe("source snapshot API", () => {
       status: vi.fn(async () => sampleStatus),
       lookupBlocks: vi.fn(async () => []),
       resolveSourceRefs: vi.fn(async () => []),
+      latestApprovedVisuals: vi.fn(async () => undefined),
       ...service,
     };
     app = await createApp({

@@ -518,8 +518,31 @@ export function resolveSafeDiagramAsset(
   if (
     asset === undefined ||
     asset.assetId !== assetId ||
-    !resolvedSceneAssetSourceValues.includes(asset.source) ||
+    (asset.source !== "library" && asset.source !== "source") ||
+    asset.src === undefined ||
     !isSafeDiagramImageSource(asset.src)
+  )
+    return undefined;
+  return asset;
+}
+
+/**
+ * ST-093: the table analogue of `resolveSafeDiagramAsset`. A `source_table`
+ * visual carries structured, already-bounded data rather than a media URL, so
+ * the allowlist gate here validates the table payload's shape instead of a
+ * `src` pattern — never HTML, pixel coordinates, or AI-generated markup.
+ */
+export function resolveSafeTableVisual(
+  assetId: string | undefined,
+  resolvedAssets: SceneComponentProps["resolvedAssets"],
+): ResolvedSceneAsset | undefined {
+  if (assetId === undefined) return undefined;
+  const asset = resolvedAssets?.[assetId];
+  if (
+    asset === undefined ||
+    asset.assetId !== assetId ||
+    asset.source !== "source_table" ||
+    asset.table === undefined
   )
     return undefined;
   return asset;

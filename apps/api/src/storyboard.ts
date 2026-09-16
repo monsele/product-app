@@ -22,7 +22,6 @@ import {
   narrationBlocks,
   narrationSets,
   outboxEvents,
-  parsedDocuments,
   projectAssets,
   illustrationGenerationCandidates,
   sceneCandidates,
@@ -92,6 +91,7 @@ import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { SourceSnapshotService } from "./source-snapshot.js";
 import { approvedAssetById } from "./approved-assets.js";
+import { findLatestProjectParsedDocument } from "./project-parsed-document.js";
 
 function canonicalHash(value: unknown): string {
   const canonical = JSON.stringify(sortCanonical(value));
@@ -229,6 +229,7 @@ export class PostgresStoryboardService implements StoryboardService {
   public constructor(
     private readonly database: DatabaseClient,
     private readonly sourceApprovalStatus: SourceSnapshotService["status"],
+    private readonly latestApprovedVisuals?: SourceSnapshotService["latestApprovedVisuals"],
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -2251,7 +2252,47 @@ export class PostgresStoryboardService implements StoryboardService {
     }
     const sourceFigureIds = uniqueIds.filter((id) => !teacherAssetIds.has(id));
     if (sourceFigureIds.length === 0) return;
-    const sourceFigureIdSet = new Set(sourceFigureIds);
+
+    // ST-093: a non-catalog, non-teacher ID may be either an extracted figure
+    // or an approved source table. Resolve the current approved snapshot once
+    // so table bindings can be checked by snapshot membership.
+    const latestVisuals =
+      this.latestApprovedVisuals === undefined
+        ? undefined
+        : await this.latestApprovedVisuals({ ownerUserId, projectId });
+    const tableById = new Map(
+      (latestVisuals?.tables ?? []).map((table) => [table.tableId, table]),
+    );
+    const sourceTableIdSet = new Set(
+      sourceFigureIds.filter((id) => tableById.has(id)),
+    );
+    for (const binding of scene.assetBindings) {
+      if (!sourceTableIdSet.has(binding.assetId)) continue;
+      const requirement =
+        binding.slot === undefined
+          ? undefined
+          : sceneAssetSlotRequirement(scene.template, binding.slot);
+      // ST-093: a table is a bounded, deterministic visual with one
+      // presentation mode. It may only fill a "diagram" binding-role slot —
+      // the only grounding slot able to show tabular content without adding
+      // a new template — and can never claim a non-table provenance.
+      if (
+        requirement === undefined ||
+        requirement.bindingRole !== "diagram" ||
+        binding.role !== requirement.bindingRole ||
+        (binding.visualRole !== undefined &&
+          binding.visualRole !== requirement.visualRole) ||
+        (binding.provenance !== undefined &&
+          binding.provenance !== "source_table")
+      )
+        throw incompatibleSceneAssetSlot();
+    }
+
+    const sourceFigureCandidateIds = sourceFigureIds.filter(
+      (id) => !sourceTableIdSet.has(id),
+    );
+    if (sourceFigureCandidateIds.length === 0) return;
+    const sourceFigureIdSet = new Set(sourceFigureCandidateIds);
     for (const binding of scene.assetBindings) {
       if (!sourceFigureIdSet.has(binding.assetId)) continue;
       const requirement =
@@ -2273,17 +2314,12 @@ export class PostgresStoryboardService implements StoryboardService {
       )
         throw incompatibleSceneAssetSlot();
     }
-    const [document] = await executor
-      .select({ id: parsedDocuments.id })
-      .from(parsedDocuments)
-      .where(
-        and(
-          eq(parsedDocuments.ownerUserId, ownerUserId),
-          eq(parsedDocuments.projectId, projectId),
-        ),
-      )
-      .orderBy(desc(parsedDocuments.createdAt))
-      .limit(1);
+    // ST-093: resolve via the reuse-aware lookup so a same-owner reused
+    // ingestion artifact's figures remain bindable from the reusing project.
+    const document = await findLatestProjectParsedDocument(executor, {
+      ownerUserId,
+      projectId,
+    });
     if (document === undefined) throw sourceFigureAssetUnavailable();
     const figures = await executor
       .select({ id: extractedFigures.id })
@@ -2291,10 +2327,10 @@ export class PostgresStoryboardService implements StoryboardService {
       .where(
         and(
           eq(extractedFigures.parsedDocumentId, document.id),
-          inArray(extractedFigures.id, sourceFigureIds),
+          inArray(extractedFigures.id, sourceFigureCandidateIds),
         ),
       );
-    if (figures.length !== sourceFigureIds.length)
+    if (figures.length !== sourceFigureCandidateIds.length)
       throw sourceFigureAssetUnavailable();
     const excluded = await executor
       .select({ figureId: figureInclusionOverlays.figureId })
@@ -2305,7 +2341,10 @@ export class PostgresStoryboardService implements StoryboardService {
           eq(figureInclusionOverlays.projectId, projectId),
           eq(figureInclusionOverlays.parsedDocumentId, document.id),
           eq(figureInclusionOverlays.included, false),
-          inArray(figureInclusionOverlays.figureId, uniqueIds),
+          inArray(
+            figureInclusionOverlays.figureId,
+            sourceFigureCandidateIds,
+          ),
         ),
       );
     if (excluded.length > 0) throw sourceFigureAssetUnavailable();
