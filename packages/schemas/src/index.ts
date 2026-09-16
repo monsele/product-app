@@ -3448,6 +3448,66 @@ export const lessonVersionRestoreSchema = z
   })
   .strict();
 export type LessonVersionRestore = z.infer<typeof lessonVersionRestoreSchema>;
+
+/** Project-relative workspace stages a blocked version save can send a
+ * teacher to recover in. A deliberately small, application-owned allowlist:
+ * the API never returns an arbitrary URL for recovery navigation. */
+export const versionRecoveryStageSchema = z.enum([
+  "configuration",
+  "objectives",
+  "outline",
+  "narration",
+  "storyboard",
+]);
+export type VersionRecoveryStage = z.infer<typeof versionRecoveryStageSchema>;
+
+/** Stable, teacher-facing reasons a version-save request can be blocked.
+ * Codes are additive-only: a new blocker requires a new code rather than
+ * repurposing an existing one, so an old client never mis-explains a new
+ * blocker as something else. Because this schema (and the array it lives
+ * in) is `.strict()` and closed, an old client that doesn't yet recognize a
+ * new code fails to parse the whole blocker list and falls back to the
+ * response's generic top-level message rather than rendering it partially -
+ * a deliberate all-or-nothing degradation, not per-code tolerance. */
+export const versionSaveBlockerCodeSchema = z.enum([
+  "configuration_missing",
+  "objectives_missing",
+  "objectives_unapproved",
+  "objectives_empty",
+  "outline_missing",
+  "outline_unapproved",
+  "outline_empty",
+  "narration_missing",
+  "narration_unapproved",
+  "narration_empty",
+  "storyboard_missing",
+  "source_snapshot_missing",
+  "outline_stale",
+  "narration_stale",
+  "storyboard_stale",
+]);
+export type VersionSaveBlockerCode = z.infer<
+  typeof versionSaveBlockerCodeSchema
+>;
+export const versionSaveBlockerSchema = z
+  .object({
+    code: versionSaveBlockerCodeSchema,
+    message: z.string().min(1).max(500),
+    recoveryStage: versionRecoveryStageSchema,
+  })
+  .strict();
+export type VersionSaveBlocker = z.infer<typeof versionSaveBlockerSchema>;
+
+/** The `details` payload of a blocked-save 409 response. Deterministic
+ * workflow order; the first entry is the primary recovery action. */
+export const versionSaveReadinessSchema = z
+  .object({
+    ready: z.literal(false),
+    blockers: z.array(versionSaveBlockerSchema).min(1).max(20),
+  })
+  .strict();
+export type VersionSaveReadiness = z.infer<typeof versionSaveReadinessSchema>;
+
 export const lessonVersionSummarySchema = z
   .object({
     id: identifierSchema,

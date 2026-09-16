@@ -1,6 +1,8 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
+import type { VersionSaveBlocker } from "@avlp/schemas";
 
 export type VersionBrowserMetadata = {
   count: number;
@@ -10,8 +12,10 @@ export type VersionBrowserMetadata = {
 };
 
 export function VersionBrowser(props: {
+  projectId: string;
   metadata: VersionBrowserMetadata | null;
   preview: { id: string; durationSeconds: number; sceneCount: number; schemaVersion: string } | null;
+  saveBlockers?: readonly VersionSaveBlocker[];
   restoringVersionId: string | null;
   saving: boolean;
   storyboardAvailable: boolean;
@@ -19,7 +23,7 @@ export function VersionBrowser(props: {
   onRestore: (versionId: string) => void;
   onSave: () => void;
 }) {
-  const { metadata } = props;
+  const { metadata, saveBlockers = [] } = props;
 
   return (
     <section
@@ -55,12 +59,16 @@ export function VersionBrowser(props: {
           onClick={props.onSave}
           disabled={props.saving || !props.storyboardAvailable}
           style={{
-            padding: "6px 12px",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: "44px",
+            padding: "6px 16px",
             borderRadius: "6px",
             backgroundColor: "var(--color-brand, #A883FF)",
             color: "var(--color-on-brand, #1B1027)",
             border: "none",
-            fontSize: "12px",
+            fontSize: "13px",
             fontWeight: 600,
             cursor: props.saving || !props.storyboardAvailable ? "not-allowed" : "pointer",
           }}
@@ -68,6 +76,56 @@ export function VersionBrowser(props: {
           {props.saving ? "Saving version..." : "Save version"}
         </button>
       </div>
+
+      {saveBlockers.length > 0 ? (
+        <div
+          role="alert"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "10px",
+            padding: "12px",
+            borderRadius: "6px",
+            backgroundColor: "var(--color-danger-surface, rgba(180, 35, 24, 0.16))",
+            border: "1px solid var(--color-danger-line, rgba(252, 165, 165, 0.30))",
+          }}
+        >
+          <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "var(--color-danger-text, #FCA5A5)" }}>
+            This lesson is not ready to save as a version.
+          </p>
+          {saveBlockers.map((blocker, index) => (
+            <div
+              key={blocker.code}
+              style={{ display: "flex", flexDirection: "column", gap: "6px" }}
+            >
+              <span style={{ fontSize: "12px", color: "var(--color-text, #F4F1F8)" }}>
+                {blocker.message}
+              </span>
+              <Link
+                href={`/workspace/${encodeURIComponent(props.projectId)}/${blocker.recoveryStage}`}
+                prefetch={true}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  alignSelf: "flex-start",
+                  minHeight: "44px",
+                  padding: "6px 16px",
+                  borderRadius: "4px",
+                  backgroundColor: index === 0 ? "rgba(168, 131, 255, 0.15)" : "rgba(255, 255, 255, 0.08)",
+                  border: index === 0 ? "1px solid rgba(168, 131, 255, 0.3)" : "1px solid var(--color-border, #3A3046)",
+                  color: "var(--color-brand, #A883FF)",
+                  fontSize: "13px",
+                  fontWeight: index === 0 ? 600 : 400,
+                  textDecoration: "none",
+                }}
+              >
+                Go to {blocker.recoveryStage}
+              </Link>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       {metadata?.versions && metadata.versions.length > 0 ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>

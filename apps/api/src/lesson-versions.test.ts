@@ -4,7 +4,7 @@ import { join } from "node:path";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
 import { InMemoryOwnerScopedProjectRepository, ProjectAuthorizationService, createCrossUserProjectFixture, type AuthGateway } from "@avlp/auth";
 import { createId } from "@avlp/config";
-import { assertCurrentVersion, buildLessonVersionSnapshot, canonicalJson, lessonVersionContentHash, mediaReferences, prepareRestoredSnapshot, restoredStoryboardDraft } from "./lesson-versions.js";
+import { assertCurrentVersion, buildLessonVersionSnapshot, canonicalJson, computeReadinessBlockers, lessonVersionContentHash, mediaReferences, prepareRestoredSnapshot, restoredStoryboardDraft } from "./lesson-versions.js";
 import { createApp, sessionCookieName } from "./app.js";
 
 describe("lesson version canonical serialization", () => {
@@ -61,6 +61,99 @@ it("enforces immutable version rows and serializes concurrent version creation i
   const implementation = readFileSync(join(process.cwd(), "src/lesson-versions.ts"), "utf8");
   expect(implementation).toContain("pg_advisory_xact_lock");
   expect(implementation).toContain("onConflictDoNothing");
+});
+
+describe("version-save readiness blockers", () => {
+  type ReadinessState = Parameters<typeof computeReadinessBlockers>[0];
+  const sourceId = "019ffbf1-eeee-7000-8000-000000000050";
+  const objectivesId = "019ffbf1-eeee-7000-8000-000000000051";
+  const outlineId = "019ffbf1-eeee-7000-8000-000000000052";
+  const narrationId = "019ffbf1-eeee-7000-8000-000000000053";
+
+  function readyState(): ReadinessState {
+    return {
+      configuration: { id: "config-1" },
+      voiceConfiguration: undefined,
+      objectives: { id: objectivesId, sourceSnapshotId: sourceId },
+      outline: { id: outlineId, sourceSnapshotId: sourceId },
+      narration: { id: narrationId, sourceSnapshotId: sourceId },
+      storyboard: { id: "spec-1", basedOnNarrationSetId: narrationId },
+      source: { id: sourceId },
+      objectiveItems: [{ id: "obj-item-1" }],
+      outlineItems: [{ id: "outline-item-1" }],
+      blocks: [{ id: "block-1" }],
+      groundingCheckId: null,
+    } as unknown as ReadinessState;
+  }
+  function stateWith(overrides: Record<string, unknown>): ReadinessState {
+    return { ...readyState(), ...overrides } as unknown as ReadinessState;
+  }
+  const noneExist = { objectives: false, outline: false, narration: false };
+
+  it("reports no blockers once every stage is approved, non-empty, and aligned", () => {
+    expect(computeReadinessBlockers(readyState(), noneExist)).toEqual([]);
+  });
+
+  it("names a missing lesson configuration", () => {
+    const blockers = computeReadinessBlockers(stateWith({ configuration: undefined }), noneExist);
+    expect(blockers).toEqual([{ code: "configuration_missing", message: "Lesson configuration has not been completed yet.", recoveryStage: "configuration" }]);
+  });
+
+  it("distinguishes objectives never generated from objectives still a draft", () => {
+    const missing = computeReadinessBlockers(stateWith({ objectives: undefined }), noneExist);
+    expect(missing).toEqual([{ code: "objectives_missing", message: "Learning objectives have not been generated yet.", recoveryStage: "objectives" }]);
+    const draft = computeReadinessBlockers(stateWith({ objectives: undefined }), { ...noneExist, objectives: true });
+    expect(draft).toEqual([{ code: "objectives_unapproved", message: "Learning objectives are still a draft and must be approved.", recoveryStage: "objectives" }]);
+  });
+
+  it("flags approved objectives that resolved to zero items", () => {
+    const blockers = computeReadinessBlockers(stateWith({ objectiveItems: [] }), noneExist);
+    expect(blockers).toEqual([{ code: "objectives_empty", message: "The approved learning objectives are empty.", recoveryStage: "objectives" }]);
+  });
+
+  it("distinguishes an outline never generated from an outline still a draft, and flags an empty approved outline", () => {
+    expect(computeReadinessBlockers(stateWith({ outline: undefined }), noneExist)).toEqual([{ code: "outline_missing", message: "The lesson outline has not been generated yet.", recoveryStage: "outline" }]);
+    expect(computeReadinessBlockers(stateWith({ outline: undefined }), { ...noneExist, outline: true })).toEqual([{ code: "outline_unapproved", message: "The lesson outline is still a draft and must be approved.", recoveryStage: "outline" }]);
+    expect(computeReadinessBlockers(stateWith({ outlineItems: [] }), noneExist)).toEqual([{ code: "outline_empty", message: "The approved lesson outline is empty.", recoveryStage: "outline" }]);
+  });
+
+  it("names narration still a draft with a direct narration recovery action (the observed failure case)", () => {
+    const blockers = computeReadinessBlockers(stateWith({ narration: undefined }), { ...noneExist, narration: true });
+    expect(blockers).toEqual([{ code: "narration_unapproved", message: "Narration is still a draft and must be approved.", recoveryStage: "narration" }]);
+  });
+
+  it("distinguishes narration never generated from an empty approved narration set", () => {
+    expect(computeReadinessBlockers(stateWith({ narration: undefined }), noneExist)).toEqual([{ code: "narration_missing", message: "Narration has not been generated yet.", recoveryStage: "narration" }]);
+    expect(computeReadinessBlockers(stateWith({ blocks: [] }), noneExist)).toEqual([{ code: "narration_empty", message: "The approved narration has no blocks.", recoveryStage: "narration" }]);
+  });
+
+  it("names a storyboard that has not been generated yet", () => {
+    expect(computeReadinessBlockers(stateWith({ storyboard: undefined }), noneExist)).toEqual([{ code: "storyboard_missing", message: "The storyboard has not been generated yet.", recoveryStage: "storyboard" }]);
+  });
+
+  it("names a missing approved source snapshot only once every other stage is ready", () => {
+    const blockers = computeReadinessBlockers(stateWith({ source: undefined }), noneExist);
+    expect(blockers).toEqual([{ code: "source_snapshot_missing", message: "The approved source snapshot could not be found.", recoveryStage: "configuration" }]);
+  });
+
+  it("flags a stale outline, narration, or storyboard relationship with a refresh action, only once every stage is otherwise ready", () => {
+    const staleOutline = readyState(); (staleOutline.outline as { sourceSnapshotId: string }).sourceSnapshotId = "different-source";
+    expect(computeReadinessBlockers(staleOutline, noneExist)).toEqual([{ code: "outline_stale", message: "The lesson outline was generated from a source that has since changed and must be refreshed.", recoveryStage: "outline" }]);
+
+    const staleNarration = readyState(); (staleNarration.narration as { sourceSnapshotId: string }).sourceSnapshotId = "different-source";
+    expect(computeReadinessBlockers(staleNarration, noneExist)).toEqual([{ code: "narration_stale", message: "Narration was generated from a source that has since changed and must be refreshed.", recoveryStage: "narration" }]);
+
+    const staleStoryboard = readyState(); (staleStoryboard.storyboard as { basedOnNarrationSetId: string }).basedOnNarrationSetId = "different-narration-set";
+    expect(computeReadinessBlockers(staleStoryboard, noneExist)).toEqual([{ code: "storyboard_stale", message: "The storyboard is based on narration that has since changed and must be refreshed.", recoveryStage: "storyboard" }]);
+  });
+
+  it("reports multiple blockers together in deterministic workflow order", () => {
+    const blockers = computeReadinessBlockers(
+      stateWith({ configuration: undefined, narration: undefined, storyboard: undefined }),
+      { ...noneExist, narration: true },
+    );
+    expect(blockers.map((entry) => entry.code)).toEqual(["configuration_missing", "narration_unapproved", "storyboard_missing"]);
+  });
 });
 
 describe("lesson version routes", () => {

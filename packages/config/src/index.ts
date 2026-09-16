@@ -176,6 +176,10 @@ export const apiErrorEnvelopeSchema = z.object({
     message: z.string(),
     fieldErrors: z.record(z.string()).optional(),
     latest: z.unknown().optional(),
+    // A structured, endpoint-specific extension of the error, validated by
+    // the endpoint's own shared schema on the client (e.g. version-save
+    // readiness). Distinct from `latest`, which carries conflict state.
+    details: z.unknown().optional(),
     retryable: z.boolean(),
     correlationId: identifierSchema,
   }),
@@ -188,6 +192,7 @@ export class PublicError extends Error {
   public readonly retryable: boolean;
   public readonly fieldErrors: FieldErrorMap | undefined;
   public readonly latest: unknown | undefined;
+  public readonly details: unknown | undefined;
 
   public constructor(
     code: ErrorCode,
@@ -196,6 +201,7 @@ export class PublicError extends Error {
     retryable = false,
     fieldErrors?: FieldErrorMap,
     latest?: unknown,
+    details?: unknown,
   ) {
     super(message);
     this.name = "PublicError";
@@ -204,6 +210,7 @@ export class PublicError extends Error {
     this.retryable = retryable;
     this.fieldErrors = fieldErrors;
     this.latest = latest;
+    this.details = details;
   }
 }
 
@@ -220,6 +227,7 @@ export function toApiErrorEnvelope(
           ? {}
           : { fieldErrors: error.fieldErrors }),
         ...(error.latest === undefined ? {} : { latest: error.latest }),
+        ...(error.details === undefined ? {} : { details: error.details }),
         retryable: error.retryable,
         correlationId,
       },

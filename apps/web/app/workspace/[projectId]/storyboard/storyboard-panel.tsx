@@ -13,6 +13,7 @@ import {
   lessonValidationRunSchema,
   lessonAudioGenerationResponseSchema,
   lessonIllustrationGenerationResponseSchema,
+  versionSaveReadinessSchema,
   type LessonValidationRun,
   type PreviewManifest,
   type ProjectAsset,
@@ -20,6 +21,7 @@ import {
   type StoryboardResponse,
   type StoryboardSceneDetailResponse,
   type StoryboardSceneListResponse,
+  type VersionSaveBlocker,
 } from "@avlp/schemas";
 import {
   isGenerating,
@@ -88,6 +90,46 @@ function extractErrorMessage(payload: unknown, fallback: string): string {
     : fallback;
 }
 
+/** Reads the structured, deterministically-ordered blocker list from a
+ * blocked version-save response, if present. Returns an empty array for any
+ * other error shape so callers can fall back to the generic message. */
+function extractVersionSaveBlockers(payload: unknown): readonly VersionSaveBlocker[] {
+  const error =
+    typeof payload === "object" && payload !== null && "error" in payload
+      ? (payload as { error?: unknown }).error
+      : null;
+  const details =
+    typeof error === "object" && error !== null && "details" in error
+      ? (error as { details?: unknown }).details
+      : null;
+  const parsed = versionSaveReadinessSchema.safeParse(details);
+  return parsed.success ? parsed.data.blockers : [];
+}
+
+export type SaveVersionOutcome =
+  | { kind: "success" }
+  | { kind: "blocked"; message: string; blockers: readonly VersionSaveBlocker[] }
+  | { kind: "error"; message: string };
+
+/** Turns a version-save response into exactly one outcome. A blocked save
+ * (structured readiness blockers present) is kept distinct from any other
+ * failure so the caller can show the persistent recovery notice only for a
+ * real readiness block, not for a network/server error with no blockers. */
+export function deriveSaveVersionOutcome(
+  ok: boolean,
+  payload: unknown,
+): SaveVersionOutcome {
+  if (ok) return { kind: "success" };
+  const message = extractErrorMessage(
+    payload,
+    "Unable to save this lesson version.",
+  );
+  const blockers = extractVersionSaveBlockers(payload);
+  return blockers.length > 0
+    ? { kind: "blocked", message, blockers }
+    : { kind: "error", message };
+}
+
 /** Reads the deep-linked scene id from the URL hash, e.g. `#scene=<id>`. */
 function readHashSceneId(): string | null {
   if (typeof window === "undefined") return null;
@@ -130,6 +172,9 @@ export function StoryboardPanel({
     null,
   );
   const [savingVersion, setSavingVersion] = useState(false);
+  const [versionSaveBlockers, setVersionSaveBlockers] = useState<
+    readonly VersionSaveBlocker[]
+  >([]);
   const [validation, setValidation] = useState<LessonValidationRun | null>(
     null,
   );
@@ -348,6 +393,7 @@ export function StoryboardPanel({
   const saveVersion = useCallback(async () => {
     setSavingVersion(true);
     setActionMessage(null);
+    setVersionSaveBlockers([]);
     try {
       const response = await fetch(
         apiUrl(`/projects/${encodeURIComponent(projectId)}/versions`),
@@ -359,10 +405,20 @@ export function StoryboardPanel({
         },
       );
       const payload: unknown = await response.json().catch(() => null);
-      if (!response.ok)
-        throw new Error(
-          extractErrorMessage(payload, "Unable to save this lesson version."),
-        );
+      const outcome = deriveSaveVersionOutcome(response.ok, payload);
+      if (outcome.kind === "blocked") {
+        setVersionSaveBlockers(outcome.blockers);
+        // A structured readiness blocker already has its own persistent,
+        // correctly-severity-styled notice in the version panel; avoid also
+        // duplicating it here with mismatched (info) styling.
+        toast.error(outcome.message);
+        return;
+      }
+      if (outcome.kind === "error") {
+        setActionMessage(outcome.message);
+        toast.error(outcome.message);
+        return;
+      }
       await refreshVersions();
       const msg = "Lesson version saved.";
       setActionMessage(msg);
@@ -1415,6 +1471,7 @@ export function StoryboardPanel({
                     }}
                     versionMetadata={versionMetadata}
                     versionPreview={versionPreview}
+                    versionSaveBlockers={versionSaveBlockers}
                     restoringVersionId={restoringVersionId}
                     savingVersion={savingVersion}
                     onSaveVersion={() => void saveVersion()}

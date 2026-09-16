@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { createId, PublicError, serializeUtcTimestamp, type Identifier } from "@avlp/config";
 import { groundingChecks, learningObjectiveSets, learningObjectives, lessonConfigurations, lessonOutlineItems, lessonOutlineSets, lessonSpecs, lessonVersions, narrationBlocks, narrationSets, projects, scenes, sourceSnapshots, voiceConfigurations, type DatabaseClient, type DatabaseExecutor } from "@avlp/database";
-import { lessonSpecSchema, lessonStoryboardSchema, lessonVersionCreateSchema, lessonVersionDetailSchema, lessonVersionRestoreSchema, lessonVersionsResponseSchema, type LessonVersionDetail, type LessonVersionsResponse } from "@avlp/schemas";
+import { lessonSpecSchema, lessonStoryboardSchema, lessonVersionCreateSchema, lessonVersionDetailSchema, lessonVersionRestoreSchema, lessonVersionsResponseSchema, versionSaveBlockerSchema, versionSaveReadinessSchema, type LessonVersionDetail, type LessonVersionsResponse, type VersionRecoveryStage, type VersionSaveBlocker, type VersionSaveBlockerCode } from "@avlp/schemas";
 import { PostgresAuditWriter } from "@avlp/observability";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -26,7 +26,10 @@ export class PostgresLessonVersionsService implements LessonVersionsService {
       // Serializes per-project numbering and pointer updates, including the
       // empty-history case where a row lock alone cannot prevent two v1 rows.
       await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${input.projectId}))`);
-      const state = await loadState(tx, input); ensureReady(state);
+      const state = await loadState(tx, input);
+      const blockers = await evaluateReadiness(tx, input, state);
+      if (blockers.length > 0) throw versionSaveBlockedError(blockers);
+      ensureReady(state);
       const id = createId(now);
       const citation = await this.citations.snapshotForVersion({ executor: tx, ...input, lessonVersionId: id, lessonSpecId: state.storyboard.id as Identifier, lessonSpecRevision: state.storyboard.revision, groundingCheckId: state.groundingCheckId, sourceSnapshotId: state.source.id as Identifier, sourceSnapshotContentHash: state.source.contentHash, now });
       const snapshot = buildLessonVersionSnapshot(state, citation);
@@ -111,12 +114,16 @@ async function loadState(db: DatabaseExecutor, scope: Scope) {
   const [configuration] = await db.select().from(lessonConfigurations).where(and(eq(lessonConfigurations.ownerUserId, scope.ownerUserId), eq(lessonConfigurations.projectId, scope.projectId))).limit(1);
   const [voiceConfiguration] = await db.select().from(voiceConfigurations).where(and(eq(voiceConfigurations.ownerUserId, scope.ownerUserId), eq(voiceConfigurations.projectId, scope.projectId))).limit(1);
   const objectives = await approvedObjectives(db, scope); const outline = await approvedOutline(db, scope); const narration = await approvedNarration(db, scope); const storyboard = await workingStoryboard(db, scope);
-  if (!configuration || !objectives || !outline || !narration || !storyboard) return { configuration, voiceConfiguration, objectives, outline, narration, storyboard, source: undefined, objectiveItems: [], outlineItems: [], blocks: [], groundingCheckId: null };
-  const [source] = await db.select().from(sourceSnapshots).where(and(eq(sourceSnapshots.id, objectives.sourceSnapshotId), eq(sourceSnapshots.ownerUserId, scope.ownerUserId), eq(sourceSnapshots.projectId, scope.projectId))).limit(1);
-  const objectiveItems = await db.select().from(learningObjectives).where(and(eq(learningObjectives.setId, objectives.id), eq(learningObjectives.ownerUserId, scope.ownerUserId), eq(learningObjectives.projectId, scope.projectId))).orderBy(learningObjectives.order);
-  const outlineItems = await db.select().from(lessonOutlineItems).where(and(eq(lessonOutlineItems.setId, outline.id), eq(lessonOutlineItems.ownerUserId, scope.ownerUserId), eq(lessonOutlineItems.projectId, scope.projectId))).orderBy(lessonOutlineItems.order);
-  const blocks = await db.select().from(narrationBlocks).where(and(eq(narrationBlocks.setId, narration.id), eq(narrationBlocks.ownerUserId, scope.ownerUserId), eq(narrationBlocks.projectId, scope.projectId))).orderBy(narrationBlocks.order);
-  const [check] = await db.select({ id: groundingChecks.id }).from(groundingChecks).where(and(eq(groundingChecks.ownerUserId, scope.ownerUserId), eq(groundingChecks.projectId, scope.projectId), eq(groundingChecks.lessonSpecId, storyboard.id), eq(groundingChecks.lessonSpecContentHash, storyboard.contentHash))).orderBy(desc(groundingChecks.createdAt)).limit(1);
+  // Each item list and source lookup is gated only on its own parent, not on
+  // every other stage: a missing/unapproved narration must not make an
+  // otherwise-populated objectives or outline set look empty to the
+  // per-stage readiness check (evaluateReadiness/computeReadinessBlockers)
+  // that also consumes this state.
+  const source = objectives ? (await db.select().from(sourceSnapshots).where(and(eq(sourceSnapshots.id, objectives.sourceSnapshotId), eq(sourceSnapshots.ownerUserId, scope.ownerUserId), eq(sourceSnapshots.projectId, scope.projectId))).limit(1))[0] : undefined;
+  const objectiveItems = objectives ? await db.select().from(learningObjectives).where(and(eq(learningObjectives.setId, objectives.id), eq(learningObjectives.ownerUserId, scope.ownerUserId), eq(learningObjectives.projectId, scope.projectId))).orderBy(learningObjectives.order) : [];
+  const outlineItems = outline ? await db.select().from(lessonOutlineItems).where(and(eq(lessonOutlineItems.setId, outline.id), eq(lessonOutlineItems.ownerUserId, scope.ownerUserId), eq(lessonOutlineItems.projectId, scope.projectId))).orderBy(lessonOutlineItems.order) : [];
+  const blocks = narration ? await db.select().from(narrationBlocks).where(and(eq(narrationBlocks.setId, narration.id), eq(narrationBlocks.ownerUserId, scope.ownerUserId), eq(narrationBlocks.projectId, scope.projectId))).orderBy(narrationBlocks.order) : [];
+  const check = storyboard ? (await db.select({ id: groundingChecks.id }).from(groundingChecks).where(and(eq(groundingChecks.ownerUserId, scope.ownerUserId), eq(groundingChecks.projectId, scope.projectId), eq(groundingChecks.lessonSpecId, storyboard.id), eq(groundingChecks.lessonSpecContentHash, storyboard.contentHash))).orderBy(desc(groundingChecks.createdAt)).limit(1))[0] : undefined;
   return { configuration, voiceConfiguration, objectives, outline, narration, storyboard, source, objectiveItems, outlineItems, blocks, groundingCheckId: (check?.id as Identifier | undefined) ?? null };
 }
 async function approvedObjectives(db: DatabaseExecutor, scope: Scope) { return (await db.select().from(learningObjectiveSets).where(and(eq(learningObjectiveSets.ownerUserId, scope.ownerUserId), eq(learningObjectiveSets.projectId, scope.projectId), eq(learningObjectiveSets.status, "approved"))).orderBy(desc(learningObjectiveSets.generatedAt)).limit(1))[0]; }
@@ -124,6 +131,45 @@ async function approvedOutline(db: DatabaseExecutor, scope: Scope) { return (awa
 async function approvedNarration(db: DatabaseExecutor, scope: Scope) { return (await db.select().from(narrationSets).where(and(eq(narrationSets.ownerUserId, scope.ownerUserId), eq(narrationSets.projectId, scope.projectId), eq(narrationSets.status, "approved"))).orderBy(desc(narrationSets.generatedAt)).limit(1))[0]; }
 async function workingStoryboard(db: DatabaseExecutor, scope: Scope) { const [draft] = await db.select().from(lessonSpecs).where(and(eq(lessonSpecs.ownerUserId, scope.ownerUserId), eq(lessonSpecs.projectId, scope.projectId), eq(lessonSpecs.status, "draft"))).orderBy(desc(lessonSpecs.generatedAt)).limit(1); if (draft) return draft; return (await db.select().from(lessonSpecs).where(and(eq(lessonSpecs.ownerUserId, scope.ownerUserId), eq(lessonSpecs.projectId, scope.projectId), eq(lessonSpecs.status, "approved"))).orderBy(desc(lessonSpecs.generatedAt)).limit(1))[0]; }
 function ensureReady(state: Awaited<ReturnType<typeof loadState>>): asserts state is typeof state & { source: NonNullable<typeof state.source>; configuration: NonNullable<typeof state.configuration>; objectives: NonNullable<typeof state.objectives>; outline: NonNullable<typeof state.outline>; narration: NonNullable<typeof state.narration>; storyboard: NonNullable<typeof state.storyboard> } { if (!state.configuration || !state.objectives || !state.outline || !state.narration || !state.storyboard || !state.source || state.objectiveItems.length === 0 || state.outlineItems.length === 0 || state.blocks.length === 0) throw new PublicError("bad_request", "The approved lesson is not ready to save as a version.", 409); if (state.outline.sourceSnapshotId !== state.source.id || state.narration.sourceSnapshotId !== state.source.id || state.storyboard.basedOnNarrationSetId !== state.narration.id) throw new PublicError("bad_request", "The lesson planning artifacts are no longer aligned. Refresh them before saving a version.", 409); }
+async function anyObjectives(db: DatabaseExecutor, scope: Scope): Promise<boolean> { return (await db.select({ id: learningObjectiveSets.id }).from(learningObjectiveSets).where(and(eq(learningObjectiveSets.ownerUserId, scope.ownerUserId), eq(learningObjectiveSets.projectId, scope.projectId))).limit(1)).length > 0; }
+async function anyOutline(db: DatabaseExecutor, scope: Scope): Promise<boolean> { return (await db.select({ id: lessonOutlineSets.id }).from(lessonOutlineSets).where(and(eq(lessonOutlineSets.ownerUserId, scope.ownerUserId), eq(lessonOutlineSets.projectId, scope.projectId))).limit(1)).length > 0; }
+async function anyNarration(db: DatabaseExecutor, scope: Scope): Promise<boolean> { return (await db.select({ id: narrationSets.id }).from(narrationSets).where(and(eq(narrationSets.ownerUserId, scope.ownerUserId), eq(narrationSets.projectId, scope.projectId))).limit(1)).length > 0; }
+function blocker(code: VersionSaveBlockerCode, message: string, recoveryStage: VersionRecoveryStage): VersionSaveBlocker { return versionSaveBlockerSchema.parse({ code, message, recoveryStage }); }
+type ReadinessExistence = { objectives: boolean; outline: boolean; narration: boolean };
+/**
+ * Names each unmet version-save prerequisite instead of collapsing them into
+ * one generic failure. Pure and DB-free so every blocker combination and the
+ * deterministic workflow ordering can be unit tested directly. Does not
+ * change what qualifies as versionable: an empty result here must imply
+ * `ensureReady` would also pass.
+ */
+export function computeReadinessBlockers(state: Awaited<ReturnType<typeof loadState>>, existsAnyStatus: ReadinessExistence): VersionSaveBlocker[] {
+  const blockers: VersionSaveBlocker[] = [];
+  if (!state.configuration) blockers.push(blocker("configuration_missing", "Lesson configuration has not been completed yet.", "configuration"));
+  if (!state.objectives) blockers.push(existsAnyStatus.objectives ? blocker("objectives_unapproved", "Learning objectives are still a draft and must be approved.", "objectives") : blocker("objectives_missing", "Learning objectives have not been generated yet.", "objectives"));
+  else if (state.objectiveItems.length === 0) blockers.push(blocker("objectives_empty", "The approved learning objectives are empty.", "objectives"));
+  if (!state.outline) blockers.push(existsAnyStatus.outline ? blocker("outline_unapproved", "The lesson outline is still a draft and must be approved.", "outline") : blocker("outline_missing", "The lesson outline has not been generated yet.", "outline"));
+  else if (state.outlineItems.length === 0) blockers.push(blocker("outline_empty", "The approved lesson outline is empty.", "outline"));
+  if (!state.narration) blockers.push(existsAnyStatus.narration ? blocker("narration_unapproved", "Narration is still a draft and must be approved.", "narration") : blocker("narration_missing", "Narration has not been generated yet.", "narration"));
+  else if (state.blocks.length === 0) blockers.push(blocker("narration_empty", "The approved narration has no blocks.", "narration"));
+  if (!state.storyboard) blockers.push(blocker("storyboard_missing", "The storyboard has not been generated yet.", "storyboard"));
+  if (blockers.length === 0) {
+    if (!state.source) blockers.push(blocker("source_snapshot_missing", "The approved source snapshot could not be found.", "configuration"));
+    else {
+      if (state.outline!.sourceSnapshotId !== state.source.id) blockers.push(blocker("outline_stale", "The lesson outline was generated from a source that has since changed and must be refreshed.", "outline"));
+      if (state.narration!.sourceSnapshotId !== state.source.id) blockers.push(blocker("narration_stale", "Narration was generated from a source that has since changed and must be refreshed.", "narration"));
+      if (state.storyboard!.basedOnNarrationSetId !== state.narration!.id) blockers.push(blocker("storyboard_stale", "The storyboard is based on narration that has since changed and must be refreshed.", "storyboard"));
+    }
+  }
+  return blockers;
+}
+async function evaluateReadiness(db: DatabaseExecutor, scope: Scope, state: Awaited<ReturnType<typeof loadState>>): Promise<VersionSaveBlocker[]> {
+  const existsAnyStatus: ReadinessExistence = state.objectives && state.outline && state.narration
+    ? { objectives: true, outline: true, narration: true }
+    : { objectives: state.objectives ? true : await anyObjectives(db, scope), outline: state.outline ? true : await anyOutline(db, scope), narration: state.narration ? true : await anyNarration(db, scope) };
+  return computeReadinessBlockers(state, existsAnyStatus);
+}
+function versionSaveBlockedError(blockers: VersionSaveBlocker[]): PublicError { const details = versionSaveReadinessSchema.parse({ ready: false, blockers }); return new PublicError("bad_request", blockers[0]!.message, 409, false, undefined, undefined, details); }
 // PostgreSQL rejects FOR UPDATE alongside an aggregate, and a row lock could
 // not cover the empty-history case anyway; both callers already hold the
 // per-project advisory lock that serializes numbering.

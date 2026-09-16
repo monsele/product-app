@@ -10,6 +10,7 @@ import {
   type StoryboardSceneDetailResponse,
   type SceneAudioStatusResponse,
   type LessonValidationRun,
+  type VersionSaveBlocker,
 } from "@avlp/schemas";
 import {
   sceneCandidateStatusLabel,
@@ -75,6 +76,7 @@ export function SceneDetailPanel({
   onNavigateScene,
   versionMetadata = null,
   versionPreview = null,
+  versionSaveBlockers = [],
   restoringVersionId = null,
   savingVersion = false,
   onSaveVersion,
@@ -98,6 +100,7 @@ export function SceneDetailPanel({
   onNavigateScene?: (sceneId: string | null) => void;
   versionMetadata?: VersionBrowserMetadata | null;
   versionPreview?: { id: string; durationSeconds: number; sceneCount: number; schemaVersion: string } | null;
+  versionSaveBlockers?: readonly VersionSaveBlocker[];
   restoringVersionId?: string | null;
   savingVersion?: boolean;
   onSaveVersion?: () => void;
@@ -567,8 +570,10 @@ export function SceneDetailPanel({
 
             {onSaveVersion && onPreviewVersion && onRestoreVersion && (
               <VersionBrowser
+                projectId={projectId}
                 metadata={versionMetadata}
                 preview={versionPreview}
+                saveBlockers={versionSaveBlockers}
                 restoringVersionId={restoringVersionId}
                 saving={savingVersion}
                 storyboardAvailable={true}
