@@ -1,0 +1,73 @@
+
+> @avlp/web@0.0.0 dev D:\Eronmonsele\Documents\product-app\product-app\apps\web
+> next dev
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3000
+   - Network:      http://172.20.16.1:3000
+
+ ✓ Starting...
+ ✓ Ready in 47.4s
+ ○ Compiling / ...
+ ✓ Compiled / in 179.6s (10538 modules)
+ GET / 200 in 185347ms
+ ○ Compiling /sign-in ...
+ ✓ Compiled /sign-in in 24.4s (10539 modules)
+ GET /sign-in 200 in 21622ms
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 5.9s (158 modules)
+ ○ Compiling /workspace ...
+ ✓ Compiled /workspace in 11s (10730 modules)
+ GET /workspace 200 in 12207ms
+ ○ Compiling /api/projects ...
+ ✓ Compiled /api/projects in 3.3s (10730 modules)
+ POST /api/projects 303 in 3956ms
+ ○ Compiling /workspace/[projectId]/upload ...
+ ✓ Compiled /workspace/[projectId]/upload in 22.3s (13889 modules)
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/upload 200 in 47866ms
+ ○ Compiling /workspace/[projectId]/review ...
+ ✓ Compiled /workspace/[projectId]/review in 5.9s (13890 modules)
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/review 200 in 7320ms
+ ○ Compiling /workspace/[projectId]/configuration ...
+ ✓ Compiled /workspace/[projectId]/configuration in 2.6s (13904 modules)
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/configuration 200 in 3996ms
+ ○ Compiling /workspace/[projectId]/objectives ...
+ ✓ Compiled /workspace/[projectId]/objectives in 4.6s (13922 modules)
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/objectives 200 in 5819ms
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/objectives 200 in 133ms
+ ○ Compiling /workspace/[projectId]/outline ...
+ ✓ Compiled /workspace/[projectId]/outline in 5.2s (13908 modules)
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/outline 200 in 6604ms
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/outline 200 in 133ms
+ ○ Compiling /workspace/[projectId]/narration ...
+ ✓ Compiled /workspace/[projectId]/narration in 3.9s (13849 modules)
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/narration 200 in 5215ms
+ ○ Compiling /workspace/[projectId]/storyboard ...
+ ✓ Compiled /workspace/[projectId]/storyboard in 14.9s (13993 modules)
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/storyboard 200 in 16453ms
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/storyboard 200 in 1192ms
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/storyboard 200 in 286ms
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/storyboard 200 in 381ms
+ ○ Compiling /workspace/[projectId]/preview ...
+ ✓ Compiled /workspace/[projectId]/preview in 6.9s (14015 modules)
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/preview 200 in 27984ms
+ ✓ Compiled in 64.4s (14007 modules)
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled in 12.1s (14007 modules)
+ ⨯ [TypeError: fetch failed] {
+  digest: '3227098399',
+  [cause]: [AggregateError: ] { code: 'ECONNREFUSED' }
+}
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/preview 200 in 11927ms
+ ✓ Compiled in 681.2s (14007 modules)
+ ✓ Compiled in 10s (14007 modules)
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/preview 200 in 32997ms
+ ○ Compiling /workspace/[projectId]/render ...
+ ✓ Compiled /workspace/[projectId]/render in 21.3s (14018 modules)
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/render 200 in 23701ms
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/preview 200 in 357ms
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/render 200 in 349ms
+ ✓ Compiled in 8.2s (14011 modules)
+ ✓ Compiled in 6.4s (14011 modules)
+ ✓ Compiled in 8.1s (14011 modules)
+ ✓ Compiled in 5.6s (14011 modules)

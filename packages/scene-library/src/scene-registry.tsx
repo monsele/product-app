@@ -500,12 +500,39 @@ export function createDefaultScene<TTemplate extends SceneTemplate>(
   return makeDefault(template);
 }
 
+function isLoopbackHost(hostname: string): boolean {
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "[::1]" ||
+    hostname === "::1"
+  );
+}
+
+/**
+ * Signed object-storage downloads are HTTPS everywhere except a local stack,
+ * where `OBJECT_STORAGE_ALLOW_INSECURE_ENDPOINT` serves them over plain HTTP on
+ * a loopback host. Allowing only HTTPS here made every generated illustration
+ * fail this gate in development and vanish from the render with no error, so
+ * the loopback exception mirrors the one the storage client already enforces.
+ */
+function isSafeRemoteImageUrl(src: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(src);
+  } catch {
+    return false;
+  }
+  if (url.protocol === "https:") return true;
+  return url.protocol === "http:" && isLoopbackHost(url.hostname);
+}
+
 function isSafeDiagramImageSource(src: string): boolean {
   return (
     /^\/assets\/[a-z0-9/_-]+\.(png|jpe?g|webp)$/i.test(src) ||
     /^\/catalog\/[a-z0-9/_-]+\.svg$/i.test(src) ||
     /^data:image\/(png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(src) ||
-    /^https:\/\/[^\s]+$/i.test(src)
+    isSafeRemoteImageUrl(src)
   );
 }
 

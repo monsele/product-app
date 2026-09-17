@@ -99,6 +99,7 @@ function SubjectCard({
         <div
           aria-label={asset.altText ?? `Image for ${label}`}
           data-comparison-asset={asset.assetId}
+          data-comparison-asset-slot={`${side}-subject-image`}
           style={{
             background: videoTheme.colors.background,
             borderRadius: videoTheme.radii.md,

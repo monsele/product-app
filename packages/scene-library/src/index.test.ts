@@ -402,11 +402,28 @@ describe("scene registry runtime", () => {
     const markup = renderToStaticMarkup(
       createElement(ComparisonSceneFrame, {
         frame: 48,
+        resolvedAssets: {
+          "00000000-0000-7000-8000-000000000006": {
+            altText: "Plant cell illustration",
+            assetId: "00000000-0000-7000-8000-000000000006",
+            source: "source",
+            src: "https://storage.example.test/plant-cell.png",
+          },
+          "00000000-0000-7000-8000-000000000007": {
+            altText: "Animal cell illustration",
+            assetId: "00000000-0000-7000-8000-000000000007",
+            source: "source",
+            src: "https://storage.example.test/animal-cell.png",
+          },
+        },
         scene: imageAssistedComparisonFixture,
       }),
     );
     expect(markup).toContain('data-comparison-subject="left"');
     expect(markup).toContain('data-comparison-asset-slot="left-subject-image"');
+    expect(markup).toContain(
+      'src="https://storage.example.test/plant-cell.png"',
+    );
     expect(markup.indexOf("SHARED TRAITS")).toBeLessThan(
       markup.indexOf("KEY DIFFERENCES"),
     );

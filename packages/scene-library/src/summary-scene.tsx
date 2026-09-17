@@ -234,12 +234,23 @@ export function SummarySceneFrame({
   );
 }
 
-export function SummaryScene({ scene }: SceneComponentProps): JSX.Element {
+export function SummaryScene({
+  resolvedAssets,
+  runtimeMode,
+  scene,
+}: SceneComponentProps): JSX.Element {
   let frame = 0;
   try {
     frame = useCurrentFrame();
   } catch {
     // The registry's server-side preview parity check has no Remotion context.
   }
-  return <SummarySceneFrame frame={frame} scene={scene} />;
+  return (
+    <SummarySceneFrame
+      frame={frame}
+      {...(resolvedAssets === undefined ? {} : { resolvedAssets })}
+      {...(runtimeMode === undefined ? {} : { runtimeMode })}
+      scene={scene}
+    />
+  );
 }
