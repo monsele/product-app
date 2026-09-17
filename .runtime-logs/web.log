@@ -71,3 +71,7 @@
  ✓ Compiled in 6.4s (14011 modules)
  ✓ Compiled in 8.1s (14011 modules)
  ✓ Compiled in 5.6s (14011 modules)
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/preview 200 in 45609ms
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/storyboard 200 in 4494ms
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/preview 200 in 1118ms
+ GET /workspace/01a0aba4-fca1-75e3-bc59-3190523dfd2b/render 200 in 2234ms

@@ -78,3 +78,28 @@
 10:14:43 PM [tsx] change in ./..\..\packages\scene-library\dist\scene-preview.js Restarting...
 10:14:43 PM [tsx] change in ./..\..\packages\scene-library\dist\index.js Restarting...
 {"timestamp":"2026-09-16T21:15:46.136Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
+{"timestamp":"2026-09-17T00:37:18.033Z","level":"info","event":"job.started","fields":{"jobId":"01a0accb-d2dd-716f-99bc-8a3af4f17164","jobType":"lesson.render","projectId":"01a0aba4-fca1-75e3-bc59-3190523dfd2b","correlationId":"01a0accb-d25f-7211-ae82-8fff2a7d061f","attempt":1,"service":"renderer"}}
+1:37:58 AM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Restarting...
+1:39:46 AM [tsx] change in ./..\..\packages\scene-library\dist\definition-scene.js Restarting...
+1:39:46 AM [tsx] change in ./..\..\packages\scene-library\dist\process-scene.js Restarting...
+1:39:51 AM [tsx] change in ./..\..\packages\scene-library\dist\ipo-scene.js Restarting...
+1:39:55 AM [tsx] change in ./..\..\packages\scene-library\dist\cause-effect-scene.js Restarting...
+{"timestamp":"2026-09-17T00:40:40.719Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
+{"timestamp":"2026-09-17T00:42:19.744Z","level":"info","event":"job.started","fields":{"jobId":"01a0accb-d2dd-716f-99bc-8a3af4f17164","jobType":"lesson.render","projectId":"01a0aba4-fca1-75e3-bc59-3190523dfd2b","correlationId":"01a0accb-d25f-7211-ae82-8fff2a7d061f","attempt":2,"service":"renderer"}}
+Downloading Chrome Headless Shell https://www.remotion.dev/chrome-headless-shell
+Customize this behavior by adding a onBrowserDownload function to selectComposition().
+Downloading from: https://storage.googleapis.com/chrome-for-testing-public/149.0.7790.0/win64/chrome-headless-shell-win64.zip
+Downloading Chrome Headless Shell - 9.5 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 19.1 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 28.6 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 38.2 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 47.7 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 57.3 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 66.8 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 76.4 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 85.9 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 95.4 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 105 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 113.3 Mb/113.3 Mb
+{"timestamp":"2026-09-17T00:46:51.837Z","level":"info","event":"render.completed","fields":{"correlationId":"01a0accb-d25f-7211-ae82-8fff2a7d061f","jobId":"01a0accb-d2dd-716f-99bc-8a3af4f17164","projectId":"01a0aba4-fca1-75e3-bc59-3190523dfd2b","reused":false,"service":"renderer"}}
+{"timestamp":"2026-09-17T00:46:51.853Z","level":"info","event":"job.completed","fields":{"jobId":"01a0accb-d2dd-716f-99bc-8a3af4f17164","jobType":"lesson.render","projectId":"01a0aba4-fca1-75e3-bc59-3190523dfd2b","correlationId":"01a0accb-d25f-7211-ae82-8fff2a7d061f","attempt":2,"status":"succeeded","errorClassification":"none","durationMs":272110,"service":"renderer"}}
