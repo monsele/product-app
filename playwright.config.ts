@@ -14,6 +14,11 @@ export default defineConfig({
       url: "http://127.0.0.1:3000",
       env: { NEXT_PUBLIC_API_URL: "http://127.0.0.1:3002" },
       reuseExistingServer: !process.env.CI,
+      // Playwright's 60s default is not enough for a cold `next dev` start of
+      // this app (no `.next` cache), which times the whole suite out before a
+      // single test runs. Raised so a cold checkout or a cleaned cache is a
+      // slow run rather than a failed one.
+      timeout: 180_000,
     },
   ],
 });

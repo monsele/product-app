@@ -7,18 +7,33 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./style-proof": {
+      "types": "./dist/style-proof/index.d.ts",
+      "default": "./dist/style-proof/index.js"
+    },
+    "./style-proof/manifest": {
+      "types": "./dist/style-proof/manifest.d.ts",
+      "default": "./dist/style-proof/manifest.js"
     }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "test": "pnpm --filter @avlp/design-system build && pnpm build && vitest run"
+    "test": "pnpm --filter @avlp/design-system build && pnpm build && vitest run",
+    "generate:style-proof-assets": "node scripts/generate-style-proof-assets.mjs",
+    "generate:style-proof-narration": "node scripts/generate-style-proof-narration.mjs",
+    "render:style-proof": "node scripts/render-style-proof.mjs",
+    "analyse:style-proof-motion": "node scripts/analyse-style-proof-motion.mjs"
   },
   "dependencies": {
     "@avlp/design-system": "workspace:*",
     "@avlp/schemas": "workspace:*",
     "@fontsource/atkinson-hyperlegible": "5.2.7",
+    "@fontsource/inter": "5.3.0",
+    "@fontsource/nunito": "5.3.0",
+    "@fontsource/source-serif-4": "5.3.0",
     "@remotion/player": "4.0.507",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -30,6 +45,8 @@
     "@remotion/bundler": "4.0.507",
     "@remotion/renderer": "4.0.507",
     "@types/react": "19.2.18",
-    "@types/react-dom": "19.2.4"
+    "@types/react-dom": "19.2.4",
+    "ffprobe-static": "^3.1.0",
+    "pngjs": "7.0.0"
   }
 }

@@ -1,0 +1,10 @@
+declare module "@fontsource/inter/400.css";
+declare module "@fontsource/inter/600.css";
+declare module "@fontsource/inter/700.css";
+declare module "@fontsource/source-serif-4/400.css";
+declare module "@fontsource/source-serif-4/600.css";
+declare module "@fontsource/source-serif-4/700.css";
+declare module "@fontsource/nunito/400.css";
+declare module "@fontsource/nunito/700.css";
+declare module "@fontsource/atkinson-hyperlegible/400.css";
+declare module "@fontsource/atkinson-hyperlegible/700.css";

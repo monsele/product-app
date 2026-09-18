@@ -11,6 +11,10 @@
     "./video-theme": {
       "types": "./dist/video-theme.d.ts",
       "default": "./dist/video-theme.js"
+    },
+    "./style-proof-tokens": {
+      "types": "./dist/style-proof-tokens.d.ts",
+      "default": "./dist/style-proof-tokens.js"
     }
   },
   "scripts": {
@@ -21,6 +25,9 @@
   },
   "dependencies": {
     "@fontsource/atkinson-hyperlegible": "5.2.7",
+    "@fontsource/inter": "5.3.0",
+    "@fontsource/nunito": "5.3.0",
+    "@fontsource/source-serif-4": "5.3.0",
     "@remotion/player": "4.0.507",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -30,9 +37,9 @@
     "@playwright/test": "^1.55.0",
     "@remotion/bundler": "4.0.507",
     "@remotion/renderer": "4.0.507",
+    "@types/pngjs": "6.0.5",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
-    "@types/pngjs": "6.0.5",
     "pngjs": "7.0.0"
   }
 }

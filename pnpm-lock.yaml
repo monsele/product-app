@@ -301,6 +301,15 @@ importers:
       '@fontsource/atkinson-hyperlegible':
         specifier: 5.2.7
         version: 5.2.7
+      '@fontsource/inter':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/nunito':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/source-serif-4':
+        specifier: 5.3.0
+        version: 5.3.0
       '@remotion/player':
         specifier: 4.0.507
         version: 4.0.507(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -429,6 +438,15 @@ importers:
       '@fontsource/atkinson-hyperlegible':
         specifier: 5.2.7
         version: 5.2.7
+      '@fontsource/inter':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/nunito':
+        specifier: 5.3.0
+        version: 5.3.0
+      '@fontsource/source-serif-4':
+        specifier: 5.3.0
+        version: 5.3.0
       '@remotion/player':
         specifier: 4.0.507
         version: 4.0.507(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -460,6 +478,12 @@ importers:
       '@types/react-dom':
         specifier: 19.2.4
         version: 19.2.4(@types/react@19.2.18)
+      ffprobe-static:
+        specifier: ^3.1.0
+        version: 3.1.0
+      pngjs:
+        specifier: 7.0.0
+        version: 7.0.0
 
   packages/schemas:
     dependencies:
@@ -1128,6 +1152,15 @@ packages:
 
   '@fontsource/atkinson-hyperlegible@5.2.7':
     resolution: {integrity: sha512-WUCchUMKXKH9VO1ZStn64CMdWl+l+kJY+6Ia9lFoO5C+z7jHx3Z2y73lBnHwz3n8it5Hs2wdk0JDyhs8hPbXxw==}
+
+  '@fontsource/inter@5.3.0':
+    resolution: {integrity: sha512-RofMylZmjlJEfELXeNHFWBRcSs75rGU/6bV2S2jfnvv/3rPXPGe0LgUJTklcHZ9lM4OZmAVFhcJPnACfb91A3g==}
+
+  '@fontsource/nunito@5.3.0':
+    resolution: {integrity: sha512-vw9TaTQJ/zpEpKrsODuPmOvaVjXgdda6B+xXA4YqjrdeJ62MLgVoDerdRXFQHyBnSCt2yQ2nHKCHPP/Pv7Xq4Q==}
+
+  '@fontsource/source-serif-4@5.3.0':
+    resolution: {integrity: sha512-yQz8xmIgMzks8zQbpuca3UYtjxK798XCyQAGdDXmzBgvV7sdoK6d0YvE9F9kiYxORCEMRBgGZDZsSYcXj5KvwA==}
 
   '@grpc/grpc-js@1.14.4':
     resolution: {integrity: sha512-k9Dj3DV/itK9D06Y8f190Qgop7/Ui+D0njFV3LHMPwPT75DpXLQohE9Wmz0QElrJnzsjB7KPWiKJbOl7IPDArQ==}
@@ -5713,6 +5746,12 @@ snapshots:
   '@floating-ui/utils@0.2.12': {}
 
   '@fontsource/atkinson-hyperlegible@5.2.7': {}
+
+  '@fontsource/inter@5.3.0': {}
+
+  '@fontsource/nunito@5.3.0': {}
+
+  '@fontsource/source-serif-4@5.3.0': {}
 
   '@grpc/grpc-js@1.14.4':
     dependencies:

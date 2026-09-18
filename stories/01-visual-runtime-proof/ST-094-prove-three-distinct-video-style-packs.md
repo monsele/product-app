@@ -2,7 +2,7 @@
 story_id: ST-094
 title: "Prove Three Distinct Video Style Packs"
 phase: "01 — Visual Runtime Proof"
-status: Ready
+status: In Review
 priority: must-have
 epics: ["E11", "E15"]
 prd_user_stories: ["E11-US2", "E15-US2"]
@@ -181,15 +181,139 @@ Run `lint`, `typecheck`, `test`, and `build` for affected workspaces and the app
 
 ## Dev Agent Record
 
-- **Agent:** Not started.
-- **Started:** Not started.
-- **Completed:** Not completed.
-- **Branch/PR:** Not created.
-- **Files changed:** Pending implementation.
-- **Migrations:** None planned.
-- **Public contract changes:** None planned; explicit development proof contract only.
-- **Commands/tests run:** Pending implementation.
-- **Screenshots or representative output:** Pending implementation.
-- **Decisions and assumptions:** One bounded proof precedes production multi-style rollout. Style-specific compositions are required; colour substitutions do not satisfy the story.
-- **Deviations from story/technical guide:** None implemented. The PRD's one-theme constraint remains in force for production.
-- **Known risks or follow-up:** Image quality, font metrics, animation pacing, and render cost require evidence. Full thirty-combination coverage and production versioning belong to subsequent stories.
+- **Agent:** Claude Opus 5 (Claude Code) via `/next-story`
+- **Started:** 2026-09-17
+- **Completed:** 2026-09-17
+- **Branch/PR:** `feat/st-094-prove-three-distinct-video-style-packs`, branched from `feat/st-093-source-visuals-in-storyboard` @ `fb2f3f3`. No PR opened.
+
+### Files changed
+
+**Contracts — `@avlp/schemas`**
+
+- `packages/schemas/src/style-proof.ts` *(new)* — the whole proof contract: pack/treatment/scene-type enums, `styleProofPackVersion` `1.0.0`, asset-slot contract (accepted media kinds, `contain`/`cover` fit, minimum resolution, required flag, bounded focal labels), `styleProofSelectionSchema` (pack ref plus scene-ID to treatment/version/assetBySlot), `styleProofCompositionPropsSchema`, `styleProofManifestSchema`, the 12 structured issue codes, and `canonicalStyleProofJson` (sorted keys, preserved array order, non-finite rejected).
+- `packages/schemas/package.json` — adds the `./style-proof` subpath export **only**. The module is deliberately not re-exported from the package index, so `lessonSpecSchema` / `sceneSpecSchema` / `lessonConfigurationSchema` cannot widen to accept a pack.
+
+**Tokens and fonts — `@avlp/design-system`**
+
+- `packages/design-system/src/style-proof-tokens.ts` *(new)* — three versioned token sets (colour, type scale, spacing, frame inset, image treatment, easing), the declared motion signature per pack, the shared caption region and family, and the 10 pinned font faces with weights and `.woff2` checksums. `videoTheme` is not read, wrapped or modified.
+- `packages/design-system/package.json` — `./style-proof-tokens` subpath export; adds `@fontsource/inter@5.3.0`, `@fontsource/source-serif-4@5.3.0`, `@fontsource/nunito@5.3.0`.
+
+**Treatments and runtime — `@avlp/scene-library`**
+
+- `src/style-proof/registry.ts` *(new)* — the nine treatments as data: ID, version, pack, scene type, motion signature, asset slots, content limits, description.
+- `src/style-proof/resolver.ts` *(new)* — deterministic resolution; rejects unknown pack, unknown or unsupported-version treatment, cross-pack treatment, scene-type mismatch, missing required asset, wrong media kind, below-minimum resolution, and binds to undeclared slots — each with a field path and an actionable correction. Never picks the newest version, never substitutes.
+- `src/style-proof/motion.ts` *(new)* — interval model (entrance/explain/hold/exit, always ordered; a longer scene extends explanation only) and the three frame-driven motion signatures. Pure functions of frame.
+- `src/style-proof/validation.ts` *(new)* — fast checks plus the `data-proof-*` attribute contract and the caption exclusion/reserve geometry the browser preflight measures against.
+- `src/style-proof/primitives.tsx` *(new)* — `ProofImage` (slot fit and focal policy, raster-only tonal treatment), `ProofText` (fit box with descender reserve), `ProofCaption`, `ProofLabel`, `formatSourceLine`.
+- `src/style-proof/treatments/{essential,editorial,everyday}.tsx` *(new)* — the nine authored treatments; plus `treatments/index.tsx` and `treatments/types.ts`.
+- `src/style-proof/fonts.tsx` *(new)* — eagerly-bundled pinned stylesheets, `delayRender` gate, and a hard failure when a pinned face is unavailable.
+- `src/style-proof/composition.tsx` *(new)* — `prepareStyleProofComposition`, the clip composition (sequences, audio, captions), `StyleProofStill`, timeline helpers. Render mode throws on any blocking issue.
+- `src/style-proof/fixtures.ts` *(new)* — the 28s conduction fixture, the 24s leaf fixture, the explicit fact inventory, and eight boundary fixtures.
+- `src/style-proof/manifest.ts` *(new)* — `hashStyleProofInput` and `buildStyleProofManifest`.
+- `src/style-proof/preview-player.tsx` *(new)* — the Remotion `Player` wrapper, mirroring `FullLessonPreviewPlayer` so the web app does not depend on Remotion directly.
+- `src/style-proof/remotion-root.tsx` *(new)* — a **separate** Remotion root registering six proof compositions. The production root and the render worker's bundle are untouched.
+- `src/style-proof/layout-harness.tsx` and `harness-server.ts` *(new)* — the browser measurement harness and its static server, which serves the bundle's font files (the parity comparison needs them).
+- `src/style-proof/assets.generated.ts` and `narration.generated.ts` *(new, generated)* — 23 bundled assets (~1.5 MB decoded) and 6 narration beds (~0.4 MB).
+- `src/style-proof/index.ts` *(new)* — the browser-safe `./style-proof` subpath surface; also not re-exported from the package index. `manifest.js` is deliberately excluded from it (it imports `node:crypto`) and is exported at `./style-proof/manifest` instead.
+- `scripts/generate-style-proof-assets.mjs`, `generate-style-proof-narration.mjs`, `render-style-proof.mjs`, `analyse-style-proof-motion.mjs` *(new)*.
+- `packages/scene-library/package.json` — `./style-proof` export, the three font dependencies, `pngjs` and `ffprobe-static` dev dependencies, four new scripts.
+- `packages/scene-library/vitest.config.ts` — `fileParallelism: false` plus raised timeouts (see Deviations).
+
+**Development gallery**
+
+- `apps/web/app/style-proof-preview/page.tsx` *(new)* — server component; calls `notFound()` outside development so the proof gallery is not a public production route.
+- `apps/web/app/style-proof-preview/gallery-loader.tsx` *(new)* — dynamic import of the gallery inside a production-dead branch, keeping the bundled media out of the production client bundle.
+- `apps/web/app/style-proof-preview/gallery.tsx` *(new)* — the gallery itself, in a Studio Daylight shell per `docs/design.md` §10.14 (`PageContainer`, `Notice`, design-system `Button` selectors): style, subject and boundary selection, scene navigation and seeking, resolved-treatment readout, visible validation failures, and the registered-treatment list.
+- `e2e/style-proof-preview.spec.ts` *(new)* — six browser interaction tests.
+- `packages/scene-library/src/style-proof/style-proof-media.test.ts` *(new)* — automated MP4 encoding checks: codec, dimensions, pixel format, frame rate, duration and audio presence per pack, plus a blocked-preflight encode.
+- `playwright.config.ts` — `webServer.timeout` raised from the 60s default to 180s.
+
+**Docs and config**
+
+- `docs/creative-styles-proof-evaluation.md` *(new)*; `docs/adr/ADR-005-versioned-style-packs-for-multi-style-video.md` *(new, **Proposed**)*.
+- `eslint.config.mjs` — adds `document` and `requestAnimationFrame` to the shared browser globals.
+- `.gitignore` — `artifacts/`.
+
+### Migrations
+
+None. No database migration, no schema version bump, no lesson-version rewrite.
+
+### Public contract changes
+
+Three **additive subpath exports**, none reachable from its package's index:
+`@avlp/schemas/style-proof`, `@avlp/design-system/style-proof-tokens` and
+`@avlp/scene-library/style-proof`. No production contract changed:
+`lessonSpecSchema` is untouched, `lesson-spec-v1.schema.json` was not
+regenerated, `videoTheme.id` is still the literal `mvp-default`, and
+`renderImplementationVersion` in `apps/renderer/src/contracts.ts` is unchanged.
+Contract tests assert that the production theme and lesson configuration still
+reject a proof pack.
+
+### Commands and tests run
+
+| Command | Result |
+| --- | --- |
+| `pnpm -r run typecheck` | green, all workspaces |
+| `pnpm --filter @avlp/{schemas,design-system,scene-library,web} run lint` | green |
+| `pnpm -r run lint` | 1 failure: `apps/pipeline-worker` `no-ex-assign` — **reproduced on the stashed base tree**, pre-existing |
+| `pnpm --filter @avlp/scene-library exec vitest run src/style-proof/` | **76 passed** (52 contract, 10 browser layout, 10 render/parity, 4 motion) |
+| `pnpm --filter @avlp/scene-library run test` (full) | 185 passed, **3 failed** — the same three snapshot suites that fail on the stashed base tree (font-hash drift in this environment) |
+| `pnpm --filter @avlp/schemas run test` | 312 passed, 2 failed — **same 2 on the base tree**, pre-existing |
+| `pnpm --filter @avlp/design-system run test` | 8 passed, 1 failed — pre-existing snapshot |
+| `pnpm --filter @avlp/renderer run test` | 17 passed |
+| `pnpm --filter @avlp/test-fixtures run test` | 13 passed |
+| `pnpm --filter @avlp/scene-library run render:style-proof` | 3 primary MP4s, second-subject MP4, contact sheet, 9 frames, manifests, ffprobe, measurements |
+| `pnpm --filter @avlp/scene-library run analyse:style-proof-motion` | 27 muted excerpt clips, descriptors, blind key |
+| `npx playwright test e2e/style-proof-preview.spec.ts` | **6 passed** from a cold `.next` cache |
+| `vitest run src/style-proof/style-proof-media.test.ts` | **4 passed** |
+| `pnpm --filter @avlp/web run build` | green; `/style-proof-preview` chunk 4.0 KB (was 2.64 MB), route prerenders as HTTP 404 with no gallery content |
+| `npx playwright test e2e/video-design-preview.spec.ts` | 1 passed, 2 failed — **same 2 on the stashed base tree**, pre-existing |
+
+Every pre-existing failure above was verified by `git stash`-ing this branch's
+changes and re-running the same command on the same machine.
+
+### Screenshots and representative output
+
+Absolute local paths for this run (git-ignored, reproducible from checked-in
+inputs via the commands above):
+
+- `D:\Eronmonsele\Documents\SoundMinds\product-app\artifacts\st-094\contact-sheet.png` — the 3x3 sheet (rows = scene, columns = style), 640 KB
+- `...\artifacts\st-094\conduction-{essential,editorial,everyday}.mp4` — 28.05s each, h264/aac 1920x1080@30; 1.70 / 9.11 / 2.38 MiB
+- `...\artifacts\st-094\leaf-everyday.mp4` — 24.04s second-subject evidence
+- `...\artifacts\st-094\frame-<pack>-<scene>.png` — the nine full-size hold frames
+- `...\artifacts\st-094\excerpts\excerpt-NN.mp4` — 27 muted 1.5s excerpts whose IDs do not name their pack; mapping in `excerpt-key.json`
+- `...\artifacts\st-094\{measurements,ffprobe,excerpts,excerpt-key}.json` and `conduction-<pack>.manifest.json`
+
+Measured cost over the same 840 frames: Essential 84.6 ms/frame, Editorial 97.1,
+Everyday 79.8, against an `mvp-default` baseline of 78.2 — 2–24% more per frame.
+Editorial's output is 6.5x the baseline's bytes at equal duration. Browser
+layout preflight: 379–549 ms for a three-scene lesson.
+
+### Decisions and assumptions
+
+- **Isolation over integration.** Separate contract subpath, separate tokens, separate treatment registry, separate Remotion root, separate development route. The production render bundle and render identity are byte-unchanged, which is what makes the AC7 claim checkable rather than asserted.
+- **Bundled `data:` URIs for proof media.** Chosen so preview, server render and Node tests consume byte-identical media with no path resolution and no static-file server — the precondition for the AC6 comparison to mean anything. Explicitly recorded as *not* a production pattern.
+- **Contain-fit wherever artwork carries meaning to its edges**; `cover` only for Editorial's photographic frames, which carry no burned-in text. Asserted by test.
+- **Captions are not style-variable.** Geometry and family are shared across packs and match `videoTheme.safeAreas.caption`; only the plate colour is tinted. Legibility is not a creative decision.
+- **Comparison tolerances were registered before evaluation** and left as registered afterwards, in either direction.
+
+### Deviations from the story or technical guide
+
+1. **No licensed photographs.** The repository has none and there is no sourcing route, so Editorial's image slots carry original seeded raster imagery. Crop policy, framing, minimum-resolution rejection, tonal treatment, annotation anchoring, decode verification and compression cost are genuinely exercised; photographic quality is not proven. Recorded as limitation L1 and finding F1 in the evaluation, and as an open question in ADR-005.
+2. **Synthetic narration, not a recorded voice.** Original seeded formant-shaped beds at the authored durations, shared byte-identically across styles. No paid TTS was called. This proves duration authority, caption alignment and audio presence; it cannot prove prosody or intelligibility. Limitation L2.
+3. **The AC11 blind human attribution review is pending, not performed.** The 27 muted excerpts and the blind key are generated and ready. Mechanical motion-only evidence is provided and is labelled throughout as supporting evidence, not as the human judgement.
+4. **AC3 clarity ratings are developer review**, against a criterion fixed before viewing, and are reported as such — not as measured learning outcomes.
+5. **`fileParallelism: false` in `@avlp/scene-library`.** Adding four browser-heavy suites made the package's parallel run oversubscribe the machine and fail four unrelated suites on timeout; they passed in isolation. Serialising restores exactly the base tree's failure set, at the cost of a ~6-minute suite.
+6. **The shared eslint config gained `document` and `requestAnimationFrame` globals** — needed by browser-measured layout code, and the narrowest change that makes it lint cleanly.
+7. **`playwright.config.ts` `webServer.timeout` raised to 180s** — a shared-config change outside this story's package boundary, made because the 60s default fails a cold start of the existing app for every spec, not only this one.
+
+### Known risks and follow-up
+
+- **A `node:crypto` leak into the client bundle was found and fixed late.** `manifest.ts` hashes resolved inputs with `node:crypto` and was re-exported from the `style-proof` index, so the development gallery's client bundle failed to compile and the route returned 500. The manifest is now off the browser-safe surface (its own `./style-proof/manifest` subpath) and Node-side callers import it directly. Worth noting for review: this was invisible to every package test, because they all run in Node. Any future addition to that index needs the same care.
+- **The proof's bundled-media approach does not survive contact with a production bundler.** Importing the fixtures statically put 2.64 MB into the route's client chunk (against 4 KB for the comparable `/video-design-preview`) and prerendered a publicly reachable route into the production build. The route now calls `notFound()` outside development and loads the gallery through a dynamic import inside a production-dead branch: `next build` emits a 4.0 KB chunk and a genuine HTTP 404 with no gallery content. That fixes the exposure, but it is the clearest evidence that limitation L3 is real — production must resolve media through the existing tenant-scoped asset path rather than embedding it.
+- The gallery still costs ~13s to compile on first request in `next dev`. Playwright's shared `webServer` readiness timeout was 60s, too low for a cold `next dev` start of this app for *every* spec, and is now 180s.
+- Editorial's evidence imagery cannot currently carry the comparison's visual claim (finding F1). Editorial should not be judged production-ready on this proof.
+- Only one motion-energy setting was exercised (L4); CR-05's calm/balanced/lively axis is expressible but untested across settings.
+- Nine of thirty combinations exist (L5). Systems, Field Notes and Prism are ST-101; full scene coverage is ST-100.
+- All measurements come from one machine, one Chromium build and one FFmpeg build (L6). Per CR-08, no cross-environment byte-identity is claimed.
+- Three snapshot suites in `@avlp/scene-library`, two in `@avlp/schemas`, one in `@avlp/design-system` and one `apps/pipeline-worker` lint error fail on the base tree and remain failing; refreshing them is independent work.

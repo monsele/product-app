@@ -11,6 +11,10 @@ export default [
       parserOptions: { projectService: true },
       globals: {
         console: "readonly",
+        // Browser globals the Remotion components and their browser-based
+        // layout measurement legitimately use (ST-094).
+        document: "readonly",
+        requestAnimationFrame: "readonly",
         process: "readonly",
         Response: "readonly",
         fetch: "readonly",
