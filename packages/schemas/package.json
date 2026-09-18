@@ -11,6 +11,10 @@
     "./style-proof": {
       "types": "./dist/style-proof.d.ts",
       "default": "./dist/style-proof.js"
+    },
+    "./demonstration-proof": {
+      "types": "./dist/demonstration-proof.d.ts",
+      "default": "./dist/demonstration-proof.js"
     }
   },
   "scripts": {

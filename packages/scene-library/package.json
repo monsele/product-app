@@ -15,6 +15,14 @@
     "./style-proof/manifest": {
       "types": "./dist/style-proof/manifest.d.ts",
       "default": "./dist/style-proof/manifest.js"
+    },
+    "./demonstration-proof": {
+      "types": "./dist/demonstration-proof/index.d.ts",
+      "default": "./dist/demonstration-proof/index.js"
+    },
+    "./demonstration-proof/manifest": {
+      "types": "./dist/demonstration-proof/manifest.d.ts",
+      "default": "./dist/demonstration-proof/manifest.js"
     }
   },
   "scripts": {
@@ -25,7 +33,10 @@
     "generate:style-proof-assets": "node scripts/generate-style-proof-assets.mjs",
     "generate:style-proof-narration": "node scripts/generate-style-proof-narration.mjs",
     "render:style-proof": "node scripts/render-style-proof.mjs",
-    "analyse:style-proof-motion": "node scripts/analyse-style-proof-motion.mjs"
+    "analyse:style-proof-motion": "node scripts/analyse-style-proof-motion.mjs",
+    "generate:demonstration-assets": "node scripts/generate-demonstration-assets.mjs",
+    "generate:demonstration-narration": "node scripts/generate-demonstration-narration.mjs",
+    "render:demonstration-proof": "node scripts/render-demonstration-proof.mjs"
   },
   "dependencies": {
     "@avlp/design-system": "workspace:*",
