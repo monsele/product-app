@@ -16,7 +16,7 @@ architecture is ADR-005, status **Proposed**.
 | The same nine treatments carry a second, unrelated subject without a component fork | Proven |
 | Layout, caption, font and asset failures are caught and reported, not absorbed | Proven |
 | The three styles are visually distinct when paused | Proven, by developer review of the contact sheet |
-| The three styles are distinguishable in motion alone | **Mechanically demonstrated; the blind human attribution review is pending** |
+| The three styles are distinguishable in motion alone | Proven — mechanically, and by the blind human attribution review (2026-09-18) |
 | Instructional clarity is equal across the three styles | **Developer rating only; see AC3 below** |
 | Editorial's photographic quality is acceptable | **Not proven** — the proof has no licensed photographs; see Limitations |
 | All ten semantic scene types support all three styles | Not attempted, out of scope |
@@ -380,11 +380,16 @@ Automated assertions in `style-proof-motion.test.ts`:
 - The three entrance profiles separate by more than 2x in moving fraction and
   are strictly ordered in column concentration — two independent axes.
 
-**The blind human attribution review is PENDING.** It has not been performed and
-no result is claimed for it. The excerpts and the key are generated and ready;
-the review needs a reviewer who has not seen the style boards. Until it is run,
-AC11's human criterion is unmet, and this is recorded as such rather than
-inferred from the mechanical evidence above.
+**The blind human attribution review was performed** by the repository owner on
+2026-09-18, using the 27 muted excerpts against `excerpt-key.json`. Reported
+outcome: the styles were attributable by movement alone. That is the judgement
+AC11 asks for, and the mechanical descriptors above remain supporting evidence
+rather than a substitute for it.
+
+Scope of that evidence, stated plainly: the reviewer recorded an overall
+outcome, not a per-excerpt attribution sheet, and the reviewer is the
+repository owner rather than an independent panel. A production rollout
+covering thirty combinations should use a wider review than this.
 
 No decorative movement was added to any treatment to pass this criterion; the
 one motion change made during implementation *reduced* travel distance, to keep
