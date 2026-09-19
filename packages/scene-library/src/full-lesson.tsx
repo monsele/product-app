@@ -427,6 +427,18 @@ function TransitionedScene({
       {treatment.family === "path" ? <div aria-hidden style={{ ...decorationStyle, height: 32, left: "8%", top: "50%", transform: "rotate(-8deg)", width: "84%" }} /> : null}
       {treatment.family === "panels" ? <div aria-hidden style={{ ...decorationStyle, height: "100%", left: "49%", top: 0, width: 24 }} /> : null}
       {treatment.family === "rows" ? <div aria-hidden style={{ ...decorationStyle, height: 16, left: "10%", top: "30%", width: "80%", boxShadow: `0 150px 0 ${accent}, 0 300px 0 ${accent}` }} /> : null}
+      {treatment.family === "flow" ? <div aria-hidden style={{ ...decorationStyle, height: 20, left: "5%", top: "48%", width: "90%", borderRadius: 10 }} /> : null}
+      {treatment.family === "staged" ? <div aria-hidden style={{ ...decorationStyle, height: "70%", left: "12%", top: "15%", width: "76%", borderRadius: 24 }} /> : null}
+      {treatment.family === "chain" ? <div aria-hidden style={{ ...decorationStyle, height: 12, left: "10%", top: "52%", width: "80%", boxShadow: `0 -120px 0 ${accent}` }} /> : null}
+      {treatment.family === "divergent" ? <div aria-hidden style={{ ...decorationStyle, borderRadius: "50%", height: 360, left: "50%", top: "50%", transform: "translate(-50%, -50%)", width: 360 }} /> : null}
+      {treatment.family === "annotated" ? <div aria-hidden style={{ ...decorationStyle, border: `3px dashed ${accent}`, borderRadius: 16, height: "80%", left: "10%", top: "10%", width: "80%", background: "transparent" }} /> : null}
+      {treatment.family === "focused" ? <div aria-hidden style={{ ...decorationStyle, height: "100%", left: "60%", top: 0, width: "40%" }} /> : null}
+      {treatment.family === "parallel" ? <div aria-hidden style={{ ...decorationStyle, height: "100%", left: "49.5%", top: 0, width: 6 }} /> : null}
+      {treatment.family === "metaphor" ? <div aria-hidden style={{ ...decorationStyle, borderRadius: "50%", height: 280, left: -60, bottom: -60, width: 280 }} /> : null}
+      {treatment.family === "stepwise" ? <div aria-hidden style={{ ...decorationStyle, height: "80%", left: 40, top: "10%", width: 14, borderRadius: 7 }} /> : null}
+      {treatment.family === "walkthrough" ? <div aria-hidden style={{ ...decorationStyle, height: 180, left: 0, bottom: 0, width: "100%" }} /> : null}
+      {treatment.family === "recap-cards" ? <div aria-hidden style={{ ...decorationStyle, height: 120, left: 0, bottom: 0, width: "100%" }} /> : null}
+      {treatment.family === "central-takeaway" ? <div aria-hidden style={{ ...decorationStyle, borderRadius: "50%", height: 500, left: "50%", top: "50%", transform: "translate(-50%, -50%)", width: 500 }} /> : null}
       <div
         aria-hidden
         data-imagery-preference={imagery}

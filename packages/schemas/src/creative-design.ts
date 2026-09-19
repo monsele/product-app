@@ -24,7 +24,13 @@ export const creativeDesignSceneTypes = [
   "hook",
   "definition",
   "process",
+  "input-process-output",
   "comparison",
+  "cause-effect",
+  "labelled-diagram",
+  "analogy",
+  "worked-example",
+  "summary",
 ] as const;
 export const creativeDesignSceneTypeSchema = z.enum(creativeDesignSceneTypes);
 export type CreativeDesignSceneType = z.infer<
@@ -184,7 +190,25 @@ export type CreativeDesignCandidate = Readonly<{
   id: CreativeDesignTreatmentId;
   packId: CreativeDesignPackId;
   sceneType: CreativeDesignSceneType;
-  family: "split" | "subject" | "path" | "panels" | "rows" | "question";
+  family:
+    | "split"
+    | "subject"
+    | "path"
+    | "panels"
+    | "rows"
+    | "question"
+    | "flow"
+    | "staged"
+    | "chain"
+    | "divergent"
+    | "annotated"
+    | "focused"
+    | "parallel"
+    | "metaphor"
+    | "stepwise"
+    | "walkthrough"
+    | "recap-cards"
+    | "central-takeaway";
   variant: "primary" | "alternate";
   minDurationSeconds: number;
   supportedApproaches: readonly ["standard"];
@@ -211,7 +235,96 @@ const familyFor = (
   if (sceneType === "definition")
     return variant === "primary" ? "split" : "subject";
   if (sceneType === "process") return variant === "primary" ? "path" : "panels";
-  return variant === "primary" ? "panels" : "rows";
+  if (sceneType === "input-process-output")
+    return variant === "primary" ? "flow" : "staged";
+  if (sceneType === "comparison") return variant === "primary" ? "panels" : "rows";
+  if (sceneType === "cause-effect")
+    return variant === "primary" ? "chain" : "divergent";
+  if (sceneType === "labelled-diagram")
+    return variant === "primary" ? "annotated" : "focused";
+  if (sceneType === "analogy")
+    return variant === "primary" ? "parallel" : "metaphor";
+  if (sceneType === "worked-example")
+    return variant === "primary" ? "stepwise" : "walkthrough";
+  return variant === "primary" ? "recap-cards" : "central-takeaway";
+};
+
+const minDurationFor = (sceneType: CreativeDesignSceneType): number => {
+  if (sceneType === "worked-example") return 7;
+  if (
+    sceneType === "process" ||
+    sceneType === "cause-effect" ||
+    sceneType === "labelled-diagram"
+  )
+    return 6;
+  if (
+    sceneType === "comparison" ||
+    sceneType === "analogy" ||
+    sceneType === "input-process-output" ||
+    sceneType === "summary"
+  )
+    return 5;
+  return 4;
+};
+
+const textLimitsFor = (
+  sceneType: CreativeDesignSceneType,
+): Readonly<{ maxCharacters: number; maxItems: number }> => {
+  if (sceneType === "worked-example")
+    return { maxCharacters: 400, maxItems: 12 };
+  if (sceneType === "labelled-diagram")
+    return { maxCharacters: 320, maxItems: 12 };
+  if (sceneType === "comparison" || sceneType === "cause-effect")
+    return { maxCharacters: 300, maxItems: 8 };
+  if (sceneType === "input-process-output" || sceneType === "summary")
+    return { maxCharacters: 280, maxItems: 6 };
+  if (sceneType === "process")
+    return { maxCharacters: 220, maxItems: 6 };
+  return { maxCharacters: 220, maxItems: 4 };
+};
+
+const textColumnsFor = (
+  sceneType: CreativeDesignSceneType,
+  variant: "primary" | "alternate",
+): 1 | 2 => {
+  if (sceneType === "comparison" || sceneType === "analogy") return 2;
+  if (sceneType === "labelled-diagram" && variant === "alternate") return 2;
+  return 1;
+};
+
+const timingFor = (
+  sceneType: CreativeDesignSceneType,
+): Readonly<{
+  establishFrames: number;
+  explainFrames: number;
+  holdFrames: number;
+  exitFrames: number;
+}> => {
+  if (sceneType === "worked-example")
+    return { establishFrames: 12, explainFrames: 42, holdFrames: 105, exitFrames: 12 };
+  if (
+    sceneType === "process" ||
+    sceneType === "cause-effect" ||
+    sceneType === "labelled-diagram"
+  )
+    return { establishFrames: 12, explainFrames: 36, holdFrames: 90, exitFrames: 12 };
+  if (sceneType === "summary")
+    return { establishFrames: 12, explainFrames: 24, holdFrames: 80, exitFrames: 12 };
+  if (sceneType === "input-process-output" || sceneType === "analogy")
+    return { establishFrames: 12, explainFrames: 30, holdFrames: 75, exitFrames: 12 };
+  return { establishFrames: 12, explainFrames: 24, holdFrames: 60, exitFrames: 12 };
+};
+
+const densityFor = (sceneType: CreativeDesignSceneType): "low" | "medium" => {
+  if (
+    sceneType === "process" ||
+    sceneType === "comparison" ||
+    sceneType === "cause-effect" ||
+    sceneType === "labelled-diagram" ||
+    sceneType === "worked-example"
+  )
+    return "medium";
+  return "low";
 };
 
 export const creativeDesignCatalogue: readonly CreativeDesignCandidate[] =
@@ -225,7 +338,7 @@ export const creativeDesignCatalogue: readonly CreativeDesignCandidate[] =
             sceneType,
             family: familyFor(sceneType, variant),
             variant,
-            minDurationSeconds: sceneType === "process" ? 6 : 4,
+            minDurationSeconds: minDurationFor(sceneType),
             supportedApproaches: ["standard"] as const,
             requiredContent:
               sceneType === "process"
@@ -234,21 +347,13 @@ export const creativeDesignCatalogue: readonly CreativeDesignCandidate[] =
             // These treatments use the scene's already-resolved evidence;
             // no treatment invents or requires a new asset at plan time.
             requiredAssetKinds: ["none"] as const,
-            textLimits: {
-              maxCharacters: sceneType === "comparison" ? 300 : 220,
-              maxItems: sceneType === "process" ? 6 : 4,
-            },
+            textLimits: textLimitsFor(sceneType),
             layout: {
               safeInsetPx: packId === "everyday" ? 96 : 72,
-              textColumns: sceneType === "comparison" ? (2 as const) : (1 as const),
+              textColumns: textColumnsFor(sceneType, variant),
             },
-            timing: {
-              establishFrames: 12,
-              explainFrames: sceneType === "process" ? 36 : 24,
-              holdFrames: sceneType === "process" ? 90 : 60,
-              exitFrames: 12,
-            },
-            density: sceneType === "process" || sceneType === "comparison" ? "medium" : "low",
+            timing: timingFor(sceneType),
+            density: densityFor(sceneType),
             motionIntensity:
               packId === "essential"
                 ? "calm"
@@ -367,6 +472,19 @@ export function treatmentFor(
   return result;
 }
 
+const holdFramesForScene = (sceneType: CreativeDesignSceneType): number => {
+  if (sceneType === "worked-example") return 105;
+  if (
+    sceneType === "process" ||
+    sceneType === "cause-effect" ||
+    sceneType === "labelled-diagram"
+  )
+    return 90;
+  if (sceneType === "summary") return 80;
+  if (sceneType === "input-process-output" || sceneType === "analogy") return 75;
+  return 60;
+};
+
 /** Stable planner: score is named, output never depends on random ordering. */
 export function planCreativeDesign(
   input: Readonly<{
@@ -381,7 +499,8 @@ export function planCreativeDesign(
 ): Readonly<Record<string, CreativeDesignSceneSelection>> {
   const selections: Record<string, CreativeDesignSceneSelection> = {};
   let previousFamily: CreativeDesignCandidate["family"] | undefined;
-  for (const scene of input.scenes) {
+  const totalScenes = input.scenes.length;
+  for (const [index, scene] of input.scenes.entries()) {
     const locked = input.locks?.[scene.id];
     const candidates = creativeDesignCatalogue.filter(
       (candidate) =>
@@ -392,12 +511,22 @@ export function planCreativeDesign(
     const chosen =
       locked === undefined
         ? [...candidates].sort((left, right) => {
+            const isOpening = index === 0 && scene.template === "hook";
+            const isClosing =
+              index === totalScenes - 1 && scene.template === "summary";
+            const rhythmBonus = (candidate: CreativeDesignCandidate) => {
+              if (isOpening && candidate.family === "question") return 5;
+              if (isClosing && candidate.family === "recap-cards") return 5;
+              return 0;
+            };
             const leftScore =
               (left.family === previousFamily ? -10 : 0) +
-              (left.variant === "primary" ? 1 : 0);
+              (left.variant === "primary" ? 1 : 0) +
+              rhythmBonus(left);
             const rightScore =
               (right.family === previousFamily ? -10 : 0) +
-              (right.variant === "primary" ? 1 : 0);
+              (right.variant === "primary" ? 1 : 0) +
+              rhythmBonus(right);
             return rightScore - leftScore || left.id.localeCompare(right.id);
           })[0]
         : candidates.find((candidate) => candidate.id === locked);
@@ -409,7 +538,7 @@ export function planCreativeDesign(
       treatmentId: chosen.id,
       treatmentVersion: "1.0.0",
       locked: locked !== undefined,
-      requiredHoldFrames: scene.template === "process" ? 90 : 60,
+      requiredHoldFrames: holdFramesForScene(scene.template),
     });
     previousFamily = chosen.family;
   }

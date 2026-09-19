@@ -29,6 +29,7 @@ import {
   validateCreativeDesignManifest,
   type CreativeDesignManifest,
   type CreativeDesignProposalPatch,
+  type CreativeDesignSceneType,
   modelCallJobPayloadSchema,
 } from "@avlp/schemas";
 import { createIdempotencyKey, createJobEnvelope } from "@avlp/jobs";
@@ -199,8 +200,7 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
     const scenes = await this.storyboardScenes(this.database, input, spec.id);
     const typedScenes = scenes.map((scene) => ({
       id: scene.id,
-      template: scene.template as
-        "hook" | "definition" | "process" | "comparison",
+      template: scene.template as CreativeDesignSceneType,
       durationSeconds: scene.durationSeconds,
     }));
     const manifest = createDefaultCreativeDesignManifest({
@@ -228,8 +228,7 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
           packId: command.manifest.pack.id,
           scenes: scenes.map((scene) => ({
             id: scene.id,
-            template: scene.template as
-              "hook" | "definition" | "process" | "comparison",
+            template: scene.template as CreativeDesignSceneType,
             durationSeconds: scene.durationSeconds,
           })),
           locks: Object.fromEntries(
@@ -858,7 +857,7 @@ export function createDefaultCreativeDesignManifest(
     packId: "essential" | "editorial" | "everyday";
     scenes: readonly Readonly<{
       id: string;
-      template: "hook" | "definition" | "process" | "comparison";
+      template: CreativeDesignSceneType;
       durationSeconds: number;
     }>[];
   }>,

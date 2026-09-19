@@ -8,6 +8,7 @@ import {
   defaultCreativeDesignSettings,
   lessonSpecSchema,
   planCreativeDesign,
+  type CreativeDesignSceneType,
 } from "@avlp/schemas";
 import { describe, expect, it } from "vitest";
 import { calculateLessonTimeline, type FullLessonCompositionProps } from "./full-lesson.js";
@@ -15,9 +16,9 @@ import { photosynthesisThreeMinuteLesson } from "./full-lesson.fixture.js";
 import { fullLessonRuntimeCompositionId } from "./scene-preview-composition.js";
 
 const comparisonScene = {
-  ...photosynthesisThreeMinuteLesson.scenes[2]!,
+  ...photosynthesisThreeMinuteLesson.scenes[0]!,
   id: "00000000-0000-7000-8000-000000000299",
-  order: 4,
+  order: 5,
   template: "comparison" as const,
   title: "Leaf and root jobs",
   visual: {
@@ -27,15 +28,71 @@ const comparisonScene = {
     differences: ["Leaves collect light; roots collect water"],
   },
 };
+
+const labelledDiagramScene = {
+  ...photosynthesisThreeMinuteLesson.scenes[0]!,
+  id: "00000000-0000-7000-8000-000000000297",
+  order: 7,
+  template: "labelled-diagram" as const,
+  title: "Leaf Diagram",
+  visual: {
+    kind: "shapes" as const,
+    shape: "plant" as const,
+    labels: [
+      { anchor: "top" as const, id: "sunlight", text: "Sunlight" },
+      { anchor: "bottom" as const, id: "roots", text: "Roots" },
+    ],
+  },
+};
+
+const analogyScene = {
+  ...photosynthesisThreeMinuteLesson.scenes[0]!,
+  id: "00000000-0000-7000-8000-000000000298",
+  order: 8,
+  template: "analogy" as const,
+  title: "Solar Factory Analogy",
+  visual: {
+    familiarSystem: "A solar kitchen",
+    sourceConcept: "Photosynthesis",
+    mappings: [
+      { analogy: "Sunlight", concept: "Solar power" },
+      { analogy: "Recipe", concept: "Chloroplast reaction" },
+    ],
+  },
+};
+
+const workedExampleScene = {
+  ...photosynthesisThreeMinuteLesson.scenes[0]!,
+  id: "00000000-0000-7000-8000-000000000296",
+  order: 9,
+  template: "worked-example" as const,
+  title: "Sugar calculation",
+  visual: {
+    problem: "How much glucose is made from 6 carbon dioxide molecules?",
+    steps: [
+      "Count 6 carbon dioxide molecules entering",
+      "Process with 6 water molecules",
+      "Combine carbons into 1 glucose molecule",
+    ],
+    answer: "1 glucose molecule and 6 oxygen molecules are released",
+  },
+};
+
 const supportedLesson = lessonSpecSchema.parse({
   ...photosynthesisThreeMinuteLesson,
   scenes: [
-    photosynthesisThreeMinuteLesson.scenes[0],
-    photosynthesisThreeMinuteLesson.scenes[1],
-    photosynthesisThreeMinuteLesson.scenes[2],
+    photosynthesisThreeMinuteLesson.scenes[0]!,
+    photosynthesisThreeMinuteLesson.scenes[1]!,
+    photosynthesisThreeMinuteLesson.scenes[2]!,
+    { ...photosynthesisThreeMinuteLesson.scenes[3]!, order: 4 },
     comparisonScene,
+    { ...photosynthesisThreeMinuteLesson.scenes[4]!, order: 6 },
+    labelledDiagramScene,
+    analogyScene,
+    workedExampleScene,
+    { ...photosynthesisThreeMinuteLesson.scenes[5]!, order: 10 },
   ],
-  targetDurationSeconds: 180,
+  targetDurationSeconds: 300,
 });
 const timeline = calculateLessonTimeline(supportedLesson);
 
@@ -44,7 +101,7 @@ function propsFor(packId: "essential" | "editorial" | "everyday", variant: "prim
     packId,
     scenes: supportedLesson.scenes.map((scene) => ({
       id: scene.id,
-      template: scene.template as "hook" | "definition" | "process" | "comparison",
+      template: scene.template as CreativeDesignSceneType,
       durationSeconds: scene.durationSeconds,
     })),
   });
@@ -65,7 +122,7 @@ function propsFor(packId: "essential" | "editorial" | "everyday", variant: "prim
   };
 }
 
-describe("ST-097 creative design production rendering", () => {
+describe("ST-100 creative design production rendering", () => {
   it("renders every registered treatment as a deterministic, visually distinct real frame", async () => {
     const serveUrl = await bundle({ entryPoint: fileURLToPath(new URL("../dist/remotion-root.js", import.meta.url)) });
     const browserExecutable = chromium.executablePath();
@@ -80,6 +137,6 @@ describe("ST-097 creative design production rendering", () => {
           hashes.add(createHash("sha256").update(rendered.buffer!).digest("hex"));
         }
       }
-    expect(hashes.size).toBe(24);
+    expect(hashes.size).toBe(60);
   }, 600_000);
 });
