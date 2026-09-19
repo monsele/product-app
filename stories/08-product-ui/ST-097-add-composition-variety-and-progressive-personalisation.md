@@ -2,7 +2,7 @@
 story_id: ST-097
 title: "Add Composition Variety and Progressive Personalisation"
 phase: "08 — Product UI"
-status: Blocked
+status: Ready
 priority: must-have
 epics: ["E6", "E10", "E11", "E12", "E15", "E20"]
 prd_user_stories: ["E11-US2", "E15-US2", "E20-US1"]
