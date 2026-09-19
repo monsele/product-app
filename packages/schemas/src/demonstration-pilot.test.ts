@@ -72,9 +72,9 @@ describe("the video approach on the configuration contract", () => {
   });
 
   it("requires the field on a persisted configuration and rejects unknowns", () => {
-    expect(lessonConfigurationSchema.parse(storedConfiguration).videoApproach).toBe(
-      "standard",
-    );
+    expect(
+      lessonConfigurationSchema.parse(storedConfiguration).videoApproach,
+    ).toBe("standard");
     expect(
       lessonConfigurationSchema.safeParse({
         ...storedConfiguration,
@@ -175,6 +175,21 @@ describe("variant identity", () => {
       }).success,
     ).toBe(false);
   });
+
+  it("makes a registered creative presentation part of the identity input", () => {
+    expect(
+      demonstrationVariantIdentityInputSchema.parse({
+        ...base,
+        themeId: "editorial",
+      }).themeId,
+    ).toBe("editorial");
+    expect(
+      demonstrationVariantIdentityInputSchema.safeParse({
+        ...base,
+        themeId: "systems",
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe("eligibility", () => {
@@ -216,7 +231,11 @@ describe("eligibility", () => {
       demonstrationEligibilitySchema.safeParse({
         ...base,
         reasons: [
-          { code: "not_in_cohort", message: "Not in the pilot.", suggestedCorrection: "" },
+          {
+            code: "not_in_cohort",
+            message: "Not in the pilot.",
+            suggestedCorrection: "",
+          },
         ],
         selectable: false,
       }).success,
@@ -307,7 +326,9 @@ describe("the resolved variant plan", () => {
       },
     ],
     bindingId: "st-096-savings",
-    captions: [{ endFrame: 36, sceneId: uuid, startFrame: 0, text: "Ten notes." }],
+    captions: [
+      { endFrame: 36, sceneId: uuid, startFrame: 0, text: "Ten notes." },
+    ],
     experimentVersion: demonstrationPilotExperimentVersion,
     hashPolicy: "st-096-canonical-json-sha256-v1" as const,
     schemaVersion: 1 as const,
@@ -317,6 +338,51 @@ describe("the resolved variant plan", () => {
 
   it("accepts a complete, internally consistent plan", () => {
     expect(demonstrationVariantPlanSchema.parse(plan).scenes).toHaveLength(1);
+  });
+
+  it("does not let a legacy plan claim creative visuals without a presentation", () => {
+    expect(
+      demonstrationVariantPlanSchema.safeParse({
+        ...plan,
+        themeId: "editorial",
+      }).success,
+    ).toBe(false);
+  });
+
+  it("accepts only the registered creative presentation fields", () => {
+    const creative = {
+      ...plan,
+      presentation: {
+        captionPreset: "large",
+        colors: {
+          accent: "#6430D7",
+          background: "#F7F8FC",
+          diagramEmphasis: "#3159A6",
+          surface: "#FCFCFF",
+          text: "#2B2138",
+        },
+        fontPair: "nunito-inter",
+        kind: "creative-style",
+        packId: "everyday",
+        version: "1.0.0",
+      },
+      themeId: "everyday",
+    };
+    expect(demonstrationVariantPlanSchema.safeParse(creative).success).toBe(
+      true,
+    );
+    expect(
+      demonstrationVariantPlanSchema.safeParse({
+        ...creative,
+        presentation: { ...creative.presentation, path: "M 0 0" },
+      }).success,
+    ).toBe(false);
+    expect(
+      demonstrationVariantPlanSchema.safeParse({
+        ...creative,
+        themeId: "editorial",
+      }).success,
+    ).toBe(false);
   });
 
   it("rejects a slot bound to artwork the plan does not carry", () => {

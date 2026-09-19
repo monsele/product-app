@@ -9,6 +9,8 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import {
   canonicalDemonstrationJson,
   demonstrationPlanSchema,
@@ -27,7 +29,11 @@ import {
   evaporationDemonstrationFixture,
   savingsDemonstrationFixture,
 } from "./fixtures.js";
-import { demonstrationNarrationTrack, toDemonstrationNarrationTrack } from "./narration.js";
+import {
+  demonstrationNarrationTrack,
+  toDemonstrationNarrationTrack,
+} from "./narration.js";
+import { DemonstrationCaptionAtFrame } from "./composition.js";
 
 const savingsTrack = demonstrationNarrationTrack("savings-transfer");
 
@@ -52,9 +58,9 @@ describe("the shipped fixtures", () => {
       evaporationDemonstrationFixture,
     ])
       for (const scene of fixture.scenes) {
-        const narration = toDemonstrationNarrationTrack(fixture.narrationTracks.find(
-            (entry) => entry.sceneId === scene.id,
-          )!);
+        const narration = toDemonstrationNarrationTrack(
+          fixture.narrationTracks.find((entry) => entry.sceneId === scene.id)!,
+        );
         expect(validateDemonstrationPlan(scene.plan, narration)).toEqual([]);
       }
   });
@@ -73,6 +79,41 @@ describe("the shipped fixtures", () => {
         narration?.checksumSha256,
       );
     }
+  });
+});
+
+describe("bounded creative presentations", () => {
+  it("changes only the resolved caption presentation at a fixed frame", () => {
+    const markup = renderToStaticMarkup(
+      createElement(DemonstrationCaptionAtFrame, {
+        captions: [
+          {
+            endFrame: 30,
+            sceneId: "scene-1",
+            startFrame: 0,
+            text: "The amount moves into savings.",
+          },
+        ],
+        frame: 12,
+        presentation: {
+          captionPreset: "high_contrast",
+          colors: {
+            accent: "#6430D7",
+            background: "#F7F8FC",
+            diagramEmphasis: "#3159A6",
+            surface: "#FCFCFF",
+            text: "#2B2138",
+          },
+          fontPair: "nunito-inter",
+          kind: "creative-style",
+          packId: "editorial",
+          version: "1.0.0",
+        },
+      }),
+    );
+    expect(markup).toContain("The amount moves into savings.");
+    expect(markup).toContain("#2B2138");
+    expect(markup).toContain("#F7F8FC");
   });
 });
 
@@ -104,7 +145,9 @@ describe("recipe and version resolution", () => {
         tokenIds: ["drop-01"],
       } as DemonstrationEvent,
     ];
-    const narration = toDemonstrationNarrationTrack(evaporationDemonstrationFixture.narrationTracks[1]!);
+    const narration = toDemonstrationNarrationTrack(
+      evaporationDemonstrationFixture.narrationTracks[1]!,
+    );
     const codes = validateDemonstrationPlan(plan, narration).map(
       (issue) => issue.code,
     );
@@ -141,7 +184,8 @@ describe("object references and quantities", () => {
 
   it("rejects a non-finite value before it can reach a frame", () => {
     const plan = mutablePlan(savingsPlan);
-    (plan.events[0] as { startFrame: number }).startFrame = Number.POSITIVE_INFINITY;
+    (plan.events[0] as { startFrame: number }).startFrame =
+      Number.POSITIVE_INFINITY;
     expect(demonstrationPlanSchema.safeParse(plan).success).toBe(false);
   });
 });
@@ -151,7 +195,9 @@ describe("impossible transitions", () => {
     const plan = mutablePlan(savingsDemonstrationFixture.scenes[2]!.plan);
     const deposit = plan.events.find((event) => event.action === "introduce")!;
     (deposit as { fromOriginId: string }).fromOriginId = "income";
-    const narration = toDemonstrationNarrationTrack(savingsDemonstrationFixture.narrationTracks[2]!);
+    const narration = toDemonstrationNarrationTrack(
+      savingsDemonstrationFixture.narrationTracks[2]!,
+    );
     const codes = validateDemonstrationPlan(plan, narration).map(
       (issue) => issue.code,
     );
@@ -163,7 +209,9 @@ describe("impossible transitions", () => {
     const detach = plan.events.find((event) => event.action === "detach")!;
     (detach as { fromRegionId: string }).fromRegionId = "vapour";
     (detach as { toRegionId: string }).toRegionId = "liquid";
-    const narration = toDemonstrationNarrationTrack(evaporationDemonstrationFixture.narrationTracks[1]!);
+    const narration = toDemonstrationNarrationTrack(
+      evaporationDemonstrationFixture.narrationTracks[1]!,
+    );
     const codes = validateDemonstrationPlan(plan, narration).map(
       (issue) => issue.code,
     );
@@ -179,7 +227,9 @@ describe("impossible transitions", () => {
       (event) => event.action === "disperse",
     )[1]!;
     (spread as { toDispersion: number }).toDispersion = 1;
-    const narration = toDemonstrationNarrationTrack(evaporationDemonstrationFixture.narrationTracks[2]!);
+    const narration = toDemonstrationNarrationTrack(
+      evaporationDemonstrationFixture.narrationTracks[2]!,
+    );
     const codes = validateDemonstrationPlan(plan, narration).map(
       (issue) => issue.code,
     );
@@ -193,7 +243,9 @@ describe("conflicting events", () => {
     const first = plan.events.find((event) => event.id === "wages-week-2")!;
     const second = plan.events.find((event) => event.id === "save-week-2")!;
     (second as { startFrame: number }).startFrame = first.startFrame + 1;
-    const narration = toDemonstrationNarrationTrack(savingsDemonstrationFixture.narrationTracks[2]!);
+    const narration = toDemonstrationNarrationTrack(
+      savingsDemonstrationFixture.narrationTracks[2]!,
+    );
     const codes = validateDemonstrationPlan(plan, narration).map(
       (issue) => issue.code,
     );
@@ -216,7 +268,9 @@ describe("declared end state", () => {
       { count: 1, phase: "vapour" },
       { count: 1, phase: "liquid" },
     ];
-    const narration = toDemonstrationNarrationTrack(evaporationDemonstrationFixture.narrationTracks[1]!);
+    const narration = toDemonstrationNarrationTrack(
+      evaporationDemonstrationFixture.narrationTracks[1]!,
+    );
     const codes = validateDemonstrationPlan(plan, narration).map(
       (issue) => issue.code,
     );
@@ -345,7 +399,9 @@ describe("the recipe catalogue", () => {
   });
 
   it("finds a recipe by ID and nothing by a near miss", () => {
-    expect(findDemonstrationRecipe("savings.transfer-accumulate")).toBeDefined();
+    expect(
+      findDemonstrationRecipe("savings.transfer-accumulate"),
+    ).toBeDefined();
     expect(findDemonstrationRecipe("savings.transfer")).toBeUndefined();
   });
 });

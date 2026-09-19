@@ -42,8 +42,9 @@ export function SceneTitle({
       <h1
         {...{ [demonstrationContentAttribute]: "title" }}
         style={{
-          color: videoTheme.colors.text,
-          fontFamily: videoTheme.typography.fontFamily,
+          color: "var(--demo-text, #F0F4F8)",
+          fontFamily:
+            "var(--demo-font, Atkinson Hyperlegible, Arial, sans-serif)",
           fontSize: 56,
           fontWeight: 700,
           lineHeight: videoTheme.typography.lineHeight,
@@ -57,10 +58,11 @@ export function SceneTitle({
           {...{ [demonstrationContentAttribute]: "period" }}
           data-testid="demo-period"
           style={{
-            background: videoTheme.colors.surface,
+            background: "var(--demo-surface, #203E56)",
             borderRadius: videoTheme.radii.md,
-            color: videoTheme.colors.accent,
-            fontFamily: videoTheme.typography.fontFamily,
+            color: "var(--demo-accent, #FFC857)",
+            fontFamily:
+              "var(--demo-font, Atkinson Hyperlegible, Arial, sans-serif)",
             fontSize: 34,
             fontWeight: 700,
             padding: `${videoTheme.spacing.xs}px ${videoTheme.spacing.md}px`,
@@ -113,25 +115,27 @@ export function RegionFrame({
 }>): JSX.Element {
   const border =
     tone === "accent"
-      ? videoTheme.colors.primary
+      ? "var(--demo-diagram, #40DDD0)"
       : tone === "quiet"
-        ? videoTheme.colors.mutedText
-        : videoTheme.colors.surface;
+        ? "var(--demo-text, #D9E2EC)"
+        : "var(--demo-surface, #203E56)";
   return (
     <section
       {...{ [demonstrationRegionAttribute]: regionId }}
       style={{
         ...positioned(area),
         background:
-          tone === "quiet" ? "transparent" : `${videoTheme.colors.surface}66`,
-        border: `3px solid ${emphasis > 0 ? videoTheme.colors.accent : border}`,
+          tone === "quiet"
+            ? "transparent"
+            : "var(--demo-surface-alpha, #203E5666)",
+        border: `3px solid ${emphasis > 0 ? "var(--demo-accent, #FFC857)" : border}`,
         borderRadius: videoTheme.radii.md * 1.5,
         // A widening ring rather than a scale or a move: the contents are being
         // read at this moment, and text that shifts while it is read is worse
         // than no emphasis at all.
         boxShadow:
           emphasis > 0
-            ? `0 0 0 ${6 * emphasis}px ${videoTheme.colors.accent}33`
+            ? `0 0 0 ${6 * emphasis}px var(--demo-accent, #FFC857)`
             : "none",
         boxSizing: "border-box",
       }}
@@ -151,9 +155,10 @@ export function RegionFrame({
           {...{ [demonstrationContentAttribute]: `region-label:${regionId}` }}
           style={{
             alignItems: "center",
-            color: videoTheme.colors.mutedText,
+            color: "var(--demo-text, #D9E2EC)",
             display: "flex",
-            fontFamily: videoTheme.typography.fontFamily,
+            fontFamily:
+              "var(--demo-font, Atkinson Hyperlegible, Arial, sans-serif)",
             fontSize: 28,
             fontWeight: 700,
             gap: videoTheme.spacing.xs,
@@ -171,11 +176,14 @@ export function RegionFrame({
         </span>
         {status === undefined ? null : (
           <span
-            {...{ [demonstrationContentAttribute]: `region-status:${regionId}` }}
+            {...{
+              [demonstrationContentAttribute]: `region-status:${regionId}`,
+            }}
             data-testid={`demo-region-status-${regionId}`}
             style={{
-              color: videoTheme.colors.accent,
-              fontFamily: videoTheme.typography.fontFamily,
+              color: "var(--demo-accent, #FFC857)",
+              fontFamily:
+                "var(--demo-font, Atkinson Hyperlegible, Arial, sans-serif)",
               fontSize: 26,
               fontWeight: 700,
             }}
@@ -219,8 +227,9 @@ export function Readout({
       <p
         {...{ [demonstrationContentAttribute]: `readout-label:${label}` }}
         style={{
-          color: videoTheme.colors.mutedText,
-          fontFamily: videoTheme.typography.fontFamily,
+          color: "var(--demo-text, #D9E2EC)",
+          fontFamily:
+            "var(--demo-font, Atkinson Hyperlegible, Arial, sans-serif)",
           fontSize: 26,
           fontWeight: 700,
           margin: 0,
@@ -231,8 +240,9 @@ export function Readout({
       <p
         {...{ [demonstrationContentAttribute]: `readout-value:${label}` }}
         style={{
-          color: videoTheme.colors.text,
-          fontFamily: videoTheme.typography.fontFamily,
+          color: "var(--demo-text, #F0F4F8)",
+          fontFamily:
+            "var(--demo-font, Atkinson Hyperlegible, Arial, sans-serif)",
           fontSize: 52,
           fontWeight: 700,
           margin: 0,
@@ -247,7 +257,7 @@ export function Readout({
       {goalMinor === undefined ? null : (
         <div
           style={{
-            background: `${videoTheme.colors.surface}`,
+            background: "var(--demo-surface, #203E56)",
             borderRadius: 8,
             height: 14,
             marginTop: videoTheme.spacing.xs,
@@ -257,7 +267,7 @@ export function Readout({
         >
           <div
             style={{
-              background: videoTheme.colors.primary,
+              background: "var(--demo-diagram, #40DDD0)",
               height: "100%",
               width: `${progress * 100}%`,
             }}
@@ -268,8 +278,9 @@ export function Readout({
         <p
           {...{ [demonstrationContentAttribute]: `readout-goal:${label}` }}
           style={{
-            color: videoTheme.colors.mutedText,
-            fontFamily: videoTheme.typography.fontFamily,
+            color: "var(--demo-text, #D9E2EC)",
+            fontFamily:
+              "var(--demo-font, Atkinson Hyperlegible, Arial, sans-serif)",
             fontSize: 24,
             margin: `${videoTheme.spacing.xs}px 0 0`,
           }}
@@ -299,13 +310,14 @@ export function NoteStrip({
       style={{
         ...positioned(area),
         alignItems: "center",
-        background: videoTheme.colors.surface,
-        borderLeft: `${videoTheme.lineWidths.emphasis}px solid ${videoTheme.colors.accent}`,
+        background: "var(--demo-surface, #203E56)",
+        borderLeft: `${videoTheme.lineWidths.emphasis}px solid var(--demo-accent, #FFC857)`,
         borderRadius: videoTheme.radii.md,
         boxSizing: "border-box",
-        color: videoTheme.colors.text,
+        color: "var(--demo-text, #F0F4F8)",
         display: "flex",
-        fontFamily: videoTheme.typography.fontFamily,
+        fontFamily:
+          "var(--demo-font, Atkinson Hyperlegible, Arial, sans-serif)",
         fontSize: 28,
         lineHeight: videoTheme.typography.lineHeight,
         opacity: reveal,

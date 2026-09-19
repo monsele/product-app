@@ -42,6 +42,7 @@ import {
   type DemonstrationVariantView,
 } from "@avlp/schemas/demonstration-pilot";
 import type { VideoApproach } from "@avlp/schemas";
+import { comparisonStyleLabel } from "./comparison-style.js";
 
 const fps = 30;
 
@@ -250,7 +251,8 @@ export function ComparisonWorkspace({ projectId }: { projectId: string }) {
   // change on the server rather than in this tab.
   const inFlight =
     selected?.variants.some(
-      (variant) => variant.status === "queued" || variant.status === "generating",
+      (variant) =>
+        variant.status === "queued" || variant.status === "generating",
     ) ?? false;
   useEffect(() => {
     if (!inFlight) return undefined;
@@ -308,7 +310,9 @@ export function ComparisonWorkspace({ projectId }: { projectId: string }) {
         });
         const payload: unknown = await response.json().catch(() => null);
         if (!response.ok)
-          throw new Error(errorMessage(payload, "That action did not succeed."));
+          throw new Error(
+            errorMessage(payload, "That action did not succeed."),
+          );
         await load();
       } catch (error) {
         setActionError(
@@ -327,7 +331,10 @@ export function ComparisonWorkspace({ projectId }: { projectId: string }) {
     return <p style={{ padding: "24px" }}>Loading comparisons…</p>;
   if (state.kind === "failed")
     return (
-      <p role="alert" style={{ padding: "24px", color: "var(--color-error-fg)" }}>
+      <p
+        role="alert"
+        style={{ padding: "24px", color: "var(--color-error-fg)" }}
+      >
         {state.message}
       </p>
     );
@@ -367,6 +374,16 @@ export function ComparisonWorkspace({ projectId }: { projectId: string }) {
           captions, scene boundaries and visual theme. Only the way the pictures
           explain the lesson differs. Your responses are qualitative pilot
           evidence, not a measurement of learning.
+        </p>
+        <p
+          style={{
+            margin: 0,
+            fontSize: "12px",
+            color: "var(--color-text-muted)",
+          }}
+        >
+          To compare a creative style, choose and apply it in Storyboard, then
+          save that lesson version before creating the comparison.
         </p>
       </header>
 
@@ -445,6 +462,16 @@ export function ComparisonWorkspace({ projectId }: { projectId: string }) {
               {selected.uncontrolledReason}
             </p>
           )}
+          <p
+            aria-label="Comparison visual style"
+            style={{
+              margin: 0,
+              fontSize: "12px",
+              color: "var(--color-text-muted)",
+            }}
+          >
+            Visual style: {comparisonStyleLabel(selected.themeId)}
+          </p>
 
           <nav
             aria-label="Scene navigation"
@@ -498,7 +525,8 @@ export function ComparisonWorkspace({ projectId }: { projectId: string }) {
                 }}
                 projectId={projectId}
                 registerElement={(element) => {
-                  if (element === null) players.current.delete(variant.approach);
+                  if (element === null)
+                    players.current.delete(variant.approach);
                   else players.current.set(variant.approach, element);
                 }}
                 variant={variant}
@@ -588,7 +616,10 @@ export function ComparisonWorkspace({ projectId }: { projectId: string }) {
           </div>
 
           {actionError !== null && (
-            <p role="alert" style={{ color: "var(--color-error-fg)", fontSize: "13px" }}>
+            <p
+              role="alert"
+              style={{ color: "var(--color-error-fg)", fontSize: "13px" }}
+            >
               {actionError}
             </p>
           )}
@@ -603,7 +634,11 @@ export function ComparisonWorkspace({ projectId }: { projectId: string }) {
           ) : (
             <p
               role="status"
-              style={{ margin: 0, fontSize: "13px", color: "var(--color-text-muted)" }}
+              style={{
+                margin: 0,
+                fontSize: "13px",
+                color: "var(--color-text-muted)",
+              }}
             >
               Feedback becomes available when both controlled outputs are ready.
             </p>
@@ -805,7 +840,11 @@ function FeedbackForm({
   const [ratings, setRatings] = useState<
     Record<
       VideoApproach,
-      { clarity: number | null; engagement: number | null; narrationSync: number | null }
+      {
+        clarity: number | null;
+        engagement: number | null;
+        narrationSync: number | null;
+      }
     >
   >({
     demonstration: { clarity: null, engagement: null, narrationSync: null },
@@ -944,7 +983,9 @@ function FeedbackForm({
               },
             )
               .then(async (response) => {
-                const payload: unknown = await response.json().catch(() => null);
+                const payload: unknown = await response
+                  .json()
+                  .catch(() => null);
                 if (!response.ok)
                   throw new Error(
                     errorMessage(payload, "Your response was not saved."),

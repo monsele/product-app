@@ -104,8 +104,10 @@ export async function hydrateProductionComposition(
   // A selected logo is a first-class resolved asset even though it is not a
   // scene binding. Its signed URL is created here, at render time, alongside
   // every other tenant-owned image.
-  if (composition.creativeDesign?.settings.logoAssetId !== null &&
-      composition.creativeDesign?.settings.logoAssetId !== undefined)
+  if (
+    composition.creativeDesign?.settings.logoAssetId !== null &&
+    composition.creativeDesign?.settings.logoAssetId !== undefined
+  )
     expectedAssetIds.add(composition.creativeDesign.settings.logoAssetId);
   const visualAssets = await Promise.all(
     payload.manifest.visualAssets.map(async (asset) => {
@@ -261,6 +263,9 @@ export async function hydrateDemonstrationComposition(
       captions: plan.captions.map((cue) => ({ ...cue })),
       fixtureId: plan.bindingId,
       narrationTracks,
+      ...(plan.presentation === undefined
+        ? {}
+        : { presentation: plan.presentation }),
       scenes: plan.scenes.map((scene) => ({
         assetBySlot: { ...scene.assetBySlot },
         durationSeconds: scene.durationSeconds,

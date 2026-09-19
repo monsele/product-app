@@ -50,6 +50,7 @@ import {
 import { hashJobOptions } from "@avlp/jobs";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
+  creativeDesignManifestSchema,
   lessonSpecSchema,
   readVideoApproach,
   videoApproachSchema,
@@ -78,6 +79,7 @@ import {
 import {
   demonstrationFps,
   demonstrationNarrationTrackSchema,
+  type DemonstrationPresentation,
   type DemonstrationNarrationTrack,
 } from "@avlp/schemas/demonstration-proof";
 import {
@@ -92,6 +94,33 @@ import { z } from "zod";
 import type { RenderService } from "./renders.js";
 
 type Scope = { ownerUserId: Identifier; projectId: Identifier };
+
+/** Resolves the immutable design already saved in the baseline version. */
+function presentationFromBaseline(
+  baseline: typeof lessonVersions.$inferSelect,
+): DemonstrationPresentation {
+  const saved = (
+    baseline.snapshot as {
+      creativeDesign?: { manifest?: unknown };
+    }
+  ).creativeDesign?.manifest;
+  if (saved === undefined) return { kind: "mvp-default", version: "1.0.0" };
+  const parsed = creativeDesignManifestSchema.safeParse(saved);
+  if (!parsed.success)
+    throw new PublicError(
+      "bad_request",
+      "This lesson's saved creative style is invalid. Reapply the style and save a new lesson version before creating a comparison.",
+      409,
+    );
+  return {
+    captionPreset: parsed.data.settings.captionPreset,
+    colors: parsed.data.settings.colors,
+    fontPair: parsed.data.settings.fontPair,
+    kind: "creative-style",
+    packId: parsed.data.pack.id,
+    version: "1.0.0",
+  };
+}
 
 /**
  * Who may see and choose the experimental approach.
@@ -345,6 +374,10 @@ export class PostgresDemonstrationPilotService implements DemonstrationPilotServ
       resolved.baseline,
     );
     const planSha256 = hashJobOptions(plan);
+    const themeId =
+      plan.presentation?.kind === "creative-style"
+        ? plan.presentation.packId
+        : "mvp-default";
     const correspondence = this.sceneCorrespondence(plan);
     const durationInFrames = correspondence.reduce(
       (total, scene) => total + scene.durationInFrames,
@@ -401,7 +434,7 @@ export class PostgresDemonstrationPilotService implements DemonstrationPilotServ
           baselineContentHash: resolved.baseline!.contentHash,
           sourceSnapshotId: resolved.baseline!.sourceSnapshotId,
           experimentVersion: demonstrationPilotExperimentVersion,
-          themeId: "mvp-default",
+          themeId,
           sceneCorrespondence: correspondence,
           mediaIdentity: {
             audio: plan.scenes.map((scene) => ({
@@ -452,6 +485,7 @@ export class PostgresDemonstrationPilotService implements DemonstrationPilotServ
           baseline: resolved.baseline!,
           captionSha256,
           planSha256: approach === "demonstration" ? planSha256 : null,
+          themeId,
         });
         await tx
           .insert(demonstrationVariants)
@@ -604,9 +638,15 @@ export class PostgresDemonstrationPilotService implements DemonstrationPilotServ
           video: renderedVideos,
         })
         .from(demonstrationVariants)
-        .innerJoin(renderJobs, eq(renderJobs.id, demonstrationVariants.renderJobId))
+        .innerJoin(
+          renderJobs,
+          eq(renderJobs.id, demonstrationVariants.renderJobId),
+        )
         .innerJoin(jobs, eq(jobs.id, renderJobs.jobId))
-        .innerJoin(renderedVideos, eq(renderedVideos.renderJobId, renderJobs.id))
+        .innerJoin(
+          renderedVideos,
+          eq(renderedVideos.renderJobId, renderJobs.id),
+        )
         .where(
           and(
             eq(demonstrationVariants.comparisonId, input.comparisonId),
@@ -1054,7 +1094,7 @@ export class PostgresDemonstrationPilotService implements DemonstrationPilotServ
       };
     });
 
-    void baseline;
+    const presentation = presentationFromBaseline(baseline);
     return demonstrationVariantPlanSchema.parse({
       assets,
       bindingId: binding.bindingId,
@@ -1063,7 +1103,11 @@ export class PostgresDemonstrationPilotService implements DemonstrationPilotServ
       hashPolicy: demonstrationPilotHashPolicy,
       schemaVersion: 1,
       scenes,
-      themeId: "mvp-default",
+      presentation,
+      themeId:
+        presentation.kind === "creative-style"
+          ? presentation.packId
+          : "mvp-default",
     });
   }
 
@@ -1231,6 +1275,7 @@ export class PostgresDemonstrationPilotService implements DemonstrationPilotServ
     baseline: typeof lessonVersions.$inferSelect;
     captionSha256: string;
     planSha256: string | null;
+    themeId: "mvp-default" | "essential" | "editorial" | "everyday";
   }): string {
     return hashJobOptions(
       demonstrationVariantIdentityInputSchema.parse({
@@ -1243,7 +1288,7 @@ export class PostgresDemonstrationPilotService implements DemonstrationPilotServ
         planSha256: input.planSha256,
         profileSha256: hashJobOptions(profileForIdentity),
         rendererVersion: demonstrationPilotRendererVersion,
-        themeId: "mvp-default",
+        themeId: input.themeId,
       }),
     );
   }

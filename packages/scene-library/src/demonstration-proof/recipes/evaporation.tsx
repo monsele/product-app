@@ -109,14 +109,8 @@ function disperse(
    */
   const margin = PARTICLE_SIZE / 2 + 4;
   return Object.freeze({
-    x: Math.min(
-      area.x + area.width - margin,
-      Math.max(area.x + margin, x),
-    ),
-    y: Math.min(
-      area.y + area.height - margin,
-      Math.max(area.y + margin, y),
-    ),
+    x: Math.min(area.x + area.width - margin, Math.max(area.x + margin, x)),
+    y: Math.min(area.y + area.height - margin, Math.max(area.y + margin, y)),
   });
 }
 
@@ -150,9 +144,7 @@ export function EvaporationRecipe({
    * body. `placements` in the registry states there is room for one of each,
    * and both the support query and the plan validator refuse a plan with more.
    */
-  const roleById = new Map(
-    regions.map((region) => [region.id, region.role]),
-  );
+  const roleById = new Map(regions.map((region) => [region.id, region.role]));
   const areaFor = (holderId: string): Rect =>
     roleById.get(holderId) === "vapour-space" ? stage.vapour : stage.liquid;
 
@@ -214,12 +206,7 @@ export function EvaporationRecipe({
         );
         let point =
           particle.phase === "vapour"
-            ? disperse(
-                home,
-                stage.vapour,
-                particle.dispersion,
-                particle.jitter,
-              )
+            ? disperse(home, stage.vapour, particle.dispersion, particle.jitter)
             : home;
 
         if (particle.transit !== undefined) {
@@ -241,7 +228,8 @@ export function EvaporationRecipe({
           point = { x: travelling.x, y: travelling.y };
         }
 
-        const escaped = particle.phase === "vapour" || particle.transit !== undefined;
+        const escaped =
+          particle.phase === "vapour" || particle.transit !== undefined;
         return (
           <ExplanatoryObject
             key={particle.id}
@@ -258,14 +246,14 @@ export function EvaporationRecipe({
               style={{
                 // Identical fill before and after: the particle is still water.
                 // Only the outline changes, marking that it is now free.
-                background: videoTheme.colors.primary,
+                background: "var(--demo-diagram, #40DDD0)",
                 border: escaped
-                  ? `3px solid ${videoTheme.colors.accent}`
-                  : `3px solid ${videoTheme.colors.primary}`,
+                  ? "3px solid var(--demo-accent, #FFC857)"
+                  : "3px solid var(--demo-diagram, #40DDD0)",
                 borderRadius: "50%",
                 boxShadow:
                   emphasis.glow > 0
-                    ? `0 0 0 ${5 * emphasis.glow}px ${videoTheme.colors.accent}55`
+                    ? `0 0 0 ${5 * emphasis.glow}px var(--demo-accent, #FFC857)`
                     : "none",
                 boxSizing: "border-box",
                 height: "100%",
@@ -287,8 +275,9 @@ export function EvaporationRecipe({
         <p
           data-testid="demo-legend"
           style={{
-            color: videoTheme.colors.mutedText,
-            fontFamily: videoTheme.typography.fontFamily,
+            color: "var(--demo-text, #D9E2EC)",
+            fontFamily:
+              "var(--demo-font, Atkinson Hyperlegible, Arial, sans-serif)",
             fontSize: 26,
             lineHeight: videoTheme.typography.lineHeight,
             margin: 0,
@@ -303,7 +292,10 @@ export function EvaporationRecipe({
         <NoteStrip
           area={rect(
             stage.note.x,
-            Math.min(stage.note.y, demonstrationContentBottom - stage.note.height),
+            Math.min(
+              stage.note.y,
+              demonstrationContentBottom - stage.note.height,
+            ),
             stage.note.width,
             stage.note.height,
           )}

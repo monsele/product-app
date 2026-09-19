@@ -10,7 +10,6 @@
  */
 
 import type { JSX } from "react";
-import { videoTheme } from "@avlp/design-system/video-theme";
 import type {
   DemonstrationAsset,
   DemonstrationPlan,
@@ -235,7 +234,9 @@ export function SavingsRecipe({
         label={sourceContainer?.label ?? "Income"}
         regionId={sourceContainer?.id ?? "income"}
         status={
-          sourceContainer === undefined ? undefined : arriving(sourceContainer.id)
+          sourceContainer === undefined
+            ? undefined
+            : arriving(sourceContainer.id)
         }
       />
       <RegionFrame
@@ -314,7 +315,7 @@ export function SavingsRecipe({
                   borderRadius: 10,
                   boxShadow:
                     emphasis.glow > 0
-                      ? `0 0 0 ${4 * emphasis.glow}px ${videoTheme.colors.primary}`
+                      ? `0 0 0 ${4 * emphasis.glow}px var(--demo-diagram, #40DDD0)`
                       : "none",
                   display: "block",
                   height: "100%",
@@ -348,7 +349,9 @@ export function SavingsRecipe({
             goalMinor={readout.goalMinor}
             key={readout.id}
             label={readout.label}
-            valueMinor={state.ledger.settledByContainer[readout.containerId] ?? 0}
+            valueMinor={
+              state.ledger.settledByContainer[readout.containerId] ?? 0
+            }
           />
         );
       })}
@@ -357,7 +360,10 @@ export function SavingsRecipe({
         <NoteStrip
           area={rect(
             stage.note.x,
-            Math.min(stage.note.y, demonstrationContentBottom - stage.note.height),
+            Math.min(
+              stage.note.y,
+              demonstrationContentBottom - stage.note.height,
+            ),
             stage.note.width,
             stage.note.height,
           )}

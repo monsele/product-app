@@ -22,6 +22,7 @@ import {
   type DemonstrationIssue,
   type DemonstrationNarrationTrack,
   type DemonstrationScene,
+  type DemonstrationPresentation,
 } from "@avlp/schemas/demonstration-proof";
 import { videoTheme } from "@avlp/design-system/video-theme";
 import { DemonstrationFontGate } from "./fonts.js";
@@ -47,6 +48,26 @@ export const demonstrationCompositionIds = Object.freeze({
   evaporationDemonstration: "DemoEvaporationDemonstration",
   evaporationStandard: "DemoEvaporationStandard",
 });
+
+function presentationStyle(
+  presentation: DemonstrationPresentation | undefined,
+): Record<string, string> {
+  if (presentation?.kind !== "creative-style") return {};
+  return {
+    "--demo-accent": presentation.colors.accent,
+    "--demo-background": presentation.colors.background,
+    "--demo-diagram": presentation.colors.diagramEmphasis,
+    "--demo-font":
+      presentation.fontPair === "nunito-inter"
+        ? "Nunito, Arial, sans-serif"
+        : presentation.fontPair === "source-serif-inter"
+          ? "Georgia, serif"
+          : videoTheme.typography.fontFamily,
+    "--demo-surface": presentation.colors.surface,
+    "--demo-surface-alpha": `${presentation.colors.surface}66`,
+    "--demo-text": presentation.colors.text,
+  };
+}
 
 export type DemonstrationTimelineSegment = Readonly<{
   durationInFrames: number;
@@ -143,7 +164,10 @@ export function prepareDemonstrationComposition(
         narrationBySceneId.get(scene.id),
         props.assets,
       ),
-      ...validateDemonstrationPlan(scene.plan, narrationBySceneId.get(scene.id)),
+      ...validateDemonstrationPlan(
+        scene.plan,
+        narrationBySceneId.get(scene.id),
+      ),
     ]),
     ...validateDemonstrationCaptions(
       props.captions,
@@ -168,9 +192,11 @@ export function prepareDemonstrationComposition(
 export function DemonstrationCaptionAtFrame({
   captions,
   frame,
+  presentation,
 }: Readonly<{
   captions: DemonstrationCompositionProps["captions"];
   frame: number;
+  presentation?: DemonstrationPresentation | undefined;
 }>): JSX.Element | null {
   const cue = captions.find(
     (item) => frame >= item.startFrame && frame < item.endFrame,
@@ -180,11 +206,28 @@ export function DemonstrationCaptionAtFrame({
     <p
       data-testid="demonstration-caption"
       style={{
-        background: videoTheme.colors.captionBackground,
+        background:
+          presentation?.kind === "creative-style" &&
+          presentation.captionPreset === "high_contrast"
+            ? presentation.colors.text
+            : presentation?.kind === "creative-style"
+              ? presentation.colors.surface
+              : videoTheme.colors.captionBackground,
         bottom: videoTheme.safeAreas.caption.bottom,
-        color: videoTheme.colors.text,
-        fontFamily: videoTheme.typography.fontFamily,
-        fontSize: videoTheme.typography.captionSize,
+        color:
+          presentation?.kind === "creative-style" &&
+          presentation.captionPreset === "high_contrast"
+            ? presentation.colors.background
+            : presentation?.kind === "creative-style"
+              ? presentation.colors.text
+              : videoTheme.colors.text,
+        fontFamily:
+          "var(--demo-font, Atkinson Hyperlegible, Arial, sans-serif)",
+        fontSize:
+          presentation?.kind === "creative-style" &&
+          presentation.captionPreset === "large"
+            ? videoTheme.typography.captionSize + 8
+            : videoTheme.typography.captionSize,
         left: videoTheme.safeAreas.caption.left,
         margin: 0,
         padding: videoTheme.spacing.sm,
@@ -202,13 +245,16 @@ export function DemonstrationCaptionAtFrame({
 /** The Remotion-aware wrapper: supplies the clip frame, draws nothing itself. */
 function DemonstrationCaptionOverlay({
   captions,
+  presentation,
 }: Readonly<{
   captions: DemonstrationCompositionProps["captions"];
+  presentation?: DemonstrationPresentation | undefined;
 }>): JSX.Element | null {
   return (
     <DemonstrationCaptionAtFrame
       captions={captions}
       frame={useCurrentFrame()}
+      presentation={presentation}
     />
   );
 }
@@ -298,6 +344,7 @@ export function DemonstrationComposition(
     captions,
     fixtureId,
     narrationTracks,
+    presentation,
     runtimeMode = "preview",
     scenes,
   } = props;
@@ -317,9 +364,18 @@ export function DemonstrationComposition(
         captions,
         fixtureId,
         narrationTracks,
+        presentation,
         scenes,
       }),
-    [approach, assets, captions, fixtureId, narrationTracks, scenes],
+    [
+      approach,
+      assets,
+      captions,
+      fixtureId,
+      narrationTracks,
+      presentation,
+      scenes,
+    ],
   );
 
   const compiledByScene = useMemo(
@@ -347,7 +403,11 @@ export function DemonstrationComposition(
         data-testid="demonstration-blocked"
         role="alert"
         style={{
-          background: videoTheme.colors.background,
+          ...presentationStyle(presentation),
+          background:
+            presentation?.kind === "creative-style"
+              ? presentation.colors.background
+              : videoTheme.colors.background,
           boxSizing: "border-box",
           color: videoTheme.colors.text,
           fontFamily: videoTheme.typography.fontFamily,
@@ -386,7 +446,11 @@ export function DemonstrationComposition(
         data-demo-fixture={composition.fixtureId}
         data-demo-approach={composition.approach}
         style={{
-          background: videoTheme.colors.background,
+          ...presentationStyle(composition.presentation),
+          background: "var(--demo-background, #102438)",
+          color: "var(--demo-text, #F0F4F8)",
+          fontFamily:
+            "var(--demo-font, Atkinson Hyperlegible, Arial, sans-serif)",
           height: "100%",
           overflow: "hidden",
           position: "relative",
@@ -415,7 +479,10 @@ export function DemonstrationComposition(
             </Sequence>
           );
         })}
-        <DemonstrationCaptionOverlay captions={composition.captions} />
+        <DemonstrationCaptionOverlay
+          captions={composition.captions}
+          presentation={composition.presentation}
+        />
       </main>
     </DemonstrationFontGate>
   );
@@ -447,7 +514,11 @@ export function DemonstrationStill({
     <main
       data-testid="demonstration-still"
       style={{
-        background: videoTheme.colors.background,
+        ...presentationStyle(props.presentation),
+        background: "var(--demo-background, #102438)",
+        color: "var(--demo-text, #F0F4F8)",
+        fontFamily:
+          "var(--demo-font, Atkinson Hyperlegible, Arial, sans-serif)",
         height: "100%",
         overflow: "hidden",
         position: "relative",

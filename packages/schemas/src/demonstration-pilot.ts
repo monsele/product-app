@@ -42,6 +42,7 @@ import { z } from "zod";
 import {
   demonstrationPlanSchema,
   demonstrationPlanVersion,
+  demonstrationPresentationSchema,
   demonstrationRecipeIdSchema,
   demonstrationRecipeVersion,
   demonstrationTimingProvenanceSchema,
@@ -292,7 +293,12 @@ export const demonstrationVariantPlanSchema = z
     schemaVersion: z.literal(1),
     experimentVersion: z.literal(demonstrationPilotExperimentVersion),
     hashPolicy: z.literal(demonstrationPilotHashPolicy),
-    themeId: z.literal("mvp-default"),
+    /** Absent only on legacy plans, which keep their historical default look. */
+    presentation: demonstrationPresentationSchema.optional(),
+    themeId: z.union([
+      z.literal("mvp-default"),
+      z.enum(["essential", "editorial", "everyday"]),
+    ]),
     bindingId: boundedText(80),
     scenes: z.array(demonstrationResolvedSceneSchema).min(1).max(12),
     assets: z.array(demonstrationVariantAssetSchema).max(60),
@@ -326,6 +332,32 @@ export const demonstrationVariantPlanSchema = z
           path: ["captions", index, "sceneId"],
           message: "A caption cue must belong to a scene in this variant.",
         });
+    if (
+      value.presentation?.kind === "creative-style" &&
+      value.themeId !== value.presentation.packId
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["themeId"],
+        message:
+          "The variant theme must match its resolved creative presentation.",
+      });
+    if (
+      value.presentation?.kind === "mvp-default" &&
+      value.themeId !== "mvp-default"
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["themeId"],
+        message: "The default presentation must use the default theme.",
+      });
+    if (value.presentation === undefined && value.themeId !== "mvp-default")
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["themeId"],
+        message:
+          "A creative theme requires its resolved presentation; it cannot fall back to default visuals.",
+      });
   });
 export type DemonstrationVariantPlan = z.infer<
   typeof demonstrationVariantPlanSchema
@@ -354,7 +386,10 @@ export const demonstrationVariantIdentityInputSchema = z
     planSha256: sha256.nullable(),
     audioChecksums: z.array(sha256).min(1).max(20),
     captionSha256: sha256,
-    themeId: z.literal("mvp-default"),
+    themeId: z.union([
+      z.literal("mvp-default"),
+      z.enum(["essential", "editorial", "everyday"]),
+    ]),
     rendererVersion: boundedText(120),
     profileSha256: sha256,
   })
@@ -437,7 +472,10 @@ export const demonstrationComparisonViewSchema = z
     baselineVersionNumber: z.number().int().positive(),
     baselineContentHash: sha256,
     experimentVersion: z.literal(demonstrationPilotExperimentVersion),
-    themeId: z.literal("mvp-default"),
+    themeId: z.union([
+      z.literal("mvp-default"),
+      z.enum(["essential", "editorial", "everyday"]),
+    ]),
     /**
      * False when the baseline's content, audio, captions, style or scene
      * timing no longer agree with what the pair was built from. The pair stays

@@ -84,7 +84,8 @@ export const demonstrationFps = 30 as const;
  * checksums instead.
  */
 const dataUriAudioPattern = /^data:audio\/wav;base64,[A-Za-z0-9+/=]+$/;
-const dataUriImagePattern = /^data:image\/(png|svg\+xml);base64,[A-Za-z0-9+/=]+$/;
+const dataUriImagePattern =
+  /^data:image\/(png|svg\+xml);base64,[A-Za-z0-9+/=]+$/;
 const resolvedMediaUrlPattern = /^https?:\/\/[^\s"'<>]+$/;
 
 export const demonstrationAudioSrcSchema = z
@@ -116,9 +117,7 @@ export const demonstrationRecipeIdValues = [
   "evaporation.surface-to-vapour",
 ] as const;
 export const demonstrationRecipeIdSchema = z.enum(demonstrationRecipeIdValues);
-export type DemonstrationRecipeId = z.infer<
-  typeof demonstrationRecipeIdSchema
->;
+export type DemonstrationRecipeId = z.infer<typeof demonstrationRecipeIdSchema>;
 
 export const demonstrationRecipeRefSchema = z
   .object({
@@ -239,7 +238,7 @@ export const demonstrationReadoutSchema = z
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["goalMinor"],
-        message: "A balance readout has no goal; use display: \"goal\".",
+        message: 'A balance readout has no goal; use display: "goal".',
       });
   });
 export type DemonstrationReadout = z.infer<typeof demonstrationReadoutSchema>;
@@ -305,8 +304,7 @@ export const demonstrationObjectSchema = z.discriminatedUnion("kind", [
   // discriminated union directly; it is validated alongside, below.
 ]);
 export type DemonstrationObject =
-  | z.infer<typeof demonstrationObjectSchema>
-  | DemonstrationReadout;
+  z.infer<typeof demonstrationObjectSchema> | DemonstrationReadout;
 
 /**
  * The full initial state. Readouts are a separate array rather than another
@@ -321,7 +319,10 @@ export const demonstrationInitialStateSchema = z
   .strict()
   .superRefine((value, context) => {
     const seen = new Set<string>();
-    const all: readonly { id: string }[] = [...value.objects, ...value.readouts];
+    const all: readonly { id: string }[] = [
+      ...value.objects,
+      ...value.readouts,
+    ];
     for (const [index, object] of all.entries())
       if (seen.has(object.id))
         context.addIssue({
@@ -697,7 +698,8 @@ export const demonstrationPlanSchema = z
         });
       eventIds.add(event.id);
 
-      const endFrame = event.startFrame + event.durationFrames + event.holdFrames;
+      const endFrame =
+        event.startFrame + event.durationFrames + event.holdFrames;
       if (endFrame > plan.durationInFrames)
         context.addIssue({
           code: z.ZodIssueCode.custom,
@@ -828,7 +830,10 @@ export const demonstrationSceneSchema = z
         path: ["plan", "sceneId"],
         message: "A plan belongs to exactly one scene.",
       });
-    const expected = Math.max(1, Math.round(scene.durationSeconds * demonstrationFps));
+    const expected = Math.max(
+      1,
+      Math.round(scene.durationSeconds * demonstrationFps),
+    );
     if (scene.plan.durationInFrames !== expected)
       context.addIssue({
         code: z.ZodIssueCode.custom,
@@ -838,9 +843,49 @@ export const demonstrationSceneSchema = z
   });
 export type DemonstrationScene = z.infer<typeof demonstrationSceneSchema>;
 
-export const demonstrationApproachValues = ["demonstration", "standard"] as const;
+export const demonstrationApproachValues = [
+  "demonstration",
+  "standard",
+] as const;
 export const demonstrationApproachSchema = z.enum(demonstrationApproachValues);
 export type DemonstrationApproach = z.infer<typeof demonstrationApproachSchema>;
+
+/**
+ * A presentation is deliberately appearance-only. Recipes still own every
+ * coordinate and the validated plan still owns every instructional event.
+ * This bounded object is persisted with a comparison variant, never generated
+ * from free text at render time.
+ */
+export const demonstrationPresentationSchema = z.discriminatedUnion("kind", [
+  z
+    .object({ kind: z.literal("mvp-default"), version: z.literal("1.0.0") })
+    .strict(),
+  z
+    .object({
+      kind: z.literal("creative-style"),
+      packId: z.enum(["essential", "editorial", "everyday"]),
+      version: z.literal("1.0.0"),
+      colors: z
+        .object({
+          background: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+          surface: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+          text: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+          accent: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+          diagramEmphasis: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+        })
+        .strict(),
+      captionPreset: z.enum(["standard", "high_contrast", "large"]),
+      fontPair: z.enum([
+        "atkinson-inter",
+        "source-serif-inter",
+        "nunito-inter",
+      ]),
+    })
+    .strict(),
+]);
+export type DemonstrationPresentation = z.infer<
+  typeof demonstrationPresentationSchema
+>;
 
 export const demonstrationCompositionPropsSchema = z
   .object({
@@ -848,6 +893,7 @@ export const demonstrationCompositionPropsSchema = z
     approach: z.literal("demonstration"),
     assets: z.record(slugSchema, demonstrationAssetSchema),
     captions: z.array(demonstrationCaptionCueSchema).max(400),
+    presentation: demonstrationPresentationSchema.optional(),
     narrationTracks: z.array(demonstrationNarrationTrackSchema).min(1).max(20),
     scenes: z.array(demonstrationSceneSchema).min(1).max(12),
   })
@@ -1078,7 +1124,9 @@ function canonicalize(value: unknown, path: string): JsonValue {
   }
   if (typeof value === "string" || typeof value === "boolean") return value;
   if (Array.isArray(value))
-    return value.map((entry, index) => canonicalize(entry, `${path}[${index}]`));
+    return value.map((entry, index) =>
+      canonicalize(entry, `${path}[${index}]`),
+    );
   if (typeof value === "object") {
     const source = value as Record<string, unknown>;
     const result: Record<string, JsonValue> = {};
