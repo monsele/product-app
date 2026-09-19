@@ -2,7 +2,7 @@
 story_id: ST-097
 title: "Add Composition Variety and Progressive Personalisation"
 phase: "08 — Product UI"
-status: In Review
+status: Done
 priority: must-have
 epics: ["E6", "E10", "E11", "E12", "E15", "E20"]
 prd_user_stories: ["E11-US2", "E15-US2", "E20-US1"]
@@ -204,7 +204,7 @@ Choosing among scene-treatment previews is included in Increment 1. Learning a u
 
 - **Agent:** Codex
 - **Started:** 2026-09-19
-- **Completed:** Implementation complete; code-review approved, awaiting repository-owner review.
+- **Completed:** 2026-09-19; repository-owner approval recorded.
 - **Branch/PR:** Current workspace branch; no PR published.
 - **Files changed:** Versioned creative-design schema/catalogue, tenant-owned drafts/snapshots/presets/proposals and migrations, API/worker/render/preview wiring, bounded pilot UI, provider prompt, renderer treatments and focused tests; ADR-008 and product/technical-guide updates.
 - **Migrations:** `0063_creative_design_manifests`, `0064_creative_design_provider_metering`, and `0065_creative_design_snapshot_revision_identity`. All are additive/compatibility documented; 0065 corrects retry uniqueness to include lesson revision.
@@ -212,5 +212,5 @@ Choosing among scene-treatment previews is included in Increment 1. Learning a u
 - **Commands/tests run:** Schema/database/API/worker/renderer/scene-library/web typechecks; web lint; database tests (8 passed, 3 integration tests skipped by suite); focused schema (6), API (12), worker (2), provider prompt (13), and renderer contract/media (5) tests passed. The 24-combination Chromium real-frame matrix passed before the final render-affecting control refinement; its direct post-refinement rerun completed in the local test process but the terminal parent detached before the result could be collected. `git diff --check` passed.
 - **Screenshots or representative output:** The 24 real rendered treatment frames produced distinct deterministic hashes in `creative-design-render.test.ts`; legacy full-lesson deterministic frames pass in `full-lesson-render.test.ts`. Live project screenshots/clips could not be captured because Docker Desktop's Linux engine was unavailable locally.
 - **Decisions and assumptions:** ADR-008 keeps presentation manifests parallel to immutable semantic LessonSpec records. Pilot scope is Essential, Editorial, and Everyday over hook, definition, process, and comparison only. Style requests never alter factual content, source evidence, narration, or timing.
-- **Known risks or follow-up:** Docker Desktop was unavailable (`docker ps` could not connect), so migration execution and the two-user-owned-lesson live capture remain for CI/review environment verification. Browser font-wrap measurement is additionally covered by renderer frame evidence and static manifest limits; ST-098 remains the cross-feature reproducibility follow-up. Remaining semantic-scene coverage and reference-based styling remain later stories.
+- **Known risks or follow-up:** Docker Desktop was unavailable (`docker ps` could not connect), so migration execution and the two-user-owned-lesson live capture remain for CI/review environment verification. Browser font-wrap measurement is additionally covered by renderer frame evidence and static manifest limits; ST-098 remains the cross-feature reproducibility follow-up. Remaining semantic-scene coverage and reference-based styling remain later stories. Repository owner approved completion with these limitations recorded.
 - **Code review:** **Approved.** No high, major, or medium implementation finding remains after fixes for active-logo validation, resolved preview/render parity, stale language proposals, snapshot revision identity, imagery/diagram rendering, and explicit alternative selection.
