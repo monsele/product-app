@@ -2,7 +2,7 @@
 story_id: ST-099
 title: "Compose Creative Styles with Demonstration-Led Explanation"
 phase: "08 — Product UI"
-status: Blocked
+status: Ready
 priority: should-have
 epics: ["E11", "E15"]
 prd_user_stories: ["E11-US2", "E15-US2"]

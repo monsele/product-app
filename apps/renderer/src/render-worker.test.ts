@@ -245,6 +245,24 @@ function uploader(storage: MemoryStorage): UploadArtifact {
 }
 
 describe("initial render worker", () => {
+  it("returns a specific terminal recovery result for an unavailable historical release without rendering", async () => {
+    const engine = new FakeRenderEngine();
+    const handler = createRenderJobHandler({
+      engine,
+      storage: new MemoryStorage(),
+      uploadArtifact: uploader(new MemoryStorage()),
+      usageMeter: new MemoryUsageMeter(),
+    });
+
+    await expect(
+      handler.handler(
+        { ...payload, rendererVersion: "st-024-remotion-4.0.507" },
+        context([]),
+      ),
+    ).rejects.toMatchObject({ code: "RENDER_IMPLEMENTATION_UNAVAILABLE" });
+    expect(engine.renderCalls).toBe(0);
+  });
+
   it("streams a checksummed artifact through a signed private upload", async () => {
     let storage: SignedUploadMemoryStorage | undefined;
     let received = Buffer.alloc(0);

@@ -28,6 +28,7 @@ import {
   renderJobType,
   renderPayloadVersion,
   assertProductionManifestIntegrity,
+  isSupportedRenderImplementation,
   type RenderJobPayload,
   type RenderJobResult,
   type RenderedVideoMetadata,
@@ -443,6 +444,12 @@ export function createRenderJobHandler(
     renderPayloadVersion,
     renderJobPayloadSchema,
     async (payload, context): Promise<JobMetadata> => {
+      if (!isSupportedRenderImplementation(payload.rendererVersion))
+        throw new JobExecutionError(
+          "terminal",
+          "RENDER_IMPLEMENTATION_UNAVAILABLE",
+          "This historical render release is unavailable. The approved video remains available where you are authorised to access it.",
+        );
       let composition: ReturnType<typeof loadImmutableFixture>;
       let demonstration:
         | Awaited<ReturnType<typeof hydrateDemonstrationComposition>>

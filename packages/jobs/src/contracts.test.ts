@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
   createIdempotencyKey,
+  canonicalJson,
   createJobEnvelope,
   hashJobOptions,
   jobEnvelopeSchema,
@@ -55,5 +56,17 @@ describe("versioned job contracts", () => {
 
     expect(first).toBe(second);
     expect(first).toContain(hashJobOptions({ tone: "clear", duration: 180 }));
+  });
+
+  it("rejects non-finite and non-JSON values instead of silently collapsing their identity", () => {
+    expect(() => canonicalJson({ value: Number.NaN })).toThrow("non-finite");
+    expect(() => canonicalJson({ value: Number.POSITIVE_INFINITY })).toThrow(
+      "non-finite",
+    );
+    expect(() => canonicalJson({ value: undefined })).toThrow("JSON values");
+    expect(() => canonicalJson({ value: new Date() })).toThrow("plain JSON");
+    const cyclic: { self?: unknown } = {};
+    cyclic.self = cyclic;
+    expect(() => canonicalJson(cyclic)).toThrow("cycles");
   });
 });

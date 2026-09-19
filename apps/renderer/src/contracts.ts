@@ -1,5 +1,5 @@
 import { identifierSchema } from "@avlp/config";
-import { hashJobOptions } from "@avlp/jobs";
+import { canonicalJsonPolicy, hashJobOptions } from "@avlp/jobs";
 import { fullLessonCompositionPropsSchema } from "@avlp/scene-library";
 import {
   lessonSpecSchema,
@@ -27,6 +27,20 @@ export const manualLessonFixtureId = "photosynthesis-three-minute-v1" as const;
  */
 export const renderImplementationVersion =
   "st-097-remotion-4.0.507-creative-design-v1" as const;
+/** Canonical serialization policy used for render-affecting identity hashes. */
+export const renderIdentityPolicy = canonicalJsonPolicy;
+
+/**
+ * The queue must be able to read an old immutable payload in order to return a
+ * recovery-safe, version-unavailable result. Only this release is executable
+ * by this worker; it must never substitute a newer bundle for an old one.
+ */
+export const renderImplementationVersionSchema = z.string().min(1).max(200);
+export function isSupportedRenderImplementation(
+  value: string,
+): value is typeof renderImplementationVersion {
+  return value === renderImplementationVersion;
+}
 
 export const renderProfileSchema = z
   .object({
@@ -144,6 +158,8 @@ export const renderJobPayloadSchema = z
         schemaVersion: z.literal(1),
         lessonVersionId: identifierSchema,
         lessonVersionContentHash: sha256ChecksumSchema,
+        /** Absent only on legacy queued manifests created before ST-098. */
+        identityPolicy: z.literal(renderIdentityPolicy).optional(),
         validationRunId: identifierSchema,
         validationInputHash: sha256ChecksumSchema,
         sceneLibraryVersion: z.literal("mvp-v1"),
@@ -211,7 +227,7 @@ export const renderJobPayloadSchema = z
     lessonSpecSha256: sha256ChecksumSchema,
     optionsHash: sha256ChecksumSchema,
     profile: renderProfileSchema,
-    rendererVersion: z.literal(renderImplementationVersion),
+    rendererVersion: renderImplementationVersionSchema,
   })
   .strict()
   .superRefine((value, context) => {

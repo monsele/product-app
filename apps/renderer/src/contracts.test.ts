@@ -102,6 +102,7 @@ describe("render job v1 contracts", () => {
       schemaVersion: 1 as const,
       lessonVersionId: "019ffbf1-eeee-7000-8000-000000000045",
       lessonVersionContentHash: "b".repeat(64),
+      identityPolicy: "canonical-json-v1" as const,
       validationRunId: "019ffbf1-eeee-7000-8000-000000000046",
       validationInputHash: "c".repeat(64),
       sceneLibraryVersion: "mvp-v1" as const,
@@ -143,5 +144,15 @@ describe("render job v1 contracts", () => {
         manifest: { ...manifest, captions: [] },
       }),
     ).toThrow("manifest checksum");
+  });
+
+  it("accepts a historical release identity so the worker can return an explicit unavailable result", () => {
+    const fixture = createFixtureRenderPayload(photosynthesisThreeMinutePreview);
+    expect(
+      renderJobPayloadSchema.parse({
+        ...fixture,
+        rendererVersion: "st-024-remotion-4.0.507",
+      }).rendererVersion,
+    ).toBe("st-024-remotion-4.0.507");
   });
 });

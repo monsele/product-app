@@ -2,7 +2,7 @@
 story_id: ST-098
 title: "Verify Controlled and Reproducible Rendering Across Video Features"
 phase: "06 — Audio, Validation, Rendering, and Delivery"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E11", "E15", "E20"]
 prd_user_stories: ["E11-US2", "E15-US2", "E20-US1"]
@@ -134,15 +134,15 @@ Version preflight rules and bind validation to inputs/environment. Expose action
 
 ## Dev Agent Record
 
-- **Agent:** Not started.
-- **Started:** Not started.
-- **Completed:** Not completed.
-- **Branch/PR:** Not created.
-- **Files changed:** Pending implementation.
-- **Migrations:** Determine from completed dependency contracts; additive compatibility only where required.
-- **Public contract changes:** Shared-contract consolidation/corrections to be documented and versioned before consumers change.
-- **Commands/tests run:** Pending implementation.
-- **Screenshots or representative output:** Pending implementation.
-- **Decisions and assumptions:** Earlier stories implement their own applicable requirements; this story verifies their integration and closes shared gaps. Historical artefact identity is distinct from rerender visual fidelity.
-- **Deviations from story/technical guide:** None implemented; record any major change through an ADR.
+### ST-098 completion evidence (2026-09-19)
+
+- **Code review:** **Approved.** The review found and fixed the canonical-hash non-plain-object collision risk; the repeated review found no blocking, high, or medium issues.
+
+- **Agent / status:** Codex; implemented and placed In Review. No branch or PR published.
+- **Files changed:** Shared canonical hashing, renderer historical-release recovery, regression tests, `docs/controlled-rendering-verification-report.md`, and story/index status.
+- **Migrations / public contracts:** No migration. New manifests include additive `identityPolicy: canonical-json-v1`; legacy payloads omit it. An unavailable historical release returns `RENDER_IMPLEMENTATION_UNAVAILABLE`, never a substituted renderer.
+- **Verification:** jobs contract (3), renderer contract (5), renderer worker (12), API renders (8), jobs/renderer/API typechecks, style media (4 H.264/AAC/FFprobe), style real frames (16 determinism/parity), and demonstration media (7 encoding/parity/out-of-order) all passed. `git diff --check` passed.
+- **Evidence / limits:** Temporary MP4/PNG evidence covers three style packs plus savings and evaporation demonstrations; binaries are intentionally uncommitted. The report documents commands, tolerances, profile and cross-environment limits.
+- **Decision / risk:** Finite existing JSON keeps its existing identity; ambiguous non-finite/non-JSON values fail. Old bundle/font/asset retention is operational; intentional deletion may produce rerender-unavailable while retained authorised output remains available.
+
 - **Known risks or follow-up:** Blocked by ST-094–ST-097. Actual bundle retention, fonts, environment drift, and encoder differences require explicit evidence and bounded guarantees.

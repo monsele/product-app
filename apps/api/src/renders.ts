@@ -23,6 +23,7 @@ import {
 } from "@avlp/database";
 import {
   createIdempotencyKey,
+  canonicalJsonPolicy,
   createJobEnvelope,
   hashJobOptions,
 } from "@avlp/jobs";
@@ -57,6 +58,7 @@ const renderProfile = Object.freeze({
   pixelFormat: "yuv420p",
 });
 const rendererVersion = "st-097-remotion-4.0.507-creative-design-v1";
+const renderIdentityPolicy = canonicalJsonPolicy;
 const defaultRenderLimits = Object.freeze({
   maxConcurrentPerProject: 1,
   maxStartsPerProjectHour: 12,
@@ -192,6 +194,8 @@ function publicErrorMessage(code: string | null): string | null {
     RENDER_TIMEOUT: "Rendering took too long. You can retry it.",
     RENDER_WORKER_UNAVAILABLE:
       "The render service is temporarily unavailable. You can retry it.",
+    RENDER_IMPLEMENTATION_UNAVAILABLE:
+      "This historical render release is unavailable. Your existing approved video is unchanged; create a new lesson version to use a supported release.",
     ASSET_MISSING:
       "A required lesson asset is unavailable. Return to the storyboard and fix it.",
     ASSET_CHECKSUM_MISMATCH:
@@ -615,6 +619,7 @@ export class PostgresRenderService implements RenderService {
       const manifest = {
         lessonVersionId: version.id,
         lessonVersionContentHash: version.contentHash,
+        identityPolicy: renderIdentityPolicy,
         validationRunId: validation.id,
         validationInputHash: validation.inputHash,
         sceneLibraryVersion: version.sceneLibraryVersion,
