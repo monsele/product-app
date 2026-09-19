@@ -2,6 +2,7 @@ import { PublicError, type Identifier } from "@avlp/config";
 import {
   captionCues,
   captionTracks,
+  creativeDesignSnapshots,
   extractedFigures,
   lessonSpecs,
   projectAssets,
@@ -11,6 +12,7 @@ import {
 } from "@avlp/database";
 import {
   lessonStoryboardSchema,
+  creativeDesignManifestSchema,
   previewManifestSchema,
   sourceTableVisualMaxCellLength,
   sourceTableVisualMaxColumns,
@@ -337,9 +339,67 @@ export class PreviewManifestService {
         };
       }),
     );
+    // The preview must consume the same resolved selection as a final render,
+    // not re-plan from the current draft. Resolve its optional logo at the
+    // authenticated boundary with the other short-lived media URLs.
+    const [designSnapshot] = await this.database
+      .select({ manifest: creativeDesignSnapshots.manifest })
+      .from(creativeDesignSnapshots)
+      .where(
+        and(
+          eq(creativeDesignSnapshots.ownerUserId, input.ownerUserId),
+          eq(creativeDesignSnapshots.projectId, input.projectId),
+          eq(creativeDesignSnapshots.lessonSpecId, spec.id),
+          eq(creativeDesignSnapshots.lessonSpecRevision, spec.revision),
+        ),
+      )
+      .orderBy(desc(creativeDesignSnapshots.createdAt))
+      .limit(1);
+    const creativeDesign = designSnapshot === undefined
+      ? undefined
+      : creativeDesignManifestSchema.parse(designSnapshot.manifest);
+    const logoAssetId = creativeDesign?.settings.logoAssetId;
+    if (logoAssetId !== null && logoAssetId !== undefined) {
+      const [logo] = await this.database
+        .select()
+        .from(projectAssets)
+        .where(
+          and(
+            eq(projectAssets.id, logoAssetId),
+            eq(projectAssets.ownerUserId, input.ownerUserId),
+            eq(projectAssets.projectId, input.projectId),
+            eq(projectAssets.status, "active"),
+            isNull(projectAssets.deletedAt),
+          ),
+        )
+        .limit(1);
+      if (logo === undefined)
+        throw new PublicError(
+          "bad_request",
+          "The design snapshot's logo is no longer available for preview.",
+          409,
+        );
+      const signed = await this.storage.createSignedDownload({
+        key: storageKeySchema.parse(
+          input.quality === "low" && logo.thumbnailStorageKey !== null
+            ? logo.thumbnailStorageKey
+            : logo.storageKey,
+        ),
+        expiresInSeconds: 300,
+      });
+      assets[logoAssetId] = {
+        assetId: logoAssetId,
+        altText: logo.originalName,
+        provenance:
+          logo.provenance === "ai_generated" ? "ai_generated" : "teacher_uploaded",
+        source: "source",
+        src: signed.url,
+      };
+    }
     return previewManifestSchema.parse({
       assets,
       canvas: previewCanvas,
+      ...(creativeDesign === undefined ? {} : { creativeDesign }),
       storyboard,
       generatedAt: new Date().toISOString(),
       scenes: entries,

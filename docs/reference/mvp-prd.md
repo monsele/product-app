@@ -898,6 +898,16 @@ Provide consistent, reusable animated scene components.
 - Captions and safe areas are consistent.
 - Visual regression tests cover representative templates.
 
+### Approved bounded extension — ST-097
+
+The initial one-theme MVP is extended for a feature-gated pilot to allow the
+Essential, Editorial, and Everyday packs for hook, definition, process, and
+comparison scenes, only when every scene is supported. Each lesson resolves and
+persists its selected treatments and bounded personalisation before preview or
+rendering; legacy lessons retain `mvp-default`. This does not extend coverage to
+the other six semantic types or combine style with the demonstration approach.
+See ADR-008.
+
 ### Technical Dependencies
 
 - Video design system

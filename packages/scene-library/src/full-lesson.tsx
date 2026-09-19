@@ -12,8 +12,10 @@ import React, {
 } from "react";
 import { z } from "zod";
 import {
+  creativeDesignManifestSchema,
   previewAssetSchema,
   sceneSpecSchema,
+  treatmentFor,
   type LessonSpec,
 } from "@avlp/schemas";
 import { videoTheme } from "@avlp/design-system/video-theme";
@@ -36,13 +38,11 @@ const fullLessonPreviewAssetSchema = previewAssetSchema.superRefine(
     // ST-093: a source-table visual carries structured data, not a media
     // URL, so it is exempt from this HTTPS/catalog `src` allowlist.
     if (value.source === "source_table" || value.src === undefined) return;
-    if (
-      !(
-        /^https:\/\/[^\s]+$/i.test(value.src) ||
-        /^\/catalog\/[a-z0-9/_-]+\.svg$/i.test(value.src) ||
-        LOOPBACK_HTTP_URL_PATTERN.test(value.src)
-      )
-    )
+    if (!(
+      /^https:\/\/[^\s]+$/i.test(value.src) ||
+      /^\/catalog\/[a-z0-9/_-]+\.svg$/i.test(value.src) ||
+      LOOPBACK_HTTP_URL_PATTERN.test(value.src)
+    ))
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["src"],
@@ -90,6 +90,7 @@ export const fullLessonCompositionPropsSchema = z
   .object({
     assets: z.record(fullLessonPreviewAssetSchema).default({}),
     captions: z.array(fullLessonCaptionCueSchema),
+    creativeDesign: creativeDesignManifestSchema.optional(),
     lesson: z
       .object({ scenes: z.array(sceneSpecSchema).min(1).max(100) })
       .passthrough(),
@@ -209,8 +210,10 @@ export function getTimelineSegmentAtFrame(
 
 function FullLessonCaptionOverlay({
   captions,
+  creativeDesign,
 }: Readonly<{
   captions: readonly FullLessonCaptionCue[];
+  creativeDesign?: z.infer<typeof creativeDesignManifestSchema>;
 }>): JSX.Element | null {
   const frame = useCurrentFrame();
   const cue = captions.find(
@@ -224,13 +227,34 @@ function FullLessonCaptionOverlay({
         background: videoTheme.colors.captionBackground,
         bottom: videoTheme.safeAreas.caption.bottom,
         color: videoTheme.colors.text,
-        fontSize: videoTheme.typography.captionSize,
+        fontSize:
+          creativeDesign?.settings.captionPreset === "large"
+            ? videoTheme.typography.captionSize + 8
+            : videoTheme.typography.captionSize,
         left: videoTheme.safeAreas.caption.left,
         margin: 0,
-        padding: videoTheme.spacing.sm,
+        padding: creativeDesign?.settings.captionPreset === "large" ? videoTheme.spacing.md : videoTheme.spacing.sm,
         position: "absolute",
         right: videoTheme.safeAreas.caption.right,
         textAlign: "center",
+        ...(creativeDesign === undefined
+          ? {}
+          : {
+              background:
+                creativeDesign.settings.captionPreset === "high_contrast"
+                  ? "#000000"
+                  : creativeDesign.settings.colors.surface,
+              color:
+                creativeDesign.settings.captionPreset === "high_contrast"
+                  ? "#ffffff"
+                  : creativeDesign.settings.colors.text,
+              fontFamily:
+                creativeDesign.settings.fontPair === "source-serif-inter"
+                  ? '"Source Serif 4", serif'
+                  : creativeDesign.settings.fontPair === "nunito-inter"
+                    ? "Nunito, sans-serif"
+                    : '"Atkinson Hyperlegible", sans-serif',
+            }),
       }}
     >
       {cue.text}
@@ -238,19 +262,49 @@ function FullLessonCaptionOverlay({
   );
 }
 
+function CreativeLogoOverlay({
+  asset,
+}: Readonly<{ asset: ResolvedSceneAsset | undefined }>): JSX.Element | null {
+  if (asset === undefined || !("src" in asset) || asset.src === undefined)
+    return null;
+  return (
+    <img
+      alt="Lesson logo"
+      data-testid="creative-design-logo"
+      src={asset.src}
+      style={{
+        height: 72,
+        objectFit: "contain",
+        position: "absolute",
+        right: 56,
+        top: 44,
+        width: 180,
+        zIndex: 2,
+      }}
+    />
+  );
+}
+
 function TransitionedScene({
+  creativeDesign,
   resolvedAssets,
   runtimeMode,
   scene,
   durationInFrames,
 }: Readonly<{
+  creativeDesign?: z.infer<typeof creativeDesignManifestSchema>;
   resolvedAssets: Readonly<Record<string, ResolvedSceneAsset>>;
   runtimeMode: "preview" | "render";
   scene: LessonSpec["scenes"][number];
   durationInFrames: number;
 }>): JSX.Element {
   const frame = useCurrentFrame();
-  const transitionFrames = 12;
+  const transitionFrames =
+    creativeDesign?.settings.motionEnergy === "calm"
+      ? 16
+      : creativeDesign?.settings.motionEnergy === "lively"
+        ? 8
+        : 12;
   const opacity =
     scene.transition === "fade"
       ? interpolate(
@@ -267,26 +321,129 @@ function TransitionedScene({
       : 1;
   const translateX =
     scene.transition === "slide"
-      ? interpolate(frame, [0, transitionFrames], [80, 0], {
-          extrapolateLeft: "clamp",
-          extrapolateRight: "clamp",
-        })
+      ? interpolate(
+          frame,
+          [0, transitionFrames],
+          [
+            creativeDesign?.settings.motionEnergy === "calm"
+              ? 40
+              : creativeDesign?.settings.motionEnergy === "lively"
+                ? 120
+                : 80,
+            0,
+          ],
+          {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+          },
+        )
       : 0;
+  if (creativeDesign === undefined)
+    return (
+      <div
+        data-testid={`full-lesson-scene-${scene.order}`}
+        style={{
+          height: "100%",
+          opacity,
+          transform: `translateX(${translateX}px)`,
+          width: "100%",
+        }}
+      >
+        {runtimeMode === "render" ? (
+          <SceneRenderRuntime resolvedAssets={resolvedAssets} scene={scene} />
+        ) : (
+          <ScenePreviewRuntime resolvedAssets={resolvedAssets} scene={scene} />
+        )}
+      </div>
+    );
+  const treatmentId = creativeDesign.selections[scene.id]?.treatmentId;
+  // A resolved manifest is required to contain every scene; this defensive
+  // fallback preserves historic snapshots even if a malformed one escaped an
+  // older reader.
+  if (treatmentId === undefined)
+    return (
+      <div data-testid={`full-lesson-scene-${scene.order}`} style={{ height: "100%", opacity, width: "100%" }}>
+        {runtimeMode === "render" ? <SceneRenderRuntime resolvedAssets={resolvedAssets} scene={scene} /> : <ScenePreviewRuntime resolvedAssets={resolvedAssets} scene={scene} />}
+      </div>
+    );
+  const treatment = treatmentFor(treatmentId);
+  const pack = creativeDesign.pack.id;
+  const content = runtimeMode === "render" ? (
+    <SceneRenderRuntime resolvedAssets={resolvedAssets} scene={scene} />
+  ) : (
+    <ScenePreviewRuntime resolvedAssets={resolvedAssets} scene={scene} />
+  );
+  const accent = creativeDesign.settings.colors.accent;
+  const surface = creativeDesign.settings.colors.surface;
+  const imagery = creativeDesign.settings.imageryPreference;
+  const fontFamily =
+    creativeDesign.settings.fontPair === "source-serif-inter"
+      ? '"Source Serif 4", serif'
+      : creativeDesign.settings.fontPair === "nunito-inter"
+        ? "Nunito, sans-serif"
+        : '"Atkinson Hyperlegible", sans-serif';
+  const decorationStyle = {
+    background: accent,
+    opacity: pack === "essential" ? 0.14 : pack === "editorial" ? 0.23 : 0.3,
+    pointerEvents: "none" as const,
+    position: "absolute" as const,
+  };
+  const contentStyle = {
+    border: `${pack === "editorial" ? 24 : pack === "everyday" ? 18 : 12}px solid ${surface}`,
+    borderRadius: pack === "everyday" ? 40 : treatment.variant === "alternate" ? 28 : 0,
+    boxSizing: "border-box" as const,
+    height: treatment.variant === "alternate" ? "84%" : "100%",
+    left: treatment.variant === "alternate" ? "8%" : 0,
+    overflow: "hidden" as const,
+    position: "absolute" as const,
+    top: treatment.variant === "alternate" ? "8%" : 0,
+    width: treatment.variant === "alternate" ? "84%" : "100%",
+    color: creativeDesign.settings.colors.text,
+    fontFamily,
+  };
+  const imageryDecoration =
+    imagery === "photography"
+      ? { background: "linear-gradient(135deg, rgba(255,255,255,.28), transparent 55%)" }
+      : imagery === "illustration"
+        ? { backgroundImage: `radial-gradient(${accent}44 2px, transparent 2px)`, backgroundSize: "20px 20px" }
+        : imagery === "diagrams"
+          ? { backgroundImage: `linear-gradient(${creativeDesign.settings.colors.diagramEmphasis}33 1px, transparent 1px), linear-gradient(90deg, ${creativeDesign.settings.colors.diagramEmphasis}33 1px, transparent 1px)`, backgroundSize: "42px 42px" }
+          : { background: `linear-gradient(150deg, ${accent}22, transparent 45%)` };
   return (
     <div
       data-testid={`full-lesson-scene-${scene.order}`}
+      data-treatment-family={treatment.family}
       style={{
+        background: creativeDesign.settings.colors.background,
         height: "100%",
         opacity,
         transform: `translateX(${translateX}px)`,
         width: "100%",
       }}
     >
-      {runtimeMode === "render" ? (
-        <SceneRenderRuntime resolvedAssets={resolvedAssets} scene={scene} />
-      ) : (
-        <ScenePreviewRuntime resolvedAssets={resolvedAssets} scene={scene} />
-      )}
+      {treatment.family === "question" ? <div aria-hidden style={{ ...decorationStyle, height: 160, left: 0, top: 0, width: "100%" }} /> : null}
+      {treatment.family === "subject" ? <div aria-hidden style={{ ...decorationStyle, borderRadius: "50%", height: 460, right: -140, top: -100, width: 460 }} /> : null}
+      {treatment.family === "split" ? <div aria-hidden style={{ ...decorationStyle, height: "100%", left: 0, top: 0, width: "33%" }} /> : null}
+      {treatment.family === "path" ? <div aria-hidden style={{ ...decorationStyle, height: 32, left: "8%", top: "50%", transform: "rotate(-8deg)", width: "84%" }} /> : null}
+      {treatment.family === "panels" ? <div aria-hidden style={{ ...decorationStyle, height: "100%", left: "49%", top: 0, width: 24 }} /> : null}
+      {treatment.family === "rows" ? <div aria-hidden style={{ ...decorationStyle, height: 16, left: "10%", top: "30%", width: "80%", boxShadow: `0 150px 0 ${accent}, 0 300px 0 ${accent}` }} /> : null}
+      <div
+        aria-hidden
+        data-imagery-preference={imagery}
+        style={{
+          ...imageryDecoration,
+          height: "100%",
+          left: 0,
+          opacity: 0.45,
+          pointerEvents: "none",
+          position: "absolute",
+          top: 0,
+          width: "100%",
+        }}
+      />
+      <div data-treatment={treatment.id} style={contentStyle}>
+        {content}
+      </div>
     </div>
   );
 }
@@ -294,6 +451,7 @@ function TransitionedScene({
 export function FullLessonComposition({
   assets,
   captions,
+  creativeDesign,
   lesson,
   narrationTracks,
   onAudioError,
@@ -333,6 +491,7 @@ export function FullLessonComposition({
             key={segment.sceneId}
           >
             <TransitionedScene
+              {...(creativeDesign === undefined ? {} : { creativeDesign })}
               durationInFrames={segment.durationInFrames}
               resolvedAssets={assets}
               runtimeMode={runtimeMode}
@@ -348,7 +507,16 @@ export function FullLessonComposition({
           </Sequence>
         );
       })}
-      <FullLessonCaptionOverlay captions={captions} />
+      <FullLessonCaptionOverlay
+        captions={captions}
+        {...(creativeDesign === undefined ? {} : { creativeDesign })}
+      />
+      {creativeDesign?.settings.logoAssetId === null ||
+      creativeDesign?.settings.logoAssetId === undefined ? null : (
+        <CreativeLogoOverlay
+          asset={assets[creativeDesign.settings.logoAssetId]}
+        />
+      )}
     </main>
   );
 }

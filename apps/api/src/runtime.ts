@@ -25,6 +25,10 @@ import { PostgresSourceSectionSelectionService } from "./source-section-selectio
 import { PostgresContentBlockCorrectionService } from "./content-block-corrections.js";
 import { PostgresFigureInclusionService } from "./source-figure-inclusion.js";
 import { PostgresLessonConfigurationService } from "./lesson-configuration.js";
+import {
+  createEnvironmentCreativeDesignCohort,
+  PostgresCreativeDesignService,
+} from "./creative-design.js";
 import { PostgresSourceSnapshotService } from "./source-snapshot.js";
 import { PostgresSourceVisualsService } from "./source-visuals.js";
 import { PostgresObjectivesService } from "./objectives.js";
@@ -210,6 +214,11 @@ export async function runApi(input: {
         database.client,
         undefined,
         (scope) => demonstrationPilotService.eligibility(scope),
+      ),
+      creativeDesignService: new PostgresCreativeDesignService(
+        database.client,
+        createEnvironmentCreativeDesignCohort(environment),
+        lessonValidationService,
       ),
       sourceSnapshotService,
       sourceVisualsService: new PostgresSourceVisualsService(

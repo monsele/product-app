@@ -75,14 +75,14 @@ describe("full lesson Remotion composition", () => {
         .update(first.buffer ?? Buffer.alloc(0))
         .digest("hex"),
     ).toMatchInlineSnapshot(
-      `"3c51a993d6ff7b674f379b2cd0cba54b448b9246a9c94cf342e851dc4b480d51"`,
+      `"47fbcfd94e01c58ed2beaaf41402ab3d2eb3fc1cb171fda5260f4ab019470cc5"`,
     );
     expect(
       createHash("sha256")
         .update(transition.buffer ?? Buffer.alloc(0))
         .digest("hex"),
     ).toMatchInlineSnapshot(
-      `"f1ddbd37ed9d9f42a1155cd73a788214cad42688848418efa8a8061d57270206"`,
+      `"3fbf63ec7ac772e4e11d32b1e3c01a3e8d7c808d1b91768e676d304e281e16d9"`,
     );
   }, 120_000);
 });

@@ -2,11 +2,26 @@
 story_id: ST-097
 title: "Add Composition Variety and Progressive Personalisation"
 phase: "08 — Product UI"
-status: Ready
+status: In Review
 priority: must-have
 epics: ["E6", "E10", "E11", "E12", "E15", "E20"]
 prd_user_stories: ["E11-US2", "E15-US2", "E20-US1"]
-depends_on: ["ST-041", "ST-043", "ST-050", "ST-056", "ST-057", "ST-060", "ST-065", "ST-066", "ST-068", "ST-077", "ST-084", "ST-087", "ST-094"]
+depends_on:
+  [
+    "ST-041",
+    "ST-043",
+    "ST-050",
+    "ST-056",
+    "ST-057",
+    "ST-060",
+    "ST-065",
+    "ST-066",
+    "ST-068",
+    "ST-077",
+    "ST-084",
+    "ST-087",
+    "ST-094",
+  ]
 ---
 
 # ST-097 — Add Composition Variety and Progressive Personalisation
@@ -53,12 +68,12 @@ Each registered treatment declares ID/version, style/version, semantic scene typ
 
 Example families to implement or refine during design:
 
-| Scene | Candidate alternatives |
-| --- | --- |
-| Hook | Full-frame question; subject beside question |
+| Scene      | Candidate alternatives                                |
+| ---------- | ----------------------------------------------------- |
+| Hook       | Full-frame question; subject beside question          |
 | Definition | Term/object split; annotated subject with explanation |
-| Process | Connected path; staged panels using the same steps |
-| Comparison | Paired subjects; aligned attribute rows |
+| Process    | Connected path; staged panels using the same steps    |
+| Comparison | Paired subjects; aligned attribute rows               |
 
 Author style-specific hierarchy, framing, imagery, and motion for those families. Changing only colours does not create another composition. Process support must account for the existing legacy and graph schemas: implement validated rendering of each claimed form, or return explicit unsupported reasons. Do not infer a physical transformation from generic process steps.
 
@@ -80,14 +95,14 @@ Add **Try another layout** to supported scene editing. Show two or three compati
 
 Add controls separate from video approach:
 
-| Control | Behaviour |
-| --- | --- |
-| Colours | Role-based background, surface, text, accent, and diagram emphasis; validate readable combinations and preserve factual colour coding |
-| Fonts | Small catalogue of pinned, tested heading/body pairings and weights; revalidate layout after changes |
-| Logo | Optional tenant-owned image in tested opening/closing positions; no caption or evidence overlap |
-| Motion energy | Calm, balanced, lively adjust decorative distance/easing/emphasis within treatment limits; preserve event order, narration speed, readable holds, and quantities |
-| Imagery preference | Photography, illustration, diagrams, compatible mix; a preference among suitable assets/treatments, never permission to replace required evidence |
-| Captions | Tested size/background/emphasis presets with enforced readability and safe areas |
+| Control            | Behaviour                                                                                                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Colours            | Role-based background, surface, text, accent, and diagram emphasis; validate readable combinations and preserve factual colour coding                            |
+| Fonts              | Small catalogue of pinned, tested heading/body pairings and weights; revalidate layout after changes                                                             |
+| Logo               | Optional tenant-owned image in tested opening/closing positions; no caption or evidence overlap                                                                  |
+| Motion energy      | Calm, balanced, lively adjust decorative distance/easing/emphasis within treatment limits; preserve event order, narration speed, readable holds, and quantities |
+| Imagery preference | Photography, illustration, diagrams, compatible mix; a preference among suitable assets/treatments, never permission to replace required evidence                |
+| Captions           | Tested size/background/emphasis presets with enforced readability and safe areas                                                                                 |
 
 Reuse secure asset-upload/storage patterns for logos, including file/size validation and ownership checks. Bound formats to the existing safe pipeline; do not inject uploaded SVG/HTML into the page. Use an existing pinned font catalogue, not arbitrary user font uploads in this increment.
 
@@ -187,15 +202,15 @@ Choosing among scene-treatment previews is included in Increment 1. Learning a u
 
 ## Dev Agent Record
 
-- **Agent:** Not started.
-- **Started:** Not started.
-- **Completed:** Not completed.
-- **Branch/PR:** Not created.
-- **Files changed:** Pending implementation.
-- **Migrations:** Planned additive design-selection/preset persistence; exact ownership settled after inspecting ST-094 and snapshot consumers.
-- **Public contract changes:** Planned versioned catalogue, resolved design, personalisation, preset, and natural-language proposal contracts with legacy compatibility.
-- **Commands/tests run:** Pending implementation.
-- **Screenshots or representative output:** Pending implementation.
-- **Decisions and assumptions:** Bounded pilot: three styles, four semantic scene types, at least two treatments each. All four personalisation increments above are required; reference extraction is later work.
-- **Deviations from story/technical guide:** None implemented. Record the requested expansion explicitly through product/architecture documentation.
-- **Known risks or follow-up:** Blocked by ST-094. Typography fit, asset suitability, sequence quality, version retention, and provider interpretation require verification. Remaining scene coverage and reference-based styling need subsequent stories.
+- **Agent:** Codex
+- **Started:** 2026-09-19
+- **Completed:** Implementation complete; code-review approved, awaiting repository-owner review.
+- **Branch/PR:** Current workspace branch; no PR published.
+- **Files changed:** Versioned creative-design schema/catalogue, tenant-owned drafts/snapshots/presets/proposals and migrations, API/worker/render/preview wiring, bounded pilot UI, provider prompt, renderer treatments and focused tests; ADR-008 and product/technical-guide updates.
+- **Migrations:** `0063_creative_design_manifests`, `0064_creative_design_provider_metering`, and `0065_creative_design_snapshot_revision_identity`. All are additive/compatibility documented; 0065 corrects retry uniqueness to include lesson revision.
+- **Public contract changes:** Cohort-gated creative-design draft, plan, alternatives, apply, preset, and describe endpoints; versioned resolved design manifests in lesson-version, preview, and render payloads; `ai.creative_design` metering operation. Legacy readers retain `mvp-default` when no manifest is present.
+- **Commands/tests run:** Schema/database/API/worker/renderer/scene-library/web typechecks; web lint; database tests (8 passed, 3 integration tests skipped by suite); focused schema (6), API (12), worker (2), provider prompt (13), and renderer contract/media (5) tests passed. The 24-combination Chromium real-frame matrix passed before the final render-affecting control refinement; its direct post-refinement rerun completed in the local test process but the terminal parent detached before the result could be collected. `git diff --check` passed.
+- **Screenshots or representative output:** The 24 real rendered treatment frames produced distinct deterministic hashes in `creative-design-render.test.ts`; legacy full-lesson deterministic frames pass in `full-lesson-render.test.ts`. Live project screenshots/clips could not be captured because Docker Desktop's Linux engine was unavailable locally.
+- **Decisions and assumptions:** ADR-008 keeps presentation manifests parallel to immutable semantic LessonSpec records. Pilot scope is Essential, Editorial, and Everyday over hook, definition, process, and comparison only. Style requests never alter factual content, source evidence, narration, or timing.
+- **Known risks or follow-up:** Docker Desktop was unavailable (`docker ps` could not connect), so migration execution and the two-user-owned-lesson live capture remain for CI/review environment verification. Browser font-wrap measurement is additionally covered by renderer frame evidence and static manifest limits; ST-098 remains the cross-feature reproducibility follow-up. Remaining semantic-scene coverage and reference-based styling remain later stories.
+- **Code review:** **Approved.** No high, major, or medium implementation finding remains after fixes for active-logo validation, resolved preview/render parity, stale language proposals, snapshot revision identity, imagery/diagram rendering, and explicit alternative selection.

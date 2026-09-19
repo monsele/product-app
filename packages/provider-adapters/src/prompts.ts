@@ -7,6 +7,7 @@ export const promptKindValues = [
   "narration",
   "storyboard",
   "grounding",
+  "creative-design",
 ] as const;
 export const promptKindSchema = z.enum(promptKindValues);
 export type PromptKind = z.infer<typeof promptKindSchema>;

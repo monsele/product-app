@@ -31,6 +31,7 @@ import type { DemonstrationVariantPlan } from "@avlp/schemas/demonstration-pilot
 import {
   renderRequestSchema,
   renderStatusResponseSchema,
+  creativeDesignManifestSchema,
   lessonSpecSchema,
   readVideoApproach,
   type VideoApproach,
@@ -55,7 +56,7 @@ const renderProfile = Object.freeze({
   audioCodec: "aac",
   pixelFormat: "yuv420p",
 });
-const rendererVersion = "st-096-remotion-4.0.507-scene-library-v1";
+const rendererVersion = "st-097-remotion-4.0.507-creative-design-v1";
 const defaultRenderLimits = Object.freeze({
   maxConcurrentPerProject: 1,
   maxStartsPerProjectHour: 12,
@@ -351,11 +352,24 @@ export class PostgresRenderService implements RenderService {
       const lesson = lessonSpecSchema.parse(
         (version.snapshot as { lessonSpec?: unknown }).lessonSpec,
       );
+      // A creative-design logo is a resolved project asset, just like a scene
+      // asset. Include it in the immutable render manifest so the renderer
+      // never has to look up current project state while rendering a version.
+      const creativeDesign = creativeDesignManifestSchema.safeParse(
+        (version.snapshot as { creativeDesign?: { manifest?: unknown } })
+          .creativeDesign?.manifest,
+      );
+      const logoAssetId = creativeDesign.success
+        ? creativeDesign.data.settings.logoAssetId
+        : null;
       const assetIds = [
         ...new Set(
-          lesson.scenes.flatMap((scene) =>
-            scene.assetBindings.map((binding) => binding.assetId),
-          ),
+          [
+            ...lesson.scenes.flatMap((scene) =>
+              scene.assetBindings.map((binding) => binding.assetId),
+            ),
+            ...(logoAssetId === null ? [] : [logoAssetId]),
+          ],
         ),
       ];
       // ST-093: resolve via the reuse-aware lookup so a same-owner reused
@@ -692,7 +706,7 @@ export class PostgresRenderService implements RenderService {
           scene.assetBindings.some(
             (binding) => binding.assetId === asset.assetId,
           ),
-        )?.id;
+        )?.id ?? (asset.assetId === logoAssetId ? lesson.scenes[0]?.id : undefined);
         if (sceneId === undefined)
           throw new Error("A bound render asset did not resolve to a scene.");
         return [

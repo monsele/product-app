@@ -195,6 +195,9 @@ export function FullLessonPreview({
         scenes: manifest.storyboard.scenes.map((entry) => entry.scene),
       },
       assets: manifest.assets,
+      ...(manifest.creativeDesign === undefined
+        ? {}
+        : { creativeDesign: manifest.creativeDesign }),
       narrationTracks: manifest.storyboard.scenes.map((entry) => {
         const audio = manifest.scenes.find(
           (candidate) => candidate.sceneId === entry.stableSceneId,

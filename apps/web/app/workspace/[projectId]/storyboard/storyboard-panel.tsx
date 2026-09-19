@@ -43,6 +43,7 @@ import {
 } from "./storyboard-scene-query";
 import { buildScenePreviewInput, canPreviewScene } from "./scene-preview-input";
 import { SceneList } from "./scene-list";
+import { CreativeDesignPanel } from "./creative-design-panel";
 import {
   SceneDetailPanel,
   teacherReplacementPreviewForScene,
@@ -1450,6 +1451,10 @@ export function StoryboardPanel({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
                 >
+                  <CreativeDesignPanel
+                    projectId={projectId}
+                    selectedSceneId={selectedSceneId}
+                  />
                   <SceneDetailPanel
                     projectId={projectId}
                     detail={detail.value}

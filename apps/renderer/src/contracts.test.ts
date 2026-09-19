@@ -131,10 +131,10 @@ describe("render job v1 contracts", () => {
         compositionSha256,
         lessonSpecSha256,
         profile: manifest.profile,
-        rendererVersion: "st-096-remotion-4.0.507-scene-library-v1",
+        rendererVersion: "st-097-remotion-4.0.507-creative-design-v1",
       }),
       profile: manifest.profile,
-      rendererVersion: "st-096-remotion-4.0.507-scene-library-v1",
+      rendererVersion: "st-097-remotion-4.0.507-creative-design-v1",
     });
     expect(() => assertProductionManifestIntegrity(payload)).not.toThrow();
     expect(() =>

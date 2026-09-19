@@ -31,12 +31,18 @@ export function loadImmutableFixture(
 ): Readonly<FullLessonCompositionProps> {
   if (payload.fixtureId === undefined) {
     const snapshot = payload.manifest?.snapshot as
-      { lessonSpec?: unknown } | undefined;
+      { lessonSpec?: unknown; creativeDesign?: unknown } | undefined;
     const lesson = lessonSpecSchema.parse(snapshot?.lessonSpec);
     return deepFreeze(
       fullLessonCompositionPropsSchema.parse({
         assets: {},
         captions: [],
+        ...(snapshot?.creativeDesign &&
+        typeof snapshot.creativeDesign === "object" &&
+        snapshot.creativeDesign !== null &&
+        "manifest" in snapshot.creativeDesign
+          ? { creativeDesign: snapshot.creativeDesign.manifest }
+          : {}),
         lesson,
         narrationTracks: lesson.scenes.map((scene) => ({
           kind: "deterministic-silence" as const,
@@ -95,6 +101,12 @@ export async function hydrateProductionComposition(
       scene.assetBindings.map((binding) => binding.assetId),
     ),
   );
+  // A selected logo is a first-class resolved asset even though it is not a
+  // scene binding. Its signed URL is created here, at render time, alongside
+  // every other tenant-owned image.
+  if (composition.creativeDesign?.settings.logoAssetId !== null &&
+      composition.creativeDesign?.settings.logoAssetId !== undefined)
+    expectedAssetIds.add(composition.creativeDesign.settings.logoAssetId);
   const visualAssets = await Promise.all(
     payload.manifest.visualAssets.map(async (asset) => {
       if (!expectedAssetIds.delete(asset.assetId))

@@ -19,6 +19,10 @@
     "./demonstration-pilot": {
       "types": "./dist/demonstration-pilot.d.ts",
       "default": "./dist/demonstration-pilot.js"
+    },
+    "./creative-design": {
+      "types": "./dist/creative-design.d.ts",
+      "default": "./dist/creative-design.js"
     }
   },
   "scripts": {

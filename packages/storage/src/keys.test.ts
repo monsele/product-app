@@ -65,6 +65,13 @@ describe("storageKeys", () => {
     expect(
       storageKeys.renderThumbnail({ ...scope, renderJobId: entityId }),
     ).toBe(`${prefix}/renders/${entityId}/thumbnail.png`);
+    expect(
+      storageKeys.demonstrationAsset({
+        ...scope,
+        assetId: "graph-grid",
+        extension: "svg",
+      }),
+    ).toBe(`${prefix}/demonstration/assets/graph-grid.svg`);
   });
 
   it("rejects invalid identifiers instead of interpolating path input", () => {
@@ -75,6 +82,13 @@ describe("storageKeys", () => {
         extension: "pdf",
       }),
     ).toThrow("UUIDv7");
+    expect(() =>
+      storageKeys.demonstrationAsset({
+        ...scope,
+        assetId: "../escape",
+        extension: "png",
+      }),
+    ).toThrow("lower-case slug");
   });
 });
 

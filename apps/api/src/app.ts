@@ -59,6 +59,7 @@ import {
   type ProjectRouteAuthorizer,
 } from "./project-route-authorization.js";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { z } from "zod";
 import { ProjectService } from "./projects.js";
 import { SourceUploadService } from "./source-uploads.js";
 import { ProjectAssetService } from "./project-assets.js";
@@ -69,6 +70,7 @@ import type { SourceSectionSelectionService } from "./source-section-selection.j
 import type { ContentBlockCorrectionService } from "./content-block-corrections.js";
 import type { FigureInclusionService } from "./source-figure-inclusion.js";
 import type { LessonConfigurationService } from "./lesson-configuration.js";
+import type { CreativeDesignService } from "./creative-design.js";
 import type { SourceSnapshotService } from "./source-snapshot.js";
 import type { SourceVisualsService } from "./source-visuals.js";
 import type { ObjectivesService } from "./objectives.js";
@@ -122,6 +124,7 @@ const CONTENT_BLOCK_CORRECTION_SERVICE = Symbol(
 );
 const FIGURE_INCLUSION_SERVICE = Symbol("FIGURE_INCLUSION_SERVICE");
 const LESSON_CONFIGURATION_SERVICE = Symbol("LESSON_CONFIGURATION_SERVICE");
+const CREATIVE_DESIGN_SERVICE = Symbol("CREATIVE_DESIGN_SERVICE");
 const SOURCE_SNAPSHOT_SERVICE = Symbol("SOURCE_SNAPSHOT_SERVICE");
 const SOURCE_VISUALS_SERVICE = Symbol("SOURCE_VISUALS_SERVICE");
 const OBJECTIVES_SERVICE = Symbol("OBJECTIVES_SERVICE");
@@ -348,6 +351,7 @@ type LessonConfigurationApiService = Pick<
   LessonConfigurationService,
   "get" | "save"
 >;
+type CreativeDesignApiService = CreativeDesignService;
 type SourceSnapshotApiService = Pick<
   SourceSnapshotService,
   "approve" | "metadata" | "status"
@@ -535,6 +539,8 @@ class ProjectsController {
     private readonly figureInclusion: FigureInclusionApiService,
     @Inject(LESSON_CONFIGURATION_SERVICE)
     private readonly lessonConfiguration: LessonConfigurationApiService,
+    @Inject(CREATIVE_DESIGN_SERVICE)
+    private readonly creativeDesign: CreativeDesignApiService,
     @Inject(SOURCE_SNAPSHOT_SERVICE)
     private readonly sourceSnapshots: SourceSnapshotApiService,
     @Inject(SOURCE_VISUALS_SERVICE)
@@ -867,6 +873,156 @@ class ProjectsController {
       body: input,
       correlationId:
         request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Get(":projectId/creative-design")
+  public async getCreativeDesign(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    return this.creativeDesign.getDraft(
+      assertAuthorizedProject(request, projectId),
+    );
+  }
+
+  @Put(":projectId/creative-design")
+  public async saveCreativeDesign(
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.creativeDesign.createOrUpdateDraft({
+      ...assertAuthorizedProject(request, projectId),
+      body,
+    });
+  }
+
+  @Post(":projectId/creative-design/plan")
+  public async planCreativeDesign(
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.creativeDesign.plan({
+      ...assertAuthorizedProject(request, projectId),
+      body,
+    });
+  }
+
+  @Get(":projectId/creative-design/scenes/:sceneId/alternatives")
+  public async creativeDesignAlternatives(
+    @Param("projectId") projectId: string,
+    @Param("sceneId") sceneId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    return this.creativeDesign.alternatives({
+      ...assertAuthorizedProject(request, projectId),
+      sceneId: identifierSchema.parse(sceneId),
+    });
+  }
+
+  @Post(":projectId/creative-design/apply")
+  public async applyCreativeDesign(
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const parsed = z
+      .object({ expectedRevision: z.number().int().nonnegative() })
+      .strict()
+      .parse(body);
+    return this.creativeDesign.apply({
+      ...assertAuthorizedProject(request, projectId),
+      ...parsed,
+    });
+  }
+
+  @Post(":projectId/creative-design/presets")
+  public async saveCreativeDesignPreset(
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.creativeDesign.savePreset({
+      ...assertAuthorizedProject(request, projectId),
+      body,
+    });
+  }
+
+  @Get(":projectId/creative-design/presets")
+  public async listCreativeDesignPresets(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    return this.creativeDesign.listPresets(
+      assertAuthorizedProject(request, projectId),
+    );
+  }
+
+  @Post(":projectId/creative-design/presets/:presetId/apply")
+  public async applyCreativeDesignPreset(
+    @Param("projectId") projectId: string,
+    @Param("presetId") presetId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.creativeDesign.applyPreset({
+      ...assertAuthorizedProject(request, projectId),
+      presetId: identifierSchema.parse(presetId),
+      body,
+    });
+  }
+
+  @Delete(":projectId/creative-design/presets/:presetId")
+  @HttpCode(204)
+  public async archiveCreativeDesignPreset(
+    @Param("projectId") projectId: string,
+    @Param("presetId") presetId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<void> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const parsed = z
+      .object({ expectedRevision: z.number().int().positive() })
+      .strict()
+      .parse(body);
+    await this.creativeDesign.archivePreset({
+      ...assertAuthorizedProject(request, projectId),
+      presetId: identifierSchema.parse(presetId),
+      ...parsed,
+    });
+  }
+
+  @Post(":projectId/creative-design/describe")
+  public async describeCreativeDesign(
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.creativeDesign.describe({
+      ...assertAuthorizedProject(request, projectId),
+      body,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Get(":projectId/creative-design/describe/:jobId")
+  public async creativeDesignDescriptionStatus(
+    @Param("projectId") projectId: string,
+    @Param("jobId") jobId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    return this.creativeDesign.describeStatus({
+      ...assertAuthorizedProject(request, projectId),
+      jobId: identifierSchema.parse(jobId),
     });
   }
 
@@ -2095,13 +2251,20 @@ class ProjectsController {
     ]);
     const advisoriesBySceneId = new Map<
       string,
-      { code: string; message: string; source: "deterministic"; rulesetVersion: string; model: null }[]
+      {
+        code: string;
+        message: string;
+        source: "deterministic";
+        rulesetVersion: string;
+        model: null;
+      }[]
     >();
     for (const issue of run?.issues ?? []) {
       if (issue.code !== "scene_monotony") continue;
       const scope = issue.details.sceneIds;
       const sceneIds =
-        Array.isArray(scope) && scope.every((value) => typeof value === "string")
+        Array.isArray(scope) &&
+        scope.every((value) => typeof value === "string")
           ? (scope as string[])
           : issue.sceneId === null
             ? []
@@ -2152,9 +2315,10 @@ class ProjectsController {
                         )
                         .catch(() => null)
                     : null,
-                altText: `AI illustration for the ${slot.slot} slot of scene ${scene.order}${
-                  scene.title === null ? "" : ` — ${scene.title}`
-                }`.slice(0, 300),
+                altText:
+                  `AI illustration for the ${slot.slot} slot of scene ${scene.order}${
+                    scene.title === null ? "" : ` — ${scene.title}`
+                  }`.slice(0, 300),
                 costUsd: candidate.costUsd,
                 failureCode: candidate.failureCode,
                 selectable: candidate.selectable,
@@ -2910,6 +3074,7 @@ function createAppModule(
   contentBlockCorrectionService: ContentBlockCorrectionApiService,
   figureInclusionService: FigureInclusionApiService,
   lessonConfigurationService: LessonConfigurationApiService,
+  creativeDesignService: CreativeDesignApiService,
   sourceSnapshotService: SourceSnapshotApiService,
   sourceVisualsService: SourceVisualsApiService,
   objectivesService: ObjectivesApiService,
@@ -2963,6 +3128,7 @@ function createAppModule(
         provide: LESSON_CONFIGURATION_SERVICE,
         useValue: lessonConfigurationService,
       },
+      { provide: CREATIVE_DESIGN_SERVICE, useValue: creativeDesignService },
       { provide: SOURCE_SNAPSHOT_SERVICE, useValue: sourceSnapshotService },
       { provide: SOURCE_VISUALS_SERVICE, useValue: sourceVisualsService },
       { provide: OBJECTIVES_SERVICE, useValue: objectivesService },
@@ -3016,6 +3182,7 @@ export type CreateAppOptions = {
   contentBlockCorrectionService?: ContentBlockCorrectionApiService;
   figureInclusionService?: FigureInclusionApiService;
   lessonConfigurationService?: LessonConfigurationApiService;
+  creativeDesignService?: CreativeDesignApiService;
   sourceSnapshotService?: SourceSnapshotApiService;
   sourceVisualsService?: SourceVisualsApiService;
   objectivesService?: ObjectivesApiService;
@@ -3386,6 +3553,95 @@ const unavailableLessonConfigurationService: LessonConfigurationApiService = {
       new PublicError(
         "internal_error",
         "Lesson configuration is unavailable.",
+        503,
+        true,
+      ),
+    ),
+};
+
+const unavailableCreativeDesignService: CreativeDesignApiService = {
+  getDraft: () => Promise.resolve(null),
+  plan: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Creative design is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  createOrUpdateDraft: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Creative design is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  alternatives: () =>
+    Promise.reject(
+      new PublicError("not_found", "Creative design is unavailable.", 404),
+    ),
+  apply: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Creative design is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  savePreset: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Creative design is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  archivePreset: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Creative design is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  listPresets: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Creative design is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  applyPreset: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Creative design is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  describe: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Creative design is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  describeStatus: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Creative design is unavailable.",
         503,
         true,
       ),
@@ -4047,7 +4303,11 @@ const unavailableDemonstrationPilotService: DemonstrationPilotApiService = {
     ),
   detail: () =>
     Promise.reject(
-      new PublicError("not_found", "The requested resource was not found.", 404),
+      new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      ),
     ),
   requestVariant: () =>
     Promise.reject(
@@ -4069,7 +4329,11 @@ const unavailableDemonstrationPilotService: DemonstrationPilotApiService = {
     ),
   feedback: () =>
     Promise.reject(
-      new PublicError("not_found", "The requested resource was not found.", 404),
+      new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      ),
     ),
   saveFeedback: () =>
     Promise.reject(
@@ -4129,6 +4393,7 @@ export async function createApp(
       options.figureInclusionService ?? unavailableFigureInclusionService,
       options.lessonConfigurationService ??
         unavailableLessonConfigurationService,
+      options.creativeDesignService ?? unavailableCreativeDesignService,
       options.sourceSnapshotService ?? unavailableSourceSnapshotService,
       options.sourceVisualsService ?? unavailableSourceVisualsService,
       options.objectivesService ?? unavailableObjectivesService,

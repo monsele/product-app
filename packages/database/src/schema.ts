@@ -1081,6 +1081,7 @@ export const usageOperationTypeValues = [
   "ai.storyboard",
   "ai.scene_regeneration",
   "ai.grounding",
+  "ai.creative_design",
   "image.generation",
   "tts.generation",
   "video.render",
@@ -1215,7 +1216,9 @@ export const lessonConfigurations = pgTable(
     /** ST-096. `standard` for every row that existed before the pilot, which
      * is what the column default encodes: the absence of a choice has always
      * meant the standard approach and continues to. */
-    videoApproach: videoApproach("video_approach").notNull().default("standard"),
+    videoApproach: videoApproach("video_approach")
+      .notNull()
+      .default("standard"),
     includeRecallQuestions: boolean("include_recall_questions")
       .notNull()
       .default(false),
@@ -1915,6 +1918,142 @@ export const lessonVersions = pgTable(
     index("lesson_versions_owner_project_created_idx").on(
       table.ownerUserId,
       table.projectId,
+      table.createdAt,
+    ),
+  ],
+);
+
+/** ST-097: mutable teacher-owned preset header; versions below are append-only. */
+export const creativeDesignPresets = pgTable(
+  "creative_design_presets",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    name: text("name").notNull(),
+    archivedAt: utcTimestamp("archived_at"),
+    revision: revisionColumn(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("creative_design_presets_tenant_name_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.name,
+    ),
+    index("creative_design_presets_owner_project_idx").on(
+      table.ownerUserId,
+      table.projectId,
+    ),
+  ],
+);
+
+/** Immutable settings captured whenever a personal style is saved or edited. */
+export const creativeDesignPresetVersions = pgTable(
+  "creative_design_preset_versions",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    presetId: uuid("preset_id")
+      .notNull()
+      .references(() => creativeDesignPresets.id, { onDelete: "restrict" }),
+    versionNumber: integer("version_number").notNull(),
+    manifest: jsonb("manifest").notNull(),
+    manifestHash: text("manifest_hash").notNull(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("creative_design_preset_versions_number_unique").on(
+      table.presetId,
+      table.versionNumber,
+    ),
+    uniqueIndex("creative_design_preset_versions_hash_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.manifestHash,
+    ),
+  ],
+);
+
+/** One editable design draft per current lesson spec; it is never a render input. */
+export const creativeDesignDrafts = pgTable(
+  "creative_design_drafts",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    lessonSpecId: uuid("lesson_spec_id")
+      .notNull()
+      .references(() => lessonSpecs.id, { onDelete: "cascade" }),
+    lessonSpecRevision: integer("lesson_spec_revision").notNull(),
+    manifest: jsonb("manifest").notNull(),
+    manifestHash: text("manifest_hash").notNull(),
+    revision: revisionColumn(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("creative_design_drafts_lesson_spec_unique").on(
+      table.lessonSpecId,
+    ),
+    index("creative_design_drafts_owner_project_idx").on(
+      table.ownerUserId,
+      table.projectId,
+    ),
+  ],
+);
+
+/** Immutable resolved snapshot, referenced by a render/version payload by ID and hash. */
+export const creativeDesignSnapshots = pgTable(
+  "creative_design_snapshots",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    lessonSpecId: uuid("lesson_spec_id")
+      .notNull()
+      .references(() => lessonSpecs.id, { onDelete: "restrict" }),
+    lessonSpecRevision: integer("lesson_spec_revision").notNull(),
+    manifest: jsonb("manifest").notNull(),
+    manifestHash: text("manifest_hash").notNull(),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("creative_design_snapshots_lesson_revision_hash_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.lessonSpecId,
+      table.lessonSpecRevision,
+      table.manifestHash,
+    ),
+    index("creative_design_snapshots_owner_project_idx").on(
+      table.ownerUserId,
+      table.projectId,
+    ),
+  ],
+);
+
+/** ST-097: immutable, reviewable provider proposal; never mutates a draft. */
+export const creativeDesignProposals = pgTable(
+  "creative_design_proposals",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    draftId: uuid("draft_id")
+      .notNull()
+      .references(() => creativeDesignDrafts.id, { onDelete: "cascade" }),
+    draftRevision: integer("draft_revision").notNull(),
+    modelCallId: uuid("model_call_id")
+      .notNull()
+      .references(() => modelCalls.id, { onDelete: "restrict" }),
+    patch: jsonb("patch").notNull(),
+    unsupported: jsonb("unsupported").notNull().default([]),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("creative_design_proposals_model_call_unique").on(
+      table.modelCallId,
+    ),
+    index("creative_design_proposals_draft_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.draftId,
       table.createdAt,
     ),
   ],

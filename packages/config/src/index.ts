@@ -516,6 +516,10 @@ export const apiEnvironmentSchema = baseEnvironmentSchema
       .default("false")
       .transform((value) => value === "true"),
     DEMONSTRATION_PILOT_USER_IDS: z.string().max(4_000).default(""),
+    CREATIVE_DESIGN_PILOT_ENABLED: z.enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+    CREATIVE_DESIGN_PILOT_USER_IDS: z.string().max(4_000).default(""),
   })
   .superRefine((value, context) => {
     validateStorageCredentialPair(value, context);

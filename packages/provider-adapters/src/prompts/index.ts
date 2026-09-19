@@ -1,6 +1,7 @@
 import { type PromptDefinition } from "../prompts.js";
 import { groundingPromptV1 } from "./grounding/v1.js";
 import { groundingPromptV2 } from "./grounding/v2.js";
+import { creativeDesignPromptV1 } from "./creative-design/v1.js";
 import { narrationBlockPromptV1 } from "./narration-block/v1.js";
 import { narrationPromptV1 } from "./narration/v1.js";
 import { narrationPromptV2 } from "./narration/v2.js";
@@ -33,4 +34,5 @@ export const repositoryPrompts: readonly PromptDefinition[] = [
   sceneRegenerationPromptV2,
   groundingPromptV1,
   groundingPromptV2,
+  creativeDesignPromptV1,
 ];

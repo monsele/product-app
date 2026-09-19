@@ -1349,7 +1349,7 @@ Ten deterministic, reusable Remotion scene components render validated structure
 
 ### Important design decisions
 
-- One visual theme uses shared typography, spacing, palette, line weights, caption rules, and motion timing.
+- One visual theme uses shared typography, spacing, palette, line weights, caption rules, and motion timing. The ADR-008 bounded pilot is the explicit exception: it uses versioned, resolved creative-design manifests for three packs and four supported scene types; an absent manifest remains `mvp-default`.
 - Template input limits are product constraints, not only UI hints.
 - SVG and React primitives are preferred. Motion Canvas can be isolated for specialized diagrams later, not required for every scene.
 - Transitions come from a small controlled preset set.

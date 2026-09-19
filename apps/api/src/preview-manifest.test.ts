@@ -15,6 +15,7 @@ import {
 } from "@avlp/auth";
 import { createApp, sessionCookieName } from "./app.js";
 import { PreviewManifestService } from "./preview-manifest.js";
+import { createDefaultCreativeDesignManifest } from "./creative-design.js";
 
 const ownerUserId = "01989a3d-8e00-7000-8000-000000000001";
 const projectId = "01989a3d-8e00-7000-8000-000000000002";
@@ -143,6 +144,26 @@ describe("preview manifest", () => {
       },
     ).get({ ownerUserId, projectId });
     expect(manifest.scenes[0]?.stale).toBe(false);
+  });
+
+  it("returns the resolved creative-design snapshot without replanning", async () => {
+    const design = createDefaultCreativeDesignManifest({
+      packId: "essential",
+      scenes: [{ id: scene.id, template: "hook", durationSeconds: 10 }],
+    });
+    const manifest = await new PreviewManifestService(
+      databaseFor([
+        ...rows(),
+        [{ manifest: design }],
+      ]),
+      {
+        createSignedDownload: vi.fn().mockResolvedValue({
+          url: "https://storage.example.test/audio",
+          expiresAt: new Date("2026-08-24T10:05:00.000Z"),
+        }),
+      },
+    ).get({ ownerUserId, projectId });
+    expect(manifest.creativeDesign).toEqual(design);
   });
 
   it("marks missing scene records and unresolved assets as stale", async () => {

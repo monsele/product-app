@@ -26,7 +26,7 @@ export const manualLessonFixtureId = "photosynthesis-three-minute-v1" as const;
  * one's hashes.
  */
 export const renderImplementationVersion =
-  "st-096-remotion-4.0.507-scene-library-v1" as const;
+  "st-097-remotion-4.0.507-creative-design-v1" as const;
 
 export const renderProfileSchema = z
   .object({

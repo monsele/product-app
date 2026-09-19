@@ -65,6 +65,7 @@ import { createGroundingCheckJobHandler } from "./grounding-check-job.js";
 import { createProjectAssetValidationJobHandler } from "./project-asset-validation-job.js";
 import { createIllustrationGenerationJobHandler } from "./illustration-generation-job.js";
 import { createSceneAudioGenerationJobHandler } from "./scene-audio-job.js";
+import { createCreativeDesignInterpretationJobHandler } from "./creative-design-job.js";
 import { TogetherKokoroTtsProvider } from "./together-tts.js";
 import { TogetherWhisperAlignmentProvider } from "./together-alignment.js";
 
@@ -344,6 +345,15 @@ export async function runPipelineWorker(
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),
           quotaGuard: generationQuotaGuard({
             "ai.grounding": { maxCallsPerHour: 20 },
+          }),
+          pricing: togetherPricing,
+        }),
+        createCreativeDesignInterpretationJobHandler({
+          database: database.client,
+          provider: languageModelProvider,
+          promptRegistry: new StaticPromptRegistry(repositoryPrompts),
+          quotaGuard: generationQuotaGuard({
+            "ai.creative_design": { maxCallsPerHour: 20 },
           }),
           pricing: togetherPricing,
         }),

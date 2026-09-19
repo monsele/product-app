@@ -442,6 +442,27 @@
       "when": 1790000120000,
       "tag": "0062_demonstration_feedback_output_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1790000180000,
+      "tag": "0063_creative_design_manifests",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1790000240000,
+      "tag": "0064_creative_design_provider_metering",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1790000300000,
+      "tag": "0065_creative_design_snapshot_revision_identity",
+      "breakpoints": true
     }
   ]
 }

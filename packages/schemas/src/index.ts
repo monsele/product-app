@@ -1,7 +1,9 @@
 import { togetherModelDefaults } from "@avlp/config";
 import { identifierSchema, type Identifier } from "@avlp/config/identifiers";
+import { creativeDesignManifestSchema } from "./creative-design.js";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
+export * from "./creative-design.js";
 
 export const lessonSpecVersion = "1.8" as const;
 export const previousLessonSpecVersion = "1.7" as const;
@@ -3868,6 +3870,7 @@ export const modelCallOperationValues = [
   "ai.storyboard",
   "ai.scene_regeneration",
   "ai.grounding",
+  "ai.creative_design",
 ] as const;
 export const modelCallOperationSchema = z.enum(modelCallOperationValues);
 export type ModelCallOperation = z.infer<typeof modelCallOperationSchema>;
@@ -6361,6 +6364,9 @@ export type PreviewAsset = z.infer<typeof previewAssetSchema>;
 export const previewManifestSchema = z
   .object({
     assets: z.record(previewAssetSchema).default({}),
+    /** The immutable design selection paired with this storyboard revision.
+     * Omitted for legacy lessons, which retain the mvp-default appearance. */
+    creativeDesign: creativeDesignManifestSchema.optional(),
     canvas: z
       .object({
         fps: z.number().int().positive().max(120),
