@@ -8,12 +8,33 @@ import {
   renderAssetManifestSchema,
   renderJobPayloadSchema,
 } from "./contracts.js";
+import { hasMatchingDemonstrationCaptions } from "./fixture.js";
+import type { DemonstrationVariantPlan } from "@avlp/schemas/demonstration-pilot";
 
 function checksum(value: unknown): string {
   return hashJobOptions(value);
 }
 
 describe("render job v1 contracts", () => {
+  it("rejects a demonstration render whose caption manifest drifted", () => {
+    const captions: DemonstrationVariantPlan["captions"] = [
+      {
+        endFrame: 30,
+        sceneId: "0189d0f4-1b2c-7abc-8def-0123456789ab",
+        startFrame: 0,
+        text: "Original approved caption.",
+      },
+    ];
+    expect(
+      hasMatchingDemonstrationCaptions({ captions }, captions),
+    ).toBe(true);
+    expect(
+      hasMatchingDemonstrationCaptions({ captions }, [
+        { ...captions[0]!, text: "A newer caption." },
+      ]),
+    ).toBe(false);
+  });
+
   it("hashes the immutable LessonSpec and render options deterministically", () => {
     const first = createFixtureRenderPayload(photosynthesisThreeMinutePreview);
     const second = createFixtureRenderPayload(photosynthesisThreeMinutePreview);
@@ -110,10 +131,10 @@ describe("render job v1 contracts", () => {
         compositionSha256,
         lessonSpecSha256,
         profile: manifest.profile,
-        rendererVersion: "st-024-remotion-4.0.507-scene-library-v1",
+        rendererVersion: "st-096-remotion-4.0.507-scene-library-v1",
       }),
       profile: manifest.profile,
-      rendererVersion: "st-024-remotion-4.0.507-scene-library-v1",
+      rendererVersion: "st-096-remotion-4.0.507-scene-library-v1",
     });
     expect(() => assertProductionManifestIntegrity(payload)).not.toThrow();
     expect(() =>

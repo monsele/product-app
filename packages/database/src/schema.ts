@@ -1036,6 +1036,11 @@ export const auditEventTypeValues = [
   "storyboard.edited",
   "audio.generation_requested",
   "export.downloaded",
+  "demonstration.comparison_created",
+  "demonstration.variant_requested",
+  "demonstration.variant_retried",
+  "demonstration.feedback_saved",
+  "demonstration.test_lesson_created",
 ] as const;
 export const auditEventType = pgEnum("audit_event_type", auditEventTypeValues);
 
@@ -1188,6 +1193,12 @@ export const usageRecords = pgTable(
  * immutable configuration versions referenced by generated artifacts are
  * preserved by downstream stories (ST-042+) rather than stored here.
  */
+/** ST-096 — how a lesson explains itself visually. Mirrors
+ * `videoApproachValues` in `@avlp/schemas`; the enum keeps an unknown value
+ * from ever reaching a row. */
+export const videoApproachValues = ["standard", "demonstration"] as const;
+export const videoApproach = pgEnum("video_approach", videoApproachValues);
+
 export const lessonConfigurations = pgTable(
   "lesson_configurations",
   {
@@ -1201,6 +1212,10 @@ export const lessonConfigurations = pgTable(
     targetDurationSeconds: integer("target_duration_seconds").notNull(),
     tone: text("tone").notNull(),
     visualTheme: text("visual_theme").notNull().default("mvp-default"),
+    /** ST-096. `standard` for every row that existed before the pilot, which
+     * is what the column default encodes: the absence of a choice has always
+     * meant the standard approach and continues to. */
+    videoApproach: videoApproach("video_approach").notNull().default("standard"),
     includeRecallQuestions: boolean("include_recall_questions")
       .notNull()
       .default(false),
@@ -2278,6 +2293,180 @@ export const shareLinks = pgTable(
       table.tokenHash,
       table.status,
       table.expiresAt,
+    ),
+  ],
+);
+
+// ---------------------------------------------------------------------------
+// ST-096 - the demonstration pilot
+// ---------------------------------------------------------------------------
+
+/**
+ * One baseline lesson version, explained two ways.
+ *
+ * A comparison is an additive, tenant-owned record beside the lesson; it never
+ * becomes the project's current state. That separation is what makes AC5
+ * checkable: creating or retrying a comparison touches only these three tables
+ * and a render job, and nothing in `lesson_specs`, `lesson_versions` or
+ * `projects.current_lesson_version_id` can move as a result.
+ *
+ * The uniqueness key is (owner, project, baseline version, experiment version).
+ * Including the experiment version means a change to the pilot's resolution
+ * rules produces a *new* comparison rather than reinterpreting a completed pair
+ * a tester already rated (CR-03).
+ */
+export const demonstrationComparisons = pgTable(
+  "demonstration_comparisons",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    baselineLessonVersionId: uuid("baseline_lesson_version_id")
+      .notNull()
+      .references(() => lessonVersions.id, { onDelete: "restrict" }),
+    /** Copied at creation so a drifted baseline is detectable without
+     * re-reading the version row's snapshot. */
+    baselineContentHash: text("baseline_content_hash").notNull(),
+    sourceSnapshotId: uuid("source_snapshot_id")
+      .notNull()
+      .references(() => sourceSnapshots.id, { onDelete: "restrict" }),
+    experimentVersion: text("experiment_version").notNull(),
+    themeId: text("theme_id").notNull().default("mvp-default"),
+    /** Ordered scene correspondence: stable scene IDs, titles and frame
+     * boundaries, identical for both approaches by construction. */
+    sceneCorrespondence: jsonb("scene_correspondence").notNull(),
+    /** Per-scene audio and caption identities the pair was built from. */
+    mediaIdentity: jsonb("media_identity").notNull(),
+    durationInFrames: integer("duration_in_frames").notNull(),
+    createdBy: uuid("created_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("demonstration_comparisons_baseline_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.baselineLessonVersionId,
+      table.experimentVersion,
+    ),
+    index("demonstration_comparisons_owner_project_created_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.createdAt,
+    ),
+  ],
+);
+
+export const demonstrationVariantStatusValues = [
+  "pending",
+  "queued",
+  "generating",
+  "ready",
+  "failed",
+  "stale",
+] as const;
+export const demonstrationVariantStatus = pgEnum(
+  "demonstration_variant_status",
+  demonstrationVariantStatusValues,
+);
+
+/**
+ * One approach's half of a comparison.
+ *
+ * `identity_sha256` is the render identity from
+ * `demonstrationVariantIdentityInputSchema`, and `approach` is inside the
+ * hashed input - so the two rows of a pair have different identities even
+ * though their narration is byte-identical, which is exactly what CR-06
+ * requires and what a naive content hash would get wrong.
+ *
+ * `render_job_id` may point at a render this project already completed: when a
+ * comparison is created from an existing finished output, that output is
+ * *adopted* rather than re-rendered, which is how AC5's "does not modify the
+ * original render" and AC7's "no duplicate authoritative variant" hold at the
+ * same time.
+ */
+export const demonstrationVariants = pgTable(
+  "demonstration_variants",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    comparisonId: uuid("comparison_id")
+      .notNull()
+      .references(() => demonstrationComparisons.id, { onDelete: "cascade" }),
+    approach: videoApproach("approach").notNull(),
+    status: demonstrationVariantStatus("status").notNull().default("pending"),
+    identitySha256: text("identity_sha256").notNull(),
+    /** The resolved demonstration plan. Null for the standard approach, whose
+     * visuals come from the immutable lesson spec itself. */
+    plan: jsonb("plan"),
+    planSha256: text("plan_sha256"),
+    renderJobId: uuid("render_job_id").references(() => renderJobs.id, {
+      onDelete: "restrict",
+    }),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("demonstration_variants_comparison_approach_unique").on(
+      table.comparisonId,
+      table.approach,
+    ),
+    uniqueIndex("demonstration_variants_tenant_identity_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.identitySha256,
+    ),
+    index("demonstration_variants_owner_project_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.comparisonId,
+    ),
+  ],
+);
+
+/**
+ * A tester's qualitative response to one comparison.
+ *
+ * One row per tester per comparison, updated in place with a monotonic
+ * revision, because the story requires feedback to be updatable while staying
+ * attached to the exact pair it was given about. `rated_variant_ids` records
+ * which variant rows were on screen, so a later regeneration cannot silently
+ * re-attribute an old judgement to a new output.
+ *
+ * The free-text comment is tenant data: it is never written to a log and is
+ * readable only inside the owning project's authorised scope.
+ */
+export const demonstrationFeedback = pgTable(
+  "demonstration_feedback",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    comparisonId: uuid("comparison_id")
+      .notNull()
+      .references(() => demonstrationComparisons.id, { onDelete: "cascade" }),
+    testerUserId: uuid("tester_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    revision: revisionColumn(),
+    ratings: jsonb("ratings").notNull(),
+    preference: text("preference"),
+    comment: text("comment"),
+    ratedVariantIds: jsonb("rated_variant_ids").notNull(),
+    /** Immutable rendered-video identities present when this revision was
+     * submitted. `demonstration_variants.render_job_id` may change on retry. */
+    ratedOutputs: jsonb("rated_outputs").notNull().default([]),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("demonstration_feedback_comparison_tester_unique").on(
+      table.comparisonId,
+      table.testerUserId,
+    ),
+    index("demonstration_feedback_owner_project_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.comparisonId,
     ),
   ],
 );

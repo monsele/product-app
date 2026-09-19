@@ -50,6 +50,11 @@ import {
   type ConfigurationFormState,
 } from "./lesson-configuration-input";
 import {
+  demonstrationEligibilitySchema,
+  type DemonstrationEligibility,
+} from "@avlp/schemas/demonstration-pilot";
+import { VideoApproachSelector } from "./video-approach-selector";
+import {
   addPronunciationOverride,
   defaultVoiceFormState,
   fallbackVoices,
@@ -123,6 +128,13 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
   const [saveStatus, setSaveStatus] = useState<SaveStatus>({ kind: "idle" });
   const stageNavigation = useStageNavigation();
 
+  // ST-096. The server's authoritative answer about the experimental approach.
+  // It stays null until the answer arrives, so the selector shows the standard
+  // option alone rather than offering an experimental one it may have to
+  // retract a moment later.
+  const [approachEligibility, setApproachEligibility] =
+    useState<DemonstrationEligibility | null>(null);
+
   // Audio preview state
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const [audioLoadingVoiceId, setAudioLoadingVoiceId] = useState<string | null>(
@@ -143,7 +155,8 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
   const loadData = useCallback(async () => {
     try {
       setLoadingState({ kind: "loading" });
-      const [lessonRes, voiceConfigRes, catalogRes] = await Promise.all([
+      const [lessonRes, voiceConfigRes, catalogRes, eligibilityRes] =
+        await Promise.all([
         fetch(apiUrl(`/projects/${encodeURIComponent(projectId)}/configuration`), {
           credentials: "include",
           cache: "no-store",
@@ -155,6 +168,12 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
           { credentials: "include", cache: "no-store" },
         ),
         fetch(apiUrl("/voices"), { credentials: "include", cache: "no-store" }),
+        fetch(
+          apiUrl(
+            `/projects/${encodeURIComponent(projectId)}/demonstration-eligibility`,
+          ),
+          { credentials: "include", cache: "no-store" },
+        ),
       ]);
 
       if (!lessonRes.ok || !voiceConfigRes.ok) {
@@ -216,6 +235,19 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
       if (currentVoice !== null) {
         setVoiceForm(formStateFromVoiceConfiguration(currentVoice));
       }
+
+      // An eligibility endpoint that is unavailable leaves the experimental
+      // option hidden rather than failing the whole configuration screen: the
+      // standard approach is always available, and a pilot that cannot be
+      // reached is simply a pilot that is not on offer here.
+      const eligibilityPayload: unknown = eligibilityRes.ok
+        ? await eligibilityRes.json().catch(() => null)
+        : null;
+      const parsedEligibility =
+        demonstrationEligibilitySchema.safeParse(eligibilityPayload);
+      setApproachEligibility(
+        parsedEligibility.success ? parsedEligibility.data : null,
+      );
 
       setSaveStatus({ kind: "idle" });
       setFieldErrors({});
@@ -1459,6 +1491,89 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
               </div>
               <StatusLabel status="success" label="Active MVP Theme" />
             </div>
+          </fieldset>
+
+          {/* Section 3b: Video approach (ST-096) */}
+          <fieldset
+            style={{
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-card)",
+              padding: "20px",
+              backgroundColor: "var(--color-surface)",
+              margin: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+            }}
+          >
+            <legend
+              style={{
+                fontSize: "16px",
+                fontWeight: 600,
+                color: "var(--color-text)",
+                padding: "0 8px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              <Palette
+                size={18}
+                weight="bold"
+                style={{ color: "var(--color-brand)" }}
+              />
+              Video approach
+            </legend>
+            <p
+              style={{
+                margin: 0,
+                fontSize: "12px",
+                lineHeight: "17px",
+                color: "var(--color-text-muted)",
+              }}
+            >
+              How the lesson explains itself visually. This is separate from the
+              visual theme and the narrator voice, and it is chosen before the
+              storyboard is generated.
+            </p>
+            <VideoApproachSelector
+              disabled={saveStatus.kind === "saving"}
+              eligibility={approachEligibility}
+              onChange={(approach) => {
+                setLessonForm((prev) => ({ ...prev, videoApproach: approach }));
+              }}
+              onOpenTestLesson={async (subject) => {
+                const response = await fetch(
+                  apiUrl("/demonstration-test-lessons"),
+                  {
+                    method: "POST",
+                    credentials: "include",
+                    cache: "no-store",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ subject }),
+                  },
+                );
+                const payload: unknown = await response
+                  .json()
+                  .catch(() => null);
+                if (!response.ok)
+                  throw new Error(
+                    extractErrorMessage(
+                      payload,
+                      "The supported test lesson could not be opened.",
+                    ),
+                  );
+                const created = payload as { projectId?: unknown };
+                if (typeof created.projectId !== "string")
+                  throw new Error(
+                    "The supported test lesson could not be opened.",
+                  );
+                router.push(
+                  `/workspace/${encodeURIComponent(created.projectId)}/configuration`,
+                );
+              }}
+              value={lessonForm.videoApproach}
+            />
           </fieldset>
 
           {/* Section 4: Narrator Voice & Delivery */}

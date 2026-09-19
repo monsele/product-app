@@ -1045,6 +1045,27 @@ export function RenderPanel({
         </section>
 
         {/* GROUPED DOWNLOADS & EXPORTS SECTION */}
+        {/* ST-096: the comparison workflow is reachable from delivery, where a
+            tester already has an output to compare against. It is a link
+            rather than an embedded panel so the standard delivery screen is
+            unchanged for everyone outside the pilot. */}
+        <a
+          href={`/workspace/${encodeURIComponent(projectId)}/compare`}
+          style={{
+            alignSelf: "flex-start",
+            padding: "10px 14px",
+            fontSize: "13px",
+            fontWeight: 600,
+            color: "var(--color-brand)",
+            backgroundColor: "var(--color-surface)",
+            border: "1px solid var(--color-border)",
+            borderRadius: "var(--radius-control)",
+            textDecoration: "none",
+          }}
+        >
+          Compare video approaches
+        </a>
+
         <section
           aria-labelledby="downloads-heading"
           style={{

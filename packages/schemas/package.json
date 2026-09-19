@@ -15,6 +15,10 @@
     "./demonstration-proof": {
       "types": "./dist/demonstration-proof.d.ts",
       "default": "./dist/demonstration-proof.js"
+    },
+    "./demonstration-pilot": {
+      "types": "./dist/demonstration-pilot.d.ts",
+      "default": "./dist/demonstration-pilot.js"
     }
   },
   "scripts": {

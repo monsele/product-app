@@ -40,6 +40,15 @@ import { SceneAudioService } from "./scene-audio.js";
 import { PreviewManifestService } from "./preview-manifest.js";
 import { PostgresLessonValidationService } from "./lesson-validation.js";
 import { PostgresRenderService } from "./renders.js";
+import {
+  createEnvironmentPilotCohort,
+  installDemonstrationNarrationRegistry,
+  PostgresDemonstrationPilotService,
+} from "./demonstration-pilot.js";
+import {
+  installDemonstrationSeedNarration,
+  PostgresDemonstrationTestLessonService,
+} from "./demonstration-test-lessons.js";
 import { ExportService } from "./exports.js";
 import { PostgresShareLinkService } from "./share-links.js";
 
@@ -96,97 +105,143 @@ export async function runApi(input: {
     const lessonValidationService = new PostgresLessonValidationService(
       database.client,
     );
-      const sourceSnapshotService = new PostgresSourceSnapshotService(
+    const sourceSnapshotService = new PostgresSourceSnapshotService(
+      database.client,
+    );
+    const citationHistoryService = new PostgresCitationHistoryService(
+      database.client,
+      (input) => sourceSnapshotService.resolveSourceRefs(input),
+    );
+    const renderService = new PostgresRenderService(
+      database.client,
+      lessonValidationService,
+      {
+        maxConcurrentPerProject: environment.RENDER_CONCURRENCY,
+        maxStartsPerProjectHour: environment.MAX_RENDERS_PER_HOUR,
+      },
+      undefined,
+      storage,
+      sourceSnapshotService,
+    );
+    const demonstrationPilotCohort = createEnvironmentPilotCohort(environment);
+    // ST-096. The generated narration module carries fifteen megabytes of
+    // base64 audio, so it is loaded once here, when the pilot is actually
+    // configured, rather than imported at the top of every module that needs a
+    // beat list. A server with the pilot off never pays for it.
+    if (demonstrationPilotCohort.enabled()) {
+      const { demonstrationNarrationLibrary } =
+        await import("@avlp/scene-library/demonstration-proof");
+      const track = (trackId: string) => {
+        const record = demonstrationNarrationLibrary[trackId];
+        if (record === undefined)
+          throw new Error(`No generated narration track "${trackId}".`);
+        return record;
+      };
+      installDemonstrationNarrationRegistry((trackId) => {
+        const record = track(trackId);
+        return {
+          beats: record.beats.map((beat) => ({ ...beat })),
+          timingProvenance: record.timingProvenance,
+        };
+      });
+      installDemonstrationSeedNarration((trackId) => {
+        const record = track(trackId);
+        return {
+          beats: record.beats.map((beat) => ({ ...beat })),
+          checksumSha256: record.checksumSha256,
+          durationMs: record.durationMs,
+          src: record.src,
+        };
+      });
+    }
+    const demonstrationPilotService = new PostgresDemonstrationPilotService(
+      database.client,
+      demonstrationPilotCohort,
+      renderService,
+      storage,
+    );
+    const app = await createApp({
+      database,
+      authGateway: new PostgresAuthGateway(
         database.client,
-      );
-      const citationHistoryService = new PostgresCitationHistoryService(
+        environment.AUTH_SESSION_SECRET,
+        undefined,
+        environment.PASSWORD_RESET_EMAIL_WEBHOOK_URL === undefined
+          ? undefined
+          : new WebhookPasswordResetEmailSender(
+              environment.PASSWORD_RESET_EMAIL_WEBHOOK_URL,
+              environment.PASSWORD_RESET_EMAIL_WEBHOOK_TOKEN,
+            ),
+        environment.WEB_ORIGIN ?? "http://localhost:3000",
+        environment.PASSWORD_RESET_TTL_SECONDS * 1000,
+        environment.PASSWORD_RESET_RESPONSE_FLOOR_MS,
+      ),
+      authRateLimiter: new InMemoryAuthRateLimiter(
+        environment.AUTH_SESSION_SECRET,
+      ),
+      projectService: new ProjectService(projectRepository),
+      sourceUploadService: new SourceUploadService(
+        new PostgresSourceUploadRepository(database.client),
+        storage,
+        undefined,
+        environment.MAX_UPLOAD_BYTES,
+      ),
+      projectAssetService: new ProjectAssetService(database.client, storage),
+      illustrationGenerationService: new IllustrationGenerationService(
         database.client,
-        (input) => sourceSnapshotService.resolveSourceRefs(input),
-      );
-      const app = await createApp({
-        database,
-        authGateway: new PostgresAuthGateway(
-          database.client,
-          environment.AUTH_SESSION_SECRET,
-          undefined,
-          environment.PASSWORD_RESET_EMAIL_WEBHOOK_URL === undefined
-            ? undefined
-            : new WebhookPasswordResetEmailSender(
-                environment.PASSWORD_RESET_EMAIL_WEBHOOK_URL,
-                environment.PASSWORD_RESET_EMAIL_WEBHOOK_TOKEN,
-              ),
-          environment.WEB_ORIGIN ?? "http://localhost:3000",
-          environment.PASSWORD_RESET_TTL_SECONDS * 1000,
-          environment.PASSWORD_RESET_RESPONSE_FLOOR_MS,
-        ),
-        authRateLimiter: new InMemoryAuthRateLimiter(
-          environment.AUTH_SESSION_SECRET,
-        ),
-        projectService: new ProjectService(projectRepository),
-        sourceUploadService: new SourceUploadService(
-          new PostgresSourceUploadRepository(database.client),
-          storage,
-          undefined,
-          environment.MAX_UPLOAD_BYTES,
-        ),
-        projectAssetService: new ProjectAssetService(database.client, storage),
-        illustrationGenerationService: new IllustrationGenerationService(
-          database.client,
-        ),
-        ingestionStatusService: new PostgresIngestionStatusService(
-          database.client,
-        ),
-        parsedDocumentReviewService: new PostgresParsedDocumentReviewService(
-          parsedDocumentRepository,
-          authorizedProjectStorage,
-        ),
-        sourceSectionSelectionService: new PostgresSourceSectionSelectionService(
-          database.client,
-        ),
-        contentBlockCorrectionService: new PostgresContentBlockCorrectionService(
-          database.client,
-        ),
-        figureInclusionService: new PostgresFigureInclusionService(
-          database.client,
-        ),
-        lessonConfigurationService: new PostgresLessonConfigurationService(
-          database.client,
-        ),
+      ),
+      ingestionStatusService: new PostgresIngestionStatusService(
+        database.client,
+      ),
+      parsedDocumentReviewService: new PostgresParsedDocumentReviewService(
+        parsedDocumentRepository,
+        authorizedProjectStorage,
+      ),
+      sourceSectionSelectionService: new PostgresSourceSectionSelectionService(
+        database.client,
+      ),
+      contentBlockCorrectionService: new PostgresContentBlockCorrectionService(
+        database.client,
+      ),
+      figureInclusionService: new PostgresFigureInclusionService(
+        database.client,
+      ),
+      lessonConfigurationService: new PostgresLessonConfigurationService(
+        database.client,
+        undefined,
+        (scope) => demonstrationPilotService.eligibility(scope),
+      ),
+      sourceSnapshotService,
+      sourceVisualsService: new PostgresSourceVisualsService(
+        database.client,
         sourceSnapshotService,
-        sourceVisualsService: new PostgresSourceVisualsService(
-          database.client,
-          sourceSnapshotService,
-          storage,
-        ),
-        objectivesService: new PostgresObjectivesService(
-          database.client,
-          (input) => sourceSnapshotService.status(input),
-        ),
-        outlineService: new PostgresOutlineService(
-          database.client,
-          (input) => sourceSnapshotService.status(input),
-        ),
-        narrationService: new PostgresNarrationService(
-          database.client,
-          (input) => sourceSnapshotService.status(input),
-        ),
-        storyboardService: new PostgresStoryboardService(
-          database.client,
-          (input) => sourceSnapshotService.status(input),
-          (input) => sourceSnapshotService.latestApprovedVisuals(input),
-        ),
-        citationService: new PostgresCitationService(
-          database.client,
-          (input) => sourceSnapshotService.resolveSourceRefs(input),
-        ),
-        groundingService: new PostgresGroundingService(
-          database.client,
-          (input) => sourceSnapshotService.status(input),
-        ),
-        lessonVersionsService: new PostgresLessonVersionsService(
-          database.client,
-          citationHistoryService,
-        ),
+        storage,
+      ),
+      objectivesService: new PostgresObjectivesService(
+        database.client,
+        (input) => sourceSnapshotService.status(input),
+      ),
+      outlineService: new PostgresOutlineService(database.client, (input) =>
+        sourceSnapshotService.status(input),
+      ),
+      narrationService: new PostgresNarrationService(database.client, (input) =>
+        sourceSnapshotService.status(input),
+      ),
+      storyboardService: new PostgresStoryboardService(
+        database.client,
+        (input) => sourceSnapshotService.status(input),
+        (input) => sourceSnapshotService.latestApprovedVisuals(input),
+      ),
+      citationService: new PostgresCitationService(database.client, (input) =>
+        sourceSnapshotService.resolveSourceRefs(input),
+      ),
+      groundingService: new PostgresGroundingService(database.client, (input) =>
+        sourceSnapshotService.status(input),
+      ),
+      lessonVersionsService: new PostgresLessonVersionsService(
+        database.client,
+        citationHistoryService,
+      ),
       voiceConfigurationService: new PostgresVoiceConfigurationService(
         database.client,
       ),
@@ -201,22 +256,16 @@ export async function runApi(input: {
         sourceSnapshotService,
       ),
       lessonValidationService,
-      renderService: new PostgresRenderService(
-        database.client,
-        lessonValidationService,
-        {
-          maxConcurrentPerProject: environment.RENDER_CONCURRENCY,
-          maxStartsPerProjectHour: environment.MAX_RENDERS_PER_HOUR,
-        },
-        undefined,
-        storage,
-        sourceSnapshotService,
-      ),
+      renderService,
       exportService: new ExportService(
         database.client,
         authorizedProjectStorage,
       ),
       shareLinkService: new PostgresShareLinkService(database.client, storage),
+      demonstrationPilotService,
+      demonstrationTestLessonService:
+        new PostgresDemonstrationTestLessonService(database.client, storage),
+      demonstrationPilotCohort,
       projectAuthorizer,
       ...(environment.WEB_ORIGIN === undefined
         ? {}

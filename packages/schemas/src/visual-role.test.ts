@@ -42,10 +42,11 @@ describe("visualRoleSchema / assetProvenanceSchema", () => {
     ]);
   });
 
-  it("enumerates the four provenances", () => {
+  it("enumerates the five provenances", () => {
     expect(assetProvenanceSchema.options).toEqual([
       "catalog",
       "source_figure",
+      "source_table",
       "teacher_uploaded",
       "ai_generated",
     ]);

@@ -63,6 +63,51 @@ export const demonstrationHashPolicy =
 export const demonstrationFps = 30 as const;
 
 // ---------------------------------------------------------------------------
+// Media source (ST-096)
+// ---------------------------------------------------------------------------
+
+/**
+ * Where a composition reads one piece of media from at playback time.
+ *
+ * ST-095 accepted only a bundled `data:` URI, because the proof carried its own
+ * media inside the module. Its own record listed that as limitation L3: a
+ * production lesson's audio and artwork live in tenant-scoped private storage
+ * and are reached through a short-lived signed URL, exactly as
+ * `hydrateProductionComposition` already resolves the standard approach's
+ * media. ST-096 widens the field to admit that resolved form, and ADR-007
+ * records the change.
+ *
+ * What is deliberately *not* widened: this is still a resolved location handed
+ * to the renderer at execution time, never part of content identity. A signed
+ * URL is a delivery credential (CR-02), so it is excluded from every hash by
+ * `canonicalDemonstrationJson`'s callers, which hash storage keys and
+ * checksums instead.
+ */
+const dataUriAudioPattern = /^data:audio\/wav;base64,[A-Za-z0-9+/=]+$/;
+const dataUriImagePattern = /^data:image\/(png|svg\+xml);base64,[A-Za-z0-9+/=]+$/;
+const resolvedMediaUrlPattern = /^https?:\/\/[^\s"'<>]+$/;
+
+export const demonstrationAudioSrcSchema = z
+  .string()
+  .min(1)
+  .max(80_000_000)
+  .refine(
+    (value) =>
+      dataUriAudioPattern.test(value) || resolvedMediaUrlPattern.test(value),
+    "Demonstration narration must be a bundled base64 WAV data URI or a resolved http(s) media URL.",
+  );
+
+export const demonstrationImageSrcSchema = z
+  .string()
+  .min(1)
+  .max(4_000_000)
+  .refine(
+    (value) =>
+      dataUriImagePattern.test(value) || resolvedMediaUrlPattern.test(value),
+    "A demonstration asset must be a bundled base64 data URI or a resolved http(s) media URL.",
+  );
+
+// ---------------------------------------------------------------------------
 // Recipes
 // ---------------------------------------------------------------------------
 
@@ -523,14 +568,7 @@ export const demonstrationNarrationTrackSchema = z
     sceneId: identifierSchema,
     durationMs: z.number().int().positive().max(600_000),
     checksumSha256: z.string().regex(/^[a-f0-9]{64}$/),
-    src: z
-      .string()
-      .min(1)
-      .max(80_000_000)
-      .regex(
-        /^data:audio\/wav;base64,[A-Za-z0-9+/=]+$/,
-        "Proof narration must be a bundled base64 WAV data URI.",
-      ),
+    src: demonstrationAudioSrcSchema,
     beats: z.array(demonstrationBeatSchema).min(1).max(60),
     timingProvenance: demonstrationTimingProvenanceSchema,
   })
@@ -740,14 +778,7 @@ export const demonstrationAssetSchema = z
     height: z.number().int().positive().max(8_640),
     width: z.number().int().positive().max(8_640),
     provenance: boundedText(500),
-    src: z
-      .string()
-      .min(1)
-      .max(4_000_000)
-      .regex(
-        /^data:image\/(png|svg\+xml);base64,[A-Za-z0-9+/=]+$/,
-        "A demonstration asset must be a bundled base64 data URI.",
-      ),
+    src: demonstrationImageSrcSchema,
   })
   .strict();
 export type DemonstrationAsset = z.infer<typeof demonstrationAssetSchema>;

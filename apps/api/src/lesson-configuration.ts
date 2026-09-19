@@ -17,11 +17,14 @@ import {
   lessonConfigurationInputSchema,
   lessonConfigurationSchema,
   lessonConfigurationResponseSchema,
+  defaultVideoApproach,
   narrationWordCountRange,
+  readVideoApproach,
   type LessonConfiguration,
   type LessonConfigurationInput,
   type LessonConfigurationResponse,
 } from "@avlp/schemas";
+import type { DemonstrationEligibility } from "@avlp/schemas/demonstration-pilot";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { findLatestProjectParsedDocument } from "./project-parsed-document.js";
@@ -46,10 +49,25 @@ type SourceContext = {
   sourceReviewComplete: boolean;
 };
 
+/** The pilot service remains the authority for an experimental configuration
+ * choice. Kept as a narrow dependency so ordinary configuration persistence
+ * does not need to know about recipes or cohort implementation details. */
+export type DemonstrationApproachEligibility = Pick<
+  DemonstrationEligibility,
+  "reasons" | "selectable"
+>;
+
 export class PostgresLessonConfigurationService implements LessonConfigurationService {
   public constructor(
     private readonly database: DatabaseClient,
     private readonly now: () => Date = () => new Date(),
+    private readonly demonstrationEligibility: (input: {
+      ownerUserId: Identifier;
+      projectId: Identifier;
+    }) => Promise<DemonstrationApproachEligibility> = async () => ({
+      selectable: false,
+      reasons: [],
+    }),
   ) {}
 
   public async get(
@@ -106,6 +124,32 @@ export class PostgresLessonConfigurationService implements LessonConfigurationSe
       );
       assertExpectedVersion(current, parsed.expectedVersion);
 
+      // A stale or hand-crafted request must not persist an experimental choice
+      // merely because the browser hid its radio control. Recheck the *effective*
+      // value too: an existing demonstration choice remains subject to the same
+      // rule when another configuration field is saved.
+      const effectiveApproach =
+        parsed.videoApproach ?? current?.videoApproach ?? defaultVideoApproach;
+      if (effectiveApproach === "demonstration") {
+        const eligibility = await this.demonstrationEligibility({
+          ownerUserId: input.ownerUserId,
+          projectId: input.projectId,
+        });
+        if (!eligibility.selectable)
+          throw new PublicError(
+            "bad_request",
+            "The demonstration-led approach is not available for this lesson.",
+            409,
+            false,
+            Object.fromEntries(
+              eligibility.reasons.map((reason, index) => [
+                `reasons.${index}`,
+                `${reason.code}: ${reason.suggestedCorrection}`,
+              ]),
+            ),
+          );
+      }
+
       const nextVersion = current === undefined ? 1 : current.version + 1;
       let saved: ConfigRow;
       if (current === undefined) {
@@ -123,6 +167,7 @@ export class PostgresLessonConfigurationService implements LessonConfigurationSe
             targetDurationSeconds: parsed.targetDurationSeconds,
             tone: parsed.tone,
             visualTheme: "mvp-default",
+            videoApproach: parsed.videoApproach ?? defaultVideoApproach,
             includeRecallQuestions: parsed.includeRecallQuestions,
             sourceParsedDocumentVersion: source.parsedDocumentVersion,
             createdAt: timestamp,
@@ -145,6 +190,12 @@ export class PostgresLessonConfigurationService implements LessonConfigurationSe
             lessonTitle: parsed.lessonTitle,
             targetDurationSeconds: parsed.targetDurationSeconds,
             tone: parsed.tone,
+            // Omitting the field leaves the stored choice alone, which is what
+            // a client that predates ST-096 means by not sending it. Only an
+            // explicit value changes the approach.
+            ...(parsed.videoApproach === undefined
+              ? {}
+              : { videoApproach: parsed.videoApproach }),
             includeRecallQuestions: parsed.includeRecallQuestions,
             sourceParsedDocumentVersion: source.parsedDocumentVersion,
             updatedAt: timestamp,
@@ -190,6 +241,7 @@ export class PostgresLessonConfigurationService implements LessonConfigurationSe
         correlationId: input.correlationId,
         metadata: {
           version: saved.version,
+          videoApproach: saved.videoApproach,
           sourceParsedDocumentVersion: saved.sourceParsedDocumentVersion,
           stage:
             project.stage === "ingestion_review"
@@ -352,6 +404,11 @@ function toConfiguration(row: ConfigRow): NonNullable<LessonConfiguration> {
     targetDurationSeconds: row.targetDurationSeconds,
     tone: row.tone,
     visualTheme: row.visualTheme,
+    // ST-096. A row written before the column existed is impossible - the
+    // migration gave every row `standard` - but the reader is used anyway so
+    // the whole codebase has exactly one place that decides what an absent or
+    // unknown approach means.
+    videoApproach: readVideoApproach(row.videoApproach),
     includeRecallQuestions: row.includeRecallQuestions,
     sourceParsedDocumentVersion: row.sourceParsedDocumentVersion,
     updatedAt: serializeUtcTimestamp(row.updatedAt),

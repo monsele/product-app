@@ -22,6 +22,24 @@ describe("full lesson Remotion composition", () => {
       inputProps: photosynthesisThreeMinutePreview,
       serveUrl,
     });
+    const differentLengthProps = {
+      ...photosynthesisThreeMinutePreview,
+      lesson: {
+        ...photosynthesisThreeMinutePreview.lesson,
+        scenes: photosynthesisThreeMinutePreview.lesson.scenes.map(
+          (scene, index) =>
+            index === 0
+              ? { ...scene, durationSeconds: scene.durationSeconds + 1 }
+              : scene,
+        ),
+      },
+    };
+    const differentLengthComposition = await selectComposition({
+      browserExecutable,
+      id: fullLessonRuntimeCompositionId,
+      inputProps: differentLengthProps,
+      serveUrl,
+    });
     const first = await renderStill({
       browserExecutable,
       composition,
@@ -47,6 +65,7 @@ describe("full lesson Remotion composition", () => {
       serveUrl,
     });
     expect(composition.durationInFrames).toBe(5400);
+    expect(differentLengthComposition.durationInFrames).toBe(5430);
     expect(first.buffer?.subarray(0, 8)).toEqual(
       Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
     );
@@ -55,11 +74,15 @@ describe("full lesson Remotion composition", () => {
       createHash("sha256")
         .update(first.buffer ?? Buffer.alloc(0))
         .digest("hex"),
-    ).toMatchInlineSnapshot(`"3c51a993d6ff7b674f379b2cd0cba54b448b9246a9c94cf342e851dc4b480d51"`);
+    ).toMatchInlineSnapshot(
+      `"3c51a993d6ff7b674f379b2cd0cba54b448b9246a9c94cf342e851dc4b480d51"`,
+    );
     expect(
       createHash("sha256")
         .update(transition.buffer ?? Buffer.alloc(0))
         .digest("hex"),
-    ).toMatchInlineSnapshot(`"f1ddbd37ed9d9f42a1155cd73a788214cad42688848418efa8a8061d57270206"`);
+    ).toMatchInlineSnapshot(
+      `"f1ddbd37ed9d9f42a1155cd73a788214cad42688848418efa8a8061d57270206"`,
+    );
   }, 120_000);
 });

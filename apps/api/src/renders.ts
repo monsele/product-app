@@ -27,10 +27,13 @@ import {
   hashJobOptions,
 } from "@avlp/jobs";
 import { PostgresAuditWriter } from "@avlp/observability";
+import type { DemonstrationVariantPlan } from "@avlp/schemas/demonstration-pilot";
 import {
   renderRequestSchema,
   renderStatusResponseSchema,
   lessonSpecSchema,
+  readVideoApproach,
+  type VideoApproach,
   sourceTableVisualMaxCellLength,
   sourceTableVisualMaxColumns,
   sourceTableVisualMaxRows,
@@ -52,7 +55,7 @@ const renderProfile = Object.freeze({
   audioCodec: "aac",
   pixelFormat: "yuv420p",
 });
-const rendererVersion = "st-024-remotion-4.0.507-scene-library-v1";
+const rendererVersion = "st-096-remotion-4.0.507-scene-library-v1";
 const defaultRenderLimits = Object.freeze({
   maxConcurrentPerProject: 1,
   maxStartsPerProjectHour: 12,
@@ -76,6 +79,8 @@ export interface RenderService {
       body: unknown;
       correlationId: Identifier;
       idempotencyKey?: string;
+      /** ST-096. Present only for a demonstration-pilot comparison variant. */
+      variant?: RenderVariantInput;
     },
   ): Promise<RenderStatusResponse>;
   list(input: Scope): Promise<{ renders: RenderStatusResponse[] }>;
@@ -121,18 +126,57 @@ export const renderEnvelopePayloadSchema = z
   })
   .strict();
 /** A render profile/version identifies one paid logical operation. Request
- * tokens intentionally do not alter this key, preventing duplicate renders. */
+ * tokens intentionally do not alter this key, preventing duplicate renders.
+ *
+ * ST-096 adds `variant`. When it is absent the key is byte-identical to the one
+ * this function has always produced, so every render queued before the pilot
+ * keeps its identity. When it is present, the approach and the comparison are
+ * inside the hashed options — which is what stops the demonstration half of a
+ * pair from colliding with the standard half, whose narration and lesson
+ * version are the same by construction (CR-06). */
 export function renderIdempotencyKey(input: {
   projectId: Identifier;
   lessonVersionContentHash: string;
+  variant?: {
+    approach: VideoApproach;
+    comparisonId: Identifier;
+    planSha256: string | null;
+  };
 }): string {
   return createIdempotencyKey({
     jobType: "lesson.render",
     projectId: input.projectId,
     inputVersion: input.lessonVersionContentHash,
-    options: { profile: renderProfile, rendererVersion },
+    options:
+      input.variant === undefined
+        ? { profile: renderProfile, rendererVersion }
+        : {
+            profile: renderProfile,
+            rendererVersion,
+            variant: {
+              approach: input.variant.approach,
+              comparisonId: input.variant.comparisonId,
+              planSha256: input.variant.planSha256,
+            },
+          },
   });
 }
+
+/**
+ * What a comparison variant adds to an otherwise ordinary production render.
+ *
+ * The standard approach needs only the approach label: its visuals already come
+ * from the immutable lesson spec in the snapshot. The demonstration approach
+ * additionally carries its resolved plan, which the renderer animates instead
+ * of the scene templates. Both go inside the hashed manifest, so neither can be
+ * changed without changing the render identity.
+ */
+export type RenderVariantInput = Readonly<{
+  approach: VideoApproach;
+  comparisonId: Identifier;
+  plan: DemonstrationVariantPlan | null;
+  planSha256: string | null;
+}>;
 function safeErrorCode(
   value: string | null,
 ): z.infer<typeof renderStatusResponseSchema>["errorCode"] {
@@ -202,6 +246,7 @@ export class PostgresRenderService implements RenderService {
       body: unknown;
       correlationId: Identifier;
       idempotencyKey?: string;
+      variant?: RenderVariantInput;
     },
   ): Promise<RenderStatusResponse> {
     const command = parse(renderRequestSchema, input.body);
@@ -237,6 +282,29 @@ export class PostgresRenderService implements RenderService {
           "not_found",
           "The requested lesson version was not found.",
           404,
+        );
+      // ST-096. A render that is not part of a comparison resolves its
+      // approach from the version's own immutable configuration snapshot, and
+      // a snapshot written before the pilot has no such field, which
+      // `readVideoApproach` reads as standard without rewriting the row.
+      const snapshotApproach = readVideoApproach(
+        (
+          (version.snapshot as { configuration?: { videoApproach?: unknown } })
+            .configuration ?? {}
+        ).videoApproach,
+      );
+      const approach: VideoApproach =
+        input.variant?.approach ?? snapshotApproach;
+      // A lesson configured for the demonstration approach cannot be rendered
+      // through the ordinary endpoint, because that path has no resolved plan
+      // to animate. Refusing here is deliberate: the alternative is a render
+      // that quietly produces the standard visuals under a demonstration
+      // label, which is the silent substitution AC2 forbids.
+      if (approach === "demonstration" && input.variant === undefined)
+        throw new PublicError(
+          "bad_request",
+          "This lesson is set to the demonstration-led approach. Create a comparison to produce its video.",
+          409,
         );
       const [validation] = await tx
         .select()
@@ -537,6 +605,18 @@ export class PostgresRenderService implements RenderService {
         validationInputHash: validation.inputHash,
         sceneLibraryVersion: version.sceneLibraryVersion,
         schemaVersion: 1 as const,
+        approach,
+        ...(input.variant === undefined
+          ? {}
+          : {
+              comparison: {
+                comparisonId: input.variant.comparisonId,
+                planSha256: input.variant.planSha256,
+              },
+            }),
+        ...(input.variant?.plan == null
+          ? {}
+          : { demonstration: input.variant.plan }),
         audio,
         captions,
         visualAssets,
@@ -547,6 +627,15 @@ export class PostgresRenderService implements RenderService {
       const idempotencyKey = renderIdempotencyKey({
         projectId: input.projectId,
         lessonVersionContentHash: version.contentHash,
+        ...(input.variant === undefined
+          ? {}
+          : {
+              variant: {
+                approach: input.variant.approach,
+                comparisonId: input.variant.comparisonId,
+                planSha256: input.variant.planSha256,
+              },
+            }),
       });
       const [existing] = await tx
         .select({ render: renderJobs, job: jobs })

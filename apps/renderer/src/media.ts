@@ -11,7 +11,11 @@ import {
 import type { FullLessonCompositionProps } from "@avlp/scene-library";
 import ffprobeStatic from "ffprobe-static";
 import { z } from "zod";
-import { fullLessonRuntimeCompositionId } from "@avlp/scene-library";
+import {
+  demonstrationRuntimeCompositionId,
+  fullLessonRuntimeCompositionId,
+} from "@avlp/scene-library";
+import type { DemonstrationCompositionProps } from "@avlp/schemas/demonstration-proof";
 import type { RenderProfile, RenderedVideoMetadata } from "./contracts.js";
 
 const execFileAsync = promisify(execFile);
@@ -73,6 +77,17 @@ function safeFailureDiagnostic(
 export type RenderEngineRequest = {
   browserExecutable?: string;
   composition: Readonly<FullLessonCompositionProps>;
+  /**
+   * ST-096. When present, the engine renders the demonstration composition from
+   * these resolved props instead of the standard lesson.
+   *
+   * `composition` is still required and still carries the immutable lesson: the
+   * tenant check, the asset-manifest verification and the thumbnail all read it,
+   * and a demonstration variant is a different *visual explanation* of the same
+   * lesson, not a different lesson. Keeping both on the request is what lets the
+   * pair be verified as a pair.
+   */
+  demonstration?: Readonly<DemonstrationCompositionProps>;
   outputPath: string;
   profile: RenderProfile;
   onProgress: (progress: number) => Promise<void>;
@@ -247,17 +262,30 @@ export class RemotionRenderEngine implements RenderEngine {
   async #composition(request: {
     browserExecutable?: string;
     composition: Readonly<FullLessonCompositionProps>;
+    demonstration?: Readonly<DemonstrationCompositionProps>;
   }): Promise<{ selected: VideoConfig; serveUrl: string }> {
     const serveUrl = await this.#bundle();
     const selected = await this.#selectRenderComposition({
       ...(request.browserExecutable === undefined
         ? {}
         : { browserExecutable: request.browserExecutable }),
-      id: fullLessonRuntimeCompositionId,
-      inputProps: request.composition,
+      id:
+        request.demonstration === undefined
+          ? fullLessonRuntimeCompositionId
+          : demonstrationRuntimeCompositionId,
+      inputProps: request.demonstration ?? request.composition,
       serveUrl,
     });
     return { selected, serveUrl };
+  }
+
+  /** The props the selected composition is actually rendered with. Kept in one
+   * place so the selection and the render can never disagree about which
+   * approach is being produced. */
+  static #inputProps(
+    request: Pick<RenderEngineRequest, "composition" | "demonstration">,
+  ): Readonly<FullLessonCompositionProps | DemonstrationCompositionProps> {
+    return request.demonstration ?? request.composition;
   }
 
   public async renderVideo(
@@ -278,7 +306,7 @@ export class RemotionRenderEngine implements RenderEngine {
         ...(request.frameRange === undefined
           ? {}
           : { frameRange: request.frameRange }),
-        inputProps: request.composition,
+        inputProps: RemotionRenderEngine.#inputProps(request),
         onProgress: ({ progress }) => {
           progressUpdates = progressUpdates
             .then(() => request.onProgress(progress))
@@ -333,7 +361,7 @@ export class RemotionRenderEngine implements RenderEngine {
         composition: selected,
         frame: representativeFrame,
         imageFormat: "png",
-        inputProps: request.composition,
+        inputProps: RemotionRenderEngine.#inputProps(request),
         output: request.outputPath,
         serveUrl,
       });

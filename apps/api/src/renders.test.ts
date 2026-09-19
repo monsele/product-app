@@ -175,7 +175,7 @@ describe("render API authorization and explicit commands", () => {
       manifest: {},
       optionsHash: "c".repeat(64),
       profile: {},
-      rendererVersion: "st-024-remotion-4.0.507-scene-library-v1",
+      rendererVersion: "st-096-remotion-4.0.507-scene-library-v1",
     };
     expect(renderEnvelopePayloadSchema.parse(payload)).toEqual(payload);
     expect(

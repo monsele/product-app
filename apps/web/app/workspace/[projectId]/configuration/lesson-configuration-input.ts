@@ -8,6 +8,7 @@ import {
   type LessonConfigurationInput,
   type LessonDifficulty,
   type LessonTone,
+  type VideoApproach,
 } from "@avlp/schemas";
 
 export const durationOptions = [
@@ -45,6 +46,9 @@ export interface ConfigurationFormState {
   lessonTitle: string;
   targetDurationSeconds: (typeof durationOptions)[number]["seconds"] | "";
   tone: LessonTone | "";
+  /** ST-096. Always a concrete value in the form; `standard` is the default a
+   * new lesson starts from and the value a legacy configuration reads back as. */
+  videoApproach: VideoApproach;
   includeRecallQuestions: boolean;
 }
 
@@ -57,6 +61,7 @@ export function emptyConfigurationFormState(): ConfigurationFormState {
     lessonTitle: "",
     targetDurationSeconds: "",
     tone: "",
+    videoApproach: "standard",
     includeRecallQuestions: false,
   };
 }
@@ -72,6 +77,7 @@ export function formStateFromConfiguration(
     lessonTitle: configuration.lessonTitle,
     targetDurationSeconds: configuration.targetDurationSeconds,
     tone: configuration.tone,
+    videoApproach: configuration.videoApproach,
     includeRecallQuestions: configuration.includeRecallQuestions,
   };
 }
@@ -104,6 +110,7 @@ export function hasConfigurationChanges(
       current.lessonTitle.trim().length > 0 ||
       current.targetDurationSeconds !== "" ||
       current.tone !== "" ||
+      current.videoApproach !== "standard" ||
       current.includeRecallQuestions !== false
     );
   }
@@ -114,6 +121,7 @@ export function hasConfigurationChanges(
     saved.lessonTitle !== current.lessonTitle.trim() ||
     saved.targetDurationSeconds !== current.targetDurationSeconds ||
     saved.tone !== current.tone ||
+    saved.videoApproach !== current.videoApproach ||
     saved.includeRecallQuestions !== current.includeRecallQuestions
   );
 }
@@ -137,6 +145,7 @@ export function buildConfigurationSaveInput(
     targetDurationSeconds:
       state.targetDurationSeconds as (typeof durationOptions)[number]["seconds"],
     tone: state.tone as LessonTone,
+    videoApproach: state.videoApproach,
     includeRecallQuestions: state.includeRecallQuestions,
   };
 }

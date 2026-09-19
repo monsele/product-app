@@ -17,6 +17,7 @@ export * from "./fixtures.js";
 export * from "./fonts.js";
 export * from "./geometry.js";
 export * from "./narration.js";
+export * from "./pilot-bindings.js";
 export * from "./plan-builder.js";
 export * from "./preview-player.js";
 export * from "./primitives.js";

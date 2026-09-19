@@ -249,6 +249,39 @@ describeWithPostgres("PostgresLessonConfigurationService", () => {
     expect(stored?.sourceParsedDocumentVersion).toBe(1);
   });
 
+  it("refuses a direct demonstration selection when the authoritative pilot check rejects it", async () => {
+    await markSourceReady();
+    service = new PostgresLessonConfigurationService(
+      database!.client,
+      () => new Date("2026-08-14T11:00:00.000Z"),
+      async () => ({
+        selectable: false,
+        reasons: [
+          {
+            code: "no_registered_recipe",
+            message: "No registered recipe supports this lesson.",
+            suggestedCorrection: "Open a supported test lesson.",
+          },
+        ],
+      }),
+    );
+
+    await expect(
+      service.save({
+        ownerUserId,
+        projectId,
+        body: { ...validBody, videoApproach: "demonstration" },
+        correlationId,
+      }),
+    ).rejects.toMatchObject({ code: "bad_request", statusCode: 409 });
+    expect(
+      await database!.client
+        .select()
+        .from(lessonConfigurations)
+        .where(eq(lessonConfigurations.projectId, projectId)),
+    ).toHaveLength(0);
+  });
+
   it("bumps the version on every save and returns it after refresh", async () => {
     await markSourceReady();
     const first = await service.save({

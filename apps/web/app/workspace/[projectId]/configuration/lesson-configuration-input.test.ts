@@ -19,6 +19,7 @@ const persisted: LessonConfiguration = {
   targetDurationSeconds: 300,
   tone: "friendly",
   visualTheme: "mvp-default",
+  videoApproach: "standard",
   includeRecallQuestions: true,
   sourceParsedDocumentVersion: 1,
   updatedAt: "2026-08-16T12:00:00.000Z",
@@ -39,6 +40,7 @@ describe("lesson configuration form input", () => {
       lessonTitle: "The Water Cycle",
       targetDurationSeconds: 300,
       tone: "friendly",
+      videoApproach: "standard",
       includeRecallQuestions: true,
     });
   });

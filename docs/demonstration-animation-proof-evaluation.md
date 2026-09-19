@@ -309,15 +309,38 @@ ever needs to, the contract has a hole.
 `approach` is part of the manifest identity on purpose: a demonstration clip and
 a standard clip of the same facts must never share a render identity.
 
-### What ST-096 still has to decide
+### What ST-096 still had to decide, and what it decided
 
-- Where a plan is persisted and under what schema version. These plans are
-  fixtures; a production plan needs a home, a migration and a place in lesson
-  version history.
-- Tenant ownership, authorisation and cohort gating. The support query is
-  deliberately a pure capability check and takes no tenant.
-- Job lifecycle for the paired render, and comparison records.
-- Whether the AI planner may pick a recipe, and under what grounding rules.
+Each open question above was answered in ST-096. ADR-007 records the decisions
+in full; this is the short form, added here so a reader of this evaluation is
+not left with a list of unresolved questions that are no longer open.
+
+- **Where a plan is persisted.** `demonstration_variants.plan`, as a
+  `demonstrationVariantPlanSchema` document, on an additive tenant-owned record
+  beside the lesson rather than inside `LessonSpec`. No LessonSpec schema
+  version was bumped and no lesson-version snapshot was rewritten.
+- **Tenant ownership, authorisation and cohort gating.** Two closed-by-default
+  environment switches — one feature flag, one cohort list — re-checked
+  server-side on every read and every write. The support query stayed a pure
+  capability check and still takes no tenant.
+- **Job lifecycle.** The existing `render_jobs` path, with the approach inside
+  both the hashed variant identity and the render idempotency key so the two
+  halves of a pair cannot collide. An existing completed plain render of the
+  same baseline is adopted as the standard half rather than re-rendered.
+- **Whether the AI planner may pick a recipe.** It may not. Eligibility is a
+  registered binding matched by ordered stable scene IDs and narration
+  checksums, and the plan is rebuilt by `buildDemonstrationPlan` against the
+  project's own audio. A test asserts the rebuild reproduces the plan proved
+  here byte for byte.
+
+### One limitation this evaluation reported that ST-096 had to lift
+
+Limitation L3 said bundled `data:` media is not a production pattern and that
+production must resolve media through the tenant-scoped asset path. ST-096 did
+that: `demonstrationAudioSrcSchema` and `demonstrationImageSrcSchema` now also
+accept a resolved `http(s)` URL, signed at execution time from a verified
+storage key, exactly as the standard approach's media already was. The
+resolved location is still excluded from content identity.
 
 ## Measurements
 

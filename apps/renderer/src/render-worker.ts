@@ -15,6 +15,7 @@ import {
 import type { StructuredLogger } from "@avlp/observability";
 import type { UsageMeter } from "@avlp/observability";
 import {
+  storageKeySchema,
   storageKeys,
   type ObjectStorage,
   type StorageKey,
@@ -33,9 +34,12 @@ import {
   type ThumbnailResult,
 } from "./contracts.js";
 import {
+  hydrateDemonstrationComposition,
   hydrateProductionComposition,
   loadImmutableFixture,
 } from "./fixture.js";
+import { readVideoApproach } from "@avlp/schemas";
+import { demonstrationVariantPlanSchema } from "@avlp/schemas/demonstration-pilot";
 import {
   RemotionRenderEngine,
   RenderMediaError,
@@ -220,6 +224,53 @@ async function verifyManifest(
   }
 }
 
+/**
+ * ST-096 — the same ownership and integrity checks, for a variant's own media.
+ *
+ * A demonstration variant's artwork is not bound to the lesson spec, so it does
+ * not appear in the shared asset manifest and would otherwise reach the browser
+ * unverified. This applies the identical three checks the standard path
+ * applies — inside the job's tenant prefix, present, and matching its recorded
+ * checksum — because a manifest checksum is not permission to read media
+ * (CR-02), and a swapped asset must fail the render rather than change the
+ * picture.
+ */
+async function verifyDemonstrationAssets(
+  payload: RenderJobPayload,
+  context: JobHandlerContext,
+  storage: ObjectStorage,
+): Promise<void> {
+  const plan = payload.manifest?.demonstration;
+  if (plan === undefined) return;
+  const parsed = demonstrationVariantPlanSchema.parse(plan);
+  const tenantPrefix = storageKeys.projectPrefix({
+    projectId: context.projectId,
+    userId: context.ownerUserId,
+  });
+  for (const asset of parsed.assets) {
+    const key = storageKeySchema.parse(asset.storageKey);
+    if (!key.startsWith(`${tenantPrefix}/`))
+      throw new JobExecutionError(
+        "terminal",
+        "ASSET_TENANT_MISMATCH",
+        "A demonstration asset is outside the job tenant.",
+      );
+    if (!(await storage.exists(key)))
+      throw new JobExecutionError(
+        "terminal",
+        "ASSET_MISSING",
+        "A required demonstration asset is missing.",
+      );
+    const metadata = await storage.getMetadata(key);
+    if (metadata.checksumSha256 !== asset.checksumSha256)
+      throw new JobExecutionError(
+        "terminal",
+        "ASSET_CHECKSUM_MISMATCH",
+        "A required demonstration asset failed integrity verification.",
+      );
+  }
+}
+
 export type RenderHandlerOptions = {
   browserExecutable?: string;
   engine?: RenderEngine;
@@ -297,6 +348,7 @@ function logRenderFailure(
 async function generateThumbnail(input: {
   browserExecutable?: string;
   composition: ReturnType<typeof loadImmutableFixture>;
+  demonstration?: Awaited<ReturnType<typeof hydrateDemonstrationComposition>>;
   engine: RenderEngine;
   identityMetadata: Readonly<Record<string, string>>;
   path: string;
@@ -311,6 +363,9 @@ async function generateThumbnail(input: {
       ? {}
       : { browserExecutable: input.browserExecutable }),
     composition: input.composition,
+    ...(input.demonstration === undefined
+      ? {}
+      : { demonstration: input.demonstration }),
     outputPath: input.path,
     profile: input.profile,
   });
@@ -389,6 +444,9 @@ export function createRenderJobHandler(
     renderJobPayloadSchema,
     async (payload, context): Promise<JobMetadata> => {
       let composition: ReturnType<typeof loadImmutableFixture>;
+      let demonstration:
+        | Awaited<ReturnType<typeof hydrateDemonstrationComposition>>
+        | undefined;
       let preflightStage = "fixture_validation";
       try {
         try {
@@ -412,12 +470,24 @@ export function createRenderJobHandler(
         await options.storage.assertPrivateBucket();
         preflightStage = "asset_manifest_validation";
         await verifyManifest(payload, context, options.storage, composition);
+        preflightStage = "demonstration_asset_validation";
+        await verifyDemonstrationAssets(payload, context, options.storage);
         preflightStage = "media_manifest_resolution";
         composition = await hydrateProductionComposition(
           payload,
           composition,
           options.storage,
         );
+        // ST-096. Resolved after the standard composition, not instead of it:
+        // the lesson, its tenant check and its asset verification are the same
+        // for both approaches, and only the visual explanation differs.
+        if (readVideoApproach(payload.manifest?.approach) === "demonstration") {
+          preflightStage = "demonstration_plan_resolution";
+          demonstration = await hydrateDemonstrationComposition(
+            payload,
+            options.storage,
+          );
+        }
       } catch (error) {
         logRenderFailure(options, context, error, preflightStage);
         throw error;
@@ -471,6 +541,7 @@ export function createRenderJobHandler(
               ? {}
               : { browserExecutable: options.browserExecutable }),
             composition,
+            ...(demonstration === undefined ? {} : { demonstration }),
             onProgress: async (progress) => {
               const nextProgress = Math.min(0.9, progress * 0.9);
               if (nextProgress < 0.9 && nextProgress - reportedProgress < 0.05)
@@ -524,6 +595,7 @@ export function createRenderJobHandler(
                 ? {}
                 : { browserExecutable: options.browserExecutable }),
               composition,
+              ...(demonstration === undefined ? {} : { demonstration }),
               engine,
               identityMetadata: artifactIdentityMetadata(payload),
               path: thumbnailPath,

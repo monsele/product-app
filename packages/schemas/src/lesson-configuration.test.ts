@@ -96,6 +96,7 @@ describe("lesson configuration schemas", () => {
       targetDurationSeconds: 300,
       tone: "friendly",
       visualTheme: "mvp-default",
+      videoApproach: "standard",
       includeRecallQuestions: true,
       sourceParsedDocumentVersion: 3,
       updatedAt: "2026-08-16T12:00:00.000Z",

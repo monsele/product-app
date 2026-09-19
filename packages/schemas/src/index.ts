@@ -2604,6 +2604,39 @@ export const lessonToneValues = [
 export const lessonToneSchema = z.enum(lessonToneValues);
 export type LessonTone = z.infer<typeof lessonToneSchema>;
 
+/**
+ * How a lesson explains itself visually (ST-096).
+ *
+ * `standard` is the existing scene-template path. `demonstration` is the
+ * experimental pilot approach proven in ST-095: the same narration, captions,
+ * scene boundaries and `mvp-default` appearance, with objects that move,
+ * accumulate, split and change state instead of static template visuals.
+ *
+ * This is a *configuration* value, not a style: it is orthogonal to
+ * `visualTheme`, which stays `mvp-default` for both approaches so a comparison
+ * measures explanation and not appearance.
+ */
+export const videoApproachValues = ["standard", "demonstration"] as const;
+export const videoApproachSchema = z.enum(videoApproachValues);
+export type VideoApproach = z.infer<typeof videoApproachSchema>;
+export const defaultVideoApproach = "standard" as const satisfies VideoApproach;
+
+/**
+ * The compatibility reader for every stored configuration shape.
+ *
+ * A lesson version approved before this story has no `videoApproach` in its
+ * immutable snapshot JSON, and rewriting those rows is forbidden. Absence
+ * therefore *means* standard, and is read as standard here rather than
+ * defaulted silently at a dozen call sites. An explicit unknown value is an
+ * error, not a fallback: a stored value we cannot interpret must never be
+ * quietly downgraded to standard, because that is exactly the silent approach
+ * substitution AC2 forbids.
+ */
+export function readVideoApproach(value: unknown): VideoApproach {
+  if (value === undefined || value === null) return defaultVideoApproach;
+  return videoApproachSchema.parse(value);
+}
+
 /** Only one visual theme is selectable in the MVP. */
 export const lessonVisualThemeValues = ["mvp-default"] as const;
 export const lessonVisualThemeSchema = z.enum(lessonVisualThemeValues);
@@ -2666,6 +2699,9 @@ export const lessonConfigurationSchema = z
     targetDurationSeconds: targetDurationSecondsSchema,
     tone: lessonToneSchema,
     visualTheme: lessonVisualThemeSchema,
+    /** ST-096. Absent in configurations stored before this story; the API
+     * resolves those through `readVideoApproach` before parsing. */
+    videoApproach: videoApproachSchema,
     includeRecallQuestions: z.boolean(),
     sourceParsedDocumentVersion: z.number().int().positive(),
     updatedAt: z.string().datetime({ offset: true }),
@@ -2687,6 +2723,9 @@ export const lessonConfigurationInputSchema = z
     lessonTitle: z.string().trim().min(1).max(200),
     targetDurationSeconds: targetDurationSecondsSchema,
     tone: lessonToneSchema,
+    /** Omitted by clients that predate ST-096, which keeps the stored value
+     * untouched. An explicit unknown string is rejected at the boundary. */
+    videoApproach: videoApproachSchema.optional(),
     includeRecallQuestions: z.boolean(),
   })
   .strict();

@@ -501,6 +501,21 @@ export const apiEnvironmentSchema = baseEnvironmentSchema
     RENDER_CONCURRENCY: z.coerce.number().int().min(1).max(10).default(1),
     MAX_RENDERS_PER_HOUR: z.coerce.number().int().min(1).max(100).default(12),
     AUTH_RATE_LIMIT_MODE: z.enum(["local", "shared-edge"]).default("local"),
+    /**
+     * ST-096 - the demonstration pilot's cohort gate.
+     *
+     * Two separate switches rather than one, because they answer two different
+     * questions. `ENABLED` is the feature flag: turning it off stops *new*
+     * experimental work while leaving completed comparisons readable to the
+     * testers who produced them. `USER_IDS` is the cohort: who may see and
+     * choose the experimental approach at all. Both default to closed, so an
+     * environment that says nothing runs no pilot.
+     */
+    DEMONSTRATION_PILOT_ENABLED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+    DEMONSTRATION_PILOT_USER_IDS: z.string().max(4_000).default(""),
   })
   .superRefine((value, context) => {
     validateStorageCredentialPair(value, context);

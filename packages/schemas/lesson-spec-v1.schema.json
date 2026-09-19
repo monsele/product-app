@@ -125,6 +125,7 @@
                           "enum": [
                             "catalog",
                             "source_figure",
+                            "source_table",
                             "teacher_uploaded",
                             "ai_generated"
                           ]

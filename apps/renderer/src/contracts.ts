@@ -1,15 +1,32 @@
 import { identifierSchema } from "@avlp/config";
 import { hashJobOptions } from "@avlp/jobs";
 import { fullLessonCompositionPropsSchema } from "@avlp/scene-library";
-import { lessonSpecSchema, sourceTableVisualSchema } from "@avlp/schemas";
+import {
+  lessonSpecSchema,
+  readVideoApproach,
+  sourceTableVisualSchema,
+  videoApproachSchema,
+} from "@avlp/schemas";
 import { sha256ChecksumSchema, storageKeySchema } from "@avlp/storage";
 import { z } from "zod";
 
 export const renderJobType = "lesson.render" as const;
 export const renderPayloadVersion = 1 as const;
 export const manualLessonFixtureId = "photosynthesis-three-minute-v1" as const;
+/**
+ * The rendering implementation's release identity (CR-02, CR-03).
+ *
+ * Bumped from `st-024-...` by ST-096. Two things changed behind it: the
+ * production compositions now resolve their duration from the props actually
+ * being rendered rather than from a checked-in preview fixture, and a
+ * demonstration composition joined the bundle. Both change what a given
+ * manifest renders to, so they must not reuse the previous identity - a stored
+ * output made under `st-024` stays exactly as it was, and a new render of the
+ * same content gets a new identity rather than silently inheriting the old
+ * one's hashes.
+ */
 export const renderImplementationVersion =
-  "st-024-remotion-4.0.507-scene-library-v1" as const;
+  "st-096-remotion-4.0.507-scene-library-v1" as const;
 
 export const renderProfileSchema = z
   .object({
@@ -130,6 +147,32 @@ export const renderJobPayloadSchema = z
         validationRunId: identifierSchema,
         validationInputHash: sha256ChecksumSchema,
         sceneLibraryVersion: z.literal("mvp-v1"),
+        /** ST-096. Absent in manifests queued before the pilot, which is read
+         * as the standard approach — the only approach that existed then. */
+        approach: videoApproachSchema.optional(),
+        /** Present only for a comparison variant (ST-096). */
+        comparison: z
+          .object({
+            comparisonId: identifierSchema,
+            planSha256: sha256ChecksumSchema.nullable(),
+          })
+          .strict()
+          .optional(),
+        /**
+         * The resolved demonstration plan. Required when, and only when, the
+         * approach is `demonstration`: a demonstration render with no plan
+         * would silently fall back to the standard visuals, which is exactly
+         * the substitution ST-096's AC2 forbids.
+         *
+         * Opaque here and parsed strictly at hydration by
+         * `demonstrationVariantPlanSchema`, for the same reason `snapshot` is
+         * opaque: inlining a schema this deep into the envelope's inferred type
+         * makes TypeScript give up on relating two spellings of the same
+         * payload type, and the boundary check is not weakened by moving it a
+         * few lines later — the renderer still refuses to draw anything it has
+         * not parsed.
+         */
+        demonstration: z.unknown().optional(),
         audio: z
           .array(renderAssetSchema)
           .min(1)
@@ -172,6 +215,23 @@ export const renderJobPayloadSchema = z
   })
   .strict()
   .superRefine((value, context) => {
+    const manifestApproach =
+      value.manifest === undefined
+        ? undefined
+        : readVideoApproach(value.manifest.approach);
+    if (manifestApproach === "demonstration" && value.manifest?.demonstration === undefined)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["manifest", "demonstration"],
+        message:
+          "A demonstration render must carry its resolved plan; there is no fallback to the standard visuals.",
+      });
+    if (manifestApproach === "standard" && value.manifest?.demonstration !== undefined)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["manifest", "demonstration"],
+        message: "A standard render must not carry a demonstration plan.",
+      });
     if (value.fixtureId === undefined && value.manifest === undefined)
       context.addIssue({
         code: z.ZodIssueCode.custom,

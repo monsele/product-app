@@ -43,6 +43,7 @@ import {
   passwordResetRequestInputSchema,
   registerInputSchema,
   type AuthGateway,
+  type AuthenticatedUser,
 } from "@avlp/auth";
 import type { DatabaseConnection } from "@avlp/database";
 import {
@@ -86,6 +87,16 @@ import { SceneAudioService } from "./scene-audio.js";
 import type { PreviewManifestService } from "./preview-manifest.js";
 import type { LessonValidationService } from "./lesson-validation.js";
 import type { RenderService } from "./renders.js";
+import {
+  demonstrationEligibilitySchema,
+  demonstrationPilotExperimentVersion,
+  demonstrationTestLessonRequestSchema,
+} from "@avlp/schemas/demonstration-pilot";
+import type {
+  DemonstrationPilotCohort,
+  DemonstrationPilotService,
+} from "./demonstration-pilot.js";
+import type { DemonstrationTestLessonService } from "./demonstration-test-lessons.js";
 import type { ExportService } from "./exports.js";
 import type { ShareLinkService } from "./share-links.js";
 import { searchApprovedAssets } from "./approved-assets.js";
@@ -127,6 +138,11 @@ const LESSON_VALIDATION_SERVICE = Symbol("LESSON_VALIDATION_SERVICE");
 const RENDER_SERVICE = Symbol("RENDER_SERVICE");
 const EXPORT_SERVICE = Symbol("EXPORT_SERVICE");
 const SHARE_LINK_SERVICE = Symbol("SHARE_LINK_SERVICE");
+const DEMONSTRATION_PILOT_SERVICE = Symbol("DEMONSTRATION_PILOT_SERVICE");
+const DEMONSTRATION_PILOT_COHORT = Symbol("DEMONSTRATION_PILOT_COHORT");
+const DEMONSTRATION_TEST_LESSON_SERVICE = Symbol(
+  "DEMONSTRATION_TEST_LESSON_SERVICE",
+);
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -404,6 +420,21 @@ type ShareLinkApiService = Pick<
   ShareLinkService,
   "create" | "list" | "revoke" | "resolve"
 >;
+type DemonstrationPilotApiService = Pick<
+  DemonstrationPilotService,
+  | "eligibility"
+  | "list"
+  | "create"
+  | "detail"
+  | "requestVariant"
+  | "retryVariant"
+  | "feedback"
+  | "saveFeedback"
+>;
+type DemonstrationTestLessonApiService = Pick<
+  DemonstrationTestLessonService,
+  "catalogue" | "create"
+>;
 
 function approvedAssetCatalogFilters(input: {
   query: unknown;
@@ -536,6 +567,10 @@ class ProjectsController {
     private readonly exports: ExportApiService,
     @Inject(SHARE_LINK_SERVICE)
     private readonly shareLinks: ShareLinkApiService,
+    @Inject(DEMONSTRATION_PILOT_SERVICE)
+    private readonly demonstrationPilot: DemonstrationPilotApiService,
+    @Inject(DEMONSTRATION_TEST_LESSON_SERVICE)
+    private readonly demonstrationTestLessons: DemonstrationTestLessonApiService,
   ) {}
 
   @Post()
@@ -1027,6 +1062,129 @@ class ProjectsController {
       ...assertAuthorizedProject(request, projectId),
       body,
       ...(idempotencyKey === undefined ? {} : { idempotencyKey }),
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  /**
+   * ST-096 - the demonstration pilot.
+   *
+   * Every route below re-checks project ownership through the same authorizer
+   * the rest of this controller uses, and the service re-checks cohort
+   * membership and content eligibility on top of it. Neither check is skipped
+   * because the client hid a control.
+   */
+  @Get(":projectId/demonstration-eligibility")
+  public async demonstrationEligibility(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    return this.demonstrationPilot.eligibility(
+      assertAuthorizedProject(request, projectId),
+    );
+  }
+
+  @Get(":projectId/demonstration-comparisons")
+  public async listDemonstrationComparisons(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    return this.demonstrationPilot.list(
+      assertAuthorizedProject(request, projectId),
+    );
+  }
+
+  @Post(":projectId/demonstration-comparisons")
+  @HttpCode(202)
+  public async createDemonstrationComparison(
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.demonstrationPilot.create({
+      ...assertAuthorizedProject(request, projectId),
+      body,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Get(":projectId/demonstration-comparisons/:comparisonId")
+  public async demonstrationComparisonDetail(
+    @Param("projectId") projectId: string,
+    @Param("comparisonId") comparisonId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    return this.demonstrationPilot.detail({
+      ...assertAuthorizedProject(request, projectId),
+      comparisonId: identifierSchema.parse(comparisonId),
+    });
+  }
+
+  @Post(":projectId/demonstration-comparisons/:comparisonId/variants")
+  @HttpCode(202)
+  public async requestDemonstrationVariant(
+    @Param("projectId") projectId: string,
+    @Param("comparisonId") comparisonId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.demonstrationPilot.requestVariant({
+      ...assertAuthorizedProject(request, projectId),
+      comparisonId: identifierSchema.parse(comparisonId),
+      body,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(
+    ":projectId/demonstration-comparisons/:comparisonId/variants/:variantId/retry",
+  )
+  @HttpCode(202)
+  public async retryDemonstrationVariant(
+    @Param("projectId") projectId: string,
+    @Param("comparisonId") comparisonId: string,
+    @Param("variantId") variantId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.demonstrationPilot.retryVariant({
+      ...assertAuthorizedProject(request, projectId),
+      comparisonId: identifierSchema.parse(comparisonId),
+      variantId: identifierSchema.parse(variantId),
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Get(":projectId/demonstration-comparisons/:comparisonId/feedback")
+  public async demonstrationFeedback(
+    @Param("projectId") projectId: string,
+    @Param("comparisonId") comparisonId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    return this.demonstrationPilot.feedback({
+      ...assertAuthorizedProject(request, projectId),
+      comparisonId: identifierSchema.parse(comparisonId),
+    });
+  }
+
+  @Put(":projectId/demonstration-comparisons/:comparisonId/feedback")
+  public async saveDemonstrationFeedback(
+    @Param("projectId") projectId: string,
+    @Param("comparisonId") comparisonId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.demonstrationPilot.saveFeedback({
+      ...assertAuthorizedProject(request, projectId),
+      comparisonId: identifierSchema.parse(comparisonId),
+      body,
       correlationId:
         request.correlationId ?? "00000000-0000-7000-8000-000000000000",
     });
@@ -2535,6 +2693,77 @@ class ProjectsController {
   }
 }
 
+/**
+ * ST-096 - the curated pilot subjects.
+ *
+ * A top-level controller rather than a `projects/...` route, because the
+ * project-authorization hook claims every `/projects/<segment>` URL and treats
+ * a segment that is not a project ID as an inaccessible project. Creating a
+ * pilot lesson has no project to authorise against yet - that is the whole
+ * point of it - so it does not belong under that prefix.
+ *
+ * Cohort membership is checked here, so an uninvited account cannot conjure a
+ * pilot project even though the seeder itself takes no cohort.
+ */
+@Controller("demonstration-test-lessons")
+class DemonstrationTestLessonController {
+  public constructor(
+    @Inject(AUTH_GATEWAY) private readonly auth: AuthGateway,
+    @Inject(TRUSTED_ORIGIN)
+    private readonly trustedOrigin: string | undefined,
+    @Inject(DEMONSTRATION_PILOT_COHORT)
+    private readonly cohort: DemonstrationPilotCohort,
+    @Inject(DEMONSTRATION_TEST_LESSON_SERVICE)
+    private readonly testLessons: DemonstrationTestLessonApiService,
+  ) {}
+
+  async #tester(request: RequestWithAuth): Promise<AuthenticatedUser> {
+    const token = request.cookies[sessionCookieName];
+    const user =
+      token === undefined ? null : await this.auth.currentSession(token);
+    if (user === null)
+      throw new PublicError("unauthorized", "Authentication is required.", 401);
+    if (!this.cohort.includes(user.id) || !this.cohort.enabled())
+      // Deliberately a 404: an account outside the pilot should not be able to
+      // learn that the pilot exists by probing this route.
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return user;
+  }
+
+  @Get()
+  public async list(@Req() request: RequestWithAuth): Promise<unknown> {
+    await this.#tester(request);
+    return { lessons: this.testLessons.catalogue() };
+  }
+
+  @Post()
+  @HttpCode(201)
+  public async create(
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const user = await this.#tester(request);
+    const parsed = demonstrationTestLessonRequestSchema.safeParse(body);
+    if (!parsed.success)
+      throw new PublicError(
+        "validation_failed",
+        "Request validation failed.",
+        400,
+      );
+    return this.testLessons.create({
+      ownerUserId: user.id,
+      subject: parsed.data.subject,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+}
+
 @Controller("share")
 class PublicShareController {
   public constructor(
@@ -2653,6 +2882,7 @@ class DatabaseShutdown implements OnApplicationShutdown {
     AssetsController,
     VoicesController,
     ProjectsController,
+    DemonstrationTestLessonController,
     PublicShareController,
   ],
   providers: [HealthService, DatabaseShutdown],
@@ -2696,6 +2926,9 @@ function createAppModule(
   renderService: RenderApiService,
   exportService: ExportApiService,
   shareLinkService: ShareLinkApiService,
+  demonstrationPilotService: DemonstrationPilotApiService,
+  demonstrationTestLessonService: DemonstrationTestLessonApiService,
+  demonstrationPilotCohort: DemonstrationPilotCohort,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -2749,6 +2982,18 @@ function createAppModule(
       { provide: RENDER_SERVICE, useValue: renderService },
       { provide: EXPORT_SERVICE, useValue: exportService },
       { provide: SHARE_LINK_SERVICE, useValue: shareLinkService },
+      {
+        provide: DEMONSTRATION_PILOT_SERVICE,
+        useValue: demonstrationPilotService,
+      },
+      {
+        provide: DEMONSTRATION_TEST_LESSON_SERVICE,
+        useValue: demonstrationTestLessonService,
+      },
+      {
+        provide: DEMONSTRATION_PILOT_COHORT,
+        useValue: demonstrationPilotCohort,
+      },
     ],
   };
 }
@@ -2787,6 +3032,9 @@ export type CreateAppOptions = {
   renderService?: RenderApiService;
   exportService?: ExportApiService;
   shareLinkService?: ShareLinkApiService;
+  demonstrationPilotService?: DemonstrationPilotApiService;
+  demonstrationTestLessonService?: DemonstrationTestLessonApiService;
+  demonstrationPilotCohort?: DemonstrationPilotCohort;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -3751,6 +3999,109 @@ const unavailableShareLinkService: ShareLinkApiService = {
     ),
 };
 
+/**
+ * The pilot's closed default.
+ *
+ * An API started without the pilot wired does not merely fail its write routes:
+ * its eligibility read reports the experiment as invisible and unselectable,
+ * with a reason. That is the safe direction - an unconfigured deployment shows
+ * no experimental control at all rather than one that appears available and
+ * then fails.
+ */
+const unavailableDemonstrationPilotService: DemonstrationPilotApiService = {
+  eligibility: () =>
+    Promise.resolve(
+      demonstrationEligibilitySchema.parse({
+        experimentVersion: demonstrationPilotExperimentVersion,
+        reasons: [
+          {
+            code: "pilot_disabled",
+            message: "The demonstration pilot is not enabled on this server.",
+            suggestedCorrection:
+              "Continue with the standard explanation. No experimental video can be produced here.",
+          },
+        ],
+        recipes: [],
+        selectable: false,
+        supportedTestLesson: null,
+        visible: false,
+      }),
+    ),
+  list: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "The demonstration pilot is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  create: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "The demonstration pilot is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  detail: () =>
+    Promise.reject(
+      new PublicError("not_found", "The requested resource was not found.", 404),
+    ),
+  requestVariant: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "The demonstration pilot is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  retryVariant: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "The demonstration pilot is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  feedback: () =>
+    Promise.reject(
+      new PublicError("not_found", "The requested resource was not found.", 404),
+    ),
+  saveFeedback: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "The demonstration pilot is unavailable.",
+        503,
+        true,
+      ),
+    ),
+};
+
+/** No pilot configured means no cohort, so the routes answer 404. */
+const closedDemonstrationPilotCohort: DemonstrationPilotCohort = {
+  enabled: () => false,
+  includes: () => false,
+};
+
+const unavailableDemonstrationTestLessonService: DemonstrationTestLessonApiService =
+  {
+    catalogue: () => [],
+    create: () =>
+      Promise.reject(
+        new PublicError(
+          "internal_error",
+          "The demonstration pilot is unavailable.",
+          503,
+          true,
+        ),
+      ),
+  };
+
 export async function createApp(
   options: CreateAppOptions = {},
 ): Promise<NestFastifyApplication> {
@@ -3794,6 +4145,10 @@ export async function createApp(
       options.renderService ?? unavailableRenderService,
       options.exportService ?? unavailableExportService,
       options.shareLinkService ?? unavailableShareLinkService,
+      options.demonstrationPilotService ?? unavailableDemonstrationPilotService,
+      options.demonstrationTestLessonService ??
+        unavailableDemonstrationTestLessonService,
+      options.demonstrationPilotCohort ?? closedDemonstrationPilotCohort,
     ),
     new FastifyAdapter({
       logger: {

@@ -28,6 +28,21 @@ type AudioKey = TenantScope & {
   extension?: "mp3" | "wav";
 };
 type RenderKey = TenantScope & { renderJobId: Identifier };
+/**
+ * ST-096 - a curated demonstration asset inside the project's own prefix.
+ *
+ * Deliberately separate from `assetOriginal`. The teacher-upload path is
+ * restricted to raster formats because an uploaded SVG is executable content,
+ * and widening it to admit the pilot's authored vector artwork would loosen a
+ * restriction that exists for a different reason entirely. These bytes are
+ * written by the server from its own bundle, never uploaded, and they live
+ * under the same tenant prefix so the render worker's ownership and checksum
+ * checks apply to them unchanged.
+ */
+type DemonstrationAssetKey = TenantScope & {
+  assetId: string;
+  extension: "png" | "svg";
+};
 
 function tenantPrefix(scope: TenantScope): string {
   const userId = identifierSchema.parse(scope.userId);
@@ -145,6 +160,14 @@ export const storageKeys = {
       throw new Error("Audio contentHash must be a hexadecimal SHA-256 hash.");
     return validatedKey(
       `${tenantPrefix(input)}/audio/${sceneId}/${contentHash}.${input.extension ?? "mp3"}`,
+    );
+  },
+
+  demonstrationAsset(input: DemonstrationAssetKey): StorageKey {
+    if (!/^[a-z][a-z0-9-]{0,63}$/.test(input.assetId))
+      throw new Error("A demonstration asset ID must be a lower-case slug.");
+    return validatedKey(
+      `${tenantPrefix(input)}/demonstration/assets/${input.assetId}.${input.extension}`,
     );
   },
 

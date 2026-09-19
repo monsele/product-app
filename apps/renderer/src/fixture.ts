@@ -9,6 +9,14 @@ import {
   type RenderJobPayload,
 } from "./contracts.js";
 import { lessonSpecSchema } from "@avlp/schemas";
+import {
+  demonstrationCompositionPropsSchema,
+  type DemonstrationCompositionProps,
+} from "@avlp/schemas/demonstration-proof";
+import {
+  demonstrationVariantPlanSchema,
+  type DemonstrationVariantPlan,
+} from "@avlp/schemas/demonstration-pilot";
 import { type ObjectStorage } from "@avlp/storage";
 
 function deepFreeze<T>(value: T): Readonly<T> {
@@ -44,6 +52,14 @@ export function loadImmutableFixture(
   );
   assertFixtureIntegrity(payload, composition);
   return deepFreeze(composition);
+}
+
+/** A demonstration plan owns the exact caption stream it was validated with. */
+export function hasMatchingDemonstrationCaptions(
+  plan: Pick<DemonstrationVariantPlan, "captions">,
+  captions: unknown,
+): boolean {
+  return JSON.stringify(plan.captions) === JSON.stringify(captions);
 }
 
 /** Resolves private, checksum-verified narration only inside the renderer.
@@ -133,6 +149,114 @@ export async function hydrateProductionComposition(
         kind: "browser-audio" as const,
         sceneId: entry.sceneId,
         src: entry.src,
+      })),
+    }),
+  );
+}
+
+/**
+ * ST-096 — resolves a demonstration variant's composition props.
+ *
+ * The shape of the work is deliberately identical to
+ * `hydrateProductionComposition`: take the immutable manifest, sign each piece
+ * of tenant-owned media at the last possible moment, and parse the result
+ * through the runtime's own contract before anything is drawn. Nothing about
+ * the plan is recomputed here — the events, their frames and the declared end
+ * state all come from the variant record the API resolved and persisted, which
+ * is what CR-01 means by "rendering consumes validated, resolved choices".
+ *
+ * The narration and caption identities come from the *same* manifest fields the
+ * standard approach uses, not from a second copy, so a pair cannot drift into
+ * disagreeing about what was said or when.
+ */
+export async function hydrateDemonstrationComposition(
+  payload: RenderJobPayload,
+  storage: ObjectStorage,
+): Promise<Readonly<DemonstrationCompositionProps>> {
+  const manifest = payload.manifest;
+  if (manifest === undefined)
+    throw new Error("A demonstration render requires a production manifest.");
+  const plan = demonstrationVariantPlanSchema.parse(manifest.demonstration);
+
+  // The plan is the immutable caption input the demonstration composition
+  // displays. A manifest rebuilt from newer caption rows would otherwise let a
+  // worker render two clips with different words/timing and only discover the
+  // mismatch after spending the render. Reject before signing or rendering.
+  if (!hasMatchingDemonstrationCaptions(plan, manifest.captions))
+    throw new Error(
+      "The demonstration plan was built against different captions.",
+    );
+
+  const audioBySceneId = new Map(
+    manifest.audio.map((entry) => [entry.sceneId, entry]),
+  );
+  const narrationTracks = await Promise.all(
+    plan.scenes.map(async (scene) => {
+      const audio = audioBySceneId.get(scene.sceneId);
+      if (audio === undefined)
+        throw new Error(
+          "The demonstration plan names a scene the manifest has no narration for.",
+        );
+      // The plan's own recorded checksum must be the manifest's, or the
+      // animation was timed against different audio than the one about to be
+      // played over it (ADR-004).
+      if (audio.checksumSha256 !== scene.audio.checksumSha256)
+        throw new Error(
+          "The demonstration plan was timed against different narration audio.",
+        );
+      const signed = await storage.createSignedDownload({
+        key: audio.storageKey,
+        expiresInSeconds: 3_600,
+      });
+      return {
+        beats: scene.audio.beats.map((beat) => ({ ...beat })),
+        checksumSha256: audio.checksumSha256,
+        durationMs: scene.audio.durationMs,
+        sceneId: scene.sceneId,
+        src: signed.url,
+        timingProvenance: scene.audio.timingProvenance,
+      };
+    }),
+  );
+
+  const assets = Object.fromEntries(
+    await Promise.all(
+      plan.assets.map(async (asset) => {
+        const signed = await storage.createSignedDownload({
+          key: asset.storageKey,
+          expiresInSeconds: 3_600,
+        });
+        return [
+          asset.assetId,
+          {
+            altText: asset.altText,
+            assetId: asset.assetId,
+            checksumSha256: asset.checksumSha256,
+            height: asset.height,
+            provenance: asset.provenance,
+            src: signed.url,
+            width: asset.width,
+          },
+        ] as const;
+      }),
+    ),
+  );
+
+  return deepFreeze(
+    demonstrationCompositionPropsSchema.parse({
+      approach: "demonstration",
+      assets,
+      captions: plan.captions.map((cue) => ({ ...cue })),
+      fixtureId: plan.bindingId,
+      narrationTracks,
+      scenes: plan.scenes.map((scene) => ({
+        assetBySlot: { ...scene.assetBySlot },
+        durationSeconds: scene.durationSeconds,
+        id: scene.sceneId,
+        narration: scene.narration,
+        order: scene.order,
+        plan: scene.plan,
+        title: scene.title,
       })),
     }),
   );
