@@ -2,7 +2,7 @@
 story_id: ST-098
 title: "Verify Controlled and Reproducible Rendering Across Video Features"
 phase: "06 — Audio, Validation, Rendering, and Delivery"
-status: Blocked
+status: Ready
 priority: must-have
 epics: ["E11", "E15", "E20"]
 prd_user_stories: ["E11-US2", "E15-US2", "E20-US1"]
