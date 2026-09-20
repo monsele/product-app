@@ -46,13 +46,13 @@ describe("SummaryScene render frames", () => {
         .digest("hex");
     };
     await expect(hashAt(0)).resolves.toMatchInlineSnapshot(
-      `"508acb6ab0c70a7e550e0b85b6f95e24fb692cdd5d98a05a7561fe55372c4615"`,
+      `"ab6869754c90415fbe1f232d34feade652bef5ff4d1d66c0ab95ae38b69cf902"`,
     );
     await expect(hashAt(90)).resolves.toMatchInlineSnapshot(
-      `"f3c31a79831147af93b775c1c80c75658a8d69246738c0c938b6ae7e86a8e0b7"`,
+      `"ace43d35a46f95d2ddb51d3f8a0eb9cd1b68e16cd14eb1a5797653c8da44be9c"`,
     );
     await expect(hashAt(270)).resolves.toMatchInlineSnapshot(
-      `"80b61c05e75a00de59695d1920e5d791fea891e7ad4caeb26216d94e28ea4c65"`,
+      `"1c421203f48aa8ae14f65464194fe4a3370e048cc84abc744177b7d39ac9402c"`,
     );
   }, 120_000);
 });

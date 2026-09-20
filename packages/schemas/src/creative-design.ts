@@ -11,7 +11,17 @@ const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 const version = z.string().regex(/^\d+\.\d+\.\d+$/);
 
 export const creativeDesignManifestVersion = "1.0" as const;
-export const creativeDesignPlannerVersion = "st-097-planner-v1" as const;
+/**
+ * Planner releases are immutable inputs to a resolved manifest. Keep the
+ * ST-097 value readable for already-approved snapshots, but write ST-100 for
+ * the expanded catalogue and rhythm rules.
+ */
+export const legacyCreativeDesignPlannerVersion = "st-097-planner-v1" as const;
+export const creativeDesignPlannerVersion = "st-100-planner-v1" as const;
+export const creativeDesignPlannerVersions = [
+  legacyCreativeDesignPlannerVersion,
+  creativeDesignPlannerVersion,
+] as const;
 export const creativeDesignHashPolicy = "st-097-canonical-json-v1" as const;
 export const creativeDesignPackIds = [
   "essential",
@@ -31,6 +41,12 @@ export const creativeDesignSceneTypes = [
   "analogy",
   "worked-example",
   "summary",
+] as const;
+const legacyCreativeDesignSceneTypes = [
+  "hook",
+  "definition",
+  "process",
+  "comparison",
 ] as const;
 export const creativeDesignSceneTypeSchema = z.enum(creativeDesignSceneTypes);
 export type CreativeDesignSceneType = z.infer<
@@ -125,14 +141,34 @@ export type CreativeDesignSceneSelection = z.infer<
 export const creativeDesignManifestSchema = z
   .object({
     manifestVersion: z.literal(creativeDesignManifestVersion),
-    plannerVersion: z.literal(creativeDesignPlannerVersion),
+    plannerVersion: z.enum(creativeDesignPlannerVersions),
     pack: z.object({ id: creativeDesignPackIdSchema, version }).strict(),
     approach: creativeDesignApproachSchema,
     settings: creativeDesignSettingsSchema,
     selections: z.record(identifierSchema, creativeDesignSceneSelectionSchema),
     presetVersionId: identifierSchema.nullable(),
   })
-  .strict();
+  .strict()
+  .superRefine((manifest, context) => {
+    if (manifest.plannerVersion !== legacyCreativeDesignPlannerVersion) return;
+    for (const [sceneId, selection] of Object.entries(manifest.selections)) {
+      const candidate = creativeDesignCatalogue.find(
+        (item) => item.id === selection.treatmentId,
+      );
+      if (
+        candidate !== undefined &&
+        !legacyCreativeDesignSceneTypes.includes(
+          candidate.sceneType as (typeof legacyCreativeDesignSceneTypes)[number],
+        )
+      )
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["selections", sceneId, "treatmentId"],
+          message:
+            "ST-097 planner manifests support only hook, definition, process, and comparison treatments.",
+        });
+    }
+  });
 export type CreativeDesignManifest = z.infer<
   typeof creativeDesignManifestSchema
 >;
@@ -454,6 +490,20 @@ export function validateCreativeDesignManifest(
       candidate.minDurationSeconds > scene.durationSeconds
     )
       issues.push(`Scene ${scene.id} has an incompatible saved treatment.`);
+    else if (selection.requiredHoldFrames < candidate.timing.holdFrames)
+      issues.push(
+        `Scene ${scene.id} does not preserve the ${candidate.timing.holdFrames}-frame readable hold required by its treatment.`,
+      );
+    else if (
+      selection.requiredHoldFrames +
+        candidate.timing.establishFrames +
+        candidate.timing.explainFrames +
+        candidate.timing.exitFrames >
+      Math.floor(scene.durationSeconds * 30)
+    )
+      issues.push(
+        `Scene ${scene.id} is too short for its resolved treatment timing.`,
+      );
   }
   for (const sceneId of Object.keys(manifest.selections))
     if (!scenes.some((scene) => scene.id === sceneId))

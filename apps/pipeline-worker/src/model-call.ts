@@ -543,11 +543,11 @@ export function createModelCallGenerationHandler<T>(
               ) ?? [];
             repairedSuccessfully = true;
           } catch (repairError) {
-            error = repairError;
-            if (repairError instanceof StructuredOutputError)
+            const failedRepair = repairError;
+            if (failedRepair instanceof StructuredOutputError)
               structured = {
                 ...structured,
-                responses: [...structured.responses, ...repairError.responses],
+                responses: [...structured.responses, ...failedRepair.responses],
               };
           }
         }

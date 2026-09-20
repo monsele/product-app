@@ -65,6 +65,7 @@ export function getSummarySceneFrameState(
 }
 
 export function SummarySceneFrame({
+  creativePresentation,
   frame,
   resolvedAssets,
   runtimeMode = "preview",
@@ -97,10 +98,10 @@ export function SummarySceneFrame({
     <main
       aria-label="Lesson summary"
       style={{
-        background: videoTheme.colors.background,
+        background: creativePresentation?.background ?? videoTheme.colors.background,
         boxSizing: "border-box",
-        color: videoTheme.colors.text,
-        fontFamily: videoTheme.typography.fontFamily,
+        color: creativePresentation?.text ?? videoTheme.colors.text,
+        fontFamily: creativePresentation?.fontFamily ?? videoTheme.typography.fontFamily,
         height: "100%",
         padding: `${videoTheme.safeAreas.title.top}px ${videoTheme.safeAreas.title.right}px ${videoTheme.safeAreas.body.bottom}px ${videoTheme.safeAreas.title.left}px`,
         width: "100%",
@@ -167,6 +168,10 @@ export function SummarySceneFrame({
         style={{
           display: "grid",
           gap: videoTheme.spacing.xs,
+          gridTemplateColumns:
+            creativePresentation?.family === "recap-cards"
+              ? "repeat(2, minmax(0, 1fr))"
+              : "minmax(0, 1fr)",
           listStyle: "none",
           margin: 0,
           padding: 0,
@@ -235,6 +240,7 @@ export function SummarySceneFrame({
 }
 
 export function SummaryScene({
+  creativePresentation,
   resolvedAssets,
   runtimeMode,
   scene,
@@ -248,6 +254,7 @@ export function SummaryScene({
   return (
     <SummarySceneFrame
       frame={frame}
+      {...(creativePresentation === undefined ? {} : { creativePresentation })}
       {...(resolvedAssets === undefined ? {} : { resolvedAssets })}
       {...(runtimeMode === undefined ? {} : { runtimeMode })}
       scene={scene}

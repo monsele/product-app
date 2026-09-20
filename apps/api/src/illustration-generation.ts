@@ -354,7 +354,7 @@ export class IllustrationGenerationService {
         inputVersion: `${input.sceneId}:${scene.revision}:${input.slot}`,
         options: { requestKey: request.idempotencyKey },
       });
-      const [existing] = await transaction
+      await transaction
         .select({ id: illustrationGenerationCandidates.id })
         .from(illustrationGenerationCandidates)
         .where(

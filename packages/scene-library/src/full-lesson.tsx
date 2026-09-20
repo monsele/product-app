@@ -16,12 +16,14 @@ import {
   previewAssetSchema,
   sceneSpecSchema,
   treatmentFor,
+  type CreativeDesignCandidate,
   type LessonSpec,
 } from "@avlp/schemas";
 import { videoTheme } from "@avlp/design-system/video-theme";
 import {
   ScenePreviewRuntime,
   SceneRenderRuntime,
+  type CreativeScenePresentation,
   type ResolvedSceneAsset,
 } from "./scene-registry.js";
 import { secondsToFrames } from "./timing.js";
@@ -285,6 +287,89 @@ function CreativeLogoOverlay({
   );
 }
 
+/**
+ * The registered treatment controls an outer, non-clipping presentation frame.
+ * Its child remains the authoritative semantic scene component: that preserves
+ * approved assets, callout collision handling and every validated content item.
+ */
+function CreativeTreatmentLayout({
+  children,
+  durationInFrames,
+  frame,
+  scene,
+  selection,
+  settings,
+  treatment,
+}: Readonly<{
+  children: JSX.Element;
+  durationInFrames: number;
+  frame: number;
+  scene: LessonSpec["scenes"][number];
+  selection: z.infer<typeof creativeDesignManifestSchema>["selections"][string];
+  settings: z.infer<typeof creativeDesignManifestSchema>["settings"];
+  treatment: CreativeDesignCandidate;
+}>): JSX.Element {
+  const enterEnd = treatment.timing.establishFrames + treatment.timing.explainFrames;
+  const exitStart = Math.max(enterEnd + selection.requiredHoldFrames, durationInFrames - treatment.timing.exitFrames);
+  const opacity = interpolate(frame, [0, treatment.timing.establishFrames, exitStart, durationInFrames], [0, 1, 1, 0], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const frameWidth =
+    treatment.packId === "editorial"
+      ? 28
+      : treatment.packId === "everyday"
+        ? 20
+        : 12;
+  const fontFamily =
+    settings.fontPair === "source-serif-inter"
+      ? '"Source Serif 4", serif'
+      : settings.fontPair === "nunito-inter"
+        ? "Nunito, sans-serif"
+        : '"Atkinson Hyperlegible", sans-serif';
+  return (
+    <section
+      aria-label={`${treatment.family} treatment for ${scene.template}`}
+      data-treatment-layout={treatment.family}
+      style={{
+        boxSizing: "border-box",
+        color: settings.colors.text,
+        display: "block",
+        fontFamily,
+        height: "100%",
+        opacity,
+        position: "relative",
+        width: "100%",
+        zIndex: 1,
+      }}
+    >
+      <div style={{ height: "100%", width: "100%" }}>{children}</div>
+      <div
+        aria-hidden
+        style={{
+          border: `${frameWidth}px ${treatment.packId === "editorial" ? "double" : "solid"} ${settings.colors.accent}`,
+          borderRadius:
+            treatment.packId === "everyday" ||
+            treatment.family === "staged" ||
+            treatment.family === "focused" ||
+            treatment.family === "metaphor" ||
+            treatment.family === "walkthrough" ||
+            treatment.family === "recap-cards"
+              ? 32
+              : 0,
+          boxSizing: "border-box",
+          inset: treatment.variant === "alternate" ? 48 : 0,
+          outline: `${treatment.variant === "alternate" ? 5 : 0}px ${treatment.packId === "editorial" ? "dashed" : "solid"} ${settings.colors.surface}`,
+          outlineOffset: treatment.variant === "alternate" ? -10 : 0,
+          pointerEvents: "none",
+          position: "absolute",
+          zIndex: 3,
+        }}
+      />
+    </section>
+  );
+}
+
 function TransitionedScene({
   creativeDesign,
   resolvedAssets,
@@ -356,7 +441,8 @@ function TransitionedScene({
         )}
       </div>
     );
-  const treatmentId = creativeDesign.selections[scene.id]?.treatmentId;
+  const selection = creativeDesign.selections[scene.id];
+  const treatmentId = selection?.treatmentId;
   // A resolved manifest is required to contain every scene; this defensive
   // fallback preserves historic snapshots even if a malformed one escaped an
   // older reader.
@@ -368,38 +454,32 @@ function TransitionedScene({
     );
   const treatment = treatmentFor(treatmentId);
   const pack = creativeDesign.pack.id;
+  const creativePresentation: CreativeScenePresentation = {
+    accent: creativeDesign.settings.colors.accent,
+    background: creativeDesign.settings.colors.background,
+    family: treatment.family,
+    fontFamily:
+      creativeDesign.settings.fontPair === "source-serif-inter"
+        ? '"Source Serif 4", serif'
+        : creativeDesign.settings.fontPair === "nunito-inter"
+          ? "Nunito, sans-serif"
+          : '"Atkinson Hyperlegible", sans-serif',
+    surface: creativeDesign.settings.colors.surface,
+    text: creativeDesign.settings.colors.text,
+    variant: treatment.variant,
+  };
   const content = runtimeMode === "render" ? (
-    <SceneRenderRuntime resolvedAssets={resolvedAssets} scene={scene} />
+    <SceneRenderRuntime creativePresentation={creativePresentation} resolvedAssets={resolvedAssets} scene={scene} />
   ) : (
-    <ScenePreviewRuntime resolvedAssets={resolvedAssets} scene={scene} />
+    <ScenePreviewRuntime creativePresentation={creativePresentation} resolvedAssets={resolvedAssets} scene={scene} />
   );
   const accent = creativeDesign.settings.colors.accent;
-  const surface = creativeDesign.settings.colors.surface;
   const imagery = creativeDesign.settings.imageryPreference;
-  const fontFamily =
-    creativeDesign.settings.fontPair === "source-serif-inter"
-      ? '"Source Serif 4", serif'
-      : creativeDesign.settings.fontPair === "nunito-inter"
-        ? "Nunito, sans-serif"
-        : '"Atkinson Hyperlegible", sans-serif';
   const decorationStyle = {
     background: accent,
     opacity: pack === "essential" ? 0.14 : pack === "editorial" ? 0.23 : 0.3,
     pointerEvents: "none" as const,
     position: "absolute" as const,
-  };
-  const contentStyle = {
-    border: `${pack === "editorial" ? 24 : pack === "everyday" ? 18 : 12}px solid ${surface}`,
-    borderRadius: pack === "everyday" ? 40 : treatment.variant === "alternate" ? 28 : 0,
-    boxSizing: "border-box" as const,
-    height: treatment.variant === "alternate" ? "84%" : "100%",
-    left: treatment.variant === "alternate" ? "8%" : 0,
-    overflow: "hidden" as const,
-    position: "absolute" as const,
-    top: treatment.variant === "alternate" ? "8%" : 0,
-    width: treatment.variant === "alternate" ? "84%" : "100%",
-    color: creativeDesign.settings.colors.text,
-    fontFamily,
   };
   const imageryDecoration =
     imagery === "photography"
@@ -453,9 +533,19 @@ function TransitionedScene({
           width: "100%",
         }}
       />
-      <div data-treatment={treatment.id} style={contentStyle}>
-        {content}
-      </div>
+      {selection === undefined ? null : (
+        <CreativeTreatmentLayout
+          durationInFrames={durationInFrames}
+          frame={frame}
+          scene={scene}
+          selection={selection}
+          settings={creativeDesign.settings}
+          treatment={treatment}
+        >
+          {content}
+        </CreativeTreatmentLayout>
+      )}
+      {selection === undefined ? content : null}
     </div>
   );
 }

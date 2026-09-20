@@ -81,7 +81,18 @@ export type ResolvedSceneAssetSource =
   (typeof resolvedSceneAssetSourceValues)[number];
 export type ResolvedSceneAsset = Readonly<PreviewAsset>;
 export type SceneRuntimeMode = "preview" | "render";
+/** A resolved, bounded presentation supplied by a creative-design manifest. */
+export type CreativeScenePresentation = Readonly<{
+  accent: string;
+  background: string;
+  family: string;
+  fontFamily: string;
+  surface: string;
+  text: string;
+  variant: "primary" | "alternate";
+}>;
 export type SceneComponentProps = Readonly<{
+  creativePresentation?: CreativeScenePresentation;
   resolvedAssets?: Readonly<Record<string, ResolvedSceneAsset>>;
   runtimeMode?: SceneRuntimeMode;
   scene: SceneSpec;
@@ -925,11 +936,13 @@ export function measureSceneLayout(text: string): LayoutMeasurement {
 }
 
 export function SceneRuntime({
+  creativePresentation,
   resolvedAssets,
   runtimeMode,
   scene,
 }: SceneComponentProps): JSX.Element {
   return createElement(resolveSceneDefinition(scene).component, {
+    ...(creativePresentation === undefined ? {} : { creativePresentation }),
     ...(resolvedAssets === undefined ? {} : { resolvedAssets }),
     ...(runtimeMode === undefined ? {} : { runtimeMode }),
     scene,
@@ -937,10 +950,12 @@ export function SceneRuntime({
 }
 
 export function ScenePreviewRuntime({
+  creativePresentation,
   resolvedAssets,
   scene,
 }: SceneComponentProps): JSX.Element {
   return createElement(SceneRuntime, {
+    ...(creativePresentation === undefined ? {} : { creativePresentation }),
     ...(resolvedAssets === undefined ? {} : { resolvedAssets }),
     runtimeMode: "preview",
     scene,
@@ -948,6 +963,7 @@ export function ScenePreviewRuntime({
 }
 
 export function SceneRenderRuntime({
+  creativePresentation,
   resolvedAssets,
   scene,
 }: SceneComponentProps): JSX.Element {
@@ -961,6 +977,7 @@ export function SceneRenderRuntime({
       `Scene render blocked for ${blockingIssue.fieldPath}: ${blockingIssue.message}`,
     );
   return createElement(SceneRuntime, {
+    ...(creativePresentation === undefined ? {} : { creativePresentation }),
     ...(resolvedAssets === undefined ? {} : { resolvedAssets }),
     runtimeMode: "render",
     scene,

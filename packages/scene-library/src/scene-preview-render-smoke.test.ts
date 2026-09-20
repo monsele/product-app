@@ -16,7 +16,10 @@ import {
 } from "./definition-scene.fixtures.js";
 import { maximumProcessFixture } from "./process-scene.fixtures.js";
 import { maximumDensityIpoFixture } from "./ipo-scene.fixtures.js";
-import { imageAssistedComparisonFixture } from "./comparison-scene.fixtures.js";
+import {
+  imageAssistedComparisonFixture,
+  resolvedComparisonAssets,
+} from "./comparison-scene.fixtures.js";
 import { generatedAnalogyFixture } from "./analogy-scene.fixtures.js";
 import { numericalWorkedExampleFixture } from "./worked-example-scene.fixtures.js";
 import {
@@ -77,14 +80,14 @@ describe("scene runtime Remotion smoke", () => {
         .update(rendered.buffer ?? Buffer.alloc(0))
         .digest("hex"),
     ).toMatchInlineSnapshot(
-      `"fd4cac735038e73dd2c8cc72fd3a97b90781b1d82af6e712ca83c2e451b0ed62"`,
+      `"998f6181010927589670b80ff993471cac7fc97d30c0a0043323f7b25070d696"`,
     );
     expect(
       createHash("sha256")
         .update(entered.buffer ?? Buffer.alloc(0))
         .digest("hex"),
     ).toMatchInlineSnapshot(
-      `"db40d8ee7766679dc64611ec778c66c2b013804dcc61298d1fe57ecab727e93e"`,
+      `"d29758a28f722b46669692da5caed2d5de4a7e440d9534f3f1b1dbc0945f1274"`,
     );
 
     const definitionComposition = await selectComposition({
@@ -126,7 +129,7 @@ describe("scene runtime Remotion smoke", () => {
         .update(definition.buffer ?? Buffer.alloc(0))
         .digest("hex"),
     ).toMatchInlineSnapshot(
-      `"25cf92bd7131498a034e565a78872bf223dd521372627829fa9b515cc372c645"`,
+      `"8de5e937696cd212c6e1fbc17142406bdb2239d9e6b3ff82068161adc1d58397"`,
     );
 
     const textOnlyDefinitionComposition = await selectComposition({
@@ -149,7 +152,7 @@ describe("scene runtime Remotion smoke", () => {
         .update(textOnlyDefinition.buffer ?? Buffer.alloc(0))
         .digest("hex"),
     ).toMatchInlineSnapshot(
-      `"746ed409f9daf4290a7af70ea324b620ee970205e41cb91f1e30b680029ece89"`,
+      `"baaf9993e8a09944f08ef3fbbc464a8f549927d0682580ca1202fa9869b44839"`,
     );
 
     const processComposition = await selectComposition({
@@ -197,13 +200,16 @@ describe("scene runtime Remotion smoke", () => {
         .update(ipo.buffer ?? Buffer.alloc(0))
         .digest("hex"),
     ).toMatchInlineSnapshot(
-      `"8c33df3e75ce2742476c0601e900183300bf7de259e2511ce1cc6574809e2004"`,
+      `"953fdfcbff12f703698d3f50c2ef100ee76ae6b89a050743319f98f8d6847a55"`,
     );
 
     const comparisonComposition = await selectComposition({
       browserExecutable,
       id: sceneRuntimeCompositionId,
-      inputProps: { scene: imageAssistedComparisonFixture },
+      inputProps: {
+        resolvedAssets: resolvedComparisonAssets,
+        scene: imageAssistedComparisonFixture,
+      },
       serveUrl,
     });
     const comparison = await renderStill({
@@ -211,7 +217,10 @@ describe("scene runtime Remotion smoke", () => {
       composition: comparisonComposition,
       frame: 90,
       imageFormat: "png",
-      inputProps: { scene: imageAssistedComparisonFixture },
+      inputProps: {
+        resolvedAssets: resolvedComparisonAssets,
+        scene: imageAssistedComparisonFixture,
+      },
       serveUrl,
     });
     expect(comparison.contentType).toBe("image/png");
@@ -270,7 +279,7 @@ describe("scene runtime Remotion smoke", () => {
         .update(workedExample.buffer ?? Buffer.alloc(0))
         .digest("hex"),
     ).toMatchInlineSnapshot(
-      `"fcf22e2fce47733b187c1e5e197c8d16ea3e04d1988a4792ff4961bd9a4c2837"`,
+      `"b892982ae8e104e15c948c8f851f273806efb3e57ee5f05df16ef1e2db23b7ac"`,
     );
 
     const workedExampleFinalStep = await renderStill({
@@ -294,14 +303,14 @@ describe("scene runtime Remotion smoke", () => {
         .update(workedExampleFinalStep.buffer ?? Buffer.alloc(0))
         .digest("hex"),
     ).toMatchInlineSnapshot(
-      `"e2029498e738253ec6a48f41bde1d6ecb5245056c05ff5e58b33fe42fdeacd49"`,
+      `"e9ff329adc20abdaf84c732f882ce887d8d044f35af05ab6643b16851924a52f"`,
     );
     expect(
       createHash("sha256")
         .update(workedExampleResult.buffer ?? Buffer.alloc(0))
         .digest("hex"),
     ).toMatchInlineSnapshot(
-      `"ae28d65d7ce222696c7f10d1c227decf54f3e3b57cb84559e8281f5ce98911c7"`,
+      `"7b6d8fe52b24f857262a9af4d08c37433d603be2bf72b27bf04a7744f0337420"`,
     );
 
     const summaryComposition = await selectComposition({
@@ -330,7 +339,7 @@ describe("scene runtime Remotion smoke", () => {
         .update(summaryFinal.buffer ?? Buffer.alloc(0))
         .digest("hex"),
     ).toMatchInlineSnapshot(
-      `"80b61c05e75a00de59695d1920e5d791fea891e7ad4caeb26216d94e28ea4c65"`,
+      `"1c421203f48aa8ae14f65464194fe4a3370e048cc84abc744177b7d39ac9402c"`,
     );
 
     const causeEffectComposition = await selectComposition({
@@ -353,7 +362,7 @@ describe("scene runtime Remotion smoke", () => {
         .update(causeEffect.buffer ?? Buffer.alloc(0))
         .digest("hex"),
     ).toMatchInlineSnapshot(
-      `"9e3e67ada645bc0b039ec44b59a32bd6ff4cb814d2dbcb7bd5ebdfe74022e2b6"`,
+      `"81b11c7b0b2e28f96c5acdd885220d044d62fdba18a48bbd4580a59e17a40aa2"`,
     );
 
     const diagramComposition = await selectComposition({
@@ -398,7 +407,7 @@ describe("scene runtime Remotion smoke", () => {
         .update(diagram.buffer ?? Buffer.alloc(0))
         .digest("hex"),
     ).toMatchInlineSnapshot(
-      `"00cb3290b4ab4a14e06b74e0e9e3f33eba25f6c79b5adf987be7816f5bc82e55"`,
+      `"d369d639eb3b77d4fe7a70ab1e3e001cce0394e2c2030d52a2ec7d41ebb303a1"`,
     );
 
     const diagramInitial = await renderStill({
@@ -428,14 +437,14 @@ describe("scene runtime Remotion smoke", () => {
         .update(diagramInitial.buffer ?? Buffer.alloc(0))
         .digest("hex"),
     ).toMatchInlineSnapshot(
-      `"ac930774c54d9486c5c312a46cfee80cf756df7e96ea5f370550662447b3adcd"`,
+      `"60fcae04dfbd44a3790e4d57a74ee5ce450c9f7bf97feb0d72c7a858f23b3643"`,
     );
     expect(
       createHash("sha256")
         .update(diagramFirstReveal.buffer ?? Buffer.alloc(0))
         .digest("hex"),
     ).toMatchInlineSnapshot(
-      `"69c5c1d3701ece668ba6370d2e07705027332089d748bae49e05004f89cd152d"`,
+      `"be6b34e66688bdecf16382c3c906c0c6a1c9ea9d5f047b40e3d354ed79148f96"`,
     );
 
     const shapesComposition = await selectComposition({
@@ -460,7 +469,7 @@ describe("scene runtime Remotion smoke", () => {
         .update(shapes.buffer ?? Buffer.alloc(0))
         .digest("hex"),
     ).toMatchInlineSnapshot(
-      `"965ecc52fd4dec47d12f8209ae007ce5cf4d8405d917095760561cf5528bed1b"`,
+      `"69a16b361a47cb491719bbb7754a592a7c1da820dc35b167e7a14cbdf519b26d"`,
     );
 
     const shapesFirstReveal = await renderStill({
@@ -476,7 +485,7 @@ describe("scene runtime Remotion smoke", () => {
         .update(shapesFirstReveal.buffer ?? Buffer.alloc(0))
         .digest("hex"),
     ).toMatchInlineSnapshot(
-      `"abd3ffd420dcf66fb464704bae3fb6b664f238d858b41cf81d8bb4542a4e917e"`,
+      `"9a922eee0b5f431db27a6efe93311728521192621f259b113e1f1ebdd9f4c00e"`,
     );
   }, 120_000);
 });

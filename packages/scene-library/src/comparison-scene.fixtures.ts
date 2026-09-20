@@ -1,5 +1,6 @@
 import type { SceneSpec } from "@avlp/schemas";
 import { createDefaultScene } from "./scene-registry.js";
+import type { ResolvedSceneAsset } from "./scene-registry.js";
 
 export const textOnlyComparisonFixture = Object.freeze({
   ...createDefaultScene("comparison"),
@@ -24,6 +25,21 @@ export const imageAssistedComparisonFixture = Object.freeze({
     { assetId: "00000000-0000-7000-8000-000000000007", role: "illustration", slot: "right-subject-image", altText: "Animal cell illustration" },
   ],
 } satisfies Extract<SceneSpec, { template: "comparison" }>);
+
+export const resolvedComparisonAssets = Object.freeze({
+  "00000000-0000-7000-8000-000000000006": {
+    altText: "Plant cell illustration",
+    assetId: "00000000-0000-7000-8000-000000000006",
+    source: "library",
+    src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+  },
+  "00000000-0000-7000-8000-000000000007": {
+    altText: "Animal cell illustration",
+    assetId: "00000000-0000-7000-8000-000000000007",
+    source: "library",
+    src: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+  },
+} satisfies Readonly<Record<string, ResolvedSceneAsset>>);
 
 export const maximumDensityComparisonFixture = Object.freeze({
   ...textOnlyComparisonFixture,

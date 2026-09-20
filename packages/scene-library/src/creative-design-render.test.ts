@@ -1,10 +1,12 @@
 import { bundle } from "@remotion/bundler";
 import { renderStill, selectComposition } from "@remotion/renderer";
 import { chromium } from "@playwright/test";
+import { Buffer } from "node:buffer";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import {
   creativeDesignManifestSchema,
+  creativeDesignPlannerVersion,
   defaultCreativeDesignSettings,
   lessonSpecSchema,
   planCreativeDesign,
@@ -34,13 +36,17 @@ const labelledDiagramScene = {
   id: "00000000-0000-7000-8000-000000000297",
   order: 7,
   template: "labelled-diagram" as const,
-  title: "Leaf Diagram",
+  title: "Plant cell: maximum callouts",
   visual: {
     kind: "shapes" as const,
     shape: "plant" as const,
     labels: [
-      { anchor: "top" as const, id: "sunlight", text: "Sunlight" },
-      { anchor: "bottom" as const, id: "roots", text: "Roots" },
+      { anchor: "top-left" as const, id: "one", text: "Cell wall" },
+      { anchor: "top" as const, id: "two", text: "Cell membrane" },
+      { anchor: "top-right" as const, id: "three", text: "Chloroplast" },
+      { anchor: "right" as const, id: "four", text: "Vacuole" },
+      { anchor: "bottom-right" as const, id: "five", text: "Cytoplasm" },
+      { anchor: "bottom-left" as const, id: "six", text: "Nucleus" },
     ],
   },
 };
@@ -110,7 +116,7 @@ function propsFor(packId: "essential" | "editorial" | "everyday", variant: "prim
     captions: timeline.map((segment, index) => ({ endFrame: segment.endFrameExclusive, sceneId: segment.sceneId, startFrame: segment.startFrame, text: supportedLesson.scenes[index]!.narration })),
     creativeDesign: creativeDesignManifestSchema.parse({
       manifestVersion: "1.0",
-      plannerVersion: "st-097-planner-v1",
+      plannerVersion: creativeDesignPlannerVersion,
       pack: { id: packId, version: "1.0.0" },
       approach: "standard",
       settings: defaultCreativeDesignSettings,

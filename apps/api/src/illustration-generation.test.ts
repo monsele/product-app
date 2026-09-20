@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { PublicError, type Identifier } from "@avlp/config";
+import { type Identifier } from "@avlp/config";
 import { type DatabaseClient } from "@avlp/database";
 import { createDefaultStoryboardSceneSpec } from "@avlp/schemas";
 import { IllustrationGenerationService } from "./illustration-generation.js";

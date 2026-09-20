@@ -222,6 +222,7 @@ function stepIcon(
 }
 
 export function ProcessSceneFrame({
+  creativePresentation,
   frame,
   resolvedAssets,
   scene,
@@ -267,9 +268,10 @@ export function ProcessSceneFrame({
     <main
       aria-label="Lesson process"
       style={{
-        background: videoTheme.colors.background,
-        color: videoTheme.colors.text,
-        fontFamily: videoTheme.typography.fontFamily,
+        background: creativePresentation?.background ?? videoTheme.colors.background,
+        color: creativePresentation?.text ?? videoTheme.colors.text,
+        fontFamily:
+          creativePresentation?.fontFamily ?? videoTheme.typography.fontFamily,
         height: "100%",
         width: "100%",
       }}
@@ -437,6 +439,7 @@ function ProcessStepIcon({
 }
 
 export function ProcessScene({
+  creativePresentation,
   resolvedAssets,
   runtimeMode,
   scene,
@@ -444,6 +447,7 @@ export function ProcessScene({
   return (
     <ProcessSceneFrame
       frame={useCurrentFrame()}
+      {...(creativePresentation === undefined ? {} : { creativePresentation })}
       {...(resolvedAssets === undefined ? {} : { resolvedAssets })}
       {...(runtimeMode === undefined ? {} : { runtimeMode })}
       scene={scene}

@@ -79,6 +79,7 @@ function isEquationLike(value: string): boolean {
 }
 
 export function WorkedExampleSceneFrame({
+  creativePresentation,
   frame,
   scene,
 }: SceneComponentProps & Readonly<{ frame: number }>): JSX.Element {
@@ -97,10 +98,10 @@ export function WorkedExampleSceneFrame({
     <main
       aria-label="Worked example"
       style={{
-        background: videoTheme.colors.background,
+        background: creativePresentation?.background ?? videoTheme.colors.background,
         boxSizing: "border-box",
-        color: videoTheme.colors.text,
-        fontFamily: videoTheme.typography.fontFamily,
+        color: creativePresentation?.text ?? videoTheme.colors.text,
+        fontFamily: creativePresentation?.fontFamily ?? videoTheme.typography.fontFamily,
         height: "100%",
         padding: `${videoTheme.safeAreas.title.top}px ${videoTheme.safeAreas.title.right}px ${videoTheme.safeAreas.body.bottom}px ${videoTheme.safeAreas.title.left}px`,
         width: "100%",
@@ -234,7 +235,8 @@ export function WorkedExampleSceneFrame({
 }
 
 export function WorkedExampleScene({
+  creativePresentation,
   scene,
 }: SceneComponentProps): JSX.Element {
-  return <WorkedExampleSceneFrame frame={useCurrentFrame()} scene={scene} />;
+  return <WorkedExampleSceneFrame {...(creativePresentation === undefined ? {} : { creativePresentation })} frame={useCurrentFrame()} scene={scene} />;
 }

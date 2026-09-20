@@ -16,6 +16,7 @@ import {
 } from "@avlp/database";
 import {
   creativeDesignCapability,
+  creativeDesignPlannerVersion,
   creativeDesignDraftInputSchema,
   creativeDesignApplyPresetInputSchema,
   creativeDesignManifestSchema,
@@ -864,7 +865,7 @@ export function createDefaultCreativeDesignManifest(
 ): CreativeDesignManifest {
   return creativeDesignManifestSchema.parse({
     manifestVersion: "1.0",
-    plannerVersion: "st-097-planner-v1",
+    plannerVersion: creativeDesignPlannerVersion,
     pack: { id: input.packId, version: "1.0.0" },
     approach: "standard",
     settings: defaultCreativeDesignSettings,

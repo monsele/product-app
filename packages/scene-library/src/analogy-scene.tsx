@@ -55,6 +55,7 @@ function isGeneratedAnalogy(scene: SceneComponentProps["scene"]): boolean {
 }
 
 export function AnalogySceneFrame({
+  creativePresentation,
   frame,
   resolvedAssets,
   runtimeMode = "preview",
@@ -82,10 +83,10 @@ export function AnalogySceneFrame({
     <main
       aria-label="Concept analogy"
       style={{
-        background: videoTheme.colors.background,
+        background: creativePresentation?.background ?? videoTheme.colors.background,
         boxSizing: "border-box",
-        color: videoTheme.colors.text,
-        fontFamily: videoTheme.typography.fontFamily,
+        color: creativePresentation?.text ?? videoTheme.colors.text,
+        fontFamily: creativePresentation?.fontFamily ?? videoTheme.typography.fontFamily,
         height: "100%",
         padding: `${videoTheme.safeAreas.title.top}px ${videoTheme.safeAreas.title.right}px ${videoTheme.safeAreas.body.bottom}px ${videoTheme.safeAreas.title.left}px`,
         width: "100%",
@@ -146,7 +147,10 @@ export function AnalogySceneFrame({
         style={{
           display: "grid",
           gap: videoTheme.spacing.md,
-          gridTemplateColumns: "minmax(0, 1fr) 80px minmax(0, 1fr)",
+          gridTemplateColumns:
+            creativePresentation?.family === "metaphor"
+              ? "minmax(0, 1fr)"
+              : "minmax(0, 1fr) 80px minmax(0, 1fr)",
           opacity: state.panelsOpacity,
         }}
       >
@@ -270,6 +274,7 @@ export function AnalogySceneFrame({
 }
 
 export function AnalogyScene({
+  creativePresentation,
   resolvedAssets,
   runtimeMode,
   scene,
@@ -277,6 +282,7 @@ export function AnalogyScene({
   return (
     <AnalogySceneFrame
       frame={useCurrentFrame()}
+      {...(creativePresentation === undefined ? {} : { creativePresentation })}
       {...(resolvedAssets === undefined ? {} : { resolvedAssets })}
       {...(runtimeMode === undefined ? {} : { runtimeMode })}
       scene={scene}

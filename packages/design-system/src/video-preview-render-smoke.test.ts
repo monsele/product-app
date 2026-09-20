@@ -42,12 +42,12 @@ describe("video design preview render smoke", () => {
       createHash("sha256")
         .update(rendered.buffer ?? Buffer.alloc(0))
         .digest("hex"),
-    ).toBe("4692761329bf5c6525ffbc053e06671282d19f92f7b260770373fd844666e309");
+    ).toBe("25fc1cb627547fbf99a05bf7c5139ed9129e4a6e834ebf7906dd01f84ae2b9ed");
     expect(
       createHash("sha256")
         .update(PNG.sync.read(rendered.buffer ?? Buffer.alloc(0)).data)
         .digest("hex"),
-    ).toBe("706aadf331657fd2af6d140a687628298e460c380991d121ab07bbce1268f596");
+    ).toBe("302ece7e0488826bb0aa8d907181d3777afb46373627ad2cc9ba3984e4692ee0");
 
     const transitionFrame = await renderStill({
       browserExecutable,
@@ -60,6 +60,6 @@ describe("video design preview render smoke", () => {
       createHash("sha256")
         .update(transitionFrame.buffer ?? Buffer.alloc(0))
         .digest("hex"),
-    ).toBe("954209224161e1e09305bd2bf3b7da7aa6878939c5a16a90898902498a1e6d78");
+    ).toBe("ad52c66b514dae8c85bf53589805fa295b0d66a4635288b7feb62f86c29978a9");
   }, 120_000);
 });

@@ -4,9 +4,12 @@ import {
   creativeDesignCatalogue,
   creativeDesignManifestSchema,
   creativeDesignContrastRatio,
+  creativeDesignPlannerVersion,
+  legacyCreativeDesignPlannerVersion,
   defaultCreativeDesignSettings,
   planCreativeDesign,
   validateCreativeDesignManifest,
+  type CreativeDesignSceneType,
 } from "./creative-design.js";
 
 const id = (tail: string) => `0198d270-0000-7000-8000-000000000${tail}`;
@@ -115,7 +118,7 @@ describe("ST-100 creative-design contract", () => {
       "worked-example",
       "summary",
     ].map((template, idx) => ({
-      id: id(`0${idx}`),
+      id: id(`${10 + idx}`.padStart(3, "0")),
       template,
       durationSeconds: 10,
     }));
@@ -125,6 +128,20 @@ describe("ST-100 creative-design contract", () => {
         scenes: allTen,
       }),
     ).toHaveLength(0);
+    const typedAllTen = allTen.map((scene) => ({
+      ...scene,
+      template: scene.template as CreativeDesignSceneType,
+    }));
+    const manifest = creativeDesignManifestSchema.parse({
+      manifestVersion: "1.0",
+      plannerVersion: creativeDesignPlannerVersion,
+      pack: { id: "essential", version: "1.0.0" },
+      approach: "standard",
+      settings: defaultCreativeDesignSettings,
+      selections: planCreativeDesign({ packId: "essential", scenes: typedAllTen }),
+      presetVersionId: null,
+    });
+    expect(validateCreativeDesignManifest(manifest, allTen)).toEqual([]);
   });
 
   it("rejects arbitrary model styling instructions at the schema boundary", () => {
@@ -159,5 +176,49 @@ describe("ST-100 creative-design contract", () => {
     expect(validateCreativeDesignManifest(manifest, [scene])).toContain(
       "Text color must have at least 4.5:1 contrast against the background.",
     );
+  });
+
+  it("rejects a manifest that weakens a treatment's readable hold", () => {
+    const scene = { id: id("007"), template: "worked-example" as const, durationSeconds: 8 };
+    const manifest = creativeDesignManifestSchema.parse({
+      manifestVersion: "1.0",
+      plannerVersion: creativeDesignPlannerVersion,
+      pack: { id: "essential", version: "1.0.0" },
+      approach: "standard",
+      settings: defaultCreativeDesignSettings,
+      selections: {
+        [scene.id]: {
+          treatmentId: "essential.worked-example.primary",
+          treatmentVersion: "1.0.0",
+          locked: false,
+          requiredHoldFrames: 30,
+        },
+      },
+      presetVersionId: null,
+    });
+    expect(validateCreativeDesignManifest(manifest, [scene])).toContain(
+      `Scene ${scene.id} does not preserve the 105-frame readable hold required by its treatment.`,
+    );
+  });
+
+  it("does not permit ST-100 treatments in a legacy ST-097 manifest", () => {
+    expect(
+      creativeDesignManifestSchema.safeParse({
+        manifestVersion: "1.0",
+        plannerVersion: legacyCreativeDesignPlannerVersion,
+        pack: { id: "essential", version: "1.0.0" },
+        approach: "standard",
+        settings: defaultCreativeDesignSettings,
+        selections: {
+          [id("008")]: {
+            treatmentId: "essential.worked-example.primary",
+            treatmentVersion: "1.0.0",
+            locked: false,
+            requiredHoldFrames: 105,
+          },
+        },
+        presetVersionId: null,
+      }).success,
+    ).toBe(false);
   });
 });

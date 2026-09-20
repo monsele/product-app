@@ -63,6 +63,7 @@ function exampleAsset(scene: SceneComponentProps["scene"]) {
 }
 
 export function DefinitionSceneFrame({
+  creativePresentation,
   frame,
   resolvedAssets,
   runtimeMode = "preview",
@@ -95,9 +96,11 @@ export function DefinitionSceneFrame({
     <main
       aria-label="Lesson definition"
       style={{
-        background: videoTheme.colors.background,
-        color: videoTheme.colors.text,
-        fontFamily: videoTheme.typography.fontFamily,
+        background:
+          creativePresentation?.background ?? videoTheme.colors.background,
+        color: creativePresentation?.text ?? videoTheme.colors.text,
+        fontFamily:
+          creativePresentation?.fontFamily ?? videoTheme.typography.fontFamily,
         height: "100%",
         width: "100%",
       }}
@@ -227,6 +230,7 @@ export function DefinitionSceneFrame({
 }
 
 export function DefinitionScene({
+  creativePresentation,
   resolvedAssets,
   runtimeMode,
   scene,
@@ -234,6 +238,7 @@ export function DefinitionScene({
   return (
     <DefinitionSceneFrame
       frame={useCurrentFrame()}
+      {...(creativePresentation === undefined ? {} : { creativePresentation })}
       {...(resolvedAssets === undefined ? {} : { resolvedAssets })}
       {...(runtimeMode === undefined ? {} : { runtimeMode })}
       scene={scene}

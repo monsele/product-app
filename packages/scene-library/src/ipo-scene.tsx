@@ -142,12 +142,18 @@ function ItemList({
 }
 
 export function IpoSceneFrame({
+  creativePresentation,
   frame,
   scene,
 }: SceneComponentProps & Readonly<{ frame: number }>): JSX.Element {
   if (scene.template !== "input-process-output")
     throw new Error("IpoScene requires an input-process-output scene.");
-  const layout = selectIpoLayout(scene.visual.inputs, scene.visual.outputs);
+  const layout =
+    creativePresentation?.family === "staged"
+      ? "vertical"
+      : creativePresentation?.family === "flow"
+        ? "horizontal"
+        : selectIpoLayout(scene.visual.inputs, scene.visual.outputs);
   const state = getIpoSceneFrameState(frame, scene.durationSeconds);
   const processAsset = assetFor(scene, scene.visual.process, "process-icon");
   const vertical = layout === "vertical";
@@ -281,9 +287,9 @@ export function IpoSceneFrame({
     <main
       aria-label="Input process output model"
       style={{
-        background: videoTheme.colors.background,
-        color: videoTheme.colors.text,
-        fontFamily: videoTheme.typography.fontFamily,
+        background: creativePresentation?.background ?? videoTheme.colors.background,
+        color: creativePresentation?.text ?? videoTheme.colors.text,
+        fontFamily: creativePresentation?.fontFamily ?? videoTheme.typography.fontFamily,
         height: "100%",
         width: "100%",
       }}
@@ -347,6 +353,6 @@ export function IpoSceneFrame({
   );
 }
 
-export function IpoScene({ scene }: SceneComponentProps): JSX.Element {
-  return <IpoSceneFrame frame={useCurrentFrame()} scene={scene} />;
+export function IpoScene({ creativePresentation, scene }: SceneComponentProps): JSX.Element {
+  return <IpoSceneFrame {...(creativePresentation === undefined ? {} : { creativePresentation })} frame={useCurrentFrame()} scene={scene} />;
 }

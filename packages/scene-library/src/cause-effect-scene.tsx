@@ -201,6 +201,7 @@ function DirectionArrow({
 }
 
 export function CauseEffectSceneFrame({
+  creativePresentation,
   frame,
   scene,
 }: SceneComponentProps & Readonly<{ frame: number }>): JSX.Element {
@@ -233,7 +234,12 @@ export function CauseEffectSceneFrame({
   const causes = scene.visual.causes ?? [];
   const effects = scene.visual.effects ?? [];
   const state = getCauseEffectSceneFrameState(frame, scene.durationSeconds);
-  const layout = selectCauseEffectLayout(causes, effects);
+  const layout =
+    creativePresentation?.family === "divergent"
+      ? "branching"
+      : creativePresentation?.family === "chain"
+        ? "chain"
+        : selectCauseEffectLayout(causes, effects);
   const hasMechanism = scene.visual.mechanism !== undefined;
   const columns: CSSProperties = {
     alignItems: "center",
@@ -248,9 +254,9 @@ export function CauseEffectSceneFrame({
     <main
       aria-label="Cause and effect"
       style={{
-        background: videoTheme.colors.background,
-        color: videoTheme.colors.text,
-        fontFamily: videoTheme.typography.fontFamily,
+        background: creativePresentation?.background ?? videoTheme.colors.background,
+        color: creativePresentation?.text ?? videoTheme.colors.text,
+        fontFamily: creativePresentation?.fontFamily ?? videoTheme.typography.fontFamily,
         height: "100%",
         width: "100%",
       }}
@@ -329,6 +335,6 @@ export function CauseEffectSceneFrame({
   );
 }
 
-export function CauseEffectScene({ scene }: SceneComponentProps): JSX.Element {
-  return <CauseEffectSceneFrame frame={useCurrentFrame()} scene={scene} />;
+export function CauseEffectScene({ creativePresentation, scene }: SceneComponentProps): JSX.Element {
+  return <CauseEffectSceneFrame {...(creativePresentation === undefined ? {} : { creativePresentation })} frame={useCurrentFrame()} scene={scene} />;
 }

@@ -140,6 +140,7 @@ function TableVisual({ table }: Readonly<{ table: SourceTableVisual }>): JSX.Ele
 }
 
 export function LabelledDiagramSceneFrame({
+  creativePresentation,
   frame,
   resolvedAssets,
   runtimeMode = "preview",
@@ -165,9 +166,9 @@ export function LabelledDiagramSceneFrame({
   )
     throw new Error("Labelled diagram render requires a resolved diagram asset.");
   const canvas: CSSProperties = {
-    background: videoTheme.colors.background,
-    color: videoTheme.colors.text,
-    fontFamily: videoTheme.typography.fontFamily,
+    background: creativePresentation?.background ?? videoTheme.colors.background,
+    color: creativePresentation?.text ?? videoTheme.colors.text,
+    fontFamily: creativePresentation?.fontFamily ?? videoTheme.typography.fontFamily,
     height: "100%",
     overflow: "hidden",
     position: "relative",
@@ -351,6 +352,7 @@ export function LabelledDiagramSceneFrame({
 }
 
 export function LabelledDiagramScene({
+  creativePresentation,
   resolvedAssets,
   runtimeMode,
   scene,
@@ -358,6 +360,7 @@ export function LabelledDiagramScene({
   return (
     <LabelledDiagramSceneFrame
       frame={useCurrentFrame()}
+      {...(creativePresentation === undefined ? {} : { creativePresentation })}
       {...(resolvedAssets === undefined ? {} : { resolvedAssets })}
       {...(runtimeMode === undefined ? {} : { runtimeMode })}
       scene={scene}

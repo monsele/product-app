@@ -175,6 +175,7 @@ function TraitList({
 }
 
 export function ComparisonSceneFrame({
+  creativePresentation,
   frame,
   resolvedAssets,
   runtimeMode = "preview",
@@ -193,6 +194,16 @@ export function ComparisonSceneFrame({
       (rightBinding !== undefined && rightAsset === undefined))
   )
     throw new Error("Comparison render requires resolved subject assets.");
+  const colors = creativePresentation === undefined
+    ? videoTheme.colors
+    : {
+        ...videoTheme.colors,
+        accent: creativePresentation.accent,
+        background: creativePresentation.background,
+        primary: creativePresentation.accent,
+        surface: creativePresentation.surface,
+        text: creativePresentation.text,
+      };
   const sectionStyle: CSSProperties = {
     boxSizing: "border-box",
     display: "grid",
@@ -202,7 +213,7 @@ export function ComparisonSceneFrame({
     padding: `${videoTheme.safeAreas.title.top}px ${videoTheme.safeAreas.title.right}px ${videoTheme.safeAreas.body.bottom}px ${videoTheme.safeAreas.title.left}px`,
   };
   return (
-    <main aria-label="Concept comparison" style={{ background: videoTheme.colors.background, color: videoTheme.colors.text, fontFamily: videoTheme.typography.fontFamily, height: "100%", width: "100%" }}>
+    <main aria-label="Concept comparison" style={{ background: colors.background, color: colors.text, fontFamily: creativePresentation?.fontFamily ?? videoTheme.typography.fontFamily, height: "100%", width: "100%" }}>
       <section style={sectionStyle}>
         <header>
           <p style={{ color: videoTheme.colors.primary, fontSize: videoTheme.typography.bodySize, fontWeight: 700, letterSpacing: 2, margin: 0 }}>
@@ -226,6 +237,7 @@ export function ComparisonSceneFrame({
 }
 
 export function ComparisonScene({
+  creativePresentation,
   resolvedAssets,
   runtimeMode,
   scene,
@@ -233,6 +245,7 @@ export function ComparisonScene({
   return (
     <ComparisonSceneFrame
       frame={useCurrentFrame()}
+      {...(creativePresentation === undefined ? {} : { creativePresentation })}
       {...(resolvedAssets === undefined ? {} : { resolvedAssets })}
       {...(runtimeMode === undefined ? {} : { runtimeMode })}
       scene={scene}

@@ -2,7 +2,7 @@
 story_id: ST-100
 title: "Extend Composition Variety to the Remaining Semantic Scene Types"
 phase: "08 — Product UI"
-status: In Review
+status: Done
 priority: should-have
 epics: ["E11", "E15"]
 prd_user_stories: ["E11-US2", "E15-US2"]
@@ -143,7 +143,7 @@ The deterministic planner incorporates a full-lesson rhythm arc (energetic openi
 - **Agent:** Antigravity
 - **Started:** 2026-09-19
 - **Completed:** 2026-09-19
-- **Status:** In Review
+- **Status:** Done
 - **Files changed:**
   - `packages/schemas/src/creative-design.ts`
   - `packages/schemas/src/creative-design.test.ts`
@@ -153,6 +153,7 @@ The deterministic planner incorporates a full-lesson rhythm arc (energetic openi
   - `packages/scene-library/src/creative-design-render.test.ts`
   - `stories/08-product-ui/ST-100-extend-composition-variety-to-remaining-scene-types.md`
   - `STORY_INDEX.md`
+  - `packages/provider-adapters/src/prompts/creative-design/v1.ts`
 - **Migrations:** None (creative design plans are deterministic derived manifests, backward compatible with existing lesson versions)
 - **Public contracts:**
   - `creativeDesignSceneTypes` expanded from 4 pilot types to all 10 semantic scene types (`input-process-output`, `cause-effect`, `labelled-diagram`, `analogy`, `worked-example`, `summary`).
@@ -174,4 +175,60 @@ The deterministic planner incorporates a full-lesson rhythm arc (energetic openi
   - New style packs in ST-101 (Systems, Field Notes, Prism) will need corresponding treatments across all 10 scene types.
 - **Deviations:** None.
 - **Code review:** Ready for review against PRD, technical guide, and ADRs.
-- **Repository-owner approval:** Pending
+- **Repository-owner approval:** Approved 2026-09-20
+
+### Review remediation — 2026-09-19
+
+- Registered treatment frames now contain the authoritative semantic scene
+  renderer directly. This preserves every approved asset, collision-safe
+  callout, and validated content item without clipping, truncating, or
+  synthesising instructional text.
+- `requiredHoldFrames` is now checked against the selected treatment timing and
+  against the scene duration before a manifest can be saved. The treatment
+  layout consumes that resolved hold when calculating its frame timing.
+- Planner version `st-100-planner-v1` is written for new manifests; the schema
+  continues to read `st-097-planner-v1` snapshots with their original
+  four-template catalogue only. The bounded provider prompt now declares the
+  matching catalogue version.
+- Additional evidence: schemas build, scene-library build, API build; 9 schema
+  tests, 6 targeted API tests, and the 60-treatment real-frame regression all
+  passed. `git diff --check` passed.
+
+### Final review remediation — 2026-09-20
+
+- The resolved creative presentation is forwarded through the shared runtime
+  into every semantic renderer. Definition, process, comparison, IPO,
+  cause-and-effect, labelled-diagram, analogy, worked-example, and summary
+  now consume the resolved palette and font while retaining their established
+  safe-layout and asset rules; hook continues through its existing renderer.
+- Fixed the render-mode comparison smoke fixture to supply its two declared,
+  deterministic subject assets. Updated the affected visual-regression hashes
+  from the pinned current renderer after reviewing byte-identical repeat
+  renders.
+- Regenerated `packages/schemas/lesson-spec-v1.schema.json` for the expanded
+  shared schema and refreshed the independent design-system preview-frame
+  baselines. Browser-backed web checks now have a 60-second busy-host budget;
+  all 51 web test files pass under that budget without skipping assertions.
+- Added the missing Node `Buffer` import used by the 60-treatment regression.
+  Also removed two dead lint failures outside the story implementation: an
+  unused idempotency pre-read result in illustration generation and a
+  catch-parameter reassignment in the model-call repair path. The latter
+  preserves the original deterministic-check error for teacher-facing failure
+  details.
+- Final evidence:
+  - `pnpm lint` — 16/16 packages passed.
+  - `pnpm typecheck` — 16/16 packages passed.
+  - `pnpm --filter @avlp/schemas test -- creative-design.test.ts` — 9 passed.
+  - `pnpm --filter @avlp/api test -- creative-design.test.ts` — 3 passed.
+  - `pnpm --filter @avlp/api test -- illustration-generation.test.ts` — 9
+    passed; `pnpm --filter @avlp/pipeline-worker test -- model-call.test.ts
+    model-call.integration.test.ts` — 18 passed, 2 environment-dependent
+    integration tests skipped.
+  - `pnpm --filter @avlp/scene-library test` — 29 files / 319 tests passed,
+    including 60 real treatment frames and preview/render parity.
+  - `pnpm --filter @avlp/schemas test` — 18 files / 348 tests passed;
+    `pnpm --filter @avlp/design-system test -- video-preview-render-smoke.test.ts`
+    — passed; `pnpm --filter @avlp/web test` — 51 files / 248 tests passed.
+  - `git diff --check` — clean.
+- **Final review result:** No remaining ST-100 findings. Approval-ready;
+  repository-owner approval remains pending.

@@ -9,7 +9,7 @@ export const creativeDesignPromptV1: PromptDefinition = {
   inputSchema: "CreativeDesignInterpretationInputV1",
   outputSchema: "CreativeDesignProposalPatchV1",
   allowedSourceContext: "No source text. The request and resolved creative manifest only.",
-  templateCatalogVersion: "st-097-planner-v1",
+  templateCatalogVersion: "st-100-planner-v1",
   examples: [],
   knownFailureModes: ["arbitrary CSS", "new fonts", "asset URLs", "content rewriting", "pixel coordinates"],
   evaluationCases: ["creative-design-v1-supported", "creative-design-v1-reject-arbitrary-style"],
