@@ -1,0 +1,56 @@
+
+> @avlp/web@0.0.0 dev C:\Users\eoaikhina\Documents\repos\product-app\apps\web
+> next dev
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.115:3000
+
+ ✓ Starting...
+ ✓ Ready in 4.3s
+ ○ Compiling / ...
+ ✓ Compiled / in 16.6s (10538 modules)
+ GET / 200 in 2933ms
+ GET / 200 in 151ms
+ GET / 200 in 94ms
+ GET / 200 in 96ms
+ ○ Compiling /sign-in ...
+ ✓ Compiled /sign-in in 5.8s (10543 modules)
+ GET /sign-in 200 in 7281ms
+ GET /sign-in 200 in 186ms
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 1444ms (158 modules)
+ ○ Compiling /workspace ...
+ ✓ Compiled /workspace in 7s (10735 modules)
+ GET /workspace 200 in 8893ms
+ ○ Compiling /api/projects/[projectId]/delete ...
+ ✓ Compiled /api/projects/[projectId]/delete in 6.7s (10733 modules)
+ POST /api/projects/01a092b5-8f02-794d-a205-2055ae5a1084/delete 303 in 9782ms
+ GET /workspace?done=delete 200 in 1758ms
+ ○ Compiling /api/projects ...
+ ✓ Compiled /api/projects in 4s (10735 modules)
+ POST /api/projects 303 in 4589ms
+ ○ Compiling /workspace/[projectId]/upload ...
+ ✓ Compiled /workspace/[projectId]/upload in 16.9s (13896 modules)
+ GET /workspace/01a0c041-f2c0-7b38-8c8e-22539c7082a8/upload 200 in 19670ms
+ GET /workspace/01a0c041-f2c0-7b38-8c8e-22539c7082a8/upload 200 in 461ms
+ GET /workspace?done=delete 200 in 812ms
+ ○ Compiling /workspace/[projectId]/review ...
+ ✓ Compiled /workspace/[projectId]/review in 9.1s (13897 modules)
+ GET /workspace/01a0c041-f2c0-7b38-8c8e-22539c7082a8/review 200 in 10919ms
+ ○ Compiling /workspace/[projectId]/configuration ...
+ ✓ Compiled /workspace/[projectId]/configuration in 5.6s (13917 modules)
+ GET /workspace/01a0c041-f2c0-7b38-8c8e-22539c7082a8/configuration 200 in 7051ms
+ GET /workspace/01a0c041-f2c0-7b38-8c8e-22539c7082a8/configuration 200 in 1502ms
+ ○ Compiling /workspace/[projectId]/objectives ...
+ ✓ Compiled /workspace/[projectId]/objectives in 10.1s (13931 modules)
+ GET /workspace/01a0c041-f2c0-7b38-8c8e-22539c7082a8/objectives 200 in 11413ms
+ GET /workspace/01a0c041-f2c0-7b38-8c8e-22539c7082a8/objectives 200 in 340ms
+ ○ Compiling /workspace/[projectId]/outline ...
+ ✓ Compiled /workspace/[projectId]/outline in 9.5s (13917 modules)
+ GET /workspace/01a0c041-f2c0-7b38-8c8e-22539c7082a8/outline 200 in 11111ms
+ GET /workspace/01a0c041-f2c0-7b38-8c8e-22539c7082a8/outline 200 in 400ms
+ ○ Compiling /workspace/[projectId]/narration ...
+ ✓ Compiled /workspace/[projectId]/narration in 10.1s (13857 modules)
+ GET /workspace/01a0c041-f2c0-7b38-8c8e-22539c7082a8/narration 200 in 11716ms
+ GET /workspace/01a0c041-f2c0-7b38-8c8e-22539c7082a8/narration 200 in 1755ms

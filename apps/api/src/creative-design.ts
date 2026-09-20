@@ -29,6 +29,7 @@ import {
   treatmentFor,
   validateCreativeDesignManifest,
   type CreativeDesignManifest,
+  type CreativeDesignPackId,
   type CreativeDesignProposalPatch,
   type CreativeDesignSceneType,
   modelCallJobPayloadSchema,
@@ -71,9 +72,7 @@ export function createEnvironmentCreativeDesignCohort(environment: {
 
 /** A provider is optional by design: unavailable interpretation leaves manual controls usable. */
 export interface CreativeDesignService {
-  getDraft(
-    input: Scope,
-  ): Promise<{
+  getDraft(input: Scope): Promise<{
     revision: number;
     manifest: CreativeDesignManifest;
     eligibility: readonly string[];
@@ -90,9 +89,7 @@ export interface CreativeDesignService {
   apply(
     input: Scope & { expectedRevision: number },
   ): Promise<{ snapshotId: Identifier; manifestHash: string }>;
-  savePreset(
-    input: Scope & { body: unknown },
-  ): Promise<{
+  savePreset(input: Scope & { body: unknown }): Promise<{
     presetId: Identifier;
     versionId: Identifier;
     versionNumber: number;
@@ -100,27 +97,35 @@ export interface CreativeDesignService {
   archivePreset(
     input: Scope & { presetId: Identifier; expectedRevision: number },
   ): Promise<void>;
-  listPresets(input: Scope): Promise<readonly {
-    id: Identifier;
-    name: string;
-    revision: number;
-    versions: readonly { id: Identifier; versionNumber: number }[];
-  }[]>;
+  listPresets(input: Scope): Promise<
+    readonly {
+      id: Identifier;
+      name: string;
+      revision: number;
+      versions: readonly { id: Identifier; versionNumber: number }[];
+    }[]
+  >;
   applyPreset(
     input: Scope & { presetId: Identifier; body: unknown },
   ): Promise<{ revision: number; manifest: CreativeDesignManifest }>;
   describe(
     input: Scope & { body: unknown; correlationId: Identifier },
-  ): Promise<{
-    patch: CreativeDesignProposalPatch;
-    unsupported: readonly string[];
-    draftRevision: number;
-  } | { jobId: Identifier; status: "queued" }>;
-  describeStatus(input: Scope & { jobId: Identifier }): Promise<{
-    patch: CreativeDesignProposalPatch;
-    unsupported: readonly string[];
-    draftRevision: number;
-  } | { status: "queued" | "running" | "retry_wait" | "failed" }>;
+  ): Promise<
+    | {
+        patch: CreativeDesignProposalPatch;
+        unsupported: readonly string[];
+        draftRevision: number;
+      }
+    | { jobId: Identifier; status: "queued" }
+  >;
+  describeStatus(input: Scope & { jobId: Identifier }): Promise<
+    | {
+        patch: CreativeDesignProposalPatch;
+        unsupported: readonly string[];
+        draftRevision: number;
+      }
+    | { status: "queued" | "running" | "retry_wait" | "failed" }
+  >;
 }
 
 function canonical(value: unknown): unknown {
@@ -157,9 +162,7 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
     private readonly now: () => Date = () => new Date(),
   ) {}
 
-  public async getDraft(
-    input: Scope,
-  ): Promise<{
+  public async getDraft(input: Scope): Promise<{
     revision: number;
     manifest: CreativeDesignManifest;
     eligibility: readonly string[];
@@ -371,7 +374,9 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
             .concat(
               preflight.issues.some((issue) => issue.severity === "error")
                 ? []
-                : ["The full lesson preflight must pass before applying a design."],
+                : [
+                    "The full lesson preflight must pass before applying a design.",
+                  ],
             ),
         );
     }
@@ -455,9 +460,7 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
     });
   }
 
-  public async savePreset(
-    input: Scope & { body: unknown },
-  ): Promise<{
+  public async savePreset(input: Scope & { body: unknown }): Promise<{
     presetId: Identifier;
     versionId: Identifier;
     versionNumber: number;
@@ -594,14 +597,14 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
     if (updated === undefined) throw editConflict();
   }
 
-  public async listPresets(
-    input: Scope,
-  ): Promise<readonly {
-    id: Identifier;
-    name: string;
-    revision: number;
-    versions: readonly { id: Identifier; versionNumber: number }[];
-  }[]> {
+  public async listPresets(input: Scope): Promise<
+    readonly {
+      id: Identifier;
+      name: string;
+      revision: number;
+      versions: readonly { id: Identifier; versionNumber: number }[];
+    }[]
+  > {
     this.assertPilot(input);
     const presets = await this.database
       .select()
@@ -619,18 +622,25 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
         id: preset.id as Identifier,
         name: preset.name,
         revision: preset.revision,
-        versions: (await this.database
-          .select({ id: creativeDesignPresetVersions.id, versionNumber: creativeDesignPresetVersions.versionNumber })
-          .from(creativeDesignPresetVersions)
-          .where(
-            and(
-              eq(creativeDesignPresetVersions.ownerUserId, input.ownerUserId),
-              eq(creativeDesignPresetVersions.projectId, input.projectId),
-              eq(creativeDesignPresetVersions.presetId, preset.id),
-            ),
-          )
-          .orderBy(desc(creativeDesignPresetVersions.versionNumber)))
-          .map((version) => ({ id: version.id as Identifier, versionNumber: version.versionNumber })),
+        versions: (
+          await this.database
+            .select({
+              id: creativeDesignPresetVersions.id,
+              versionNumber: creativeDesignPresetVersions.versionNumber,
+            })
+            .from(creativeDesignPresetVersions)
+            .where(
+              and(
+                eq(creativeDesignPresetVersions.ownerUserId, input.ownerUserId),
+                eq(creativeDesignPresetVersions.projectId, input.projectId),
+                eq(creativeDesignPresetVersions.presetId, preset.id),
+              ),
+            )
+            .orderBy(desc(creativeDesignPresetVersions.versionNumber))
+        ).map((version) => ({
+          id: version.id as Identifier,
+          versionNumber: version.versionNumber,
+        })),
       })),
     );
   }
@@ -653,7 +663,11 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
       )
       .limit(1);
     if (preset === undefined)
-      throw new PublicError("not_found", "That personal style is unavailable.", 404);
+      throw new PublicError(
+        "not_found",
+        "That personal style is unavailable.",
+        404,
+      );
     const versions = this.database
       .select()
       .from(creativeDesignPresetVersions)
@@ -662,14 +676,20 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
           eq(creativeDesignPresetVersions.presetId, preset.id),
           eq(creativeDesignPresetVersions.ownerUserId, input.ownerUserId),
           eq(creativeDesignPresetVersions.projectId, input.projectId),
-          ...(command.versionId === undefined ? [] : [eq(creativeDesignPresetVersions.id, command.versionId)]),
+          ...(command.versionId === undefined
+            ? []
+            : [eq(creativeDesignPresetVersions.id, command.versionId)]),
         ),
       )
       .orderBy(desc(creativeDesignPresetVersions.versionNumber))
       .limit(1);
     const [version] = await versions;
     if (version === undefined)
-      throw new PublicError("not_found", "That personal-style version is unavailable.", 404);
+      throw new PublicError(
+        "not_found",
+        "That personal-style version is unavailable.",
+        404,
+      );
     const saved = creativeDesignManifestSchema.parse(version.manifest);
     return this.createOrUpdateDraft({
       ...input,
@@ -682,11 +702,14 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
 
   public async describe(
     input: Scope & { body: unknown; correlationId: Identifier },
-  ): Promise<{
-    patch: CreativeDesignProposalPatch;
-    unsupported: readonly string[];
-    draftRevision: number;
-  } | { jobId: Identifier; status: "queued" }> {
+  ): Promise<
+    | {
+        patch: CreativeDesignProposalPatch;
+        unsupported: readonly string[];
+        draftRevision: number;
+      }
+    | { jobId: Identifier; status: "queued" }
+  > {
     this.assertPilot(input);
     const command = parse(creativeDesignNaturalLanguageInputSchema, input.body);
     const draft = await this.getDraft(input);
@@ -695,19 +718,62 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
     return this.enqueueDescription(input, command, draft);
   }
 
-  public async describeStatus(input: Scope & { jobId: Identifier }): Promise<{
-    patch: CreativeDesignProposalPatch;
-    unsupported: readonly string[];
-    draftRevision: number;
-  } | { status: "queued" | "running" | "retry_wait" | "failed" }> {
+  public async describeStatus(input: Scope & { jobId: Identifier }): Promise<
+    | {
+        patch: CreativeDesignProposalPatch;
+        unsupported: readonly string[];
+        draftRevision: number;
+      }
+    | { status: "queued" | "running" | "retry_wait" | "failed" }
+  > {
     this.assertPilot(input);
-    const [job] = await this.database.select().from(jobs).where(and(eq(jobs.id, input.jobId), eq(jobs.ownerUserId, input.ownerUserId), eq(jobs.projectId, input.projectId), eq(jobs.jobType, "creative-design.interpret"))).limit(1);
-    if (job === undefined) throw new PublicError("not_found", "That style proposal is unavailable.", 404);
-    if (job.state !== "succeeded") return { status: job.state as "queued" | "running" | "retry_wait" | "failed" };
-    const candidateId = (job.resultMetadata as { candidateId?: unknown } | null)?.candidateId;
-    if (typeof candidateId !== "string") throw new PublicError("validation_failed", "The style proposal did not produce a safe result.", 422);
-    const [proposal] = await this.database.select().from(creativeDesignProposals).where(and(eq(creativeDesignProposals.id, candidateId as Identifier), eq(creativeDesignProposals.ownerUserId, input.ownerUserId), eq(creativeDesignProposals.projectId, input.projectId))).limit(1);
-    if (proposal === undefined) throw new PublicError("not_found", "That style proposal is unavailable.", 404);
+    const [job] = await this.database
+      .select()
+      .from(jobs)
+      .where(
+        and(
+          eq(jobs.id, input.jobId),
+          eq(jobs.ownerUserId, input.ownerUserId),
+          eq(jobs.projectId, input.projectId),
+          eq(jobs.jobType, "creative-design.interpret"),
+        ),
+      )
+      .limit(1);
+    if (job === undefined)
+      throw new PublicError(
+        "not_found",
+        "That style proposal is unavailable.",
+        404,
+      );
+    if (job.state !== "succeeded")
+      return {
+        status: job.state as "queued" | "running" | "retry_wait" | "failed",
+      };
+    const candidateId = (job.resultMetadata as { candidateId?: unknown } | null)
+      ?.candidateId;
+    if (typeof candidateId !== "string")
+      throw new PublicError(
+        "validation_failed",
+        "The style proposal did not produce a safe result.",
+        422,
+      );
+    const [proposal] = await this.database
+      .select()
+      .from(creativeDesignProposals)
+      .where(
+        and(
+          eq(creativeDesignProposals.id, candidateId as Identifier),
+          eq(creativeDesignProposals.ownerUserId, input.ownerUserId),
+          eq(creativeDesignProposals.projectId, input.projectId),
+        ),
+      )
+      .limit(1);
+    if (proposal === undefined)
+      throw new PublicError(
+        "not_found",
+        "That style proposal is unavailable.",
+        404,
+      );
     const [currentDraft] = await this.database
       .select({ revision: creativeDesignDrafts.revision })
       .from(creativeDesignDrafts)
@@ -721,29 +787,134 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
     // A provider result is a review suggestion for exactly the draft the
     // teacher submitted. Never merge it into a newer draft merely because the
     // asynchronous job completed later.
-    if (currentDraft === undefined || currentDraft.revision !== proposal.draftRevision)
+    if (
+      currentDraft === undefined ||
+      currentDraft.revision !== proposal.draftRevision
+    )
       throw editConflict();
-    return { patch: creativeDesignProposalPatchSchema.parse(proposal.patch), unsupported: z.array(z.string()).parse(proposal.unsupported), draftRevision: proposal.draftRevision };
+    return {
+      patch: creativeDesignProposalPatchSchema.parse(proposal.patch),
+      unsupported: z.array(z.string()).parse(proposal.unsupported),
+      draftRevision: proposal.draftRevision,
+    };
   }
 
   private async enqueueDescription(
     input: Scope & { correlationId: Identifier },
     command: z.infer<typeof creativeDesignNaturalLanguageInputSchema>,
-    draft: NonNullable<Awaited<ReturnType<PostgresCreativeDesignService["getDraft"]>>>,
+    draft: NonNullable<
+      Awaited<ReturnType<PostgresCreativeDesignService["getDraft"]>>
+    >,
   ): Promise<{ jobId: Identifier; status: "queued" }> {
-    const [draftRow] = await this.database.select().from(creativeDesignDrafts).where(and(eq(creativeDesignDrafts.ownerUserId, input.ownerUserId), eq(creativeDesignDrafts.projectId, input.projectId), eq(creativeDesignDrafts.revision, draft.revision))).limit(1);
-    const [source] = await this.database.select().from(sourceSnapshots).where(and(eq(sourceSnapshots.ownerUserId, input.ownerUserId), eq(sourceSnapshots.projectId, input.projectId))).orderBy(desc(sourceSnapshots.snapshotVersion)).limit(1);
-    if (draftRow === undefined || source === undefined) throw new PublicError("not_found", "An approved source snapshot is required before describing changes.", 409);
+    const [draftRow] = await this.database
+      .select()
+      .from(creativeDesignDrafts)
+      .where(
+        and(
+          eq(creativeDesignDrafts.ownerUserId, input.ownerUserId),
+          eq(creativeDesignDrafts.projectId, input.projectId),
+          eq(creativeDesignDrafts.revision, draft.revision),
+        ),
+      )
+      .limit(1);
+    const [source] = await this.database
+      .select()
+      .from(sourceSnapshots)
+      .where(
+        and(
+          eq(sourceSnapshots.ownerUserId, input.ownerUserId),
+          eq(sourceSnapshots.projectId, input.projectId),
+        ),
+      )
+      .orderBy(desc(sourceSnapshots.snapshotVersion))
+      .limit(1);
+    if (draftRow === undefined || source === undefined)
+      throw new PublicError(
+        "not_found",
+        "An approved source snapshot is required before describing changes.",
+        409,
+      );
     const timestamp = this.now();
     const requestedJobId = createId(timestamp);
-    const payload = modelCallJobPayloadSchema.parse({ schemaVersion: 2, operationType: "ai.creative_design", sourceSnapshotId: source.id, promptId: "creative-design", promptVersion: "v1", model: "moonshotai/Kimi-K3", providerApproval: createModelCallProviderApproval({ jobId: requestedJobId, model: "moonshotai/Kimi-K3" }), params: { draftId: draftRow.id, draftRevision: draftRow.revision, request: command.request } });
+    const payload = modelCallJobPayloadSchema.parse({
+      schemaVersion: 2,
+      operationType: "ai.creative_design",
+      sourceSnapshotId: source.id,
+      promptId: "creative-design",
+      promptVersion: "v1",
+      model: "moonshotai/Kimi-K3",
+      providerApproval: createModelCallProviderApproval({
+        jobId: requestedJobId,
+        model: "moonshotai/Kimi-K3",
+      }),
+      params: {
+        draftId: draftRow.id,
+        draftRevision: draftRow.revision,
+        request: command.request,
+      },
+    });
     const inputVersion = `creative-design:${draftRow.id}:${draftRow.revision}:${creativeDesignHash(command.request)}:v1`;
-    const envelope = createJobEnvelope(modelCallJobPayloadSchema, { jobId: requestedJobId, jobType: "creative-design.interpret", projectId: input.projectId, ownerUserId: input.ownerUserId, inputVersion, idempotencyKey: createIdempotencyKey({ jobType: "creative-design.interpret", projectId: input.projectId, inputVersion, options: {} }), correlationId: input.correlationId, payloadVersion: 2, payload, requestedAt: timestamp });
+    const envelope = createJobEnvelope(modelCallJobPayloadSchema, {
+      jobId: requestedJobId,
+      jobType: "creative-design.interpret",
+      projectId: input.projectId,
+      ownerUserId: input.ownerUserId,
+      inputVersion,
+      idempotencyKey: createIdempotencyKey({
+        jobType: "creative-design.interpret",
+        projectId: input.projectId,
+        inputVersion,
+        options: {},
+      }),
+      correlationId: input.correlationId,
+      payloadVersion: 2,
+      payload,
+      requestedAt: timestamp,
+    });
     return this.database.transaction(async (tx) => {
-      const [created] = await tx.insert(jobs).values({ id: envelope.jobId, jobType: envelope.jobType, queueName: "pipeline", projectId: envelope.projectId, ownerUserId: envelope.ownerUserId, inputVersion: envelope.inputVersion, idempotencyKey: envelope.idempotencyKey, correlationId: envelope.correlationId, payloadVersion: envelope.payloadVersion, payload: envelope.payload }).onConflictDoNothing().returning({ id: jobs.id });
-      const jobId = (created?.id ?? (await tx.select({ id: jobs.id }).from(jobs).where(and(eq(jobs.ownerUserId, input.ownerUserId), eq(jobs.projectId, input.projectId), eq(jobs.idempotencyKey, envelope.idempotencyKey))).limit(1))[0]?.id) as Identifier | undefined;
-      if (jobId === undefined) throw new Error("Creative-design interpretation job could not be persisted.");
-      if (created !== undefined) await tx.insert(outboxEvents).values({ id: createId(timestamp), jobId, eventType: "creative_design.interpret_requested.v1", queueName: "pipeline", envelope, deliveryOptions: { maxAttempts: 3, retryDelayMs: 5_000 } });
+      const [created] = await tx
+        .insert(jobs)
+        .values({
+          id: envelope.jobId,
+          jobType: envelope.jobType,
+          queueName: "pipeline",
+          projectId: envelope.projectId,
+          ownerUserId: envelope.ownerUserId,
+          inputVersion: envelope.inputVersion,
+          idempotencyKey: envelope.idempotencyKey,
+          correlationId: envelope.correlationId,
+          payloadVersion: envelope.payloadVersion,
+          payload: envelope.payload,
+        })
+        .onConflictDoNothing()
+        .returning({ id: jobs.id });
+      const jobId = (created?.id ??
+        (
+          await tx
+            .select({ id: jobs.id })
+            .from(jobs)
+            .where(
+              and(
+                eq(jobs.ownerUserId, input.ownerUserId),
+                eq(jobs.projectId, input.projectId),
+                eq(jobs.idempotencyKey, envelope.idempotencyKey),
+              ),
+            )
+            .limit(1)
+        )[0]?.id) as Identifier | undefined;
+      if (jobId === undefined)
+        throw new Error(
+          "Creative-design interpretation job could not be persisted.",
+        );
+      if (created !== undefined)
+        await tx.insert(outboxEvents).values({
+          id: createId(timestamp),
+          jobId,
+          eventType: "creative_design.interpret_requested.v1",
+          queueName: "pipeline",
+          envelope,
+          deliveryOptions: { maxAttempts: 3, retryDelayMs: 5_000 },
+        });
       return { jobId, status: "queued" as const };
     });
   }
@@ -821,7 +992,9 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
         ? {}
         : {
             processShape:
-              "nodes" in entry.scene.visual ? ("graph" as const) : ("legacy" as const),
+              "nodes" in entry.scene.visual
+                ? ("graph" as const)
+                : ("legacy" as const),
           }),
     }));
   }
@@ -833,7 +1006,11 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
   ): Promise<void> {
     if (logoAssetId === null) return;
     const [asset] = await db
-      .select({ id: projectAssets.id, status: projectAssets.status, deletedAt: projectAssets.deletedAt })
+      .select({
+        id: projectAssets.id,
+        status: projectAssets.status,
+        deletedAt: projectAssets.deletedAt,
+      })
       .from(projectAssets)
       .where(
         and(
@@ -846,7 +1023,11 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
     // ProjectAssetService promotes a safety-checked upload to `active`.
     // `available` is not a project-assets state, so accepting it here would
     // make every otherwise-valid logo impossible to apply.
-    if (asset === undefined || asset.deletedAt !== null || asset.status !== "active")
+    if (
+      asset === undefined ||
+      asset.deletedAt !== null ||
+      asset.status !== "active"
+    )
       throw invalidDesign([
         "The selected logo must be an approved asset owned by this project.",
       ]);
@@ -855,7 +1036,7 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
 
 export function createDefaultCreativeDesignManifest(
   input: Readonly<{
-    packId: "essential" | "editorial" | "everyday";
+    packId: CreativeDesignPackId;
     scenes: readonly Readonly<{
       id: string;
       template: CreativeDesignSceneType;

@@ -95,6 +95,20 @@ import type { RenderService } from "./renders.js";
 
 type Scope = { ownerUserId: Identifier; projectId: Identifier };
 
+const demonstrationCreativePackIds = [
+  "essential",
+  "editorial",
+  "everyday",
+] as const;
+
+function isDemonstrationCreativePack(
+  value: string,
+): value is (typeof demonstrationCreativePackIds)[number] {
+  return demonstrationCreativePackIds.includes(
+    value as (typeof demonstrationCreativePackIds)[number],
+  );
+}
+
 /** Resolves the immutable design already saved in the baseline version. */
 function presentationFromBaseline(
   baseline: typeof lessonVersions.$inferSelect,
@@ -110,6 +124,12 @@ function presentationFromBaseline(
     throw new PublicError(
       "bad_request",
       "This lesson's saved creative style is invalid. Reapply the style and save a new lesson version before creating a comparison.",
+      409,
+    );
+  if (!isDemonstrationCreativePack(parsed.data.pack.id))
+    throw new PublicError(
+      "bad_request",
+      "This creative style is not available for demonstration comparisons. Choose Essential, Editorial, or Everyday, or render the standard lesson.",
       409,
     );
   return {

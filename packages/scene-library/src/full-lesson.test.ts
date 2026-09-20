@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { lessonSpecSchema } from "@avlp/schemas";
+import {
+  creativeDesignManifestSchema,
+  creativeDesignPlannerVersion,
+  defaultCreativeDesignSettings,
+  lessonSpecSchema,
+} from "@avlp/schemas";
 import {
   calculateLessonTimeline,
   fullLessonCompositionPropsSchema,
@@ -110,6 +115,24 @@ describe("three-minute photosynthesis full lesson", () => {
       ],
     };
     expect(fullLessonCompositionPropsSchema.safeParse(unsafe).success).toBe(
+      false,
+    );
+  });
+
+  it("rejects an incomplete creative-design manifest before preview or rendering", () => {
+    const preview = {
+      ...photosynthesisThreeMinutePreview,
+      creativeDesign: creativeDesignManifestSchema.parse({
+        manifestVersion: "1.0",
+        plannerVersion: creativeDesignPlannerVersion,
+        pack: { id: "systems", version: "1.0.0" },
+        approach: "standard",
+        settings: defaultCreativeDesignSettings,
+        selections: {},
+        presetVersionId: null,
+      }),
+    };
+    expect(fullLessonCompositionPropsSchema.safeParse(preview).success).toBe(
       false,
     );
   });

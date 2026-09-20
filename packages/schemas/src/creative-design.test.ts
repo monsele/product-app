@@ -14,10 +14,17 @@ import {
 
 const id = (tail: string) => `0198d270-0000-7000-8000-000000000${tail}`;
 
-describe("ST-100 creative-design contract", () => {
+describe("ST-101 creative-design contract", () => {
   it("registers two bounded compositions for every style pack and all ten scene types", () => {
-    expect(creativeDesignCatalogue).toHaveLength(60);
-    for (const pack of ["essential", "editorial", "everyday"] as const)
+    expect(creativeDesignCatalogue).toHaveLength(120);
+    for (const pack of [
+      "essential",
+      "editorial",
+      "everyday",
+      "systems",
+      "field-notes",
+      "prism",
+    ] as const)
       for (const scene of [
         "hook",
         "definition",
@@ -51,10 +58,22 @@ describe("ST-100 creative-design contract", () => {
   it("applies lesson-level rhythm arc and hold frames across diverse scene types", () => {
     const scenes = [
       { id: id("10"), template: "hook" as const, durationSeconds: 8 },
-      { id: id("11"), template: "input-process-output" as const, durationSeconds: 8 },
+      {
+        id: id("11"),
+        template: "input-process-output" as const,
+        durationSeconds: 8,
+      },
       { id: id("12"), template: "cause-effect" as const, durationSeconds: 8 },
-      { id: id("13"), template: "labelled-diagram" as const, durationSeconds: 8 },
-      { id: id("14"), template: "worked-example" as const, durationSeconds: 10 },
+      {
+        id: id("13"),
+        template: "labelled-diagram" as const,
+        durationSeconds: 8,
+      },
+      {
+        id: id("14"),
+        template: "worked-example" as const,
+        durationSeconds: 10,
+      },
       { id: id("15"), template: "summary" as const, durationSeconds: 8 },
     ];
     const planned = planCreativeDesign({ packId: "editorial", scenes });
@@ -102,9 +121,13 @@ describe("ST-100 creative-design contract", () => {
     expect(
       creativeDesignCapability({
         approach: "standard",
-        scenes: [{ id: id("05"), template: "unknown-template", durationSeconds: 8 }],
+        scenes: [
+          { id: id("05"), template: "unknown-template", durationSeconds: 8 },
+        ],
       }),
-    ).toContain("Scene 0198d270-0000-7000-8000-00000000005 uses unsupported template unknown-template.");
+    ).toContain(
+      "Scene 0198d270-0000-7000-8000-00000000005 uses unsupported template unknown-template.",
+    );
     // All 10 templates pass under standard approach
     const allTen = [
       "hook",
@@ -138,7 +161,10 @@ describe("ST-100 creative-design contract", () => {
       pack: { id: "essential", version: "1.0.0" },
       approach: "standard",
       settings: defaultCreativeDesignSettings,
-      selections: planCreativeDesign({ packId: "essential", scenes: typedAllTen }),
+      selections: planCreativeDesign({
+        packId: "essential",
+        scenes: typedAllTen,
+      }),
       presetVersionId: null,
     });
     expect(validateCreativeDesignManifest(manifest, allTen)).toEqual([]);
@@ -161,14 +187,44 @@ describe("ST-100 creative-design contract", () => {
     ).toBe(false);
   });
 
+  it("rejects an unregistered style-pack release at the schema boundary", () => {
+    const scene = {
+      id: id("009"),
+      template: "hook" as const,
+      durationSeconds: 8,
+    };
+    expect(
+      creativeDesignManifestSchema.safeParse({
+        manifestVersion: "1.0",
+        plannerVersion: creativeDesignPlannerVersion,
+        pack: { id: "systems", version: "9.9.9" },
+        approach: "standard",
+        settings: defaultCreativeDesignSettings,
+        selections: planCreativeDesign({ packId: "systems", scenes: [scene] }),
+        presetVersionId: null,
+      }).success,
+    ).toBe(false);
+  });
+
   it("preflights accessibility contrast and complete scene selections", () => {
-    const scene = { id: id("006"), template: "hook" as const, durationSeconds: 8 };
+    const scene = {
+      id: id("006"),
+      template: "hook" as const,
+      durationSeconds: 8,
+    };
     const manifest = creativeDesignManifestSchema.parse({
       manifestVersion: "1.0",
       plannerVersion: "st-097-planner-v1",
       pack: { id: "essential", version: "1.0.0" },
       approach: "standard",
-      settings: { ...defaultCreativeDesignSettings, colors: { ...defaultCreativeDesignSettings.colors, text: "#ffffff", background: "#ffffff" } },
+      settings: {
+        ...defaultCreativeDesignSettings,
+        colors: {
+          ...defaultCreativeDesignSettings.colors,
+          text: "#ffffff",
+          background: "#ffffff",
+        },
+      },
       selections: planCreativeDesign({ packId: "essential", scenes: [scene] }),
       presetVersionId: null,
     });
@@ -179,7 +235,11 @@ describe("ST-100 creative-design contract", () => {
   });
 
   it("rejects a manifest that weakens a treatment's readable hold", () => {
-    const scene = { id: id("007"), template: "worked-example" as const, durationSeconds: 8 };
+    const scene = {
+      id: id("007"),
+      template: "worked-example" as const,
+      durationSeconds: 8,
+    };
     const manifest = creativeDesignManifestSchema.parse({
       manifestVersion: "1.0",
       plannerVersion: creativeDesignPlannerVersion,

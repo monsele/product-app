@@ -8,7 +8,9 @@ import { z } from "zod";
 
 const text = (maximum: number) => z.string().trim().min(1).max(maximum);
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/);
-const version = z.string().regex(/^\d+\.\d+\.\d+$/);
+/** Every registered production pack currently has one immutable release. */
+export const creativeDesignPackVersion = "1.0.0" as const;
+const version = z.literal(creativeDesignPackVersion);
 
 export const creativeDesignManifestVersion = "1.0" as const;
 /**
@@ -17,9 +19,10 @@ export const creativeDesignManifestVersion = "1.0" as const;
  * the expanded catalogue and rhythm rules.
  */
 export const legacyCreativeDesignPlannerVersion = "st-097-planner-v1" as const;
-export const creativeDesignPlannerVersion = "st-100-planner-v1" as const;
+export const creativeDesignPlannerVersion = "st-101-planner-v1" as const;
 export const creativeDesignPlannerVersions = [
   legacyCreativeDesignPlannerVersion,
+  "st-100-planner-v1",
   creativeDesignPlannerVersion,
 ] as const;
 export const creativeDesignHashPolicy = "st-097-canonical-json-v1" as const;
@@ -27,6 +30,9 @@ export const creativeDesignPackIds = [
   "essential",
   "editorial",
   "everyday",
+  "systems",
+  "field-notes",
+  "prism",
 ] as const;
 export const creativeDesignPackIdSchema = z.enum(creativeDesignPackIds);
 export type CreativeDesignPackId = z.infer<typeof creativeDesignPackIdSchema>;
@@ -273,7 +279,8 @@ const familyFor = (
   if (sceneType === "process") return variant === "primary" ? "path" : "panels";
   if (sceneType === "input-process-output")
     return variant === "primary" ? "flow" : "staged";
-  if (sceneType === "comparison") return variant === "primary" ? "panels" : "rows";
+  if (sceneType === "comparison")
+    return variant === "primary" ? "panels" : "rows";
   if (sceneType === "cause-effect")
     return variant === "primary" ? "chain" : "divergent";
   if (sceneType === "labelled-diagram")
@@ -314,8 +321,7 @@ const textLimitsFor = (
     return { maxCharacters: 300, maxItems: 8 };
   if (sceneType === "input-process-output" || sceneType === "summary")
     return { maxCharacters: 280, maxItems: 6 };
-  if (sceneType === "process")
-    return { maxCharacters: 220, maxItems: 6 };
+  if (sceneType === "process") return { maxCharacters: 220, maxItems: 6 };
   return { maxCharacters: 220, maxItems: 4 };
 };
 
@@ -337,18 +343,43 @@ const timingFor = (
   exitFrames: number;
 }> => {
   if (sceneType === "worked-example")
-    return { establishFrames: 12, explainFrames: 42, holdFrames: 105, exitFrames: 12 };
+    return {
+      establishFrames: 12,
+      explainFrames: 42,
+      holdFrames: 105,
+      exitFrames: 12,
+    };
   if (
     sceneType === "process" ||
     sceneType === "cause-effect" ||
     sceneType === "labelled-diagram"
   )
-    return { establishFrames: 12, explainFrames: 36, holdFrames: 90, exitFrames: 12 };
+    return {
+      establishFrames: 12,
+      explainFrames: 36,
+      holdFrames: 90,
+      exitFrames: 12,
+    };
   if (sceneType === "summary")
-    return { establishFrames: 12, explainFrames: 24, holdFrames: 80, exitFrames: 12 };
+    return {
+      establishFrames: 12,
+      explainFrames: 24,
+      holdFrames: 80,
+      exitFrames: 12,
+    };
   if (sceneType === "input-process-output" || sceneType === "analogy")
-    return { establishFrames: 12, explainFrames: 30, holdFrames: 75, exitFrames: 12 };
-  return { establishFrames: 12, explainFrames: 24, holdFrames: 60, exitFrames: 12 };
+    return {
+      establishFrames: 12,
+      explainFrames: 30,
+      holdFrames: 75,
+      exitFrames: 12,
+    };
+  return {
+    establishFrames: 12,
+    explainFrames: 24,
+    holdFrames: 60,
+    exitFrames: 12,
+  };
 };
 
 const densityFor = (sceneType: CreativeDesignSceneType): "low" | "medium" => {
@@ -439,7 +470,8 @@ export function creativeDesignCapability(
 
 function relativeLuminance(color: string): number {
   const channels = [1, 3, 5].map((offset) => {
-    const component = Number.parseInt(color.slice(offset, offset + 2), 16) / 255;
+    const component =
+      Number.parseInt(color.slice(offset, offset + 2), 16) / 255;
     return component <= 0.04045
       ? component / 12.92
       : ((component + 0.055) / 1.055) ** 2.4;
@@ -447,7 +479,10 @@ function relativeLuminance(color: string): number {
   return 0.2126 * channels[0]! + 0.7152 * channels[1]! + 0.0722 * channels[2]!;
 }
 
-export function creativeDesignContrastRatio(left: string, right: string): number {
+export function creativeDesignContrastRatio(
+  left: string,
+  right: string,
+): number {
   const high = Math.max(relativeLuminance(left), relativeLuminance(right));
   const low = Math.min(relativeLuminance(left), relativeLuminance(right));
   return (high + 0.05) / (low + 0.05);
@@ -466,14 +501,22 @@ export function validateCreativeDesignManifest(
     durationSeconds: number;
   }>[],
 ): readonly string[] {
-  const issues = [...creativeDesignCapability({ approach: manifest.approach, scenes })];
+  const issues = [
+    ...creativeDesignCapability({ approach: manifest.approach, scenes }),
+  ];
   const colors = manifest.settings.colors;
   if (creativeDesignContrastRatio(colors.text, colors.background) < 4.5)
-    issues.push("Text color must have at least 4.5:1 contrast against the background.");
+    issues.push(
+      "Text color must have at least 4.5:1 contrast against the background.",
+    );
   if (creativeDesignContrastRatio(colors.text, colors.surface) < 4.5)
-    issues.push("Text color must have at least 4.5:1 contrast against the surface.");
+    issues.push(
+      "Text color must have at least 4.5:1 contrast against the surface.",
+    );
   if (creativeDesignContrastRatio(colors.accent, colors.background) < 3)
-    issues.push("Accent color must have at least 3:1 contrast against the background.");
+    issues.push(
+      "Accent color must have at least 3:1 contrast against the background.",
+    );
   for (const scene of scenes) {
     const selection = manifest.selections[scene.id];
     if (selection === undefined) {
@@ -531,7 +574,8 @@ const holdFramesForScene = (sceneType: CreativeDesignSceneType): number => {
   )
     return 90;
   if (sceneType === "summary") return 80;
-  if (sceneType === "input-process-output" || sceneType === "analogy") return 75;
+  if (sceneType === "input-process-output" || sceneType === "analogy")
+    return 75;
   return 60;
 };
 

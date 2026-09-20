@@ -16,7 +16,9 @@ import {
   previewAssetSchema,
   sceneSpecSchema,
   treatmentFor,
+  validateCreativeDesignManifest,
   type CreativeDesignCandidate,
+  type CreativeDesignPackId,
   type LessonSpec,
 } from "@avlp/schemas";
 import { videoTheme } from "@avlp/design-system/video-theme";
@@ -100,6 +102,20 @@ export const fullLessonCompositionPropsSchema = z
   })
   .strict()
   .superRefine((value, context) => {
+    if (value.creativeDesign !== undefined)
+      for (const issue of validateCreativeDesignManifest(
+        value.creativeDesign,
+        value.lesson.scenes.map((scene) => ({
+          durationSeconds: scene.durationSeconds,
+          id: scene.id,
+          template: scene.template,
+        })),
+      ))
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["creativeDesign"],
+          message: issue,
+        });
     const timeline = calculateLessonTimeline(value.lesson);
     const segmentsBySceneId = new Map(
       timeline.map((segment) => [segment.sceneId, segment]),
@@ -235,7 +251,10 @@ function FullLessonCaptionOverlay({
             : videoTheme.typography.captionSize,
         left: videoTheme.safeAreas.caption.left,
         margin: 0,
-        padding: creativeDesign?.settings.captionPreset === "large" ? videoTheme.spacing.md : videoTheme.spacing.sm,
+        padding:
+          creativeDesign?.settings.captionPreset === "large"
+            ? videoTheme.spacing.md
+            : videoTheme.spacing.sm,
         position: "absolute",
         right: videoTheme.safeAreas.caption.right,
         textAlign: "center",
@@ -309,18 +328,31 @@ function CreativeTreatmentLayout({
   settings: z.infer<typeof creativeDesignManifestSchema>["settings"];
   treatment: CreativeDesignCandidate;
 }>): JSX.Element {
-  const enterEnd = treatment.timing.establishFrames + treatment.timing.explainFrames;
-  const exitStart = Math.max(enterEnd + selection.requiredHoldFrames, durationInFrames - treatment.timing.exitFrames);
-  const opacity = interpolate(frame, [0, treatment.timing.establishFrames, exitStart, durationInFrames], [0, 1, 1, 0], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
+  const enterEnd =
+    treatment.timing.establishFrames + treatment.timing.explainFrames;
+  const exitStart = Math.max(
+    enterEnd + selection.requiredHoldFrames,
+    durationInFrames - treatment.timing.exitFrames,
+  );
+  const opacity = interpolate(
+    frame,
+    [0, treatment.timing.establishFrames, exitStart, durationInFrames],
+    [0, 1, 1, 0],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    },
+  );
   const frameWidth =
     treatment.packId === "editorial"
       ? 28
       : treatment.packId === "everyday"
         ? 20
-        : 12;
+        : treatment.packId === "field-notes"
+          ? 10
+          : treatment.packId === "prism"
+            ? 32
+            : 12;
   const fontFamily =
     settings.fontPair === "source-serif-inter"
       ? '"Source Serif 4", serif'
@@ -347,9 +379,10 @@ function CreativeTreatmentLayout({
       <div
         aria-hidden
         style={{
-          border: `${frameWidth}px ${treatment.packId === "editorial" ? "double" : "solid"} ${settings.colors.accent}`,
+          border: `${frameWidth}px ${treatment.packId === "editorial" ? "double" : treatment.packId === "field-notes" ? "dashed" : "solid"} ${settings.colors.accent}`,
           borderRadius:
             treatment.packId === "everyday" ||
+            treatment.packId === "prism" ||
             treatment.family === "staged" ||
             treatment.family === "focused" ||
             treatment.family === "metaphor" ||
@@ -359,7 +392,7 @@ function CreativeTreatmentLayout({
               : 0,
           boxSizing: "border-box",
           inset: treatment.variant === "alternate" ? 48 : 0,
-          outline: `${treatment.variant === "alternate" ? 5 : 0}px ${treatment.packId === "editorial" ? "dashed" : "solid"} ${settings.colors.surface}`,
+          outline: `${treatment.variant === "alternate" ? 5 : 0}px ${treatment.packId === "editorial" || treatment.packId === "field-notes" ? "dashed" : "solid"} ${settings.colors.surface}`,
           outlineOffset: treatment.variant === "alternate" ? -10 : 0,
           pointerEvents: "none",
           position: "absolute",
@@ -367,6 +400,192 @@ function CreativeTreatmentLayout({
         }}
       />
     </section>
+  );
+}
+
+/**
+ * Pack-owned visuals deliberately live outside semantic scene components. The
+ * scene remains responsible for validated educational content; this layer owns
+ * only finite, frame-driven presentation primitives, never caller-supplied
+ * coordinates or code. It settles before the registered readable hold begins.
+ */
+function CreativePackSignature({
+  accent,
+  durationInFrames,
+  pack,
+  treatment,
+}: Readonly<{
+  accent: string;
+  durationInFrames: number;
+  pack: CreativeDesignPackId;
+  treatment: CreativeDesignCandidate;
+}>): JSX.Element | null {
+  const frame = useCurrentFrame();
+  if (!["systems", "field-notes", "prism"].includes(pack)) return null;
+  const activeFrames =
+    treatment.timing.establishFrames + treatment.timing.explainFrames;
+  const progress = interpolate(frame, [0, activeFrames], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const exitStart = Math.max(
+    activeFrames + treatment.timing.holdFrames,
+    durationInFrames - treatment.timing.exitFrames,
+  );
+  const opacity = interpolate(
+    frame,
+    [0, treatment.timing.establishFrames, exitStart, durationInFrames],
+    [0, 1, 1, 0],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    },
+  );
+  const shared = {
+    "aria-hidden": true,
+    pointerEvents: "none" as const,
+    position: "absolute" as const,
+    // Scene components own the opaque semantic canvas. Keep the finite pack
+    // signature above that canvas, but never draw in the shared caption region
+    // (top 876px only), so each release remains visible without obscuring text.
+    zIndex: 2,
+  };
+  if (pack === "systems")
+    return (
+      <div
+        data-pack-signature="systems"
+        style={{
+          ...shared,
+          height: 876,
+          left: 0,
+          opacity,
+          top: 0,
+          width: "100%",
+        }}
+      >
+        <div
+          style={{
+            background: `linear-gradient(90deg, transparent, ${accent}, transparent)`,
+            height: 2,
+            left: "8%",
+            position: "absolute",
+            top: "24%",
+            transform: `scaleX(${progress})`,
+            transformOrigin: "left",
+            width: "84%",
+          }}
+        />
+        <div
+          style={{
+            background: `linear-gradient(90deg, transparent, ${accent}, transparent)`,
+            height: 2,
+            left: "8%",
+            position: "absolute",
+            top: "62%",
+            transform: `scaleX(${progress})`,
+            transformOrigin: "right",
+            width: "84%",
+          }}
+        />
+        <div
+          style={{
+            background: accent,
+            borderRadius: "50%",
+            height: 14,
+            left: `calc(8% + ${progress * 74}%)`,
+            opacity: 0.8,
+            position: "absolute",
+            top: "calc(24% - 6px)",
+            width: 14,
+          }}
+        />
+      </div>
+    );
+  if (pack === "field-notes")
+    return (
+      <div
+        data-pack-signature="field-notes"
+        style={{
+          ...shared,
+          height: 876,
+          left: 0,
+          opacity,
+          top: 0,
+          width: "100%",
+        }}
+      >
+        <div
+          style={{
+            backgroundImage: `repeating-linear-gradient(0deg, transparent, transparent 27px, ${accent}22 28px)`,
+            inset: 0,
+            position: "absolute",
+          }}
+        />
+        <div
+          style={{
+            borderBottom: `3px solid ${accent}`,
+            left: "10%",
+            position: "absolute",
+            top: "18%",
+            transform: `scaleX(${progress}) rotate(-2deg)`,
+            transformOrigin: "left",
+            width: "42%",
+          }}
+        />
+        <div
+          style={{
+            border: `2px solid ${accent}`,
+            borderRadius: "50%",
+            height: 96,
+            opacity: 0.6,
+            position: "absolute",
+            right: "12%",
+            top: "18%",
+            transform: `scale(${0.7 + progress * 0.3})`,
+            width: 96,
+          }}
+        />
+      </div>
+    );
+  return (
+    <div
+      data-pack-signature="prism"
+      style={{
+        ...shared,
+        height: 876,
+        left: 0,
+        opacity,
+        overflow: "hidden",
+        top: 0,
+        width: "100%",
+      }}
+    >
+      <div
+        style={{
+          background: accent,
+          height: 340,
+          left: "-4%",
+          opacity: 0.32,
+          position: "absolute",
+          top: "-8%",
+          transform: `rotate(${progress * 20 - 12}deg) scale(${0.7 + progress * 0.3})`,
+          width: "48%",
+        }}
+      />
+      <div
+        style={{
+          background: `linear-gradient(135deg, ${accent}, transparent)`,
+          bottom: "8%",
+          clipPath: "polygon(50% 0, 100% 100%, 0 100%)",
+          height: 300,
+          opacity: 0.42,
+          position: "absolute",
+          right: "4%",
+          transform: `translateY(${(1 - progress) * 90}px)`,
+          width: 360,
+        }}
+      />
+    </div>
   );
 }
 
@@ -443,14 +662,12 @@ function TransitionedScene({
     );
   const selection = creativeDesign.selections[scene.id];
   const treatmentId = selection?.treatmentId;
-  // A resolved manifest is required to contain every scene; this defensive
-  // fallback preserves historic snapshots even if a malformed one escaped an
-  // older reader.
+  // Composition props are validated before preview or render. Throw if a
+  // caller bypasses that boundary, rather than silently rendering a legacy
+  // presentation under a creative-design manifest.
   if (treatmentId === undefined)
-    return (
-      <div data-testid={`full-lesson-scene-${scene.order}`} style={{ height: "100%", opacity, width: "100%" }}>
-        {runtimeMode === "render" ? <SceneRenderRuntime resolvedAssets={resolvedAssets} scene={scene} /> : <ScenePreviewRuntime resolvedAssets={resolvedAssets} scene={scene} />}
-      </div>
+    throw new Error(
+      `Creative design is missing a resolved treatment for scene ${scene.id}.`,
     );
   const treatment = treatmentFor(treatmentId);
   const pack = creativeDesign.pack.id;
@@ -468,27 +685,58 @@ function TransitionedScene({
     text: creativeDesign.settings.colors.text,
     variant: treatment.variant,
   };
-  const content = runtimeMode === "render" ? (
-    <SceneRenderRuntime creativePresentation={creativePresentation} resolvedAssets={resolvedAssets} scene={scene} />
-  ) : (
-    <ScenePreviewRuntime creativePresentation={creativePresentation} resolvedAssets={resolvedAssets} scene={scene} />
-  );
+  const content =
+    runtimeMode === "render" ? (
+      <SceneRenderRuntime
+        creativePresentation={creativePresentation}
+        resolvedAssets={resolvedAssets}
+        scene={scene}
+      />
+    ) : (
+      <ScenePreviewRuntime
+        creativePresentation={creativePresentation}
+        resolvedAssets={resolvedAssets}
+        scene={scene}
+      />
+    );
   const accent = creativeDesign.settings.colors.accent;
   const imagery = creativeDesign.settings.imageryPreference;
   const decorationStyle = {
     background: accent,
-    opacity: pack === "essential" ? 0.14 : pack === "editorial" ? 0.23 : 0.3,
+    opacity:
+      pack === "essential"
+        ? 0.14
+        : pack === "editorial"
+          ? 0.23
+          : pack === "systems"
+            ? 0.18
+            : pack === "field-notes"
+              ? 0.16
+              : pack === "prism"
+                ? 0.42
+                : 0.3,
     pointerEvents: "none" as const,
     position: "absolute" as const,
   };
   const imageryDecoration =
     imagery === "photography"
-      ? { background: "linear-gradient(135deg, rgba(255,255,255,.28), transparent 55%)" }
+      ? {
+          background:
+            "linear-gradient(135deg, rgba(255,255,255,.28), transparent 55%)",
+        }
       : imagery === "illustration"
-        ? { backgroundImage: `radial-gradient(${accent}44 2px, transparent 2px)`, backgroundSize: "20px 20px" }
+        ? {
+            backgroundImage: `radial-gradient(${accent}44 2px, transparent 2px)`,
+            backgroundSize: "20px 20px",
+          }
         : imagery === "diagrams"
-          ? { backgroundImage: `linear-gradient(${creativeDesign.settings.colors.diagramEmphasis}33 1px, transparent 1px), linear-gradient(90deg, ${creativeDesign.settings.colors.diagramEmphasis}33 1px, transparent 1px)`, backgroundSize: "42px 42px" }
-          : { background: `linear-gradient(150deg, ${accent}22, transparent 45%)` };
+          ? {
+              backgroundImage: `linear-gradient(${creativeDesign.settings.colors.diagramEmphasis}33 1px, transparent 1px), linear-gradient(90deg, ${creativeDesign.settings.colors.diagramEmphasis}33 1px, transparent 1px)`,
+              backgroundSize: "42px 42px",
+            }
+          : {
+              background: `linear-gradient(150deg, ${accent}22, transparent 45%)`,
+            };
   return (
     <div
       data-testid={`full-lesson-scene-${scene.order}`}
@@ -501,24 +749,243 @@ function TransitionedScene({
         width: "100%",
       }}
     >
-      {treatment.family === "question" ? <div aria-hidden style={{ ...decorationStyle, height: 160, left: 0, top: 0, width: "100%" }} /> : null}
-      {treatment.family === "subject" ? <div aria-hidden style={{ ...decorationStyle, borderRadius: "50%", height: 460, right: -140, top: -100, width: 460 }} /> : null}
-      {treatment.family === "split" ? <div aria-hidden style={{ ...decorationStyle, height: "100%", left: 0, top: 0, width: "33%" }} /> : null}
-      {treatment.family === "path" ? <div aria-hidden style={{ ...decorationStyle, height: 32, left: "8%", top: "50%", transform: "rotate(-8deg)", width: "84%" }} /> : null}
-      {treatment.family === "panels" ? <div aria-hidden style={{ ...decorationStyle, height: "100%", left: "49%", top: 0, width: 24 }} /> : null}
-      {treatment.family === "rows" ? <div aria-hidden style={{ ...decorationStyle, height: 16, left: "10%", top: "30%", width: "80%", boxShadow: `0 150px 0 ${accent}, 0 300px 0 ${accent}` }} /> : null}
-      {treatment.family === "flow" ? <div aria-hidden style={{ ...decorationStyle, height: 20, left: "5%", top: "48%", width: "90%", borderRadius: 10 }} /> : null}
-      {treatment.family === "staged" ? <div aria-hidden style={{ ...decorationStyle, height: "70%", left: "12%", top: "15%", width: "76%", borderRadius: 24 }} /> : null}
-      {treatment.family === "chain" ? <div aria-hidden style={{ ...decorationStyle, height: 12, left: "10%", top: "52%", width: "80%", boxShadow: `0 -120px 0 ${accent}` }} /> : null}
-      {treatment.family === "divergent" ? <div aria-hidden style={{ ...decorationStyle, borderRadius: "50%", height: 360, left: "50%", top: "50%", transform: "translate(-50%, -50%)", width: 360 }} /> : null}
-      {treatment.family === "annotated" ? <div aria-hidden style={{ ...decorationStyle, border: `3px dashed ${accent}`, borderRadius: 16, height: "80%", left: "10%", top: "10%", width: "80%", background: "transparent" }} /> : null}
-      {treatment.family === "focused" ? <div aria-hidden style={{ ...decorationStyle, height: "100%", left: "60%", top: 0, width: "40%" }} /> : null}
-      {treatment.family === "parallel" ? <div aria-hidden style={{ ...decorationStyle, height: "100%", left: "49.5%", top: 0, width: 6 }} /> : null}
-      {treatment.family === "metaphor" ? <div aria-hidden style={{ ...decorationStyle, borderRadius: "50%", height: 280, left: -60, bottom: -60, width: 280 }} /> : null}
-      {treatment.family === "stepwise" ? <div aria-hidden style={{ ...decorationStyle, height: "80%", left: 40, top: "10%", width: 14, borderRadius: 7 }} /> : null}
-      {treatment.family === "walkthrough" ? <div aria-hidden style={{ ...decorationStyle, height: 180, left: 0, bottom: 0, width: "100%" }} /> : null}
-      {treatment.family === "recap-cards" ? <div aria-hidden style={{ ...decorationStyle, height: 120, left: 0, bottom: 0, width: "100%" }} /> : null}
-      {treatment.family === "central-takeaway" ? <div aria-hidden style={{ ...decorationStyle, borderRadius: "50%", height: 500, left: "50%", top: "50%", transform: "translate(-50%, -50%)", width: 500 }} /> : null}
+      <CreativePackSignature
+        accent={accent}
+        durationInFrames={durationInFrames}
+        pack={pack}
+        treatment={treatment}
+      />
+      {treatment.family === "question" ? (
+        <div
+          aria-hidden
+          style={{
+            ...decorationStyle,
+            height: 160,
+            left: 0,
+            top: 0,
+            width: "100%",
+          }}
+        />
+      ) : null}
+      {treatment.family === "subject" ? (
+        <div
+          aria-hidden
+          style={{
+            ...decorationStyle,
+            borderRadius: "50%",
+            height: 460,
+            right: -140,
+            top: -100,
+            width: 460,
+          }}
+        />
+      ) : null}
+      {treatment.family === "split" ? (
+        <div
+          aria-hidden
+          style={{
+            ...decorationStyle,
+            height: "100%",
+            left: 0,
+            top: 0,
+            width: "33%",
+          }}
+        />
+      ) : null}
+      {treatment.family === "path" ? (
+        <div
+          aria-hidden
+          style={{
+            ...decorationStyle,
+            height: 32,
+            left: "8%",
+            top: "50%",
+            transform: "rotate(-8deg)",
+            width: "84%",
+          }}
+        />
+      ) : null}
+      {treatment.family === "panels" ? (
+        <div
+          aria-hidden
+          style={{
+            ...decorationStyle,
+            height: "100%",
+            left: "49%",
+            top: 0,
+            width: 24,
+          }}
+        />
+      ) : null}
+      {treatment.family === "rows" ? (
+        <div
+          aria-hidden
+          style={{
+            ...decorationStyle,
+            height: 16,
+            left: "10%",
+            top: "30%",
+            width: "80%",
+            boxShadow: `0 150px 0 ${accent}, 0 300px 0 ${accent}`,
+          }}
+        />
+      ) : null}
+      {treatment.family === "flow" ? (
+        <div
+          aria-hidden
+          style={{
+            ...decorationStyle,
+            height: 20,
+            left: "5%",
+            top: "48%",
+            width: "90%",
+            borderRadius: 10,
+          }}
+        />
+      ) : null}
+      {treatment.family === "staged" ? (
+        <div
+          aria-hidden
+          style={{
+            ...decorationStyle,
+            height: "70%",
+            left: "12%",
+            top: "15%",
+            width: "76%",
+            borderRadius: 24,
+          }}
+        />
+      ) : null}
+      {treatment.family === "chain" ? (
+        <div
+          aria-hidden
+          style={{
+            ...decorationStyle,
+            height: 12,
+            left: "10%",
+            top: "52%",
+            width: "80%",
+            boxShadow: `0 -120px 0 ${accent}`,
+          }}
+        />
+      ) : null}
+      {treatment.family === "divergent" ? (
+        <div
+          aria-hidden
+          style={{
+            ...decorationStyle,
+            borderRadius: "50%",
+            height: 360,
+            left: "50%",
+            top: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 360,
+          }}
+        />
+      ) : null}
+      {treatment.family === "annotated" ? (
+        <div
+          aria-hidden
+          style={{
+            ...decorationStyle,
+            border: `3px dashed ${accent}`,
+            borderRadius: 16,
+            height: "80%",
+            left: "10%",
+            top: "10%",
+            width: "80%",
+            background: "transparent",
+          }}
+        />
+      ) : null}
+      {treatment.family === "focused" ? (
+        <div
+          aria-hidden
+          style={{
+            ...decorationStyle,
+            height: "100%",
+            left: "60%",
+            top: 0,
+            width: "40%",
+          }}
+        />
+      ) : null}
+      {treatment.family === "parallel" ? (
+        <div
+          aria-hidden
+          style={{
+            ...decorationStyle,
+            height: "100%",
+            left: "49.5%",
+            top: 0,
+            width: 6,
+          }}
+        />
+      ) : null}
+      {treatment.family === "metaphor" ? (
+        <div
+          aria-hidden
+          style={{
+            ...decorationStyle,
+            borderRadius: "50%",
+            height: 280,
+            left: -60,
+            bottom: -60,
+            width: 280,
+          }}
+        />
+      ) : null}
+      {treatment.family === "stepwise" ? (
+        <div
+          aria-hidden
+          style={{
+            ...decorationStyle,
+            height: "80%",
+            left: 40,
+            top: "10%",
+            width: 14,
+            borderRadius: 7,
+          }}
+        />
+      ) : null}
+      {treatment.family === "walkthrough" ? (
+        <div
+          aria-hidden
+          style={{
+            ...decorationStyle,
+            height: 180,
+            left: 0,
+            bottom: 0,
+            width: "100%",
+          }}
+        />
+      ) : null}
+      {treatment.family === "recap-cards" ? (
+        <div
+          aria-hidden
+          style={{
+            ...decorationStyle,
+            height: 120,
+            left: 0,
+            bottom: 0,
+            width: "100%",
+          }}
+        />
+      ) : null}
+      {treatment.family === "central-takeaway" ? (
+        <div
+          aria-hidden
+          style={{
+            ...decorationStyle,
+            borderRadius: "50%",
+            height: 500,
+            left: "50%",
+            top: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 500,
+          }}
+        />
+      ) : null}
       <div
         aria-hidden
         data-imagery-preference={imagery}

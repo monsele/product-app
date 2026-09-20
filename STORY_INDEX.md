@@ -106,7 +106,7 @@ Status values: `Ready`, `In Progress`, `Blocked`, `In Review`, `Done`.
 |    98 | Audio, Validation, Rendering, and Delivery | [ST-098 - Verify Controlled and Reproducible Rendering Across Video Features](stories/06-audio-validation-rendering-delivery/ST-098-verify-controlled-and-reproducible-rendering.md) | ST-060, ST-064, ST-066, ST-068, ST-084, ST-094, ST-095, ST-096, ST-097 | Done |
 |    99 | Product UI | [ST-099 - Compose Creative Styles with Demonstration-Led Explanation](stories/08-product-ui/ST-099-compose-creative-styles-with-demonstration-led-explanation.md) | ST-094, ST-095, ST-096, ST-097, ST-098 | Done |
 |   100 | Product UI | [ST-100 - Extend Composition Variety to the Remaining Semantic Scene Types](stories/08-product-ui/ST-100-extend-composition-variety-to-remaining-scene-types.md) | ST-097, ST-098 | Done |
-|   101 | Visual Runtime Proof | [ST-101 - Author the Systems, Field Notes, and Prism Style Packs](stories/01-visual-runtime-proof/ST-101-author-the-systems-field-notes-and-prism-style-packs.md) | ST-094, ST-097, ST-098 | Blocked |
+|   101 | Visual Runtime Proof | [ST-101 - Author the Systems, Field Notes, and Prism Style Packs](stories/01-visual-runtime-proof/ST-101-author-the-systems-field-notes-and-prism-style-packs.md) | ST-094, ST-097, ST-098 | Done |
 
 Maintenance 2026-09-08: ST-063 audio-provider failure repair verified on the reported scene (11,776 ms WAV and three caption cues). See its Dev Agent Record for the Together alignment configuration change and regression checks. Story status remains Done.
 

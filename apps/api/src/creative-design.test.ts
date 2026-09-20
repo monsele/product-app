@@ -37,19 +37,72 @@ describe("ST-097 creative design identity", () => {
     const manifest = createDefaultCreativeDesignManifest({
       packId: "essential",
       scenes: [
-        { id: "0198d270-0000-7000-8000-000000000010", template: "input-process-output", durationSeconds: 8 },
-        { id: "0198d270-0000-7000-8000-000000000011", template: "cause-effect", durationSeconds: 8 },
-        { id: "0198d270-0000-7000-8000-000000000012", template: "labelled-diagram", durationSeconds: 8 },
-        { id: "0198d270-0000-7000-8000-000000000013", template: "analogy", durationSeconds: 8 },
-        { id: "0198d270-0000-7000-8000-000000000014", template: "worked-example", durationSeconds: 10 },
-        { id: "0198d270-0000-7000-8000-000000000015", template: "summary", durationSeconds: 8 },
+        {
+          id: "0198d270-0000-7000-8000-000000000010",
+          template: "input-process-output",
+          durationSeconds: 8,
+        },
+        {
+          id: "0198d270-0000-7000-8000-000000000011",
+          template: "cause-effect",
+          durationSeconds: 8,
+        },
+        {
+          id: "0198d270-0000-7000-8000-000000000012",
+          template: "labelled-diagram",
+          durationSeconds: 8,
+        },
+        {
+          id: "0198d270-0000-7000-8000-000000000013",
+          template: "analogy",
+          durationSeconds: 8,
+        },
+        {
+          id: "0198d270-0000-7000-8000-000000000014",
+          template: "worked-example",
+          durationSeconds: 10,
+        },
+        {
+          id: "0198d270-0000-7000-8000-000000000015",
+          template: "summary",
+          durationSeconds: 8,
+        },
       ],
     });
-    expect(manifest.selections["0198d270-0000-7000-8000-000000000010"]!.treatmentId).toMatch(/^essential\.input-process-output\./);
-    expect(manifest.selections["0198d270-0000-7000-8000-000000000011"]!.treatmentId).toMatch(/^essential\.cause-effect\./);
-    expect(manifest.selections["0198d270-0000-7000-8000-000000000012"]!.treatmentId).toMatch(/^essential\.labelled-diagram\./);
-    expect(manifest.selections["0198d270-0000-7000-8000-000000000013"]!.treatmentId).toMatch(/^essential\.analogy\./);
-    expect(manifest.selections["0198d270-0000-7000-8000-000000000014"]!.treatmentId).toMatch(/^essential\.worked-example\./);
-    expect(manifest.selections["0198d270-0000-7000-8000-000000000015"]!.treatmentId).toMatch(/^essential\.summary\./);
+    expect(
+      manifest.selections["0198d270-0000-7000-8000-000000000010"]!.treatmentId,
+    ).toMatch(/^essential\.input-process-output\./);
+    expect(
+      manifest.selections["0198d270-0000-7000-8000-000000000011"]!.treatmentId,
+    ).toMatch(/^essential\.cause-effect\./);
+    expect(
+      manifest.selections["0198d270-0000-7000-8000-000000000012"]!.treatmentId,
+    ).toMatch(/^essential\.labelled-diagram\./);
+    expect(
+      manifest.selections["0198d270-0000-7000-8000-000000000013"]!.treatmentId,
+    ).toMatch(/^essential\.analogy\./);
+    expect(
+      manifest.selections["0198d270-0000-7000-8000-000000000014"]!.treatmentId,
+    ).toMatch(/^essential\.worked-example\./);
+    expect(
+      manifest.selections["0198d270-0000-7000-8000-000000000015"]!.treatmentId,
+    ).toMatch(/^essential\.summary\./);
+  });
+
+  it("creates a Systems manifest through the same bounded standard-design path", () => {
+    const manifest = createDefaultCreativeDesignManifest({
+      packId: "systems",
+      scenes: [
+        {
+          id: "0198d270-0000-7000-8000-000000000020",
+          template: "cause-effect",
+          durationSeconds: 8,
+        },
+      ],
+    });
+    expect(manifest.pack).toEqual({ id: "systems", version: "1.0.0" });
+    expect(
+      manifest.selections["0198d270-0000-7000-8000-000000000020"]!.treatmentId,
+    ).toMatch(/^systems\.cause-effect\./);
   });
 });

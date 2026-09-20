@@ -26,7 +26,7 @@ export const manualLessonFixtureId = "photosynthesis-three-minute-v1" as const;
  * one's hashes.
  */
 export const renderImplementationVersion =
-  "st-097-remotion-4.0.507-creative-design-v1" as const;
+  "st-101-remotion-4.0.507-creative-design-style-packs-v2" as const;
 /** Canonical serialization policy used for render-affecting identity hashes. */
 export const renderIdentityPolicy = canonicalJsonPolicy;
 
@@ -235,14 +235,20 @@ export const renderJobPayloadSchema = z
       value.manifest === undefined
         ? undefined
         : readVideoApproach(value.manifest.approach);
-    if (manifestApproach === "demonstration" && value.manifest?.demonstration === undefined)
+    if (
+      manifestApproach === "demonstration" &&
+      value.manifest?.demonstration === undefined
+    )
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["manifest", "demonstration"],
         message:
           "A demonstration render must carry its resolved plan; there is no fallback to the standard visuals.",
       });
-    if (manifestApproach === "standard" && value.manifest?.demonstration !== undefined)
+    if (
+      manifestApproach === "standard" &&
+      value.manifest?.demonstration !== undefined
+    )
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["manifest", "demonstration"],

@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   creativeDesignManifestSchema,
+  creativeDesignPackIds,
   creativeDesignProposalPatchSchema,
+  type CreativeDesignPackId,
   type CreativeDesignManifest,
 } from "@avlp/schemas";
 
@@ -12,7 +14,12 @@ type Draft = {
   manifest: CreativeDesignManifest;
   eligibility: readonly string[];
 };
-type Preset = { id: string; name: string; revision: number; versions: readonly { id: string; versionNumber: number }[] };
+type Preset = {
+  id: string;
+  name: string;
+  revision: number;
+  versions: readonly { id: string; versionNumber: number }[];
+};
 type Alternative = { treatmentId: string; description: string };
 const api = (path: string) =>
   `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}${path}`;
@@ -38,8 +45,16 @@ export function CreativeDesignPanel({
     );
     const value: unknown = await response.json().catch(() => null);
     if (!response.ok) {
-      const errorMessage = typeof value === "object" && value !== null && "error" in value && typeof (value as { error?: { message?: unknown } }).error?.message === "string" ? (value as { error: { message: string } }).error.message : "Unable to load creative design.";
-      if (response.status === 404 && errorMessage.includes("not enabled")) setPilotAvailable(false);
+      const errorMessage =
+        typeof value === "object" &&
+        value !== null &&
+        "error" in value &&
+        typeof (value as { error?: { message?: unknown } }).error?.message ===
+          "string"
+          ? (value as { error: { message: string } }).error.message
+          : "Unable to load creative design.";
+      if (response.status === 404 && errorMessage.includes("not enabled"))
+        setPilotAvailable(false);
       throw new Error(errorMessage);
     }
     setPilotAvailable(true);
@@ -80,12 +95,27 @@ export function CreativeDesignPanel({
     );
   }, [load]);
   const loadPresets = useCallback(async () => {
-    const response = await fetch(api(`/projects/${encodeURIComponent(projectId)}/creative-design/presets`), { credentials: "include", cache: "no-store" });
+    const response = await fetch(
+      api(`/projects/${encodeURIComponent(projectId)}/creative-design/presets`),
+      { credentials: "include", cache: "no-store" },
+    );
     const value: unknown = await response.json().catch(() => []);
     if (response.ok && Array.isArray(value))
-      setPresets(value.filter((item): item is Preset => typeof item === "object" && item !== null && typeof (item as { id?: unknown }).id === "string" && typeof (item as { name?: unknown }).name === "string" && typeof (item as { revision?: unknown }).revision === "number" && Array.isArray((item as { versions?: unknown }).versions)));
+      setPresets(
+        value.filter(
+          (item): item is Preset =>
+            typeof item === "object" &&
+            item !== null &&
+            typeof (item as { id?: unknown }).id === "string" &&
+            typeof (item as { name?: unknown }).name === "string" &&
+            typeof (item as { revision?: unknown }).revision === "number" &&
+            Array.isArray((item as { versions?: unknown }).versions),
+        ),
+      );
   }, [projectId]);
-  useEffect(() => { void loadPresets(); }, [loadPresets]);
+  useEffect(() => {
+    void loadPresets();
+  }, [loadPresets]);
   const request = async (path: string, body: unknown) => {
     const response = await fetch(
       api(`/projects/${encodeURIComponent(projectId)}/creative-design${path}`),
@@ -109,7 +139,7 @@ export function CreativeDesignPanel({
       );
     return value;
   };
-  const start = async (packId: "essential" | "editorial" | "everyday") => {
+  const start = async (packId: CreativeDesignPackId) => {
     setBusy(true);
     setMessage(null);
     try {
@@ -146,7 +176,8 @@ export function CreativeDesignPanel({
           typeof (item as { treatmentId?: unknown }).treatmentId === "string" &&
           typeof (item as { description?: unknown }).description === "string",
       );
-      if (safe.length === 0) throw new Error("No compatible layout is available for this scene.");
+      if (safe.length === 0)
+        throw new Error("No compatible layout is available for this scene.");
       setAlternatives(safe);
     } catch (error) {
       setMessage(
@@ -238,15 +269,33 @@ export function CreativeDesignPanel({
               let attempts = 0;
               const poll = () => {
                 void fetch(
-                  api(`/projects/${encodeURIComponent(projectId)}/creative-design/describe/${encodeURIComponent(jobId)}`),
+                  api(
+                    `/projects/${encodeURIComponent(projectId)}/creative-design/describe/${encodeURIComponent(jobId)}`,
+                  ),
                   { credentials: "include", cache: "no-store" },
                 )
                   .then(async (response) => {
-                    const body: unknown = await response.json().catch(() => null);
-                    if (!response.ok) throw new Error("Style proposal could not be loaded.");
-                    if (typeof body === "object" && body !== null && "patch" in body) resolve(body);
-                    else if (attempts >= 40) reject(new Error("Style proposal is still processing. Try again shortly."));
-                    else { attempts += 1; window.setTimeout(poll, 750); }
+                    const body: unknown = await response
+                      .json()
+                      .catch(() => null);
+                    if (!response.ok)
+                      throw new Error("Style proposal could not be loaded.");
+                    if (
+                      typeof body === "object" &&
+                      body !== null &&
+                      "patch" in body
+                    )
+                      resolve(body);
+                    else if (attempts >= 40)
+                      reject(
+                        new Error(
+                          "Style proposal is still processing. Try again shortly.",
+                        ),
+                      );
+                    else {
+                      attempts += 1;
+                      window.setTimeout(poll, 750);
+                    }
                   })
                   .catch(reject);
               };
@@ -262,9 +311,12 @@ export function CreativeDesignPanel({
         typeof resolved === "object" &&
         resolved !== null &&
         "draftRevision" in resolved &&
-        (resolved as { draftRevision?: unknown }).draftRevision !== draft.revision
+        (resolved as { draftRevision?: unknown }).draftRevision !==
+          draft.revision
       )
-        throw new Error("This proposal is for an older design draft. Review your current settings and try again.");
+        throw new Error(
+          "This proposal is for an older design draft. Review your current settings and try again.",
+        );
       if (!patch.success || local === null)
         throw new Error(
           "The description did not produce safe supported changes.",
@@ -307,7 +359,9 @@ export function CreativeDesignPanel({
   };
   const saveAsPersonalStyle = async () => {
     if (local === null) return;
-    const name = window.prompt("Name this personal style (up to 80 characters)")?.trim();
+    const name = window
+      .prompt("Name this personal style (up to 80 characters)")
+      ?.trim();
     if (!name) return;
     setBusy(true);
     try {
@@ -315,26 +369,47 @@ export function CreativeDesignPanel({
       await loadPresets();
       setMessage("Saved a new immutable version of your personal style.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to save personal style.");
-    } finally { setBusy(false); }
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to save personal style.",
+      );
+    } finally {
+      setBusy(false);
+    }
   };
   const applyPersonalStyle = async (preset: Preset) => {
     if (draft === null) return;
     setBusy(true);
     try {
-      await request(`/presets/${encodeURIComponent(preset.id)}/apply`, { expectedRevision: draft.revision });
+      await request(`/presets/${encodeURIComponent(preset.id)}/apply`, {
+        expectedRevision: draft.revision,
+      });
       await load();
       setMessage(`Applied ${preset.name} as an unsaved design draft.`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to apply personal style.");
-    } finally { setBusy(false); }
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Unable to apply personal style.",
+      );
+    } finally {
+      setBusy(false);
+    }
   };
   const archivePersonalStyle = async (preset: Preset) => {
-    if (!window.confirm(`Archive ${preset.name}? Its saved versions will remain attached to lessons that already use them.`)) return;
+    if (
+      !window.confirm(
+        `Archive ${preset.name}? Its saved versions will remain attached to lessons that already use them.`,
+      )
+    )
+      return;
     setBusy(true);
     try {
       const response = await fetch(
-        api(`/projects/${encodeURIComponent(projectId)}/creative-design/presets/${encodeURIComponent(preset.id)}`),
+        api(
+          `/projects/${encodeURIComponent(projectId)}/creative-design/presets/${encodeURIComponent(preset.id)}`,
+        ),
         {
           method: "DELETE",
           credentials: "include",
@@ -342,12 +417,21 @@ export function CreativeDesignPanel({
           body: JSON.stringify({ expectedRevision: preset.revision }),
         },
       );
-      if (!response.ok) throw new Error("Personal style could not be archived.");
+      if (!response.ok)
+        throw new Error("Personal style could not be archived.");
       await loadPresets();
-      setMessage(`Archived ${preset.name}. Existing lesson snapshots are unchanged.`);
+      setMessage(
+        `Archived ${preset.name}. Existing lesson snapshots are unchanged.`,
+      );
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Personal style could not be archived.");
-    } finally { setBusy(false); }
+      setMessage(
+        error instanceof Error
+          ? error.message
+          : "Personal style could not be archived.",
+      );
+    } finally {
+      setBusy(false);
+    }
   };
   if (!pilotAvailable) return null;
   if (draft === null || local === null)
@@ -365,7 +449,7 @@ export function CreativeDesignPanel({
           Choose a style only when every scene in this lesson is supported.
           Existing lessons keep their saved appearance.
         </p>
-        {(["essential", "editorial", "everyday"] as const).map((pack) => (
+        {creativeDesignPackIds.map((pack) => (
           <button
             key={pack}
             type="button"
@@ -436,7 +520,11 @@ export function CreativeDesignPanel({
       </label>
       <fieldset disabled={busy}>
         <legend>Accessible colors</legend>
-        {(Object.keys(local.settings.colors) as Array<keyof CreativeDesignManifest["settings"]["colors"]>).map((key) => (
+        {(
+          Object.keys(local.settings.colors) as Array<
+            keyof CreativeDesignManifest["settings"]["colors"]
+          >
+        ).map((key) => (
           <label key={key} style={{ marginRight: 8 }}>
             {key}{" "}
             <input
@@ -448,7 +536,10 @@ export function CreativeDesignPanel({
                   ...local,
                   settings: {
                     ...local.settings,
-                    colors: { ...local.settings.colors, [key]: event.target.value },
+                    colors: {
+                      ...local.settings.colors,
+                      [key]: event.target.value,
+                    },
                   },
                 })
               }
@@ -483,7 +574,13 @@ export function CreativeDesignPanel({
         }}
       >
         <strong>Own-content treatment preview</strong>
-        <p style={{ background: local.settings.colors.surface, margin: "8px 0 0", padding: 8 }}>
+        <p
+          style={{
+            background: local.settings.colors.surface,
+            margin: "8px 0 0",
+            padding: 8,
+          }}
+        >
           {selectedSceneId === null
             ? "Select a storyboard scene to preview its treatment."
             : `Selected scene ${selectedSceneId} uses ${local.selections[selectedSceneId]?.treatmentId ?? "its resolved treatment"}.`}
@@ -583,7 +680,11 @@ export function CreativeDesignPanel({
       >
         Apply to lesson
       </button>
-      <button type="button" disabled={busy} onClick={() => void saveAsPersonalStyle()}>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => void saveAsPersonalStyle()}
+      >
         Save as personal style
       </button>
       {presets.length > 0 ? (
@@ -591,10 +692,18 @@ export function CreativeDesignPanel({
           <p>Saved personal styles</p>
           {presets.map((preset) => (
             <span key={preset.id}>
-              <button type="button" disabled={busy} onClick={() => void applyPersonalStyle(preset)}>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void applyPersonalStyle(preset)}
+              >
                 {`Use ${preset.name} (v${preset.versions[0]?.versionNumber ?? 0})`}
               </button>
-              <button type="button" disabled={busy} onClick={() => void archivePersonalStyle(preset)}>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void archivePersonalStyle(preset)}
+              >
                 {`Archive ${preset.name}`}
               </button>
             </span>

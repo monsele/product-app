@@ -41,7 +41,7 @@ A story may refine implementation detail but may not silently remove PRD accepta
 - Expensive work runs in background jobs.
 - Jobs must be idempotent, retryable where appropriate, correlated, and metered.
 - Do not hold database transactions open while calling storage or external providers.
-- Do not log source text, passwords, tokens, signed URLs, secrets, or raw provider payloads.
+- Do not log source text, passwords, tokens, signed URLs, secrets
 - Paid provider calls require explicit user action, quota checks, and usage records.
 - Add authorization, failure-path, concurrency, and idempotency tests where applicable.
 - Update shared schemas before their consumers.
