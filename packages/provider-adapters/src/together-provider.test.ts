@@ -143,6 +143,137 @@ describe("Together provider adapters", () => {
     );
   });
 
+  it("logs Together requests and assembled responses without source text or credentials", async () => {
+    const info = vi.fn();
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        streamResponse([
+          chunk({ reasoning: "private reasoning" }),
+          chunk({ content: '{"result":"visible"}' }),
+          chunk({ finishReason: "stop" }),
+          chunk({ usage: { prompt_tokens: 9, completion_tokens: 3 } }),
+        ]),
+      );
+    const provider = new TogetherLanguageModelProvider({
+      apiKey: "credential-that-must-not-be-logged",
+      fetcher,
+      logger: { info },
+      maxRetries: 0,
+    });
+
+    await provider.complete({
+      model: togetherModelDefaults.llm,
+      messages: [
+        { role: "user", content: "source text that must stay private" },
+      ],
+      responseFormat: "json_object",
+    });
+
+    expect(info).toHaveBeenNthCalledWith(
+      1,
+      "provider.together.request",
+      expect.objectContaining({
+        request: expect.objectContaining({
+          messages: [{ role: "user", contentCharacters: 34 }],
+          responseFormat: "json_object",
+          stream: true,
+        }),
+      }),
+    );
+    expect(info).toHaveBeenNthCalledWith(
+      2,
+      "provider.together.response",
+      expect.objectContaining({
+        response: expect.objectContaining({
+          text: '{"result":"visible"}',
+          textChunks: ['{"result":"visible"}'],
+          textChunksTruncated: false,
+          textCharacters: 20,
+          reasoningCharacters: 17,
+          finishReason: "stop",
+          inputTokens: 9,
+          outputTokens: 3,
+        }),
+      }),
+    );
+    const logged = JSON.stringify(info.mock.calls);
+    expect(logged).not.toContain("source text that must stay private");
+    expect(logged).not.toContain("credential-that-must-not-be-logged");
+    expect(logged).not.toContain("private reasoning");
+  });
+
+  it("splits long Together responses into logger-safe chunks", async () => {
+    const info = vi.fn();
+    const text = "x".repeat(2_500);
+    const provider = new TogetherLanguageModelProvider({
+      apiKey: "test-key",
+      fetcher: vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(
+          streamResponse([
+            chunk({ content: text }),
+            chunk({ finishReason: "stop" }),
+            chunk({ usage: { prompt_tokens: 1, completion_tokens: 1 } }),
+          ]),
+        ),
+      logger: { info },
+      maxRetries: 0,
+    });
+
+    await provider.complete({
+      model: togetherModelDefaults.llm,
+      messages: [{ role: "user", content: "Generate." }],
+    });
+
+    expect(info).toHaveBeenLastCalledWith(
+      "provider.together.response",
+      expect.objectContaining({
+        response: expect.objectContaining({
+          textChunks: ["x".repeat(2_000), "x".repeat(500)],
+          textChunksTruncated: false,
+          textCharacters: 2_500,
+        }),
+      }),
+    );
+  });
+
+  it("logs an empty Together response before surfacing the provider error", async () => {
+    const info = vi.fn();
+    const provider = new TogetherLanguageModelProvider({
+      apiKey: "test-key",
+      fetcher: vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(
+          streamResponse([
+            chunk({ reasoning: "reasoning only" }),
+            chunk({ finishReason: "stop" }),
+            chunk({ usage: { prompt_tokens: 5, completion_tokens: 7 } }),
+          ]),
+        ),
+      logger: { info },
+      maxRetries: 0,
+    });
+
+    await expect(
+      provider.complete({
+        model: togetherModelDefaults.llm,
+        messages: [{ role: "user", content: "Generate." }],
+      }),
+    ).rejects.toMatchObject({ code: "PROVIDER_EMPTY_RESPONSE" });
+    expect(info).toHaveBeenLastCalledWith(
+      "provider.together.response",
+      expect.objectContaining({
+        response: expect.objectContaining({
+          text: "",
+          textCharacters: 0,
+          reasoningCharacters: 14,
+          finishReason: "stop",
+        }),
+      }),
+    );
+  });
+
   it("treats the request timeout as a stall guard rather than a total duration cap", async () => {
     const chunks = [
       chunk({ content: '{"ok":' }),

@@ -26,6 +26,10 @@ export const togetherPricing = {
 
 type FetchLike = typeof fetch;
 
+type TogetherProviderLogger = {
+  info(event: string, fields?: unknown): void;
+};
+
 type TogetherProviderOptions = {
   apiKey: string;
   baseUrl?: string;
@@ -33,6 +37,7 @@ type TogetherProviderOptions = {
   fetcher?: FetchLike;
   requestTimeoutMs?: number;
   maxRetries?: number;
+  logger?: TogetherProviderLogger;
 };
 
 type TogetherJson = Record<string, unknown>;
@@ -197,10 +202,42 @@ function responseFormat(request: ProviderCompletionRequest): unknown {
 type ChatPayload = {
   model?: string;
   text: string;
+  reasoningCharacters: number;
   finishReason: unknown;
   inputTokens?: number;
   outputTokens?: number;
+  httpStatus?: number;
+  contentType?: string;
+  providerRequestId?: string;
 };
+
+function logTogetherEvent(
+  logger: TogetherProviderLogger | undefined,
+  event: string,
+  fields: unknown,
+): void {
+  try {
+    logger?.info(event, fields);
+  } catch {
+    // Diagnostics must never change provider-call behavior.
+  }
+}
+
+function responseTextChunks(text: string): {
+  chunks: string[];
+  truncated: boolean;
+} {
+  const chunkLength = 2_000;
+  const maximumChunks = 100;
+  const chunks: string[] = [];
+  for (
+    let offset = 0;
+    offset < text.length && chunks.length < maximumChunks;
+    offset += chunkLength
+  )
+    chunks.push(text.slice(offset, offset + chunkLength));
+  return { chunks, truncated: text.length > chunkLength * maximumChunks };
+}
 
 function readUsage(
   value: unknown,
@@ -233,6 +270,10 @@ function applyChunk(payload: ChatPayload, chunk: TogetherJson): void {
       ? (choice.delta as TogetherJson)
       : undefined;
   payload.text += stringValue(delta?.content) ?? stringValue(choice.text) ?? "";
+  payload.reasoningCharacters +=
+    stringValue(delta?.reasoning)?.length ??
+    stringValue(choice.reasoning)?.length ??
+    0;
   if (choice.finish_reason !== null && choice.finish_reason !== undefined)
     payload.finishReason = choice.finish_reason;
 }
@@ -252,7 +293,11 @@ async function readChatStream(
       code: "PROVIDER_INVALID_RESPONSE",
       message: "Together returned an empty chat stream.",
     });
-  const payload: ChatPayload = { text: "", finishReason: undefined };
+  const payload: ChatPayload = {
+    text: "",
+    reasoningCharacters: 0,
+    finishReason: undefined,
+  };
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -325,6 +370,10 @@ function readChatJson(value: unknown): ChatPayload {
   return {
     ...(model === undefined ? {} : { model }),
     text: stringValue(message.content) ?? stringValue(choice.text) ?? "",
+    reasoningCharacters:
+      stringValue(message.reasoning)?.length ??
+      stringValue(choice.reasoning)?.length ??
+      0,
     finishReason: choice.finish_reason,
     ...readUsage(parsed.usage),
   };
@@ -335,9 +384,19 @@ async function readChatResponse(
   keepAlive: () => void,
 ): Promise<ChatPayload> {
   const contentType = response.headers.get("content-type") ?? "";
-  if (contentType.includes("text/event-stream"))
-    return readChatStream(response, keepAlive);
-  return readChatJson(await response.json());
+  const payload = contentType.includes("text/event-stream")
+    ? await readChatStream(response, keepAlive)
+    : readChatJson(await response.json());
+  const providerRequestId =
+    response.headers.get("x-request-id") ??
+    response.headers.get("x-together-request-id") ??
+    undefined;
+  return {
+    ...payload,
+    httpStatus: response.status,
+    contentType,
+    ...(providerRequestId === undefined ? {} : { providerRequestId }),
+  };
 }
 
 export class TogetherLanguageModelProvider implements LanguageModelProvider {
@@ -386,6 +445,22 @@ export class TogetherLanguageModelProvider implements LanguageModelProvider {
       stream: true,
       stream_options: { include_usage: true },
     };
+    logTogetherEvent(this.options.logger, "provider.together.request", {
+      provider: this.providerId,
+      endpoint: "/chat/completions",
+      request: {
+        model: request.model,
+        messages: request.messages.map((message) => ({
+          role: message.role,
+          contentCharacters: message.content.length,
+        })),
+        responseFormat: request.responseFormat ?? "text",
+        hasJsonSchema: request.jsonSchema !== undefined,
+        temperature: request.temperature ?? null,
+        maxOutputTokens: request.maxOutputTokens ?? null,
+        stream: true,
+      },
+    });
     const { value: payload, retries } = await requestWithRetry({
       url: `${this.baseUrl}/chat/completions`,
       apiKey: this.options.apiKey,
@@ -394,6 +469,28 @@ export class TogetherLanguageModelProvider implements LanguageModelProvider {
       timeoutMs: this.timeoutMs,
       maxRetries: this.maxRetries,
       consume: readChatResponse,
+    });
+    const latencyMs = Math.max(0, Date.now() - startedAt);
+    const loggedText = responseTextChunks(payload.text);
+    logTogetherEvent(this.options.logger, "provider.together.response", {
+      provider: this.providerId,
+      endpoint: "/chat/completions",
+      response: {
+        httpStatus: payload.httpStatus ?? null,
+        contentType: payload.contentType ?? null,
+        providerRequestId: payload.providerRequestId ?? null,
+        model: payload.model ?? request.model,
+        text: payload.text,
+        textChunks: loggedText.chunks,
+        textChunksTruncated: loggedText.truncated,
+        textCharacters: payload.text.length,
+        reasoningCharacters: payload.reasoningCharacters,
+        finishReason: payload.finishReason ?? null,
+        inputTokens: payload.inputTokens ?? null,
+        outputTokens: payload.outputTokens ?? null,
+      },
+      retries,
+      latencyMs,
     });
     const text = payload.text;
     if (text.length === 0)
@@ -416,7 +513,7 @@ export class TogetherLanguageModelProvider implements LanguageModelProvider {
         inputTokens: Math.max(0, Math.round(inputTokens)),
         outputTokens: Math.max(0, Math.round(outputTokens)),
       },
-      latencyMs: Math.max(0, Date.now() - startedAt),
+      latencyMs,
       retries,
     });
   }

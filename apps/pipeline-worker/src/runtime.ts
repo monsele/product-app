@@ -115,6 +115,7 @@ async function createStorage(
 
 function createLanguageModelProvider(
   environment: ReturnType<typeof parseWorkerEnvironment>,
+  logger: StructuredLogger,
 ): LanguageModelProvider {
   if (environment.TOGETHER_API_KEY === undefined)
     // Local deterministic execution simulates the configured Together route;
@@ -125,6 +126,7 @@ function createLanguageModelProvider(
     baseUrl: environment.TOGETHER_API_BASE_URL,
     requestTimeoutMs: environment.TOGETHER_REQUEST_TIMEOUT_MS,
     maxRetries: environment.TOGETHER_MAX_RETRIES,
+    logger,
   });
 }
 
@@ -183,7 +185,7 @@ export async function runPipelineWorker(
         createStorage(environmentInput));
       const languageModelProvider =
         options.languageModelProvider ??
-        createLanguageModelProvider(workerEnvironment);
+        createLanguageModelProvider(workerEnvironment, logger);
       const illustrationProvider =
         workerEnvironment.TOGETHER_API_KEY === undefined
           ? undefined
