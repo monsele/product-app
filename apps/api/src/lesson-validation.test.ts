@@ -23,6 +23,7 @@ import {
   acknowledgeableWarningCodes,
   affectedValidationRules,
   evaluateLessonValidation,
+  isActiveStoryboardAssetBinding,
   isValidationRunStale,
   sceneMonotonyThreshold,
   validationIssueResponse,
@@ -316,6 +317,23 @@ describe("scene monotony advisory", () => {
 });
 
 describe("deterministic lesson validation", () => {
+  it("ignores an obsolete diagram binding when a labelled diagram uses built-in shapes", () => {
+    const scene = createDefaultStoryboardSceneSpec("labelled-diagram", {
+      id: "01989a3d-8e00-7000-8000-000000000099",
+      order: 1,
+      durationSeconds: 36,
+    });
+    if (scene.template !== "labelled-diagram") throw new Error("test setup");
+    const binding: LessonStoryboard["scenes"][number]["scene"]["assetBindings"][number] =
+      {
+        assetId: "01989a3d-8e00-7000-8000-000000000098",
+        role: "diagram",
+        slot: "diagram",
+      };
+
+    expect(isActiveStoryboardAssetBinding(scene, binding)).toBe(false);
+  });
+
   it("passes a complete five-scene fixture", () => {
     expect(evaluateLessonValidation(input())).not.toContainEqual(
       expect.objectContaining({ severity: "error" }),

@@ -55,6 +55,10 @@ import {
 } from "@avlp/schemas/demonstration-pilot";
 import { VideoApproachSelector } from "./video-approach-selector";
 import {
+  CreativeStylePackSelector,
+  creativeStylePackOptions,
+} from "./creative-style-pack-selector";
+import {
   addPronunciationOverride,
   defaultVoiceFormState,
   fallbackVoices,
@@ -1458,39 +1462,13 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
               <Palette size={18} weight="bold" style={{ color: "var(--color-brand)" }} />
               Visual theme
             </legend>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "14px 16px",
-                backgroundColor: "var(--color-surface-brand)",
-                border: "1.5px solid var(--color-brand)",
-                borderRadius: "var(--radius-control)",
+            <CreativeStylePackSelector
+              disabled={saveStatus.kind === "saving"}
+              onChange={(pack) => {
+                setLessonForm((prev) => ({ ...prev, creativeStylePack: pack }));
               }}
-            >
-              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                <span
-                  style={{
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    color: "var(--color-brand)",
-                  }}
-                >
-                  Warm editorial (Daylight Standard)
-                </span>
-                <span
-                  style={{
-                    fontSize: "12px",
-                    color: "var(--color-text-muted)",
-                  }}
-                >
-                  High-legibility typography, clear hierarchy, and daylight warm
-                  accents for visual instruction.
-                </span>
-              </div>
-              <StatusLabel status="success" label="Active MVP Theme" />
-            </div>
+              value={lessonForm.creativeStylePack}
+            />
           </fieldset>
 
           {/* Section 3b: Video approach (ST-096) */}
@@ -2196,7 +2174,9 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
                   textAlign: "right",
                 }}
               >
-                Warm editorial
+                {creativeStylePackOptions.find(
+                  (option) => option.value === lessonForm.creativeStylePack,
+                )?.label ?? "Warm editorial"}
               </span>
             </div>
 

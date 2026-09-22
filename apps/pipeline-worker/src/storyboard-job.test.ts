@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createId } from "@avlp/config";
 import {
+  creativeDesignDrafts,
+  creativeDesignSnapshots,
+  lessonConfigurations,
   lessonOutlineItems,
   lessonOutlineSets,
   lessonSpecs,
@@ -11,7 +14,11 @@ import {
   sourceSnapshots,
   type DatabaseExecutor,
 } from "@avlp/database";
-import { createJobEnvelope, type JobMetadata } from "@avlp/jobs";
+import {
+  createJobEnvelope,
+  JobExecutionError,
+  type JobMetadata,
+} from "@avlp/jobs";
 import {
   InMemoryQuotaGuard,
   jsonCompletion,
@@ -673,8 +680,10 @@ describe("loadStoryboardOperationContext", () => {
 });
 
 describe("persistLessonStoryboard", () => {
-  function storeCapture() {
+  function storeCapture(options: { creativeStylePack?: string } = {}) {
     const inserted: unknown[] = [];
+    const draftInserts: unknown[] = [];
+    const snapshotInserts: unknown[] = [];
     const idsByKey = new Map<string, string>();
     const insert = (table: unknown) => ({
       values: (value: unknown) => {
@@ -695,15 +704,21 @@ describe("persistLessonStoryboard", () => {
             Promise.resolve([]).then(resolve),
         };
         if (table === scenes) inserted.push(value);
+        if (table === creativeDesignDrafts) draftInserts.push(value);
+        if (table === creativeDesignSnapshots) snapshotInserts.push(value);
         return chain;
       },
     });
     const executor = {
       insert,
       select: () => ({
-        from: () => ({
+        from: (table: unknown) => ({
           where: () => ({
             limit: async () => {
+              if (table === lessonConfigurations)
+                return options.creativeStylePack === undefined
+                  ? []
+                  : [{ creativeStylePack: options.creativeStylePack }];
               const key = [...idsByKey.keys()].at(-1);
               if (key === undefined) return [];
               const id = idsByKey.get(key)!;
@@ -716,7 +731,7 @@ describe("persistLessonStoryboard", () => {
         callback: (executor: DatabaseExecutor) => Promise<unknown>,
       ) => callback(executor),
     } as unknown as DatabaseExecutor;
-    return { executor, inserted, idsByKey };
+    return { executor, inserted, draftInserts, snapshotInserts, idsByKey };
   }
 
   function callPersist(input: {
@@ -767,6 +782,50 @@ describe("persistLessonStoryboard", () => {
     const second = await callPersist({ executor, idempotencyKey: "key-2" });
     expect(second.id).toBe(first.id);
     expect(idsByKey.size).toBe(1);
+  });
+
+  it("creates a creative-design draft and snapshot when the configuration selects a style pack", async () => {
+    const { executor, draftInserts, snapshotInserts } = storeCapture({
+      creativeStylePack: "essential",
+    });
+    await callPersist({ executor, idempotencyKey: "key-3" });
+    expect(draftInserts).toHaveLength(1);
+    expect(snapshotInserts).toHaveLength(1);
+    const draft = draftInserts[0] as {
+      manifest: { pack: { id: string } };
+      manifestHash: string;
+      revision: number;
+    };
+    const snapshot = snapshotInserts[0] as {
+      manifest: { pack: { id: string } };
+      manifestHash: string;
+    };
+    expect(draft.manifest.pack.id).toBe("essential");
+    expect(draft.revision).toBe(1);
+    expect(snapshot.manifest.pack.id).toBe("essential");
+    expect(snapshot.manifestHash).toBe(draft.manifestHash);
+  });
+
+  it("creates no creative-design rows when the configuration has no style pack", async () => {
+    const { executor, draftInserts, snapshotInserts } = storeCapture();
+    await callPersist({ executor, idempotencyKey: "key-4" });
+    expect(draftInserts).toHaveLength(0);
+    expect(snapshotInserts).toHaveLength(0);
+  });
+
+  it("fails as a terminal job error when the configured style pack cannot be resolved", async () => {
+    const { executor } = storeCapture({
+      creativeStylePack: "not-a-real-pack",
+    });
+    const failure = await callPersist({
+      executor,
+      idempotencyKey: "key-5",
+    }).catch((error: unknown) => error);
+    expect(failure).toBeInstanceOf(JobExecutionError);
+    expect((failure as JobExecutionError).classification).toBe("terminal");
+    expect((failure as JobExecutionError).code).toBe(
+      "CREATIVE_DESIGN_MANIFEST_UNRESOLVABLE",
+    );
   });
 });
 

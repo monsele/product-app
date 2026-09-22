@@ -77,6 +77,13 @@ describe("sourceTableVisualSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("preserves blank cells from an extracted source table", () => {
+    expect(
+      sourceTableVisualSchema.safeParse(table({ rows: [["Sodium", ""]] }))
+        .success,
+    ).toBe(true);
+  });
+
   it("accepts an empty table with zero rows", () => {
     expect(
       sourceTableVisualSchema.safeParse(table({ rows: [], rowCount: 0 })).success,

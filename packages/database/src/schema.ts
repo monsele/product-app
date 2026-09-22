@@ -1219,6 +1219,12 @@ export const lessonConfigurations = pgTable(
     videoApproach: videoApproach("video_approach")
       .notNull()
       .default("standard"),
+    /** ST-102. `null` (every pre-existing row) keeps the legacy `mvp-default`
+     * appearance. A chosen creative-design pack ID is validated against
+     * `creativeDesignPackIdSchema` at the API boundary; text rather than a
+     * pgEnum because the pack catalogue has already grown once (ADR-010)
+     * without needing a migration. */
+    creativeStylePack: text("creative_style_pack"),
     includeRecallQuestions: boolean("include_recall_questions")
       .notNull()
       .default(false),

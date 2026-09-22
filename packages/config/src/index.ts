@@ -6,6 +6,9 @@ const utcTimestampPattern =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
 
 export { identifierSchema, type Identifier } from "./identifiers.js";
+/** Browser-safe: pure JS, not `node:crypto`. Shared so other packages don't
+ * need to reimplement or reach for a Node-only hashing primitive. */
+export { sha256 } from "./crypto.js";
 
 export function createId(now = new Date()): Identifier {
   const milliseconds = BigInt(now.getTime());
@@ -516,10 +519,6 @@ export const apiEnvironmentSchema = baseEnvironmentSchema
       .default("false")
       .transform((value) => value === "true"),
     DEMONSTRATION_PILOT_USER_IDS: z.string().max(4_000).default(""),
-    CREATIVE_DESIGN_PILOT_ENABLED: z.enum(["true", "false"])
-      .default("false")
-      .transform((value) => value === "true"),
-    CREATIVE_DESIGN_PILOT_USER_IDS: z.string().max(4_000).default(""),
   })
   .superRefine((value, context) => {
     validateStorageCredentialPair(value, context);

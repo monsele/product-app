@@ -2,9 +2,14 @@
 
 ## Status
 
-**Proposed** — raised by ST-094 (creative-style proof). Not accepted. The PRD's
-one-production-theme constraint (E11-US2) remains in force until a product owner
-accepts this decision and the scope update it requires.
+**Accepted** — 2026-09-22, by ST-102. The product owner directed teacher-facing
+style selection for all teachers, not a pilot cohort, superseding the PRD's
+one-production-theme constraint (E11-US2). ADR-010 (2026-09-20) had already
+matured the pack catalogue to production quality for this transition; this
+entry records the scope decision that makes it teacher-facing. The known
+Editorial photographic-supply gap (see Open Questions) is not resolved by this
+acceptance — a scene that needs a photograph the catalogue cannot supply still
+fails explicitly rather than substituting a different design.
 
 ## Context
 

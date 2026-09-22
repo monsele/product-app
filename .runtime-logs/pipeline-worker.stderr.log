@@ -1,0 +1,24 @@
+Job execution error: JobExecutionError: The model output failed deterministic checks.
+    at handler (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\pipeline-worker\src\model-call.ts:572:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async executeJobDelivery (D:\Eronmonsele\Documents\SoundMinds\product-app\packages\jobs\src\worker.ts:138:7)
+    at async D:\Eronmonsele\Documents\SoundMinds\product-app\node_modules\.pnpm\bullmq@5.81.3\node_modules\bullmq\dist\cjs\classes\worker.js:612:32 {
+  classification: 'terminal',
+  code: 'MODEL_OUTPUT_DETERMINISTIC_FAILURE',
+  details: {
+    reason: 'DURATION_OUT_OF_TOLERANCE',
+    message: 'Total estimated 200s is outside the 162-199s tolerance for the 180s target.'
+  }
+}
+Job execution error: JobExecutionError: The model output failed deterministic checks.
+    at handler (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\pipeline-worker\src\model-call.ts:572:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async executeJobDelivery (D:\Eronmonsele\Documents\SoundMinds\product-app\packages\jobs\src\worker.ts:138:7)
+    at async D:\Eronmonsele\Documents\SoundMinds\product-app\node_modules\.pnpm\bullmq@5.81.3\node_modules\bullmq\dist\cjs\classes\worker.js:612:32 {
+  classification: 'terminal',
+  code: 'MODEL_OUTPUT_DETERMINISTIC_FAILURE',
+  details: {
+    reason: 'DURATION_OUT_OF_TOLERANCE',
+    message: 'Total estimated 210s is outside the 162-199s tolerance for the 180s target.'
+  }
+}

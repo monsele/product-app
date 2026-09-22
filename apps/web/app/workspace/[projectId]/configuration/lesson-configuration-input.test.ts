@@ -20,6 +20,7 @@ const persisted: LessonConfiguration = {
   tone: "friendly",
   visualTheme: "mvp-default",
   videoApproach: "standard",
+  creativeStylePack: null,
   includeRecallQuestions: true,
   sourceParsedDocumentVersion: 1,
   updatedAt: "2026-08-16T12:00:00.000Z",

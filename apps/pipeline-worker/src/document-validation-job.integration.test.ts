@@ -216,7 +216,7 @@ describeWithPostgres("document validation job", () => {
     ).toHaveLength(1);
   });
 
-  it("reuses a same-owner compatible immutable artifact without queuing ingestion", async () => {
+  it("always queues a new ingestion job even when a same-owner compatible artifact exists", async () => {
     const sourceProjectId = createId(new Date("2026-08-14T09:01:00.000Z"));
     const sourceDocumentId = createId(new Date("2026-08-14T09:01:01.000Z"));
     const artifactId = createId(new Date("2026-08-14T09:01:02.000Z"));
@@ -270,26 +270,23 @@ describeWithPostgres("document validation job", () => {
       context,
     );
 
-    expect(await database!.client.select().from(jobs)).toEqual([]);
+    expect(
+      (await database!.client.select().from(jobs)).some(
+        (job) => job.jobType === "document.ingestion",
+      ),
+    ).toBe(true);
     expect(
       await database!.client.select().from(sourceDocumentIngestionReuses),
-    ).toMatchObject([
-      {
-        projectId,
-        ownerUserId,
-        sourceDocumentId: documentId,
-        ingestionArtifactId: artifactId,
-      },
-    ]);
+    ).toEqual([]);
     const [project] = await database!.client
       .select()
       .from(projects)
       .where(eq(projects.id, projectId));
-    expect(project?.stage).toBe("ingestion_review");
+    expect(project?.stage).toBe("ingesting");
     const events = await database!.client.select().from(auditEvents);
     expect(
       events.some((event) => event.eventType === "document.ingestion_reused"),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("queues ingestion when a matching artifact uses incompatible versions", async () => {

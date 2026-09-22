@@ -1,0 +1,27 @@
+ ⨯ node:crypto
+Module build failed: UnhandledSchemeError: Reading from "node:crypto" is not handled by plugins (Unhandled scheme).
+Webpack supports "data:" and "file:" URIs by default.
+You may need an additional plugin to handle "node:" URIs.
+Import trace for requested module:
+node:crypto
+../../packages/schemas/dist/creative-design.js
+../../packages/schemas/dist/index.js
+./app/workspace/[projectId]/configuration/configuration-workspace.tsx
+ ⨯ node:crypto
+Module build failed: UnhandledSchemeError: Reading from "node:crypto" is not handled by plugins (Unhandled scheme).
+Webpack supports "data:" and "file:" URIs by default.
+You may need an additional plugin to handle "node:" URIs.
+Import trace for requested module:
+node:crypto
+../../packages/schemas/dist/creative-design.js
+../../packages/schemas/dist/index.js
+./app/workspace/[projectId]/configuration/configuration-workspace.tsx
+ ⨯ node:crypto
+Module build failed: UnhandledSchemeError: Reading from "node:crypto" is not handled by plugins (Unhandled scheme).
+Webpack supports "data:" and "file:" URIs by default.
+You may need an additional plugin to handle "node:" URIs.
+Import trace for requested module:
+node:crypto
+../../packages/schemas/dist/creative-design.js
+../../packages/schemas/dist/index.js
+./app/workspace/[projectId]/configuration/configuration-workspace.tsx

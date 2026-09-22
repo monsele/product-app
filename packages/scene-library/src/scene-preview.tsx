@@ -194,7 +194,13 @@ export function ScenePreviewComposition({
       data-testid="scene-preview-frame"
       style={{ height: "100%", position: "relative", width: "100%" }}
     >
-      <div data-testid="scene-preview-runtime">
+      {/* Scenes that position all content absolutely (e.g. labelled-diagram)
+          collapse to zero height inside an auto-sized wrapper, so this must
+          fill the canvas like the full-lesson scene wrapper does. */}
+      <div
+        data-testid="scene-preview-runtime"
+        style={{ height: "100%", width: "100%" }}
+      >
         <ScenePreviewRuntime resolvedAssets={manifest.assets} scene={scene} />
       </div>
       {manifest.audio === undefined ? null : (

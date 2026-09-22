@@ -1,0 +1,44 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - region "Studio Daylight" [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]: Studio Daylight
+        - generic [ref=e10]: AI Visual Learning Platform
+      - generic [ref=e13]:
+        - img "A calm plant life-cycle learning illustration"
+      - generic [ref=e14]:
+        - paragraph [ref=e15]: Your visual lessons are ready to edit and share with your learners.
+        - generic [ref=e16]:
+          - generic [ref=e17]: Isolated Workspace
+          - generic [ref=e20]: Pedagogical Engine
+    - generic [ref=e24]:
+      - generic [ref=e25]: Welcome back
+      - heading "Sign in" [level=1] [ref=e28]
+      - paragraph [ref=e29]: Sign in to access your teacher workspace and project pipeline.
+      - generic [ref=e30]:
+        - generic [ref=e31]:
+          - generic [ref=e32]: Email
+          - textbox "Email" [ref=e34]:
+            - /placeholder: teacher@school.org
+            - text: email-teacher@example.com
+        - generic [ref=e35]:
+          - generic [ref=e36]: Password
+          - generic [ref=e37]:
+            - textbox "Password Show password" [ref=e38]:
+              - /placeholder: ••••••••••••
+              - text: Password12345!
+            - button "Show password" [ref=e39] [cursor=pointer]
+        - alert [ref=e59]:
+          - generic [ref=e62]: Invalid email or password.
+        - button "Sign in" [ref=e42] [cursor=pointer]
+      - generic [ref=e46]:
+        - link "Forgot password?" [ref=e47] [cursor=pointer]:
+          - /url: /forgot-password
+        - link "Need an account? Create one here" [ref=e48] [cursor=pointer]:
+          - /url: /register
+  - region "Notifications":
+    - alert [ref=e65]:
+      - generic [ref=e69]: Invalid email or password.
+      - button "Dismiss notification" [ref=e71] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e54] [cursor=pointer]
+  - alert [ref=e58]

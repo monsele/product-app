@@ -243,7 +243,7 @@ describe("preview manifest", () => {
           pageStart: 3,
           columns: ["Element", "Symbol"],
           rows: [
-            ["Lithium", "Li"],
+            ["Lithium", ""],
             ["Sodium", "Na"],
           ],
         },
@@ -282,7 +282,7 @@ describe("preview manifest", () => {
       truncated: false,
     });
     expect(asset?.table?.rows).toEqual([
-      ["Lithium", "Li"],
+      ["Lithium", ""],
       ["Sodium", "Na"],
     ]);
   });

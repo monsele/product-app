@@ -168,6 +168,7 @@ export class PostgresLessonConfigurationService implements LessonConfigurationSe
             tone: parsed.tone,
             visualTheme: "mvp-default",
             videoApproach: parsed.videoApproach ?? defaultVideoApproach,
+            creativeStylePack: parsed.creativeStylePack ?? null,
             includeRecallQuestions: parsed.includeRecallQuestions,
             sourceParsedDocumentVersion: source.parsedDocumentVersion,
             createdAt: timestamp,
@@ -196,6 +197,10 @@ export class PostgresLessonConfigurationService implements LessonConfigurationSe
             ...(parsed.videoApproach === undefined
               ? {}
               : { videoApproach: parsed.videoApproach }),
+            // Same omission-keeps-existing-value semantics as videoApproach.
+            ...(parsed.creativeStylePack === undefined
+              ? {}
+              : { creativeStylePack: parsed.creativeStylePack }),
             includeRecallQuestions: parsed.includeRecallQuestions,
             sourceParsedDocumentVersion: source.parsedDocumentVersion,
             updatedAt: timestamp,
@@ -242,6 +247,7 @@ export class PostgresLessonConfigurationService implements LessonConfigurationSe
         metadata: {
           version: saved.version,
           videoApproach: saved.videoApproach,
+          creativeStylePack: saved.creativeStylePack,
           sourceParsedDocumentVersion: saved.sourceParsedDocumentVersion,
           stage:
             project.stage === "ingestion_review"
@@ -409,6 +415,7 @@ function toConfiguration(row: ConfigRow): NonNullable<LessonConfiguration> {
     // the whole codebase has exactly one place that decides what an absent or
     // unknown approach means.
     videoApproach: readVideoApproach(row.videoApproach),
+    creativeStylePack: row.creativeStylePack,
     includeRecallQuestions: row.includeRecallQuestions,
     sourceParsedDocumentVersion: row.sourceParsedDocumentVersion,
     updatedAt: serializeUtcTimestamp(row.updatedAt),

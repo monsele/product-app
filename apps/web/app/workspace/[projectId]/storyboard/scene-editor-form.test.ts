@@ -72,6 +72,39 @@ describe("writeAssetSlot", () => {
   });
 });
 
+describe("labelled-diagram mode", () => {
+  it("removes an unused diagram binding when switching to built-in shapes", () => {
+    const assetDiagram = sceneSpecSchema.parse({
+      ...createDefaultStoryboardSceneSpec("labelled-diagram", {
+        id: sceneId,
+        order: 1,
+        durationSeconds: 30,
+      }),
+      template: "labelled-diagram",
+      visual: {
+        baseAssetSlot: "diagram",
+        kind: "asset",
+        labels: [{ anchor: "top", id: "pillar", text: "Budgeting" }],
+      },
+    });
+    const diagram = writeAssetSlot(
+      assetDiagram,
+      "diagram",
+      suggestedAssetId,
+    );
+    const kindField = sceneEditorMetadata("labelled-diagram").fields.find(
+      (field) => field.path === "visual.kind",
+    );
+
+    expect(kindField).toBeDefined();
+    const shapes = writeField(diagram, kindField!, "shapes");
+
+    expect(shapes.assetBindings).toEqual([]);
+    expect(shapes.visual).toMatchObject({ kind: "shapes" });
+    expect("baseAssetSlot" in shapes.visual).toBe(false);
+  });
+});
+
 describe("editorFieldsForScene (ST-087 graph shape)", () => {
   const graphProcess = sceneSpecSchema.parse({
     ...createDefaultStoryboardSceneSpec("process", {

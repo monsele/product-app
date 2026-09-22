@@ -1,0 +1,24 @@
+
+> @avlp/web@0.0.0 dev D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web
+> next dev
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.193:3000
+
+ ✓ Starting...
+ ✓ Ready in 25.6s
+ ○ Compiling / ...
+ ✓ Compiled / in 23.1s (10487 modules)
+ GET / 200 in 25846ms
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 5.4s (158 modules)
+ ○ Compiling /workspace/[projectId]/configuration ...
+ GET /workspace/01a0c9d0-0196-75a2-803b-4a44bf4503a0/configuration 500 in 19034ms
+ ✓ Compiled /_error in 2.9s (5415 modules)
+ ✓ Compiled in 1768ms (5415 modules)
+ ✓ Compiled in 1781ms (5415 modules)
+ ✓ Compiled in 2.4s (5415 modules)
+D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @avlp/web@0.0.0 dev: `next dev`
+Exit status 4294967295

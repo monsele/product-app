@@ -1,6 +1,9 @@
 import { togetherModelDefaults } from "@avlp/config";
 import { identifierSchema, type Identifier } from "@avlp/config/identifiers";
-import { creativeDesignManifestSchema } from "./creative-design.js";
+import {
+  creativeDesignManifestSchema,
+  creativeDesignPackIdSchema,
+} from "./creative-design.js";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 export * from "./creative-design.js";
@@ -2704,6 +2707,11 @@ export const lessonConfigurationSchema = z
     /** ST-096. Absent in configurations stored before this story; the API
      * resolves those through `readVideoApproach` before parsing. */
     videoApproach: videoApproachSchema,
+    /** ST-102. `null` (the default) keeps the legacy `mvp-default` scene
+     * appearance. A chosen pack is resolved into a creative-design manifest
+     * when the storyboard is generated; it is independent of `visualTheme`,
+     * which stays pinned to `mvp-default` as the legacy render-token axis. */
+    creativeStylePack: creativeDesignPackIdSchema.nullable(),
     includeRecallQuestions: z.boolean(),
     sourceParsedDocumentVersion: z.number().int().positive(),
     updatedAt: z.string().datetime({ offset: true }),
@@ -2728,6 +2736,9 @@ export const lessonConfigurationInputSchema = z
     /** Omitted by clients that predate ST-096, which keeps the stored value
      * untouched. An explicit unknown string is rejected at the boundary. */
     videoApproach: videoApproachSchema.optional(),
+    /** ST-102. Omitted keeps the stored value untouched; an explicit `null`
+     * switches back to the legacy `mvp-default` appearance. */
+    creativeStylePack: creativeDesignPackIdSchema.nullable().optional(),
     includeRecallQuestions: z.boolean(),
   })
   .strict();
@@ -2898,7 +2909,12 @@ export type SourceSnapshotTable = z.infer<typeof sourceSnapshotTableSchema>;
 export const sourceTableVisualMaxColumns = 8;
 export const sourceTableVisualMaxRows = 12;
 export const sourceTableVisualMaxCellLength = 160;
-const sourceTableVisualCellText = boundedText(sourceTableVisualMaxCellLength);
+// Extracted tables preserve the source grid exactly. A blank cell is meaningful
+// table structure, unlike a heading or an accessible description, so it must not
+// make a whole preview manifest invalid.
+const sourceTableVisualCellText = z
+  .string()
+  .max(sourceTableVisualMaxCellLength);
 
 export const sourceTableVisualSchema = z
   .object({

@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useTransition } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { startNavigationProgress } from "../../../../components/layout/navigation-progress-bar";
 import {
   completeSourceUploadResponseSchema,
   sourceDocumentStatusResponseSchema,
@@ -12,9 +11,7 @@ import {
   FilePdf,
   FileDoc,
   UploadSimple,
-  ArrowRight,
   ArrowsClockwise,
-  CheckCircle,
   X,
 } from "@phosphor-icons/react";
 import { Button } from "../../../../components/ui/button";
@@ -27,9 +24,8 @@ export type UploadState =
   | { kind: "idle" }
   | { kind: "uploading"; progress: number; loadedBytes: number; totalBytes: number }
   | { kind: "validating" }
-  | { kind: "duplicate"; reused: boolean }
   | { kind: "failed"; message: string }
-  | { kind: "complete"; reused: boolean };
+  | { kind: "complete" };
 
 function apiUrl(path: string): string {
   return `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}${path}`;
@@ -96,7 +92,6 @@ export function SourceUploadForm({ projectId, onUploadSuccess }: SourceUploadFor
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const [openingReview, startOpeningReview] = useTransition();
 
   // Poll validation endpoint when in validating state
   useEffect(() => {
@@ -115,14 +110,8 @@ export function SourceUploadForm({ projectId, onUploadSuccess }: SourceUploadFor
         if (cancelled || parsed === undefined || !parsed.success) return;
         const validation = parsed.data.validation;
         if (validation.status === "active") {
-          const isReused = parsed.data.reuse.status === "reused";
-          if (isReused) {
-            setState({ kind: "duplicate", reused: true });
-            toast.info("Existing processed source detected and reused.");
-          } else {
-            setState({ kind: "complete", reused: false });
-            toast.success("Source document uploaded and ready for review.");
-          }
+          setState({ kind: "complete" });
+          toast.success("Source document uploaded and ready for review.");
           onUploadSuccess?.();
         } else if (
           validation.status === "rejected" ||
@@ -265,12 +254,7 @@ export function SourceUploadForm({ projectId, onUploadSuccess }: SourceUploadFor
         throw new Error("The upload could not be completed. Please retry.");
       }
 
-      if (completed.data.duplicateDetected) {
-        setState({ kind: "duplicate", reused: true });
-        onUploadSuccess?.();
-      } else {
-        setState({ kind: "validating" });
-      }
+      setState({ kind: "validating" });
     } catch (error) {
       setState({
         kind: "failed",
@@ -283,7 +267,7 @@ export function SourceUploadForm({ projectId, onUploadSuccess }: SourceUploadFor
   };
 
   const isBusy = state.kind === "uploading" || state.kind === "validating";
-  const isDone = state.kind === "complete" || state.kind === "duplicate";
+  const isDone = state.kind === "complete";
 
   // Warm the review route's RSC payload once the upload settles, so the
   // "Review source" click is not the first request for it.
@@ -540,54 +524,6 @@ export function SourceUploadForm({ projectId, onUploadSuccess }: SourceUploadFor
         </div>
       )}
 
-      {/* Duplicate Detected (Decision / Safe Reuse Panel) */}
-      {state.kind === "duplicate" && (
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "12px",
-            padding: "18px 20px",
-            borderRadius: "var(--radius-control)",
-            backgroundColor: "var(--color-surface-subtle)",
-            border: "1px solid var(--color-brand-border, var(--color-border))",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <CheckCircle size={20} weight="fill" color="var(--color-brand)" />
-            <span style={{ fontSize: "15px", fontWeight: 600, color: "var(--color-text)" }}>
-              Compatible ingestion result reused
-            </span>
-          </div>
-          <p style={{ margin: 0, fontSize: "14px", color: "var(--color-text-muted)", lineHeight: "20px" }}>
-            This document matches a previously validated source. A compatible extraction result was reused safely, saving processing time and costs.
-          </p>
-          <div style={{ marginTop: "4px" }}>
-            <Button
-              variant="primary"
-              size="default"
-              isLoading={openingReview}
-              onClick={() => {
-                startNavigationProgress();
-                startOpeningReview(() => {
-                  router.push(`/workspace/${projectId}/review`);
-                });
-              }}
-            >
-              {openingReview ? (
-                "Opening review…"
-              ) : (
-                <>
-                  Review source <ArrowRight size={16} weight="bold" />
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* Validation Complete State */}
       {state.kind === "complete" && (
         <div
@@ -605,9 +541,7 @@ export function SourceUploadForm({ projectId, onUploadSuccess }: SourceUploadFor
         >
           <StatusLabel status="success" label="Validation passed" size="compact" />
           <span style={{ fontSize: "14px", color: "var(--color-success-fg)" }}>
-            {state.reused
-              ? "Your document passed validation and a compatible parsing result was reused."
-              : "Your document passed validation and is being prepared."}
+            Your document passed validation and is being prepared.
           </span>
         </div>
       )}

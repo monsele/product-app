@@ -3,9 +3,31 @@ import {
   canonicalCreativeDesignJson,
   createDefaultCreativeDesignManifest,
   creativeDesignHash,
+  hasCreativeDesignDraftEditConflict,
+  parseStoredCreativeDesignManifest,
 } from "./creative-design.js";
+import {
+  creativeDesignManifestSchema,
+  creativeDesignPlannerVersion,
+  legacyCreativeDesignPlannerVersion,
+} from "@avlp/schemas";
 
 describe("ST-097 creative design identity", () => {
+  it("revalidates a draft against content revisions without treating them as concurrent design edits", () => {
+    expect(
+      hasCreativeDesignDraftEditConflict({
+        currentRevision: 1,
+        expectedRevision: 1,
+      }),
+    ).toBe(false);
+    expect(
+      hasCreativeDesignDraftEditConflict({
+        currentRevision: 2,
+        expectedRevision: 1,
+      }),
+    ).toBe(true);
+  });
+
   it("uses a canonical hash independent of object-key insertion order", () => {
     expect(canonicalCreativeDesignJson({ b: 2, a: { z: 1, y: 2 } })).toBe(
       canonicalCreativeDesignJson({ a: { y: 2, z: 1 }, b: 2 }),
@@ -87,6 +109,41 @@ describe("ST-097 creative design identity", () => {
     expect(
       manifest.selections["0198d270-0000-7000-8000-000000000015"]!.treatmentId,
     ).toMatch(/^essential\.summary\./);
+  });
+
+  it("recovers an expanded pilot draft that was incorrectly labelled ST-097", () => {
+    const manifest = createDefaultCreativeDesignManifest({
+      packId: "essential",
+      scenes: [
+        {
+          id: "0198d270-0000-7000-8000-000000000030",
+          template: "labelled-diagram",
+          durationSeconds: 30,
+        },
+        {
+          id: "0198d270-0000-7000-8000-000000000031",
+          template: "worked-example",
+          durationSeconds: 25,
+        },
+        {
+          id: "0198d270-0000-7000-8000-000000000032",
+          template: "summary",
+          durationSeconds: 20,
+        },
+      ],
+    });
+    const incorrectlyLabelled = {
+      ...manifest,
+      plannerVersion: legacyCreativeDesignPlannerVersion,
+    };
+
+    expect(creativeDesignManifestSchema.safeParse(incorrectlyLabelled).success).toBe(
+      false,
+    );
+    expect(parseStoredCreativeDesignManifest(incorrectlyLabelled)).toEqual({
+      ...manifest,
+      plannerVersion: creativeDesignPlannerVersion,
+    });
   });
 
   it("creates a Systems manifest through the same bounded standard-design path", () => {

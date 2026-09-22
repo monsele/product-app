@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { createId, PublicError, type Identifier } from "@avlp/config";
 import {
   creativeDesignDrafts,
@@ -15,7 +14,11 @@ import {
   type DatabaseExecutor,
 } from "@avlp/database";
 import {
+  canonicalCreativeDesignJson,
+  createDefaultCreativeDesignManifest,
   creativeDesignCapability,
+  creativeDesignHash,
+  legacyCreativeDesignPlannerVersion,
   creativeDesignPlannerVersion,
   creativeDesignDraftInputSchema,
   creativeDesignApplyPresetInputSchema,
@@ -24,12 +27,10 @@ import {
   creativeDesignNaturalLanguageInputSchema,
   creativeDesignPresetInputSchema,
   creativeDesignProposalPatchSchema,
-  defaultCreativeDesignSettings,
   planCreativeDesign,
   treatmentFor,
   validateCreativeDesignManifest,
   type CreativeDesignManifest,
-  type CreativeDesignPackId,
   type CreativeDesignProposalPatch,
   type CreativeDesignSceneType,
   modelCallJobPayloadSchema,
@@ -39,7 +40,6 @@ import { createModelCallProviderApproval } from "./model-call-approval.js";
 import { lessonStoryboardSchema } from "@avlp/schemas";
 import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
-import type { LessonValidationService } from "./lesson-validation.js";
 
 type Scope = Readonly<{ ownerUserId: Identifier; projectId: Identifier }>;
 type StoryboardScene = Readonly<{
@@ -48,27 +48,6 @@ type StoryboardScene = Readonly<{
   durationSeconds: number;
   processShape?: "legacy" | "graph";
 }>;
-
-export interface CreativeDesignCohort {
-  enabled(): boolean;
-  includes(userId: Identifier): boolean;
-}
-
-export function createEnvironmentCreativeDesignCohort(environment: {
-  CREATIVE_DESIGN_PILOT_ENABLED?: boolean;
-  CREATIVE_DESIGN_PILOT_USER_IDS?: string;
-}): CreativeDesignCohort {
-  const members = new Set(
-    (environment.CREATIVE_DESIGN_PILOT_USER_IDS ?? "")
-      .split(",")
-      .map((entry) => entry.trim().toLowerCase())
-      .filter(Boolean),
-  );
-  return {
-    enabled: () => environment.CREATIVE_DESIGN_PILOT_ENABLED === true,
-    includes: (userId) => members.has(userId.toLowerCase()),
-  };
-}
 
 /** A provider is optional by design: unavailable interpretation leaves manual controls usable. */
 export interface CreativeDesignService {
@@ -128,37 +107,44 @@ export interface CreativeDesignService {
   >;
 }
 
-function canonical(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(canonical);
-  if (value !== null && typeof value === "object")
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>)
-        .sort(([left], [right]) => left.localeCompare(right))
-        .map(([key, nested]) => [key, canonical(nested)]),
-    );
-  if (typeof value === "number" && !Number.isFinite(value))
-    throw new Error(
-      "Creative design identity cannot contain a non-finite number.",
-    );
-  return value;
-}
-export function canonicalCreativeDesignJson(value: unknown): string {
-  return JSON.stringify(canonical(value));
-}
-export function creativeDesignHash(value: unknown): string {
-  return createHash("sha256")
-    .update(canonicalCreativeDesignJson(value))
-    .digest("hex");
+export {
+  canonicalCreativeDesignJson,
+  creativeDesignHash,
+  createDefaultCreativeDesignManifest,
+};
+
+/**
+ * ST-100 introduced additional scene treatments. A small number of mutable
+ * pilot drafts were written with those treatments while still carrying the
+ * previous planner label. Recover only that internally inconsistent state by
+ * re-validating the unchanged manifest with the current planner identity.
+ *
+ * This deliberately does not broaden the legacy contract: a genuine ST-097
+ * manifest with invalid current content still fails its original validation.
+ */
+export function parseStoredCreativeDesignManifest(
+  value: unknown,
+): CreativeDesignManifest {
+  const parsed = creativeDesignManifestSchema.safeParse(value);
+  if (parsed.success) return parsed.data;
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "plannerVersion" in value &&
+    value.plannerVersion === legacyCreativeDesignPlannerVersion
+  ) {
+    const recovered = creativeDesignManifestSchema.safeParse({
+      ...(value as Record<string, unknown>),
+      plannerVersion: creativeDesignPlannerVersion,
+    });
+    if (recovered.success) return recovered.data;
+  }
+  return creativeDesignManifestSchema.parse(value);
 }
 
 export class PostgresCreativeDesignService implements CreativeDesignService {
   public constructor(
     private readonly database: DatabaseClient,
-    private readonly cohort: CreativeDesignCohort = {
-      enabled: () => false,
-      includes: () => false,
-    },
-    private readonly validations?: LessonValidationService,
     private readonly now: () => Date = () => new Date(),
   ) {}
 
@@ -167,7 +153,6 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
     manifest: CreativeDesignManifest;
     eligibility: readonly string[];
   } | null> {
-    this.assertPilot(input);
     const [draft] = await this.database
       .select()
       .from(creativeDesignDrafts)
@@ -179,7 +164,7 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
       )
       .limit(1);
     if (draft === undefined) return null;
-    const manifest = creativeDesignManifestSchema.parse(draft.manifest);
+    const manifest = parseStoredCreativeDesignManifest(draft.manifest);
     const scenes = await this.storyboardScenes(
       this.database,
       input,
@@ -198,7 +183,6 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
   public async plan(
     input: Scope & { body: unknown },
   ): Promise<{ revision: number; manifest: CreativeDesignManifest }> {
-    this.assertPilot(input);
     const command = parse(creativeDesignPlanInputSchema, input.body);
     const spec = await this.currentSpec(this.database, input);
     const scenes = await this.storyboardScenes(this.database, input, spec.id);
@@ -220,7 +204,6 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
   public async createOrUpdateDraft(
     input: Scope & { body: unknown },
   ): Promise<{ revision: number; manifest: CreativeDesignManifest }> {
-    this.assertPilot(input);
     const command = parse(creativeDesignDraftInputSchema, input.body);
     const now = this.now();
     return this.database.transaction(async (tx) => {
@@ -298,8 +281,10 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
         return { revision: created.revision, manifest };
       }
       if (
-        current.revision !== command.expectedRevision ||
-        current.lessonSpecRevision !== spec.revision
+        hasCreativeDesignDraftEditConflict({
+          currentRevision: current.revision,
+          expectedRevision: command.expectedRevision,
+        })
       )
         throw editConflict();
       const [updated] = await tx
@@ -327,7 +312,6 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
   public async alternatives(
     input: Scope & { sceneId: Identifier },
   ): Promise<readonly { treatmentId: string; description: string }[]> {
-    this.assertPilot(input);
     const draft = await this.getDraft(input);
     if (draft === null)
       throw new PublicError(
@@ -357,29 +341,11 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
   public async apply(
     input: Scope & { expectedRevision: number },
   ): Promise<{ snapshotId: Identifier; manifestHash: string }> {
-    this.assertPilot(input);
-    // Design-specific validation below checks the resolved manifest. This
-    // reuses the authoritative full-lesson preflight for assets, captions,
-    // narration, source grounding, and semantic scene constraints before any
-    // immutable design snapshot is written. It is safely idempotent by the
-    // validation input hash and deliberately happens outside the snapshot tx.
-    if (this.validations !== undefined) {
-      const preflight = await this.validations.run({ ...input, body: {} });
-      if (preflight.status !== "passed" || preflight.stale)
-        throw invalidDesign(
-          preflight.issues
-            .filter((issue) => issue.severity === "error")
-            .map((issue) => issue.message)
-            .slice(0, 12)
-            .concat(
-              preflight.issues.some((issue) => issue.severity === "error")
-                ? []
-                : [
-                    "The full lesson preflight must pass before applying a design.",
-                  ],
-            ),
-        );
-    }
+    // A resolved design snapshot is a teacher's presentation decision, not a
+    // render request. Validate its treatments and settings below, but leave
+    // unrelated asset, narration, caption, and media readiness to the existing
+    // render/approval preflight. This lets a teacher refine one scene's layout
+    // while another scene is still being prepared.
     const now = this.now();
     return this.database.transaction(async (tx) => {
       const [draft] = await tx
@@ -406,7 +372,8 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
         spec.revision !== draft.lessonSpecRevision
       )
         throw editConflict();
-      const manifest = creativeDesignManifestSchema.parse(draft.manifest);
+      const manifest = parseStoredCreativeDesignManifest(draft.manifest);
+      const manifestHash = creativeDesignHash(manifest);
       const scenes = await this.storyboardScenes(tx, input, spec.id);
       const issues = validateCreativeDesignManifest(manifest, scenes);
       if (issues.length > 0) throw invalidDesign(issues);
@@ -420,7 +387,7 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
           lessonSpecId: spec.id,
           lessonSpecRevision: spec.revision,
           manifest,
-          manifestHash: draft.manifestHash,
+          manifestHash,
           createdAt: now,
         })
         .onConflictDoNothing({
@@ -447,7 +414,7 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
             eq(creativeDesignSnapshots.projectId, input.projectId),
             eq(creativeDesignSnapshots.lessonSpecId, spec.id),
             eq(creativeDesignSnapshots.lessonSpecRevision, spec.revision),
-            eq(creativeDesignSnapshots.manifestHash, draft.manifestHash),
+            eq(creativeDesignSnapshots.manifestHash, manifestHash),
           ),
         )
         .limit(1);
@@ -465,7 +432,6 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
     versionId: Identifier;
     versionNumber: number;
   }> {
-    this.assertPilot(input);
     const command = parse(creativeDesignPresetInputSchema, input.body);
     const now = this.now();
     const hash = creativeDesignHash(command.manifest);
@@ -576,7 +542,6 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
   public async archivePreset(
     input: Scope & { presetId: Identifier; expectedRevision: number },
   ): Promise<void> {
-    this.assertPilot(input);
     const [updated] = await this.database
       .update(creativeDesignPresets)
       .set({
@@ -605,7 +570,6 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
       versions: readonly { id: Identifier; versionNumber: number }[];
     }[]
   > {
-    this.assertPilot(input);
     const presets = await this.database
       .select()
       .from(creativeDesignPresets)
@@ -648,7 +612,6 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
   public async applyPreset(
     input: Scope & { presetId: Identifier; body: unknown },
   ): Promise<{ revision: number; manifest: CreativeDesignManifest }> {
-    this.assertPilot(input);
     const command = parse(creativeDesignApplyPresetInputSchema, input.body);
     const [preset] = await this.database
       .select()
@@ -710,7 +673,6 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
       }
     | { jobId: Identifier; status: "queued" }
   > {
-    this.assertPilot(input);
     const command = parse(creativeDesignNaturalLanguageInputSchema, input.body);
     const draft = await this.getDraft(input);
     if (draft === null || draft.revision !== command.expectedRevision)
@@ -726,7 +688,6 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
       }
     | { status: "queued" | "running" | "retry_wait" | "failed" }
   > {
-    this.assertPilot(input);
     const [job] = await this.database
       .select()
       .from(jobs)
@@ -919,15 +880,6 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
     });
   }
 
-  private assertPilot(input: Scope): void {
-    if (!this.cohort.enabled() || !this.cohort.includes(input.ownerUserId))
-      throw new PublicError(
-        "not_found",
-        "Creative design is not enabled for this account.",
-        404,
-      );
-  }
-
   private async currentSpec(
     db: DatabaseExecutor,
     input: Scope,
@@ -1034,26 +986,6 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
   }
 }
 
-export function createDefaultCreativeDesignManifest(
-  input: Readonly<{
-    packId: CreativeDesignPackId;
-    scenes: readonly Readonly<{
-      id: string;
-      template: CreativeDesignSceneType;
-      durationSeconds: number;
-    }>[];
-  }>,
-): CreativeDesignManifest {
-  return creativeDesignManifestSchema.parse({
-    manifestVersion: "1.0",
-    plannerVersion: creativeDesignPlannerVersion,
-    pack: { id: input.packId, version: "1.0.0" },
-    approach: "standard",
-    settings: defaultCreativeDesignSettings,
-    selections: planCreativeDesign(input),
-    presetVersionId: null,
-  });
-}
 function parse<T>(schema: z.ZodType<T>, body: unknown): T {
   const result = schema.safeParse(body);
   if (result.success) return result.data;
@@ -1076,6 +1008,17 @@ function editConflict(): PublicError {
     "The design changed while you were editing it. Refresh and try again.",
     409,
   );
+}
+
+/**
+ * Lesson content revisions are revalidated and then recorded when a design is
+ * saved. Only the design draft revision represents a competing design edit.
+ */
+export function hasCreativeDesignDraftEditConflict(input: {
+  currentRevision: number;
+  expectedRevision: number;
+}): boolean {
+  return input.currentRevision !== input.expectedRevision;
 }
 function invalidDesign(issues: readonly string[]): PublicError {
   return new PublicError(

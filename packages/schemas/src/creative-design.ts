@@ -3,6 +3,7 @@
  * from the ST-094 proof contract: it describes resolved tenant data, never
  * executable layout instructions or proof fixtures.
  */
+import { sha256 } from "@avlp/config";
 import { identifierSchema } from "@avlp/config/identifiers";
 import { z } from "zod";
 
@@ -637,4 +638,46 @@ export function planCreativeDesign(
     previousFamily = chosen.family;
   }
   return Object.freeze(selections);
+}
+
+export function createDefaultCreativeDesignManifest(
+  input: Readonly<{
+    packId: CreativeDesignPackId;
+    scenes: readonly Readonly<{
+      id: string;
+      template: CreativeDesignSceneType;
+      durationSeconds: number;
+    }>[];
+  }>,
+): CreativeDesignManifest {
+  return creativeDesignManifestSchema.parse({
+    manifestVersion: "1.0",
+    plannerVersion: creativeDesignPlannerVersion,
+    pack: { id: input.packId, version: "1.0.0" },
+    approach: "standard",
+    settings: defaultCreativeDesignSettings,
+    selections: planCreativeDesign(input),
+    presetVersionId: null,
+  });
+}
+
+function canonicalCreativeDesignValue(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalCreativeDesignValue);
+  if (value !== null && typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, nested]) => [key, canonicalCreativeDesignValue(nested)]),
+    );
+  if (typeof value === "number" && !Number.isFinite(value))
+    throw new Error(
+      "Creative design identity cannot contain a non-finite number.",
+    );
+  return value;
+}
+export function canonicalCreativeDesignJson(value: unknown): string {
+  return JSON.stringify(canonicalCreativeDesignValue(value));
+}
+export function creativeDesignHash(value: unknown): string {
+  return sha256(canonicalCreativeDesignJson(value));
 }

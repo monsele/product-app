@@ -1,0 +1,8 @@
+
+> @avlp/pipeline-worker@0.0.0 dev D:\Eronmonsele\Documents\SoundMinds\product-app\apps\pipeline-worker
+> tsx watch --env-file=../../.env src/main.ts
+
+{"timestamp":"2026-09-22T12:03:09.078Z","level":"info","event":"worker.started","fields":{"status":"ok","service":"pipeline-worker"}}
+D:\Eronmonsele\Documents\SoundMinds\product-app\apps\pipeline-worker:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @avlp/pipeline-worker@0.0.0 dev: `tsx watch --env-file=../../.env src/main.ts`
+Exit status 4294967295

@@ -3,6 +3,7 @@ import {
   lessonDifficultyValues,
   lessonToneValues,
   narrationWordCountRange,
+  type CreativeDesignPackId,
   type LessonAgeBand,
   type LessonConfiguration,
   type LessonConfigurationInput,
@@ -49,6 +50,8 @@ export interface ConfigurationFormState {
   /** ST-096. Always a concrete value in the form; `standard` is the default a
    * new lesson starts from and the value a legacy configuration reads back as. */
   videoApproach: VideoApproach;
+  /** ST-102. `null` is the default and keeps the legacy `mvp-default` look. */
+  creativeStylePack: CreativeDesignPackId | null;
   includeRecallQuestions: boolean;
 }
 
@@ -62,6 +65,7 @@ export function emptyConfigurationFormState(): ConfigurationFormState {
     targetDurationSeconds: "",
     tone: "",
     videoApproach: "standard",
+    creativeStylePack: null,
     includeRecallQuestions: false,
   };
 }
@@ -78,6 +82,7 @@ export function formStateFromConfiguration(
     targetDurationSeconds: configuration.targetDurationSeconds,
     tone: configuration.tone,
     videoApproach: configuration.videoApproach,
+    creativeStylePack: configuration.creativeStylePack,
     includeRecallQuestions: configuration.includeRecallQuestions,
   };
 }
@@ -111,6 +116,7 @@ export function hasConfigurationChanges(
       current.targetDurationSeconds !== "" ||
       current.tone !== "" ||
       current.videoApproach !== "standard" ||
+      current.creativeStylePack !== null ||
       current.includeRecallQuestions !== false
     );
   }
@@ -122,6 +128,7 @@ export function hasConfigurationChanges(
     saved.targetDurationSeconds !== current.targetDurationSeconds ||
     saved.tone !== current.tone ||
     saved.videoApproach !== current.videoApproach ||
+    saved.creativeStylePack !== current.creativeStylePack ||
     saved.includeRecallQuestions !== current.includeRecallQuestions
   );
 }
@@ -146,6 +153,7 @@ export function buildConfigurationSaveInput(
       state.targetDurationSeconds as (typeof durationOptions)[number]["seconds"],
     tone: state.tone as LessonTone,
     videoApproach: state.videoApproach,
+    creativeStylePack: state.creativeStylePack,
     includeRecallQuestions: state.includeRecallQuestions,
   };
 }

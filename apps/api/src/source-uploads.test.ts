@@ -356,7 +356,7 @@ describeWithPostgres("PostgresSourceUploadRepository", () => {
     });
   });
 
-  it("returns a duplicate status only for another source owned by the same teacher", async () => {
+  it("never reports duplicateDetected for a matching checksum in another project", async () => {
     const reusableProjectId = createId(new Date("2026-08-13T12:00:20.000Z"));
     const reusableDocumentId = createId(new Date("2026-08-13T12:00:21.000Z"));
     await database!.client.insert(projects).values({
@@ -389,7 +389,7 @@ describeWithPostgres("PostgresSourceUploadRepository", () => {
 
     await expect(
       service.complete(ownerId, projectId, sessionId, {}, correlationId),
-    ).resolves.toMatchObject({ duplicateDetected: true });
+    ).resolves.toMatchObject({ duplicateDetected: false });
   });
 
   it("never reports another teacher's matching checksum as a duplicate", async () => {

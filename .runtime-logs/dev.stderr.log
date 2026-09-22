@@ -1,0 +1,4 @@
+ WARNING  --parallel is deprecated and will be removed in a future major version. Instead, define task behavior in your turbo.json task definitions using `persistent` and `with`.
+• turbo 2.10.8
+@avlp/api#dev:  ERROR  command (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api) C:\Users\LEGION\AppData\Local\pnpm\.tools\@pnpm+exe\10.19.0\bin\pnpm.CMD run dev exited (-1)
+ ERROR  run failed: command  exited (-1)

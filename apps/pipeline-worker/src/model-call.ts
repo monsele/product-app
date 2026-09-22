@@ -255,6 +255,12 @@ export type ModelCallHandlerOptions<T> = {
   pricing?: ModelPricingTable;
   maxRepairs?: number;
   /**
+   * Pure, deterministic post-processing applied to every schema-valid output
+   * before deterministic checks, for values code computes more reliably than
+   * the model (such as rescaling duration estimates to an exact total).
+   */
+  normalizeOutput?: (value: T, operationContext: unknown) => T;
+  /**
    * Throws to reject the generation outright; may instead return warnings for
    * rules the draft may violate while remaining usable, which are reported on
    * the completed job rather than discarding the work.
@@ -453,6 +459,18 @@ export function createModelCallGenerationHandler<T>(
         ],
         responseFormat: "json_object" as const,
       };
+      const normalize = (
+        result: StructuredOutputResult<T>,
+      ): StructuredOutputResult<T> =>
+        options.normalizeOutput === undefined
+          ? result
+          : {
+              ...result,
+              value: options.normalizeOutput(
+                result.value,
+                operationContext?.context,
+              ),
+            };
       let structured = await generateStructuredOutput<T>({
         provider: resolvedProvider.adapter,
         request: generationRequest,
@@ -461,6 +479,7 @@ export function createModelCallGenerationHandler<T>(
           ? {}
           : { maxRepairs: options.maxRepairs }),
       });
+      structured = normalize(structured);
       const executed = structured.responses.at(-1);
       if (
         executed === undefined ||
@@ -528,13 +547,13 @@ export function createModelCallGenerationHandler<T>(
                   ? {}
                   : { foundModel: repairedExecuted.model }),
               });
-            structured = {
+            structured = normalize({
               value: repaired.value,
               rawText: repaired.rawText,
               repairAttempts:
                 structured.repairAttempts + repaired.repairAttempts + 1,
               responses: [...structured.responses, ...repaired.responses],
-            };
+            });
             warnings =
               options.deterministicChecks?.(
                 structured.value,

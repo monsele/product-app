@@ -4,8 +4,6 @@ import {
   outboxEvents,
   projects,
   sourceDocuments,
-  sourceDocumentIngestionArtifacts,
-  sourceDocumentIngestionReuses,
   type DatabaseClient,
 } from "@avlp/database";
 import {
@@ -30,7 +28,7 @@ import {
   sourceDocumentMediaTypeSchema,
 } from "@avlp/schemas";
 import { type ObjectStorage } from "@avlp/storage";
-import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import {
   type MalwareScanner,
   validateDocumentBytes,
@@ -390,80 +388,6 @@ async function recordSuccess(
           eq(sourceDocuments.ownerUserId, context.ownerUserId),
         ),
       );
-    const [compatibleArtifact] = await transaction
-      .select({ id: sourceDocumentIngestionArtifacts.id })
-      .from(sourceDocumentIngestionArtifacts)
-      .innerJoin(
-        sourceDocuments,
-        eq(
-          sourceDocumentIngestionArtifacts.sourceDocumentId,
-          sourceDocuments.id,
-        ),
-      )
-      .where(
-        and(
-          eq(sourceDocumentIngestionArtifacts.ownerUserId, context.ownerUserId),
-          eq(sourceDocuments.ownerUserId, context.ownerUserId),
-          eq(sourceDocuments.sha256, document.sha256),
-          eq(sourceDocuments.status, "active"),
-          eq(sourceDocuments.scanStatus, "safe"),
-          eq(
-            sourceDocumentIngestionArtifacts.parserVersion,
-            currentIngestionCompatibility.parserVersion,
-          ),
-          eq(
-            sourceDocumentIngestionArtifacts.normalizedSchemaVersion,
-            currentIngestionCompatibility.normalizedSchemaVersion,
-          ),
-          eq(sourceDocumentIngestionArtifacts.state, "ready"),
-          isNotNull(sourceDocumentIngestionArtifacts.normalizedStorageKey),
-        ),
-      )
-      .orderBy(desc(sourceDocumentIngestionArtifacts.createdAt))
-      .limit(1);
-    if (compatibleArtifact !== undefined) {
-      await transaction
-        .insert(sourceDocumentIngestionReuses)
-        .values({
-          id: createId(timestamp),
-          projectId: context.projectId,
-          ownerUserId: context.ownerUserId,
-          sourceDocumentId: document.id,
-          ingestionArtifactId: compatibleArtifact.id,
-          createdAt: timestamp,
-          updatedAt: timestamp,
-        })
-        .onConflictDoNothing();
-      await transaction
-        .update(projects)
-        .set({
-          stage: "ingestion_review",
-          latestFailedOperation: null,
-          updatedAt: timestamp,
-          revision: sql`${projects.revision} + 1`,
-        })
-        .where(
-          and(
-            eq(projects.id, context.projectId),
-            eq(projects.ownerUserId, context.ownerUserId),
-          ),
-        );
-      await new PostgresAuditWriter(transaction).write({
-        ownerUserId: context.ownerUserId,
-        projectId: context.projectId,
-        actor: { type: "system" },
-        eventType: "document.ingestion_reused",
-        target: { type: "source_document", id: document.id },
-        correlationId: context.correlationId,
-        metadata: {
-          parserVersion: currentIngestionCompatibility.parserVersion,
-          normalizedSchemaVersion:
-            currentIngestionCompatibility.normalizedSchemaVersion,
-        },
-        occurredAt: timestamp,
-      });
-      return;
-    }
     const payload = documentIngestionJobPayloadSchema.parse({
       schemaVersion: 1,
       sourceDocumentId: document.id,

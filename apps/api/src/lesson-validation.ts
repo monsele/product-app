@@ -111,6 +111,22 @@ type ValidationInput = Readonly<{
   }>;
 }>;
 
+/**
+ * Shape diagrams render from their structured labels, not an asset binding.
+ * A binding left behind after changing an older diagram to shapes is therefore
+ * inert and must not block the lesson as an unavailable render dependency.
+ */
+export function isActiveStoryboardAssetBinding(
+  scene: LessonStoryboard["scenes"][number]["scene"],
+  binding: LessonStoryboard["scenes"][number]["scene"]["assetBindings"][number],
+): boolean {
+  return !(
+    scene.template === "labelled-diagram" &&
+    scene.visual.kind === "shapes" &&
+    binding.slot === "diagram"
+  );
+}
+
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize);
   if (typeof value === "object" && value !== null)
@@ -467,7 +483,8 @@ export function evaluateLessonValidation(
           }),
         );
     }
-    for (const [bindingIndex, binding] of scene.assetBindings.entries())
+    for (const [bindingIndex, binding] of scene.assetBindings.entries()) {
+      if (!isActiveStoryboardAssetBinding(scene, binding)) continue;
       if (!input.resolvedAssetIds.has(binding.assetId))
         issues.push(
           issue("asset_unresolved", {
@@ -481,6 +498,7 @@ export function evaluateLessonValidation(
             details: {},
           }),
         );
+    }
     if (scene.sourceRefs.length === 0)
       issues.push(
         issue("grounding_missing", {
@@ -1311,6 +1329,11 @@ export class PostgresLessonValidationService implements LessonValidationService 
     const sourceSnapshot: SourceSnapshot | undefined = parsedSnapshot?.success
       ? parsedSnapshot.data
       : undefined;
+    // A labelled-diagram asset binding may reference an approved source
+    // table (ST-093) rather than a project asset or extracted figure — the
+    // same asset-id space `resolvedAssetIds` otherwise draws from.
+    for (const table of sourceSnapshot?.tables ?? [])
+      resolvedAssetIds.add(table.tableId);
     const citationIssueCountsByStableSceneId = new Map<
       string,
       readonly number[]

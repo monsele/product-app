@@ -1,0 +1,28 @@
+
+> @avlp/pipeline-worker@0.0.0 dev D:\Eronmonsele\Documents\SoundMinds\product-app\apps\pipeline-worker
+> tsx watch --env-file=../../.env src/main.ts
+
+{"timestamp":"2026-09-22T10:02:34.588Z","level":"info","event":"worker.started","fields":{"status":"ok","service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:08:52.816Z","level":"info","event":"queue.job_dispatched","fields":{"outboxEventId":"01a0c8cd-e46f-77e9-8d78-a51cff7d4b87","jobId":"01a0c8cd-e46f-77bc-8a63-a8977faba393","projectId":"01a0c8cd-3ea9-7c73-a670-747567df98d6","correlationId":"01a0c8cd-e3ca-71b2-9759-22ad241eb812","queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:08:52.876Z","level":"info","event":"job.started","fields":{"jobId":"01a0c8cd-e46f-77bc-8a63-a8977faba393","jobType":"document.validation","projectId":"01a0c8cd-3ea9-7c73-a670-747567df98d6","correlationId":"01a0c8cd-e3ca-71b2-9759-22ad241eb812","attempt":1,"service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:08:53.055Z","level":"info","event":"job.completed","fields":{"jobId":"01a0c8cd-e46f-77bc-8a63-a8977faba393","jobType":"document.validation","projectId":"01a0c8cd-3ea9-7c73-a670-747567df98d6","correlationId":"01a0c8cd-e3ca-71b2-9759-22ad241eb812","attempt":1,"status":"succeeded","errorClassification":"none","durationMs":179,"service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:08:53.913Z","level":"info","event":"queue.job_dispatched","fields":{"outboxEventId":"01a0c8cd-e95c-79a4-a4fb-69d33131367e","jobId":"01a0c8cd-e95c-760d-9e71-d6a803bab185","projectId":"01a0c8cd-3ea9-7c73-a670-747567df98d6","correlationId":"01a0c8cd-e3ca-71b2-9759-22ad241eb812","queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:08:53.916Z","level":"info","event":"job.started","fields":{"jobId":"01a0c8cd-e95c-760d-9e71-d6a803bab185","jobType":"document.ingestion","projectId":"01a0c8cd-3ea9-7c73-a670-747567df98d6","correlationId":"01a0c8cd-e3ca-71b2-9759-22ad241eb812","attempt":1,"service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:10:23.849Z","level":"info","event":"job.completed","fields":{"jobId":"01a0c8cd-e95c-760d-9e71-d6a803bab185","jobType":"document.ingestion","projectId":"01a0c8cd-3ea9-7c73-a670-747567df98d6","correlationId":"01a0c8cd-e3ca-71b2-9759-22ad241eb812","attempt":1,"status":"succeeded","errorClassification":"none","durationMs":89933,"service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:36:44.313Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:37:12.464Z","level":"error","event":"queue.lease_sweep_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:37:12.464Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:37:13.483Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:37:14.498Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:37:15.523Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:37:16.552Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:37:17.573Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:37:18.594Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:37:19.616Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:37:20.636Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:37:21.664Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:37:22.686Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:37:23.717Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:37:24.742Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:37:25.763Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-22T11:37:26.788Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}

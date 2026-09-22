@@ -898,14 +898,20 @@ Provide consistent, reusable animated scene components.
 - Captions and safe areas are consistent.
 - Visual regression tests cover representative templates.
 
-### Approved bounded extension — ST-097
+### Approved bounded extension — ST-097, ST-100, ST-101, ADR-010, ST-102
 
-The initial one-theme MVP is extended for a feature-gated pilot to allow the
-Essential, Editorial, and Everyday packs for hook, definition, process, and
-comparison scenes, only when every scene is supported. Each lesson resolves and
-persists its selected treatments and bounded personalisation before preview or
-rendering; legacy lessons retain `mvp-default`. This does not extend coverage to
-the other six semantic types or combine style with the demonstration approach.
+The initial one-theme MVP was first extended for a feature-gated pilot
+(ST-097: Essential, Editorial, and Everyday for hook, definition, process, and
+comparison scenes), then matured to cover all six packs (adding Systems,
+Field Notes, and Prism per ADR-010) across all ten semantic scene types
+(ST-100, ST-101). ST-102 (2026-09-22, ADR-005 accepted) removed the pilot
+cohort gate: style selection is a real "Visual theme" choice in lesson
+configuration, available to every teacher, not a feature-gated allowlist.
+Each lesson resolves and persists its selected treatments before preview or
+rendering; a lesson configured with no chosen style, and every lesson
+generated before this story, retains `mvp-default`. This does not combine
+style selection with the demonstration approach, which remains its own
+bounded matrix (ADR-009).
 See ADR-008.
 
 ### Technical Dependencies

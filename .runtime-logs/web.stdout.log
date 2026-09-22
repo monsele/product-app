@@ -1,0 +1,73 @@
+
+> @avlp/web@0.0.0 dev D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web
+> next dev
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.193:3000
+
+ ✓ Starting...
+ ✓ Ready in 92.8s
+ ○ Compiling / ...
+ ✓ Compiled / in 124.2s (10487 modules)
+ GET / 200 in 143725ms
+ GET / 200 in 117ms
+ GET / 200 in 64ms
+ GET / 200 in 110ms
+ GET / 200 in 71ms
+ GET / 200 in 89ms
+ GET / 200 in 137ms
+ ○ Compiling /sign-in ...
+ ✓ Compiled /sign-in in 13.4s (10529 modules)
+ GET /sign-in 200 in 15128ms
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 2.3s (158 modules)
+ ○ Compiling /workspace ...
+ ✓ Compiled /workspace in 5.8s (10712 modules)
+ GET /workspace 200 in 7657ms
+ ○ Compiling /api/projects/[projectId]/delete ...
+ ✓ Compiled /api/projects/[projectId]/delete in 2.3s (10731 modules)
+ POST /api/projects/01a0c994-5450-73d5-8894-85ebd477ab06/delete 303 in 23757ms
+ GET /workspace?done=delete 200 in 433ms
+ ○ Compiling /api/projects ...
+ ✓ Compiled /api/projects in 2s (10733 modules)
+ POST /api/projects 303 in 2407ms
+ ○ Compiling /workspace/[projectId]/upload ...
+ ✓ Compiled /workspace/[projectId]/upload in 5s (13894 modules)
+ GET /workspace/01a0cacc-4547-7835-b7c4-fcd924b96a92/upload 200 in 11098ms
+ ○ Compiling /workspace/[projectId]/review ...
+ ✓ Compiled /workspace/[projectId]/review in 5.1s (13893 modules)
+ GET /workspace/01a0cacc-4547-7835-b7c4-fcd924b96a92/review 200 in 11242ms
+ ○ Compiling /workspace/[projectId]/configuration ...
+ ✓ Compiled /workspace/[projectId]/configuration in 4.4s (13915 modules)
+ GET /workspace/01a0cacc-4547-7835-b7c4-fcd924b96a92/configuration 200 in 6054ms
+ ○ Compiling /workspace/[projectId]/objectives ...
+ ✓ Compiled /workspace/[projectId]/objectives in 6.4s (13933 modules)
+ GET /workspace/01a0cacc-4547-7835-b7c4-fcd924b96a92/objectives 200 in 8161ms
+ GET /workspace/01a0cacc-4547-7835-b7c4-fcd924b96a92/objectives 200 in 2232ms
+ ○ Compiling /workspace/[projectId]/outline ...
+ ✓ Compiled /workspace/[projectId]/outline in 14.5s (13919 modules)
+ GET /workspace/01a0cacc-4547-7835-b7c4-fcd924b96a92/outline 200 in 18615ms
+ GET /workspace/01a0cacc-4547-7835-b7c4-fcd924b96a92/outline 200 in 1234ms
+ ○ Compiling /workspace/[projectId]/narration ...
+ ✓ Compiled /workspace/[projectId]/narration in 13.2s (13859 modules)
+ GET /workspace/01a0cacc-4547-7835-b7c4-fcd924b96a92/narration 200 in 45815ms
+ ○ Compiling /workspace/[projectId]/storyboard ...
+ ✓ Compiled /workspace/[projectId]/storyboard in 67.4s (14001 modules)
+ GET /workspace/01a0cacc-4547-7835-b7c4-fcd924b96a92/storyboard 200 in 103297ms
+ GET /workspace/01a0cacc-4547-7835-b7c4-fcd924b96a92/storyboard 200 in 9602ms
+ ○ Compiling /sign-in ...
+ ✓ Compiled /sign-in in 19s (8617 modules)
+ GET /sign-in 200 in 20577ms
+ ✓ Compiled in 9.9s (14002 modules)
+ GET /workspace/01a0cacc-4547-7835-b7c4-fcd924b96a92/storyboard 200 in 7145ms
+ GET /workspace/01a0cacc-4547-7835-b7c4-fcd924b96a92/storyboard 200 in 51451ms
+ ○ Compiling /workspace/[projectId]/preview ...
+ ✓ Compiled /workspace/[projectId]/preview in 262.8s (14065 modules)
+ GET /workspace/01a0cacc-4547-7835-b7c4-fcd924b96a92/preview 200 in 271016ms
+ ○ Compiling /workspace/[projectId]/render ...
+ ✓ Compiled /workspace/[projectId]/render in 31.2s (14069 modules)
+ GET /workspace/01a0cacc-4547-7835-b7c4-fcd924b96a92/render 200 in 43026ms
+ GET /workspace/01a0cacc-4547-7835-b7c4-fcd924b96a92/storyboard 200 in 1542ms
+ GET /workspace/01a0cacc-4547-7835-b7c4-fcd924b96a92/preview 200 in 465ms
+ GET /workspace/01a0cacc-4547-7835-b7c4-fcd924b96a92/render 200 in 298ms

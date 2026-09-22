@@ -57,7 +57,9 @@ const renderProfile = Object.freeze({
   audioCodec: "aac",
   pixelFormat: "yuv420p",
 });
-const rendererVersion = "st-097-remotion-4.0.507-creative-design-v1";
+// Must equal `renderImplementationVersion` in apps/renderer/src/contracts.ts:
+// the worker rejects any other value as an unavailable historical release.
+const rendererVersion = "st-101-remotion-4.0.507-creative-design-style-packs-v2";
 const renderIdentityPolicy = canonicalJsonPolicy;
 const defaultRenderLimits = Object.freeze({
   maxConcurrentPerProject: 1,

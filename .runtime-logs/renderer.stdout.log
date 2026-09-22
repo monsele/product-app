@@ -1,0 +1,7 @@
+
+> @avlp/renderer@0.0.0 dev D:\Eronmonsele\Documents\SoundMinds\product-app\apps\renderer
+> tsx watch --env-file=../../.env src/main.ts
+
+{"timestamp":"2026-09-22T20:11:06.970Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
+{"timestamp":"2026-09-22T22:40:00.897Z","level":"info","event":"job.started","fields":{"jobId":"01a0cb46-8466-7f5f-a2a9-6af13507e509","jobType":"lesson.render","projectId":"01a0cacc-4547-7835-b7c4-fcd924b96a92","correlationId":"01a0cb46-83f0-7516-81ee-837e91d654d8","attempt":1,"service":"renderer"}}
+{"timestamp":"2026-09-22T22:40:03.847Z","level":"info","event":"job.completed","fields":{"jobId":"01a0cb46-8466-7f5f-a2a9-6af13507e509","jobType":"lesson.render","projectId":"01a0cacc-4547-7835-b7c4-fcd924b96a92","correlationId":"01a0cb46-83f0-7516-81ee-837e91d654d8","attempt":1,"status":"failed","errorClassification":"terminal","durationMs":2858,"service":"renderer"}}

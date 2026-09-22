@@ -37,6 +37,25 @@ const resolvedManifest: PreviewManifest = {
   storyboard: {} as PreviewManifest["storyboard"],
 };
 
+const sourceTableManifest: PreviewManifest = {
+  ...resolvedManifest,
+  assets: {
+    [assetId]: {
+      assetId,
+      altText: "Table: Pillar, Action",
+      provenance: "source_table",
+      source: "source_table",
+      table: {
+        tableId: assetId,
+        columns: ["Pillar", "Action"],
+        rows: [["Budgeting", "Track spending"]],
+        rowCount: 1,
+        truncated: false,
+      },
+    },
+  },
+};
+
 function detailWithBindings(
   assetBindings: StoryboardSceneDetailResponse["scene"]["scene"]["assetBindings"],
   assetRequirements: StoryboardSceneDetailResponse["scene"]["assetRequirements"] = [],
@@ -143,6 +162,34 @@ describe("buildScenePreviewInput", () => {
     });
     expect(input.manifest.audio).toBeUndefined();
     expect(input.captions).toEqual([]);
+    expect(parseScenePreviewInput(input).ok).toBe(true);
+  });
+
+  it("preserves structured source-table assets for the scene player", () => {
+    const input = buildScenePreviewInput(
+      detailWithBindings([
+        {
+          assetId,
+          role: "diagram",
+          slot: "diagram",
+        },
+      ]),
+      sourceTableManifest,
+    );
+
+    expect(input.manifest.assets[assetId]).toEqual({
+      assetId,
+      altText: "Table: Pillar, Action",
+      source: "source_table",
+      src: undefined,
+      table: {
+        tableId: assetId,
+        columns: ["Pillar", "Action"],
+        rows: [["Budgeting", "Track spending"]],
+        rowCount: 1,
+        truncated: false,
+      },
+    });
     expect(parseScenePreviewInput(input).ok).toBe(true);
   });
 });

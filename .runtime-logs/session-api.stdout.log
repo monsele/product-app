@@ -1,0 +1,7 @@
+
+> @avlp/api@0.0.0 dev D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api
+> tsx watch --env-file=../../.env src/main.ts
+
+D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @avlp/api@0.0.0 dev: `tsx watch --env-file=../../.env src/main.ts`
+Exit status 4294967295

@@ -1,0 +1,7 @@
+INFO:     Started server process [26824]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+ERROR:    [Errno 10048] error while attempting to bind on address ('127.0.0.1', 8000): [winerror 10048] only one usage of each socket address (protocol/network address/port) is normally permitted
+INFO:     Waiting for application shutdown.
+Loading weights:   0%|          | 0/770 [00:00<?, ?it/s]Loading weights:  22%|##2       | 171/770 [00:00<00:00, 1707.46it/s]Loading weights:  44%|####4     | 342/770 [00:00<00:00, 875.26it/s] Loading weights:  59%|#####8    | 451/770 [00:00<00:00, 885.73it/s]Loading weights:  72%|#######1  | 552/770 [00:00<00:00, 897.80it/s]Loading weights: 100%|##########| 770/770 [00:00<00:00, 1168.58it/s]
+INFO:     Application shutdown complete.

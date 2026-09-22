@@ -8,6 +8,7 @@ import {
   type CreativeDesignPackId,
   type CreativeDesignManifest,
 } from "@avlp/schemas";
+import { creativeDesignColorIssues } from "./creative-design-colors";
 
 type Draft = {
   revision: number;
@@ -23,6 +24,39 @@ type Preset = {
 type Alternative = { treatmentId: string; description: string };
 const api = (path: string) =>
   `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}${path}`;
+
+/** A new plan creates revision 1, while an existing draft must be updated. */
+export function creativeDesignPlanExpectedRevision(
+  draft: { revision: number } | null,
+): number {
+  return draft?.revision ?? 0;
+}
+
+export function creativeDesignErrorMessage(
+  value: unknown,
+  fallback: string,
+): string {
+  if (typeof value !== "object" || value === null || !("error" in value))
+    return fallback;
+  const error = (value as { error?: unknown }).error;
+  if (typeof error !== "object" || error === null) return fallback;
+  const message =
+    "message" in error && typeof error.message === "string"
+      ? error.message
+      : fallback;
+  const fieldErrors =
+    "fieldErrors" in error &&
+    typeof error.fieldErrors === "object" &&
+    error.fieldErrors !== null
+      ? Object.values(error.fieldErrors).filter(
+          (item): item is string => typeof item === "string",
+        )
+      : [];
+  const uniqueIssues = [...new Set(fieldErrors)];
+  return uniqueIssues.length > 0
+    ? `${message} ${uniqueIssues.join(" ")}`
+    : message;
+}
 
 export function CreativeDesignPanel({
   projectId,
@@ -61,7 +95,7 @@ export function CreativeDesignPanel({
     if (value === null) {
       setDraft(null);
       setLocal(null);
-      return;
+      return null;
     }
     const parsed = value as {
       revision?: unknown;
@@ -84,6 +118,7 @@ export function CreativeDesignPanel({
     };
     setDraft(next);
     setLocal(next.manifest);
+    return next;
   }, [projectId]);
   useEffect(() => {
     void load().catch((error: unknown) =>
@@ -129,13 +164,10 @@ export function CreativeDesignPanel({
     const value: unknown = await response.json().catch(() => null);
     if (!response.ok)
       throw new Error(
-        typeof value === "object" &&
-          value !== null &&
-          "error" in value &&
-          typeof (value as { error?: { message?: unknown } }).error?.message ===
-            "string"
-          ? (value as { error: { message: string } }).error.message
-          : "Creative design could not be updated.",
+        creativeDesignErrorMessage(
+          value,
+          "Creative design could not be updated.",
+        ),
       );
     return value;
   };
@@ -143,7 +175,14 @@ export function CreativeDesignPanel({
     setBusy(true);
     setMessage(null);
     try {
-      await request("/plan", { packId, expectedRevision: 0 });
+      // The panel can be shown after a previous load failure. Re-read the
+      // draft here so the first click never blindly submits revision zero for
+      // an existing design.
+      const current = await load();
+      await request("/plan", {
+        packId,
+        expectedRevision: creativeDesignPlanExpectedRevision(current),
+      });
       await load();
     } catch (error) {
       setMessage(
@@ -226,8 +265,14 @@ export function CreativeDesignPanel({
         },
       );
       const saved: unknown = await save.json().catch(() => null);
+      if (!save.ok)
+        throw new Error(
+          creativeDesignErrorMessage(
+            saved,
+            "Creative-design settings could not be saved.",
+          ),
+        );
       if (
-        !save.ok ||
         typeof saved !== "object" ||
         saved === null ||
         typeof (saved as { revision?: unknown }).revision !== "number"
@@ -239,7 +284,9 @@ export function CreativeDesignPanel({
       if (typeof snapshot !== "object" || snapshot === null)
         throw new Error("Creative-design settings could not be applied.");
       await load();
-      setMessage("Creative design applied as an immutable lesson snapshot.");
+      setMessage(
+        "Creative design applied as an immutable lesson snapshot. Complete the remaining lesson checks before rendering.",
+      );
     } catch (error) {
       setMessage(
         error instanceof Error
@@ -461,6 +508,7 @@ export function CreativeDesignPanel({
         {message ? <p role="alert">{message}</p> : null}
       </section>
     );
+  const colorIssues = creativeDesignColorIssues(local.settings.colors);
   return (
     <section
       aria-label="Creative design"
@@ -547,6 +595,12 @@ export function CreativeDesignPanel({
           </label>
         ))}
       </fieldset>
+      {colorIssues.length > 0 ? (
+        <p role="alert">
+          {colorIssues.join(" ")} Choose darker text or accent colours before
+          applying this design.
+        </p>
+      ) : null}
       <label>
         Approved logo asset ID (optional){" "}
         <input
@@ -675,7 +729,7 @@ export function CreativeDesignPanel({
       </form>
       <button
         type="button"
-        disabled={busy || draft.eligibility.length > 0}
+        disabled={busy || draft.eligibility.length > 0 || colorIssues.length > 0}
         onClick={() => void apply()}
       >
         Apply to lesson

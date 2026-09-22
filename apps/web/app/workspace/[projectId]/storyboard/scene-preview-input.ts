@@ -49,6 +49,10 @@ export function buildScenePreviewInput(
           assetId: asset.assetId,
           source: asset.source,
           src: asset.src,
+          // Source tables are structured preview assets, not media URLs. Keep
+          // their bounded table payload when narrowing the API manifest for
+          // the scene player.
+          table: asset.table,
         },
       ]),
   );

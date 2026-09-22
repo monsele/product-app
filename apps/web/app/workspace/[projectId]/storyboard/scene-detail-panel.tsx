@@ -525,7 +525,9 @@ export function SceneDetailPanel({
               sceneId={sceneId}
               sceneRevision={detail.sceneRevision}
               storyboardRevision={lessonSpecRevision}
-              slots={sceneEditorMetadata(scene.template).assetSlots}
+              slots={sceneEditorMetadata(scene.template).assetSlotRequirements
+                .filter((requirement) => requirement.visualRole === "decorative")
+                .map((requirement) => requirement.slot)}
               disabled={pending || generating}
               onChanged={onChanged}
             />

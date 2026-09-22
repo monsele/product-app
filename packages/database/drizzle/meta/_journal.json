@@ -463,6 +463,13 @@
       "when": 1790000300000,
       "tag": "0065_creative_design_snapshot_revision_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1790000360000,
+      "tag": "0066_lesson_configuration_creative_style_pack",
+      "breakpoints": true
     }
   ]
 }

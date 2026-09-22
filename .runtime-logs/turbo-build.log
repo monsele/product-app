@@ -1,0 +1,71 @@
+• turbo 2.10.8
+
+   • Packages in scope: @avlp/auth, @avlp/config, @avlp/database, @avlp/design-system, @avlp/evals, @avlp/jobs, @avlp/observability, @avlp/provider-adapters, @avlp/scene-library, @avlp/schemas, @avlp/storage, @avlp/test-fixtures
+   • Running build in 12 packages
+   • Remote caching disabled
+
+@avlp/config:build: cache miss, executing e4ea2d08f532d494
+@avlp/design-system:build: cache hit, replaying logs cf43711f15a69c35
+@avlp/design-system:build: 
+@avlp/design-system:build: > @avlp/design-system@0.0.0 build D:\Eronmonsele\Documents\SoundMinds\product-app\packages\design-system
+@avlp/design-system:build: > tsc -p tsconfig.json
+@avlp/design-system:build: 
+@avlp/config:build: 
+@avlp/config:build: > @avlp/config@0.0.0 build D:\Eronmonsele\Documents\SoundMinds\product-app\packages\config
+@avlp/config:build: > tsc -p tsconfig.json
+@avlp/config:build: 
+@avlp/storage:build: cache miss, executing 70695c33268fa243
+@avlp/schemas:build: cache miss, executing 2d617300abdef607
+@avlp/storage:build: 
+@avlp/storage:build: > @avlp/storage@0.0.0 build D:\Eronmonsele\Documents\SoundMinds\product-app\packages\storage
+@avlp/storage:build: > tsc -p tsconfig.json
+@avlp/storage:build: 
+@avlp/schemas:build: 
+@avlp/schemas:build: > @avlp/schemas@0.0.0 build D:\Eronmonsele\Documents\SoundMinds\product-app\packages\schemas
+@avlp/schemas:build: > tsc -p tsconfig.json
+@avlp/schemas:build: 
+@avlp/provider-adapters:build: cache miss, executing d420646fb7a9e396
+@avlp/evals:build: cache miss, executing e886868851f39349
+@avlp/scene-library:build: cache miss, executing 17597de3801af82d
+@avlp/database:build: cache miss, executing 14f8b21a414635a2
+@avlp/test-fixtures:build: cache miss, executing 3e59a669c88e1ea4
+@avlp/provider-adapters:build: 
+@avlp/provider-adapters:build: > @avlp/provider-adapters@0.0.0 build D:\Eronmonsele\Documents\SoundMinds\product-app\packages\provider-adapters
+@avlp/provider-adapters:build: > tsc -p tsconfig.json
+@avlp/provider-adapters:build: 
+@avlp/test-fixtures:build: 
+@avlp/test-fixtures:build: > @avlp/test-fixtures@0.0.0 build D:\Eronmonsele\Documents\SoundMinds\product-app\packages\test-fixtures
+@avlp/test-fixtures:build: > tsc -p tsconfig.json
+@avlp/test-fixtures:build: 
+@avlp/scene-library:build: 
+@avlp/scene-library:build: > @avlp/scene-library@0.0.0 build D:\Eronmonsele\Documents\SoundMinds\product-app\packages\scene-library
+@avlp/scene-library:build: > tsc -p tsconfig.json
+@avlp/scene-library:build: 
+@avlp/database:build: 
+@avlp/database:build: > @avlp/database@0.0.0 build D:\Eronmonsele\Documents\SoundMinds\product-app\packages\database
+@avlp/database:build: > tsc -p tsconfig.json
+@avlp/database:build: 
+@avlp/evals:build: 
+@avlp/evals:build: > @avlp/evals@0.0.0 build D:\Eronmonsele\Documents\SoundMinds\product-app\packages\evals
+@avlp/evals:build: > tsc -p tsconfig.json
+@avlp/evals:build: 
+@avlp/observability:build: cache miss, executing 43c4e84bc1754569
+@avlp/observability:build: 
+@avlp/observability:build: > @avlp/observability@0.0.0 build D:\Eronmonsele\Documents\SoundMinds\product-app\packages\observability
+@avlp/observability:build: > tsc -p tsconfig.json
+@avlp/observability:build: 
+@avlp/auth:build: cache miss, executing 98b314974344a9ce
+@avlp/jobs:build: cache miss, executing 70fdc96493b2a46c
+@avlp/auth:build: 
+@avlp/auth:build: > @avlp/auth@0.0.0 build D:\Eronmonsele\Documents\SoundMinds\product-app\packages\auth
+@avlp/auth:build: > tsc -p tsconfig.json
+@avlp/auth:build: 
+@avlp/jobs:build: 
+@avlp/jobs:build: > @avlp/jobs@0.0.0 build D:\Eronmonsele\Documents\SoundMinds\product-app\packages\jobs
+@avlp/jobs:build: > tsc -p tsconfig.json
+@avlp/jobs:build: 
+
+ Tasks:    12 successful, 12 total
+Cached:    1 cached, 12 total
+  Time:    2m9.062s 
+

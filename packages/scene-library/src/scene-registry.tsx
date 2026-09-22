@@ -709,6 +709,11 @@ export function validateScene(
       diagram.visual.kind === "asset" &&
       options.requireResolvedAssets &&
       resolveSafeDiagramAsset(diagramAsset?.assetId, options.resolvedAssets) ===
+        undefined &&
+      // A labelled diagram can also be backed by an approved source table
+      // (ST-093) — the render component accepts either, so validation must
+      // treat a resolved table the same as a resolved image.
+      resolveSafeTableVisual(diagramAsset?.assetId, options.resolvedAssets) ===
         undefined
     )
       return [

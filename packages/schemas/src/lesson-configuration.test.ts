@@ -71,6 +71,41 @@ describe("lesson configuration schemas", () => {
     ).toBe(false);
   });
 
+  it("accepts an omitted, explicitly null, or a registered creativeStylePack", () => {
+    expect(
+      lessonConfigurationInputSchema.safeParse(validInput).success,
+    ).toBe(true);
+    expect(
+      lessonConfigurationInputSchema.safeParse({
+        ...validInput,
+        creativeStylePack: null,
+      }).success,
+    ).toBe(true);
+    for (const packId of [
+      "essential",
+      "editorial",
+      "everyday",
+      "systems",
+      "field-notes",
+      "prism",
+    ])
+      expect(
+        lessonConfigurationInputSchema.safeParse({
+          ...validInput,
+          creativeStylePack: packId,
+        }).success,
+      ).toBe(true);
+  });
+
+  it("rejects an unregistered creativeStylePack", () => {
+    expect(
+      lessonConfigurationInputSchema.safeParse({
+        ...validInput,
+        creativeStylePack: "cinematic",
+      }).success,
+    ).toBe(false);
+  });
+
   it("trims and bounds free text fields", () => {
     expect(
       lessonConfigurationInputSchema.safeParse({
@@ -97,6 +132,7 @@ describe("lesson configuration schemas", () => {
       tone: "friendly",
       visualTheme: "mvp-default",
       videoApproach: "standard",
+      creativeStylePack: null,
       includeRecallQuestions: true,
       sourceParsedDocumentVersion: 3,
       updatedAt: "2026-08-16T12:00:00.000Z",

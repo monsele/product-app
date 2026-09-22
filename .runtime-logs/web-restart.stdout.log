@@ -1,0 +1,44 @@
+
+> @avlp/web@0.0.0 dev D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web
+> next dev
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.193:3000
+
+ ✓ Starting...
+ ✓ Ready in 34s
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 2.7s (158 modules)
+ ○ Compiling /workspace/[projectId]/storyboard ...
+ ✓ Compiled /workspace/[projectId]/storyboard in 34.4s (13884 modules)
+ GET /workspace/01a0c303-c31b-7e9c-81c5-de42894e15c0/storyboard 200 in 39616ms
+ GET /workspace/01a0c303-c31b-7e9c-81c5-de42894e15c0/storyboard 200 in 315ms
+ GET /workspace/01a0c303-c31b-7e9c-81c5-de42894e15c0/storyboard 200 in 338ms
+ GET /workspace/01a0c303-c31b-7e9c-81c5-de42894e15c0/storyboard 200 in 280ms
+ GET /workspace/01a0c303-c31b-7e9c-81c5-de42894e15c0/storyboard 200 in 298ms
+ GET /workspace/01a0c303-c31b-7e9c-81c5-de42894e15c0/storyboard 200 in 316ms
+ GET /workspace/01a0c303-c31b-7e9c-81c5-de42894e15c0/storyboard 200 in 290ms
+ GET /workspace/01a0c303-c31b-7e9c-81c5-de42894e15c0/storyboard 200 in 486ms
+ ○ Compiling /sign-in ...
+ ✓ Compiled /sign-in in 6.1s (13928 modules)
+ GET /sign-in 200 in 6969ms
+ GET /sign-in 200 in 379ms
+ ○ Compiling /register ...
+ ✓ Compiled /register in 5.5s (13930 modules)
+ GET /register 200 in 6546ms
+ GET /register 200 in 129ms
+ GET /register 200 in 110ms
+ GET /register 200 in 120ms
+ ○ Compiling /workspace ...
+ ✓ Compiled /workspace in 6.4s (14013 modules)
+ GET /workspace 200 in 7861ms
+ ○ Compiling /api/projects ...
+ ✓ Compiled /api/projects in 3.7s (14033 modules)
+ POST /api/projects 303 in 4889ms
+ ○ Compiling /workspace/[projectId]/upload ...
+ ✓ Compiled /workspace/[projectId]/upload in 5.9s (14047 modules)
+ GET /workspace/01a0c8cd-3ea9-7c73-a670-747567df98d6/upload 200 in 16919ms
+ ○ Compiling /workspace/[projectId]/review ...
+ ✓ Compiled /workspace/[projectId]/review in 7.4s (14048 modules)
+ GET /workspace/01a0c8cd-3ea9-7c73-a670-747567df98d6/review 200 in 11028ms

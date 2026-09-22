@@ -35,7 +35,7 @@ import {
   type StorageObjectMetadata,
   StorageObjectNotFoundError,
 } from "@avlp/storage";
-import { and, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 const uploadSessionTtlMs = 5 * 60 * 1_000;
@@ -405,17 +405,6 @@ export class PostgresSourceUploadRepository implements SourceUploadRepository {
           ingestionRequested: false,
           duplicateDetected: session.duplicateDetected,
         });
-      const [duplicate] = await transaction
-        .select({ id: sourceDocuments.id })
-        .from(sourceDocuments)
-        .where(
-          and(
-            eq(sourceDocuments.ownerUserId, session.ownerUserId),
-            eq(sourceDocuments.sha256, session.expectedSha256),
-            ne(sourceDocuments.id, session.documentId),
-          ),
-        )
-        .limit(1);
       const [created] = await transaction
         .insert(sourceDocuments)
         .values({
@@ -498,7 +487,7 @@ export class PostgresSourceUploadRepository implements SourceUploadRepository {
         .update(uploadSessions)
         .set({
           completedAt: timestamp,
-          duplicateDetected: duplicate !== undefined,
+          duplicateDetected: false,
           updatedAt: timestamp,
         })
         .where(eq(uploadSessions.id, session.id));
@@ -532,7 +521,7 @@ export class PostgresSourceUploadRepository implements SourceUploadRepository {
         documentId: session.documentId,
         status: "pending_validation",
         ingestionRequested: false,
-        duplicateDetected: duplicate !== undefined,
+        duplicateDetected: false,
       });
     });
   }

@@ -5,6 +5,7 @@ import type { SceneSpec, SourceTableVisual } from "@avlp/schemas";
 import {
   createDefaultScene,
   resolveSafeTableVisual,
+  validateScene,
   type ResolvedSceneAsset,
 } from "./scene-registry.js";
 import { LabelledDiagramSceneFrame } from "./labelled-diagram-scene.js";
@@ -77,6 +78,31 @@ describe("resolveSafeTableVisual", () => {
 
   it("does not resolve when no assetId is given", () => {
     expect(resolveSafeTableVisual(undefined, resolvedTableAsset())).toBeUndefined();
+  });
+});
+
+describe("validateScene with a table-backed labelled diagram", () => {
+  it("accepts a resolved source_table asset instead of requiring an image", () => {
+    expect(
+      validateScene(tableScene(), {
+        requireResolvedAssets: true,
+        resolvedAssets: resolvedTableAsset(),
+      }),
+    ).toEqual([]);
+  });
+
+  it("still reports missing_asset when the table asset does not resolve", () => {
+    expect(
+      validateScene(tableScene(), {
+        requireResolvedAssets: true,
+        resolvedAssets: {},
+      }),
+    ).toContainEqual(
+      expect.objectContaining({
+        code: "missing_asset",
+        fieldPath: "resolvedAssets.diagram",
+      }),
+    );
   });
 });
 

@@ -8,6 +8,9 @@ import {
   type Identifier,
 } from "@avlp/config";
 import {
+  creativeDesignDrafts,
+  creativeDesignSnapshots,
+  lessonConfigurations,
   lessonOutlineItems,
   lessonOutlineSets,
   lessonSpecs,
@@ -26,6 +29,9 @@ import {
   type QuotaGuard,
 } from "@avlp/provider-adapters";
 import {
+  createDefaultCreativeDesignManifest,
+  creativeDesignHash,
+  creativeDesignPackIdSchema,
   lessonStoryboardSceneSchema,
   lessonStoryboardSchema,
   sceneSpecSchema,
@@ -50,6 +56,7 @@ import {
   createModelCallGenerationHandler,
   type ModelCallHandlerOptions,
 } from "./model-call.js";
+import { allocateDurationsToTarget } from "./duration-allocation.js";
 import { computeOutlineSetContentHash } from "./narration-job.js";
 import { resolveObjectiveSourceRefs as resolveSourceRefs } from "./objectives-job.js";
 
@@ -351,49 +358,13 @@ export function allocateStoryboardDurations(input: {
       "DURATION_UNREACHABLE",
       `The lesson target of ${input.target}s cannot be split into ${count} scenes of ${minimum}-${maximum}s each.`,
     );
-  const sum = (values: readonly number[]): number =>
-    values.reduce((total, value) => total + value, 0);
-  const clamp = (value: number): number =>
-    Math.min(maximum, Math.max(minimum, Math.round(value)));
-  let durations = input.scenes.map((scene) => clamp(scene.estimatedSeconds));
-  for (
-    let attempt = 0;
-    attempt < 20 && sum(durations) !== input.target;
-    attempt += 1
-  ) {
-    const factor = input.target / Math.max(1, sum(durations));
-    durations = durations.map((duration) => clamp(duration * factor));
-  }
-  let guard = 0;
-  if (sum(durations) > input.target) {
-    while (sum(durations) > input.target && guard < 10_000) {
-      let largestIndex = -1;
-      for (let index = 0; index < durations.length; index += 1)
-        if (
-          durations[index]! > minimum &&
-          (largestIndex === -1 || durations[index]! > durations[largestIndex]!)
-        )
-          largestIndex = index;
-      if (largestIndex === -1) break;
-      durations[largestIndex] = durations[largestIndex]! - 1;
-      guard += 1;
-    }
-  } else if (sum(durations) < input.target) {
-    while (sum(durations) < input.target && guard < 10_000) {
-      let smallestIndex = -1;
-      for (let index = 0; index < durations.length; index += 1)
-        if (
-          durations[index]! < maximum &&
-          (smallestIndex === -1 ||
-            durations[index]! < durations[smallestIndex]!)
-        )
-          smallestIndex = index;
-      if (smallestIndex === -1) break;
-      durations[smallestIndex] = durations[smallestIndex]! + 1;
-      guard += 1;
-    }
-  }
-  if (sum(durations) !== input.target)
+  const durations = allocateDurationsToTarget({
+    estimates: input.scenes.map((scene) => scene.estimatedSeconds),
+    target: input.target,
+    minimum,
+    maximum,
+  });
+  if (durations === undefined)
     throw new StoryboardDeterministicCheckError(
       "DURATION_UNREACHABLE",
       `Scene durations could not be allocated to exactly ${input.target}s.`,
@@ -675,6 +646,54 @@ async function persistLessonStoryboardDraft(input: {
     createdAt: serializeUtcTimestamp(timestamp),
   });
 
+  // A chosen style is a cosmetic, teacher-level preference, not part of what
+  // the AI was asked to generate — it is read fresh here rather than carried
+  // in `params`, so switching only the style never forces a new paid
+  // generation call. Resolved eagerly, before the transaction opens, so an
+  // unresolvable style never rolls back the AI-generated storyboard content
+  // that already succeeded.
+  const [configuration] = await input.executor
+    .select({ creativeStylePack: lessonConfigurations.creativeStylePack })
+    .from(lessonConfigurations)
+    .where(
+      and(
+        eq(lessonConfigurations.ownerUserId, input.context.ownerUserId),
+        eq(lessonConfigurations.projectId, input.context.projectId),
+      ),
+    )
+    .limit(1);
+  let creativeDesign:
+    | { manifest: ReturnType<typeof createDefaultCreativeDesignManifest>; manifestHash: string }
+    | undefined;
+  if (configuration?.creativeStylePack != null) {
+    try {
+      const packId = creativeDesignPackIdSchema.parse(
+        configuration.creativeStylePack,
+      );
+      const manifest = createDefaultCreativeDesignManifest({
+        packId,
+        scenes: storyboard.scenes.map((scene) => ({
+          id: scene.id,
+          template: scene.template,
+          durationSeconds: scene.durationSeconds,
+        })),
+      });
+      creativeDesign = { manifest, manifestHash: creativeDesignHash(manifest) };
+    } catch (error) {
+      // Deterministic given this pack and these scenes: it will fail the
+      // same way on every retry, so this must not substitute a different
+      // pack silently (ADR-005) or leave the lesson with an unexplained
+      // legacy appearance — it must fail loudly and reportably instead.
+      throw new JobExecutionError(
+        "terminal",
+        "CREATIVE_DESIGN_MANIFEST_UNRESOLVABLE",
+        error instanceof Error
+          ? `The selected visual style could not be applied to this lesson: ${error.message}`
+          : "The selected visual style could not be applied to this lesson.",
+      );
+    }
+  }
+
   return input.executor.transaction(async (transaction) => {
     const [created] = await transaction
       .insert(lessonSpecs)
@@ -733,6 +752,30 @@ async function persistLessonStoryboardDraft(input: {
           updatedAt: timestamp,
         })),
       );
+      if (creativeDesign !== undefined) {
+        await transaction.insert(creativeDesignDrafts).values({
+          id: createId(timestamp),
+          projectId: input.context.projectId,
+          ownerUserId: input.context.ownerUserId,
+          lessonSpecId: storyboard.id,
+          lessonSpecRevision: storyboard.revision,
+          manifest: creativeDesign.manifest,
+          manifestHash: creativeDesign.manifestHash,
+          revision: 1,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        });
+        await transaction.insert(creativeDesignSnapshots).values({
+          id: createId(timestamp),
+          projectId: input.context.projectId,
+          ownerUserId: input.context.ownerUserId,
+          lessonSpecId: storyboard.id,
+          lessonSpecRevision: storyboard.revision,
+          manifest: creativeDesign.manifest,
+          manifestHash: creativeDesign.manifestHash,
+          createdAt: timestamp,
+        });
+      }
     } else {
       const [existing] = await transaction
         .select({ id: lessonSpecs.id })

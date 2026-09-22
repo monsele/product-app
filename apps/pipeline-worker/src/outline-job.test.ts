@@ -32,7 +32,9 @@ import {
   computeObjectiveSetContentHash,
   createOutlineGenerationJobHandler,
   loadApprovedObjectiveSet,
+  normalizeOutlineDurations,
   OutlineDeterministicCheckError,
+  outlineRepairInstruction,
   persistOutlineSet,
 } from "./outline-job.js";
 
@@ -464,6 +466,78 @@ describe("assertOutlineDeterministicChecks", () => {
   });
 });
 
+describe("normalizeOutlineDurations", () => {
+  const total = (output: OutlineOutputV1) =>
+    output.items.reduce((sum, item) => sum + item.estimatedSeconds, 0);
+
+  it("rescales an out-of-tolerance total to the exact target", () => {
+    const output = validOutput();
+    output.items[1] = { ...output.items[1]!, estimatedSeconds: 70 };
+    expect(total(output)).toBe(210);
+    const normalized = normalizeOutlineDurations(output, operationContext());
+    expect(total(normalized)).toBe(180);
+    expect(() =>
+      assertOutlineDeterministicChecks(
+        normalized,
+        buildSourcePackage(sampleSnapshot(), {}),
+        operationContext(),
+      ),
+    ).not.toThrow();
+  });
+
+  it("leaves an in-tolerance outline untouched", () => {
+    const output = validOutput();
+    output.items[1] = { ...output.items[1]!, estimatedSeconds: 50 };
+    expect(total(output)).toBe(190);
+    expect(normalizeOutlineDurations(output, operationContext())).toEqual(
+      output,
+    );
+  });
+
+  it("leaves an unreachable target for the checks to reject", () => {
+    const output = validOutput();
+    const [hook, concept, , , , summary] = output.items;
+    output.items = [
+      hook!,
+      ...Array.from({ length: 18 }, () => ({
+        ...concept!,
+        estimatedSeconds: 20,
+      })),
+      summary!,
+    ];
+    const normalized = normalizeOutlineDurations(output, operationContext());
+    expect(normalized).toEqual(output);
+    expect(() =>
+      assertOutlineDeterministicChecks(
+        normalized,
+        buildSourcePackage(sampleSnapshot(), {}),
+        operationContext(),
+      ),
+    ).toThrow(OutlineDeterministicCheckError);
+  });
+});
+
+describe("outlineRepairInstruction", () => {
+  it("returns an instruction for repairable outline rules", () => {
+    for (const code of [
+      "OBJECTIVE_UNCOVERED",
+      "UNSUPPORTED_SOURCE_BLOCK",
+      "INVALID_SEQUENCE",
+      "RECALL_QUESTION_MISSING",
+      "ITEM_COUNT_TOO_LOW",
+    ] as const)
+      expect(
+        outlineRepairInstruction(
+          new OutlineDeterministicCheckError(code, "problem"),
+        ),
+      ).toEqual(expect.any(String));
+  });
+
+  it("does not repair unknown errors", () => {
+    expect(outlineRepairInstruction(new Error("other"))).toBeUndefined();
+  });
+});
+
 describe("persistOutlineSet", () => {
   function storeCapture() {
     const insertedSets: unknown[] = [];
@@ -761,5 +835,53 @@ describe("outline generation job", () => {
       "The model output failed deterministic checks",
     );
     expect(error).toMatchObject({ code: "MODEL_OUTPUT_DETERMINISTIC_FAILURE" });
+  });
+
+  function handlerFor(provider: MockLanguageModelProvider) {
+    return createOutlineGenerationJobHandler({
+      database: fakeDatabase({
+        snapshot: sampleSnapshot(),
+        objectiveSetRow: approvedObjectiveSetRow(),
+        objectiveRows: objectiveRows(),
+      }) as never,
+      provider,
+      promptRegistry: new StaticPromptRegistry(repositoryPrompts),
+      quotaGuard: new InMemoryQuotaGuard([]),
+      pricing: mockPricing,
+      now: () => new Date("2026-08-17T10:00:00.000Z"),
+    });
+  }
+
+  it("rescales an out-of-tolerance total instead of failing", async () => {
+    const output = validOutput();
+    output.items[1] = { ...output.items[1]!, estimatedSeconds: 70 };
+    const provider = new MockLanguageModelProvider({
+      model: "mock-model-1",
+      completion: jsonCompletion(output),
+    });
+    const result = await execute(handlerFor(provider), jobPayload());
+    expect(result.outcome).toBe("succeeded");
+    expect(provider.requests).toHaveLength(1);
+  });
+
+  it("repairs a missing recall question with one corrective call", async () => {
+    const broken = validOutput();
+    broken.items = broken.items.filter(
+      (item) => item.kind !== "recall_question",
+    );
+    broken.items[1] = { ...broken.items[1]!, estimatedSeconds: 50 };
+    const provider = new MockLanguageModelProvider({
+      model: "mock-model-1",
+      completion: (request) =>
+        JSON.stringify(request.messages.length > 2 ? validOutput() : broken),
+    });
+    const result = await execute(handlerFor(provider), jobPayload());
+    expect(result.outcome).toBe("succeeded");
+    if (result.outcome !== "succeeded") throw new Error("unreachable");
+    expect(provider.requests).toHaveLength(2);
+    expect(provider.requests[1]!.messages.at(-1)!.content).toContain(
+      "recall_question",
+    );
+    expect(result.metadata).toMatchObject({ validationStatus: "repaired" });
   });
 });

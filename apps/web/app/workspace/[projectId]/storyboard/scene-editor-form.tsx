@@ -248,7 +248,19 @@ export function writeField(
   if (field.path === "visual.kind") {
     const visual = next.visual as Record<string, unknown>;
     if (value === "asset") visual.baseAssetSlot = "diagram";
-    else delete visual.baseAssetSlot;
+    else {
+      delete visual.baseAssetSlot;
+      // Shapes-only labelled diagrams are self-contained. Retaining a prior
+      // diagram binding makes an unused source visual look required and
+      // exposes an impossible AI-generation action for a factual slot.
+      if (Array.isArray(next.assetBindings))
+        next.assetBindings = next.assetBindings.filter(
+          (binding) =>
+            typeof binding !== "object" ||
+            binding === null ||
+            (binding as Record<string, unknown>).slot !== "diagram",
+        );
+    }
   }
   return next as unknown as SceneSpec;
 }
@@ -739,6 +751,10 @@ export function SceneEditorForm({
     () => sceneEditorMetadata(draft.template),
     [draft.template],
   );
+  const visibleAssetSlots =
+    draft.template === "labelled-diagram" && draft.visual.kind === "shapes"
+      ? metadata.assetSlots.filter((slot) => slot !== "diagram")
+      : metadata.assetSlots;
   const visibleFields = useMemo(() => editorFieldsForScene(draft), [draft]);
 
   useEffect(() => {
@@ -1093,7 +1109,54 @@ export function SceneEditorForm({
         ),
       )}
 
-      {metadata.assetSlots.map((slot) => (
+      {draft.template === "labelled-diagram" && draft.visual.kind === "shapes" ? (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "8px",
+            flexWrap: "wrap",
+          }}
+        >
+          <p
+            style={{
+              margin: 0,
+              color: "var(--color-text-muted, #BDB5C7)",
+              fontSize: "12px",
+              lineHeight: 1.5,
+            }}
+          >
+            Using a built-in shape diagram. No source figure or generated image
+            is required.
+          </p>
+          <button
+            type="button"
+            disabled={disabled || saveState === "saving"}
+            onClick={() => {
+              const kindField = visibleFields.find(
+                (field) => field.path === "visual.kind",
+              );
+              if (kindField !== undefined)
+                setDraft((current) => writeField(current, kindField, "asset"));
+            }}
+            style={{
+              padding: "6px 12px",
+              borderRadius: "6px",
+              backgroundColor: "rgba(255, 255, 255, 0.1)",
+              border: "1px solid var(--color-border, #3A3046)",
+              color: "var(--color-text, #F4F1F8)",
+              fontSize: "12px",
+              fontWeight: 500,
+              cursor: "pointer",
+            }}
+          >
+            Use an image instead
+          </button>
+        </div>
+      ) : null}
+
+      {visibleAssetSlots.map((slot) => (
         <div
           key={slot}
           style={{

@@ -21,6 +21,8 @@ import {
   minimumOutlineItemsForTarget,
   outlineDurationToleranceRatio,
   outlineGenerationParamsSchema,
+  outlineItemMaximumSeconds,
+  outlineItemMinimumSeconds,
   outlineOutputV1Schema,
   type LessonOutlineSet,
   type ModelCallParams,
@@ -36,6 +38,7 @@ import {
   createModelCallGenerationHandler,
   type ModelCallHandlerOptions,
 } from "./model-call.js";
+import { allocateDurationsToTarget } from "./duration-allocation.js";
 import { resolveObjectiveSourceRefs as resolveSourceRefs } from "./objectives-job.js";
 
 /**
@@ -267,21 +270,76 @@ export function assertOutlineDeterministicChecks(
       "ITEM_COUNT_TOO_LOW",
       `The outline has ${output.items.length} items; a ${params.targetDurationSeconds}s lesson needs at least ${minimumItems} to be storyboarded.`,
     );
-  const total = output.items.reduce(
-    (sum, item) => sum + item.estimatedSeconds,
-    0,
-  );
-  const lower = Math.floor(
-    params.targetDurationSeconds * (1 - outlineDurationToleranceRatio),
-  );
-  const upper = Math.ceil(
-    params.targetDurationSeconds * (1 + outlineDurationToleranceRatio),
-  );
+  const total = outlineTotalSeconds(output);
+  const { lower, upper } = outlineDurationBounds(params.targetDurationSeconds);
   if (total < lower || total > upper)
     throw new OutlineDeterministicCheckError(
       "DURATION_OUT_OF_TOLERANCE",
       `Total estimated ${total}s is outside the ${lower}-${upper}s tolerance for the ${params.targetDurationSeconds}s target.`,
     );
+}
+
+function outlineTotalSeconds(output: OutlineOutputV1): number {
+  return output.items.reduce((sum, item) => sum + item.estimatedSeconds, 0);
+}
+
+function outlineDurationBounds(target: number): {
+  lower: number;
+  upper: number;
+} {
+  return {
+    lower: Math.floor(target * (1 - outlineDurationToleranceRatio)),
+    upper: Math.ceil(target * (1 + outlineDurationToleranceRatio)),
+  };
+}
+
+/**
+ * Models estimate relative item length well but sum poorly, so an
+ * out-of-tolerance total is rescaled to the exact target. An unreachable target
+ * is left as-is for the deterministic checks to reject.
+ */
+export function normalizeOutlineDurations(
+  output: OutlineOutputV1,
+  operationContext: OutlineOperationContext | undefined,
+): OutlineOutputV1 {
+  if (operationContext === undefined) return output;
+  const target = operationContext.params.targetDurationSeconds;
+  const total = outlineTotalSeconds(output);
+  const { lower, upper } = outlineDurationBounds(target);
+  if (total >= lower && total <= upper) return output;
+  const durations = allocateDurationsToTarget({
+    estimates: output.items.map((item) => item.estimatedSeconds),
+    target,
+    minimum: outlineItemMinimumSeconds,
+    maximum: outlineItemMaximumSeconds,
+  });
+  if (durations === undefined) return output;
+  return {
+    ...output,
+    items: output.items.map((item, index) => ({
+      ...item,
+      estimatedSeconds: durations[index]!,
+    })),
+  };
+}
+
+/** One corrective instruction for outline rules the model can fix itself. */
+export function outlineRepairInstruction(error: unknown): string | undefined {
+  if (!(error instanceof OutlineDeterministicCheckError)) return undefined;
+  switch (error.code) {
+    case "OBJECTIVE_UNCOVERED":
+      return `Fix this problem: ${error.message} Every approved objective must be linked by at least one item, and items may only reference approved objective IDs.`;
+    case "UNSUPPORTED_SOURCE_BLOCK":
+      return `Fix this problem: ${error.message} Cite only block IDs that appear in the source package.`;
+    case "INVALID_SEQUENCE":
+      return `Fix this problem: ${error.message} The first item must be a hook, the last a summary, with at least one concept and one example between them, and targetDurationSeconds must equal the configured target.`;
+    case "RECALL_QUESTION_MISSING":
+      return "Add one recall_question item before the summary, citing the source blocks it tests.";
+    case "ITEM_COUNT_TOO_LOW":
+      return `Fix this problem: ${error.message} Split the longest items into additional items so the count meets the minimum.`;
+    default:
+      return undefined;
+  }
 }
 
 /**
@@ -521,12 +579,19 @@ export function createOutlineGenerationJobHandler(input: {
         },
       };
     },
+    normalizeOutput: (value, operationContext) =>
+      normalizeOutlineDurations(
+        value,
+        operationContext as OutlineOperationContext | undefined,
+      ),
     deterministicChecks: (value, sourcePackage, operationContext) =>
       assertOutlineDeterministicChecks(
         value,
         sourcePackage,
         operationContext as OutlineOperationContext | undefined,
       ),
+    deterministicRepairInstruction: ({ error }) =>
+      outlineRepairInstruction(error),
     persistCandidate: (candidate) =>
       persistOutlineSet({
         executor: input.database,
