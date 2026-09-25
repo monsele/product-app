@@ -1,0 +1,63 @@
+- generic [active] [ref=f7e1]:
+  - generic [ref=f7e2]:
+    - banner [ref=f7e3]:
+      - generic [ref=f7e4]: AI Visual Learning Platform
+      - generic [ref=f7e6]:
+        - generic [ref=f7e7]: teacher@school.org
+        - button "Sign out" [ref=f7e8] [cursor=pointer]
+    - main [ref=f7e10]:
+      - generic [ref=f7e12]:
+        - generic [ref=f7e13]:
+          - heading "Your lessons" [level=1] [ref=f7e14]
+          - paragraph [ref=f7e15]: Manage existing video lessons, monitor generation progress, or create a new lesson.
+        - generic [ref=f7e16]:
+          - generic [ref=f7e17]:
+            - region [ref=f7e18]:
+              - generic [ref=f7e23]:
+                - heading "Create new lesson" [level=2] [ref=f7e24]
+                - paragraph [ref=f7e25]: Start by naming your lesson and uploading a teaching document.
+              - generic [ref=f7e26]:
+                - generic [ref=f7e28]:
+                  - generic [ref=f7e29]:
+                    - text: Project title
+                    - generic [ref=f7e30]: "*"
+                  - textbox "Project title *" [ref=f7e31]:
+                    - /placeholder: e.g. Photosynthesis and Plant Cells
+                - generic [ref=f7e32]:
+                  - button "Create lesson" [disabled] [ref=f7e33]
+                  - generic [ref=f7e38]: Name your lesson to continue.
+            - region [ref=f7e39]:
+              - heading "Most recent lesson" [level=2] [ref=f7e40]
+              - generic [ref=f7e41]:
+                - generic [ref=f7e42]:
+                  - generic [ref=f7e43]:
+                    - generic [ref=f7e44]:
+                      - generic [ref=f7e45]: Ready to render
+                      - generic [ref=f7e50]:
+                        - text: Last modified
+                        - time [ref=f7e51]: Sep 22, 2026, 10:39 PM
+                    - heading [level=3] [ref=f7e52]:
+                      - link "Sermon:Giving" [ref=f7e53] [cursor=pointer]:
+                        - /url: /workspace/01a0cacc-4547-7835-b7c4-fcd924b96a92/preview
+                  - generic [ref=f7e54]:
+                    - link "Preview & render" [ref=f7e55] [cursor=pointer]:
+                      - /url: /workspace/01a0cacc-4547-7835-b7c4-fcd924b96a92/preview
+                    - button "Featured project actions" [ref=f7e60] [cursor=pointer]
+                - generic [ref=f7e65]:
+                  - generic [ref=f7e66]: Lesson progress
+                  - generic [ref=f7e67]: Step 8 of 9 · Preview
+            - paragraph [ref=f7e78]: Showing all lessons
+          - complementary "Workspace Contextual Guidance" [ref=f7e79]:
+            - region [ref=f7e80]:
+              - heading "Supported sources" [level=3] [ref=f7e84]
+              - list [ref=f7e85]:
+                - listitem [ref=f7e86]: PDF or Word (.docx) documents
+                - listitem [ref=f7e87]: Up to 20 pages and 25 MB per document
+                - listitem [ref=f7e88]: English-language teaching material
+                - listitem [ref=f7e89]: Original figures and text preserved
+              - generic [ref=f7e90]:
+                - heading "Private to your workspace" [level=4] [ref=f7e94]
+                - paragraph [ref=f7e95]: Source documents stay in your workspace. Uploads are validated, scanned, and hashed before processing.
+  - region "Notifications"
+  - button "Open Next.js Dev Tools" [ref=f7e101] [cursor=pointer]
+  - alert [ref=f7e105]

@@ -2,6 +2,72 @@
 > @avlp/renderer@0.0.0 dev D:\Eronmonsele\Documents\SoundMinds\product-app\apps\renderer
 > tsx watch --env-file=../../.env src/main.ts
 
-{"timestamp":"2026-09-22T20:11:06.970Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
-{"timestamp":"2026-09-22T22:40:00.897Z","level":"info","event":"job.started","fields":{"jobId":"01a0cb46-8466-7f5f-a2a9-6af13507e509","jobType":"lesson.render","projectId":"01a0cacc-4547-7835-b7c4-fcd924b96a92","correlationId":"01a0cb46-83f0-7516-81ee-837e91d654d8","attempt":1,"service":"renderer"}}
-{"timestamp":"2026-09-22T22:40:03.847Z","level":"info","event":"job.completed","fields":{"jobId":"01a0cb46-8466-7f5f-a2a9-6af13507e509","jobType":"lesson.render","projectId":"01a0cacc-4547-7835-b7c4-fcd924b96a92","correlationId":"01a0cb46-83f0-7516-81ee-837e91d654d8","attempt":1,"status":"failed","errorClassification":"terminal","durationMs":2858,"service":"renderer"}}
+{"timestamp":"2026-09-23T08:34:21.273Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
+{"timestamp":"2026-09-23T10:12:44.647Z","level":"info","event":"job.started","fields":{"jobId":"01a0cdc0-917d-7fe6-be41-3a2d6f3ff082","jobType":"lesson.render","projectId":"01a0cacc-4547-7835-b7c4-fcd924b96a92","correlationId":"01a0cdc0-9136-7759-b74e-c32815c2305d","attempt":1,"service":"renderer"}}
+{"timestamp":"2026-09-23T10:14:26.312Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:14:33.821Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:14:41.336Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:14:48.842Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:15:00.664Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+Downloading Chrome Headless Shell https://www.remotion.dev/chrome-headless-shell
+Customize this behavior by adding a onBrowserDownload function to selectComposition().
+Downloading from: https://storage.googleapis.com/chrome-for-testing-public/149.0.7790.0/win64/chrome-headless-shell-win64.zip
+{"timestamp":"2026-09-23T10:15:23.488Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+Downloading Chrome Headless Shell - 9.5 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 19.1 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 28.6 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 38.2 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 47.7 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 57.3 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 66.8 Mb/113.3 Mb
+{"timestamp":"2026-09-23T10:15:30.995Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+Downloading Chrome Headless Shell - 76.4 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 85.9 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 95.5 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 105 Mb/113.3 Mb
+Downloading Chrome Headless Shell - 113.3 Mb/113.3 Mb
+{"timestamp":"2026-09-23T10:15:38.501Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:15:46.013Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:15:53.515Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:16:01.032Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:16:46.841Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:16:54.346Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:17:01.859Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:17:09.367Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:17:16.875Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:17:27.343Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:17:34.849Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:17:42.360Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:17:49.880Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:17:57.386Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:18:04.913Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:18:12.552Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:18:20.059Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:18:27.568Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:18:35.088Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:18:42.623Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:18:50.130Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:18:57.633Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:19:05.137Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:19:12.640Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:19:20.151Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:19:27.655Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:19:35.182Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:19:42.686Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:19:50.191Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:19:57.696Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:20:05.201Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:20:13.376Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:20:41.305Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:20:48.810Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:20:56.320Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:21:03.834Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:21:11.341Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:21:18.854Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:21:26.365Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:21:42.544Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:21:49.217Z","level":"info","event":"render.completed","fields":{"correlationId":"01a0cdc0-9136-7759-b74e-c32815c2305d","jobId":"01a0cdc0-917d-7fe6-be41-3a2d6f3ff082","projectId":"01a0cacc-4547-7835-b7c4-fcd924b96a92","reused":false,"service":"renderer"}}
+{"timestamp":"2026-09-23T10:21:49.247Z","level":"info","event":"job.completed","fields":{"jobId":"01a0cdc0-917d-7fe6-be41-3a2d6f3ff082","jobType":"lesson.render","projectId":"01a0cacc-4547-7835-b7c4-fcd924b96a92","correlationId":"01a0cdc0-9136-7759-b74e-c32815c2305d","attempt":1,"status":"succeeded","errorClassification":"none","durationMs":544980,"service":"renderer"}}
+{"timestamp":"2026-09-23T10:21:49.587Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T10:21:49.669Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-23T12:55:35.934Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}

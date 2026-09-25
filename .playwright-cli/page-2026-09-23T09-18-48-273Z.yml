@@ -1,0 +1,44 @@
+- generic [ref=f2e1]:
+  - main [ref=f2e2]:
+    - region "Studio Daylight" [ref=f2e3]:
+      - generic [ref=f2e4]:
+        - generic [ref=f2e5]: Studio Daylight
+        - generic [ref=f2e10]: AI Visual Learning Platform
+      - generic [ref=f2e13]:
+        - img "A calm plant life-cycle learning illustration"
+      - generic [ref=f2e14]:
+        - paragraph [ref=f2e15]: Your visual lessons are ready to edit and share with your learners.
+        - generic [ref=f2e16]:
+          - generic [ref=f2e17]: Isolated Workspace
+          - generic [ref=f2e20]: Pedagogical Engine
+    - generic [ref=f2e24]:
+      - generic [ref=f2e25]: Welcome back
+      - heading "Sign in" [level=1] [ref=f2e28]
+      - paragraph [ref=f2e29]: Sign in to access your teacher workspace and project pipeline.
+      - generic [ref=f2e30]:
+        - generic [ref=f2e31]:
+          - generic [ref=f2e32]: Email
+          - textbox "Email" [ref=f2e34]:
+            - /placeholder: teacher@school.org
+            - text: teacher@example.com
+        - generic [ref=f2e35]:
+          - generic [ref=f2e36]: Password
+          - generic [ref=f2e37]:
+            - textbox "Password Show password" [ref=f2e38]:
+              - /placeholder: ••••••••••••
+              - text: Password12345!
+            - button "Show password" [ref=f2e39] [cursor=pointer]
+        - alert [ref=f2e59]:
+          - generic [ref=f2e62]: Unable to reach the service. Please try again.
+        - button "Sign in" [active] [ref=f2e42] [cursor=pointer]
+      - generic [ref=f2e46]:
+        - link "Forgot password?" [ref=f2e47] [cursor=pointer]:
+          - /url: /forgot-password
+        - link "Need an account? Create one here" [ref=f2e48] [cursor=pointer]:
+          - /url: /register
+  - region "Notifications":
+    - alert [ref=f2e65]:
+      - generic [ref=f2e69]: Unable to reach the service. Please try again.
+      - button "Dismiss notification" [ref=f2e71] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=f2e54] [cursor=pointer]
+  - alert [ref=f2e58]

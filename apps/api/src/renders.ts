@@ -671,6 +671,30 @@ export class PostgresRenderService implements RenderService {
         )
         .limit(1);
       if (existing) return existing.render.id as Identifier;
+      // `render_jobs_tenant_manifest_unique` allows only one row per
+      // (owner, project, manifestHash). The idempotency key above doesn't
+      // cover every input the manifest hash does (e.g. `rendererVersion`),
+      // so a request that changes only those inputs — most commonly a
+      // renderer upgrade landing between two identical-content requests —
+      // would otherwise collide on insert instead of being recognised here.
+      const [existingByManifest] = await tx
+        .select({ render: renderJobs, job: jobs })
+        .from(renderJobs)
+        .innerJoin(jobs, eq(jobs.id, renderJobs.jobId))
+        .where(
+          and(
+            eq(renderJobs.ownerUserId, input.ownerUserId),
+            eq(renderJobs.projectId, input.projectId),
+            eq(renderJobs.manifestHash, manifestHash),
+          ),
+        )
+        .limit(1)
+        .for("update");
+      // A render for this exact content is already queued, running, or
+      // complete under a different idempotency key: don't start a second
+      // one. Only a terminally failed prior attempt is superseded below.
+      if (existingByManifest && existingByManifest.job.state !== "failed")
+        return existingByManifest.render.id as Identifier;
       const activeRenders = await tx
         .select({ id: jobs.id })
         .from(jobs)
@@ -705,7 +729,9 @@ export class PostgresRenderService implements RenderService {
           "The project render limit has been reached. Try again later.",
           429,
         );
-      const renderId = createId(now);
+      const renderId =
+        (existingByManifest?.render.id as Identifier | undefined) ??
+        createId(now);
       const jobId = createId(now);
       const sourceVisualMedia = visualAssets.flatMap((asset) => {
         if (asset.source !== "source") return [];
@@ -773,21 +799,43 @@ export class PostgresRenderService implements RenderService {
         maxAttempts: 3,
         retryDelayMs: 30_000,
       });
-      await tx.insert(renderJobs).values({
-        id: renderId,
-        ownerUserId: input.ownerUserId,
-        projectId: input.projectId,
-        jobId,
-        lessonVersionId: version.id,
-        validationRunId: validation.id,
-        manifest,
-        manifestHash,
-        status: "queued",
-        progress: 0,
-        attempt: 0,
-        createdAt: now,
-        updatedAt: now,
-      });
+      if (existingByManifest)
+        // Reuse the row instead of inserting a second one: the unique
+        // constraint is keyed on manifestHash, and this manifestHash is
+        // already taken by the terminally failed attempt being superseded.
+        await tx
+          .update(renderJobs)
+          .set({
+            jobId,
+            lessonVersionId: version.id,
+            validationRunId: validation.id,
+            manifest,
+            manifestHash,
+            status: "queued",
+            progress: 0,
+            attempt: 0,
+            errorCode: null,
+            errorMessage: null,
+            completedAt: null,
+            updatedAt: now,
+          })
+          .where(eq(renderJobs.id, renderId));
+      else
+        await tx.insert(renderJobs).values({
+          id: renderId,
+          ownerUserId: input.ownerUserId,
+          projectId: input.projectId,
+          jobId,
+          lessonVersionId: version.id,
+          validationRunId: validation.id,
+          manifest,
+          manifestHash,
+          status: "queued",
+          progress: 0,
+          attempt: 0,
+          createdAt: now,
+          updatedAt: now,
+        });
       await tx.insert(outboxEvents).values({
         id: createId(now),
         jobId,

@@ -18,6 +18,7 @@ import {
 function databaseForRenderCommand(input: {
   rows: unknown[][];
   writes: Array<Record<string, unknown>>;
+  updates?: Array<Record<string, unknown>>;
 }): DatabaseClient {
   const select = () => {
     const result = input.rows.shift() ?? [];
@@ -54,6 +55,12 @@ function databaseForRenderCommand(input: {
           ) => Promise.resolve([]).then(onfulfilled, onrejected),
         };
         return operation;
+      },
+    }),
+    update: () => ({
+      set: (value: Record<string, unknown>) => {
+        input.updates?.push(value);
+        return { where: () => Promise.resolve([]) };
       },
     }),
     transaction: async (callback: (tx: unknown) => Promise<unknown>) =>
@@ -266,7 +273,8 @@ describe("render API authorization and explicit commands", () => {
         ],
         [{ audioId, track: { id: trackId, updatedAt: now } }],
         [{ startMs: 0, endMs: 30_000, text: "Water changes state." }],
-        [],
+        [], // existing (idempotency key) render lookup
+        [], // existing (manifest hash) render lookup
         [],
         [],
         [
@@ -314,6 +322,162 @@ describe("render API authorization and explicit commands", () => {
     expect(
       renderEnvelopePayloadSchema.safeParse(jobWrite?.payload).success,
     ).toBe(true);
+  });
+
+  it("supersedes a terminally failed render instead of colliding on its manifest hash", async () => {
+    // Regression test: `render_jobs_tenant_manifest_unique` is keyed on
+    // (owner, project, manifestHash), which doesn't include `rendererVersion`.
+    // A prior attempt for identical content that failed terminally (e.g. the
+    // renderer was upgraded mid-flight) must not permanently block every
+    // future request for that same content — this reused to surface as an
+    // unhandled 23505 and a generic 500 to the caller.
+    const fixture = createCrossUserProjectFixture();
+    const now = new Date("2026-08-25T08:00:00.000Z");
+    const lessonSpecId = createId(now);
+    const sceneId = createId(new Date("2026-08-25T08:00:01.000Z"));
+    const sourceDocumentId = createId(new Date("2026-08-25T08:00:02.000Z"));
+    const blockId = createId(new Date("2026-08-25T08:00:03.000Z"));
+    const versionId = createId(new Date("2026-08-25T08:00:04.000Z"));
+    const validationId = createId(new Date("2026-08-25T08:00:05.000Z"));
+    const audioId = createId(new Date("2026-08-25T08:00:06.000Z"));
+    const trackId = createId(new Date("2026-08-25T08:00:07.000Z"));
+    const staleRenderId = createId(new Date("2026-08-25T08:00:08.000Z"));
+    const correlationId = createId(new Date("2026-08-25T08:00:09.000Z"));
+    const lesson = {
+      schemaVersion: "1.8",
+      lessonId: lessonSpecId,
+      projectId: fixture.projectId,
+      title: "States of matter",
+      subject: "Science",
+      audience: {
+        ageBand: "11-13",
+        difficulty: "introductory",
+        priorKnowledge: [],
+      },
+      targetDurationSeconds: 180,
+      tone: "friendly",
+      themeId: "mvp-default",
+      objectiveIds: [blockId],
+      voice: { providerVoiceId: "mvp-default", speakingRate: 1 },
+      scenes: [
+        {
+          id: sceneId,
+          order: 1,
+          narration: "Water changes state.",
+          durationSeconds: 180,
+          onScreenText: ["States"],
+          transition: "cut",
+          assetBindings: [],
+          sourceRefs: [
+            {
+              documentId: sourceDocumentId,
+              parsedDocumentVersion: 1,
+              pageStart: 1,
+              blockIds: [blockId],
+            },
+          ],
+          generatedAdditions: [],
+          template: "definition",
+          visual: { term: "State", definition: "A form of matter." },
+        },
+      ],
+    };
+    const writes: Array<Record<string, unknown>> = [];
+    const updates: Array<Record<string, unknown>> = [];
+    const database = databaseForRenderCommand({
+      writes,
+      updates,
+      rows: [
+        [
+          {
+            id: versionId,
+            contentHash: "a".repeat(64),
+            lessonSpecId,
+            lessonSpecRevision: 1,
+            sceneLibraryVersion: "mvp-v1",
+            snapshot: { lessonSpec: lesson },
+          },
+        ],
+        [{ id: validationId, inputHash: "b".repeat(64) }],
+        [],
+        [
+          {
+            stableSceneId: sceneId,
+            audio: {
+              id: audioId,
+              storageKey: `users/${fixture.ownerUserId}/projects/${fixture.projectId}/audio/${sceneId}/a.mp3`,
+              checksumSha256: "c".repeat(64),
+              contentType: "audio/mpeg",
+              updatedAt: now,
+            },
+          },
+        ],
+        [{ audioId, track: { id: trackId, updatedAt: now } }],
+        [{ startMs: 0, endMs: 30_000, text: "Water changes state." }],
+        [], // existing (idempotency key) render lookup: no match
+        [
+          // existing (manifest hash) render lookup: a dead attempt for the
+          // same content, left behind by a renderer upgrade
+          {
+            render: { id: staleRenderId },
+            job: { state: "failed" },
+          },
+        ],
+        [],
+        [],
+        [
+          {
+            render: {
+              id: staleRenderId,
+              lessonVersionId: versionId,
+              validationRunId: validationId,
+              createdAt: now,
+              errorCode: null,
+            },
+            job: {
+              state: "queued",
+              progress: 0,
+              attempts: 0,
+              errorMetadata: null,
+              errorClassification: null,
+              correlationId,
+              startedAt: null,
+              completedAt: null,
+            },
+            video: null,
+            thumbnail: null,
+          },
+        ],
+      ],
+    });
+    const service = new PostgresRenderService(
+      database,
+      undefined,
+      undefined,
+      () => now,
+    );
+
+    await expect(
+      service.start({
+        ownerUserId: fixture.ownerUserId,
+        projectId: fixture.projectId,
+        correlationId,
+        body: { lessonVersionId: versionId },
+      }),
+    ).resolves.toMatchObject({ id: staleRenderId, status: "queued" });
+
+    // No second render_jobs row was inserted for the same manifest hash —
+    // the existing row was updated in place instead.
+    expect(writes.some((value) => "manifestHash" in value)).toBe(false);
+    expect(updates).toHaveLength(1);
+    expect(updates[0]).toMatchObject({
+      manifestHash: expect.any(String),
+      status: "queued",
+      errorCode: null,
+    });
+    const jobWrite = writes.find((value) => value.jobType === "lesson.render");
+    expect(jobWrite).toBeDefined();
+    expect(updates[0]?.jobId).toBe(jobWrite?.id);
   });
 
   it("includes a bound source_table visual in the render manifest with no media fetch", async () => {
@@ -425,6 +589,7 @@ describe("render API authorization and explicit commands", () => {
         [{ audioId, track: { id: trackId, updatedAt: now } }],
         [{ startMs: 0, endMs: 30_000, text: "Alkali metals." }],
         [], // existing render lookup
+        [], // existing (manifest hash) render lookup
         [], // activeRenders
         [], // recentRenders
         [
@@ -607,6 +772,7 @@ describe("render API authorization and explicit commands", () => {
         [{ audioId, track: { id: trackId, updatedAt: now } }],
         [{ startMs: 0, endMs: 30_000, text: "Alkali metals." }],
         [], // existing render lookup
+        [], // existing (manifest hash) render lookup
         [], // activeRenders
         [], // recentRenders
         [
@@ -756,7 +922,8 @@ describe("render API authorization and explicit commands", () => {
         ],
         [{ startMs: 0, endMs: 32_800, text: "Water changes state." }],
         [{ startMs: 0, endMs: 27_600, text: "Water changes state." }],
-        [],
+        [], // existing (idempotency key) render lookup
+        [], // existing (manifest hash) render lookup
         [],
         [],
         [

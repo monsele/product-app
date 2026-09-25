@@ -1,0 +1,14 @@
+
+> @avlp/pipeline-worker@0.0.0 dev D:\Eronmonsele\Documents\SoundMinds\product-app\apps\pipeline-worker
+> tsx watch --env-file=../../.env src/main.ts
+
+{"timestamp":"2026-09-23T08:33:57.179Z","level":"info","event":"worker.started","fields":{"status":"ok","service":"pipeline-worker"}}
+{"timestamp":"2026-09-23T10:12:33.772Z","level":"info","event":"queue.job_dispatched","fields":{"outboxEventId":"01a0cdc0-917d-7c3d-9116-7f8263eabf57","jobId":"01a0cdc0-917d-7fe6-be41-3a2d6f3ff082","projectId":"01a0cacc-4547-7835-b7c4-fcd924b96a92","correlationId":"01a0cdc0-9136-7759-b74e-c32815c2305d","queueName":"render","service":"pipeline-worker"}}
+{"timestamp":"2026-09-23T11:40:22.206Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"pipeline","service":"pipeline-worker"}}
+{"timestamp":"2026-09-23T12:40:54.610Z","level":"error","event":"queue.dispatch_cycle_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-23T12:41:17.669Z","level":"error","event":"queue.lease_sweep_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-23T12:41:42.716Z","level":"error","event":"queue.lease_sweep_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-23T12:42:07.748Z","level":"error","event":"queue.lease_sweep_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-23T12:55:00.547Z","level":"error","event":"queue.lease_sweep_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-23T12:55:25.576Z","level":"error","event":"queue.lease_sweep_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
+{"timestamp":"2026-09-23T12:55:50.619Z","level":"error","event":"queue.lease_sweep_failed","fields":{"queueName":"all","service":"pipeline-worker"}}
