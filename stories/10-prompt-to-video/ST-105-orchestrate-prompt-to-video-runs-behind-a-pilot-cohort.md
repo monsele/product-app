@@ -2,7 +2,7 @@
 story_id: ST-105
 title: "Orchestrate Prompt-to-Video Runs Server-Side behind a Pilot Cohort"
 phase: "10 — Prompt to Video"
-status: Draft
+status: Ready
 priority: should-have
 epics: ["E3", "E4", "E5", "E7", "E8", "E9", "E10", "E14", "E16", "E17", "E21"]
 prd_user_stories: ["E7-US1", "E8-US1", "E9-US1", "E10-US1", "E16-US1", "E17-US1", "E21-US1", "E21-US2"]

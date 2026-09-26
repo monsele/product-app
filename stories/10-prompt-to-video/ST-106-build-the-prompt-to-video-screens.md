@@ -2,7 +2,7 @@
 story_id: ST-106
 title: "Build the Prompt-to-Video Screens: Request, Progress, Preview Approval, and Delivery"
 phase: "10 — Prompt to Video"
-status: Draft
+status: Ready
 priority: should-have
 epics: ["E2", "E3", "E15", "E17", "E18"]
 prd_user_stories: ["E2-US1", "E3-US1", "E15-US2", "E17-US1", "E17-US2", "E18-US1"]

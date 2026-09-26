@@ -2,7 +2,7 @@
 story_id: ST-104
 title: "Add the Prompt-to-Video ADR, Focus and Audience Contracts, and Focus-Aware Prompts"
 phase: "10 — Prompt to Video"
-status: Draft
+status: Ready
 priority: should-have
 epics: ["E6", "E7", "E8", "E9", "E10", "E19"]
 prd_user_stories: ["E6-US1", "E6-US2", "E6-US3", "E7-US1", "E8-US1", "E9-US1", "E10-US1"]

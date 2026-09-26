@@ -68,7 +68,7 @@ type SceneListViewState =
   | { kind: "ready"; value: StoryboardSceneListResponse }
   | { kind: "failed"; message: string };
 
-type SceneDetailState =
+export type SceneDetailState =
   | { kind: "loading" }
   | { kind: "ready"; value: StoryboardSceneDetailResponse }
   | { kind: "failed"; message: string };
@@ -129,6 +129,52 @@ export function deriveSaveVersionOutcome(
   return blockers.length > 0
     ? { kind: "blocked", message, blockers }
     : { kind: "error", message };
+}
+
+function sceneMediaPending(
+  scenes: StoryboardSceneListResponse["scenes"],
+): boolean {
+  return scenes.some(
+    (scene) =>
+      scene.status.audio === "queued" ||
+      scene.status.audio === "generating" ||
+      scene.status.captions === "pending",
+  );
+}
+
+/** Detail state while a scene's detail is refetched. A refresh of the scene
+ * already on screen keeps it mounted so inline notices in the inspector (such as
+ * an illustration conflict) survive; only a different scene shows loading. */
+export function sceneDetailWhileReloading(
+  current: SceneDetailState,
+  sceneId: string,
+): SceneDetailState {
+  return current.kind === "ready" && current.value.scene.id === sceneId
+    ? current
+    : { kind: "loading" };
+}
+
+/** One tick of the scene-media poll. Once audio and captions settle, duration
+ * reconciliation (ADR-004) has advanced the lesson-spec revision, so the main
+ * storyboard is refetched too; otherwise every later mutation would send the
+ * stale revision and fail with `edit_conflict`. */
+export async function pollSceneMedia({
+  loadSceneList,
+  refreshStoryboard,
+  onSceneList,
+  onSettled,
+}: {
+  loadSceneList: () => Promise<StoryboardSceneListResponse>;
+  refreshStoryboard: () => Promise<unknown>;
+  onSceneList: (next: StoryboardSceneListResponse) => void;
+  onSettled: () => void;
+}): Promise<"pending" | "settled"> {
+  const next = await loadSceneList();
+  onSceneList(next);
+  if (sceneMediaPending(next.scenes)) return "pending";
+  onSettled();
+  await refreshStoryboard().catch(() => undefined);
+  return "settled";
 }
 
 /** Reads the deep-linked scene id from the URL hash, e.g. `#scene=<id>`. */
@@ -597,37 +643,29 @@ export function StoryboardPanel({
   }, [projectId, revision]);
 
   const listScenes = sceneList.kind === "ready" ? sceneList.value.scenes : [];
-  const pendingMedia = listScenes.some(
-    (scene) =>
-      scene.status.audio === "queued" ||
-      scene.status.audio === "generating" ||
-      scene.status.captions === "pending",
-  );
+  const pendingMedia = sceneMediaPending(listScenes);
 
   useEffect(() => {
     if (!audioBatchBusy && !pendingMedia) return;
     const refreshMedia = async (): Promise<void> => {
       try {
-        const next = await fetchStoryboardSceneList(projectId);
-        setSceneList({ kind: "ready", value: next });
-        const stillPending = next.scenes.some(
-          (scene) =>
-            scene.status.audio === "queued" ||
-            scene.status.audio === "generating" ||
-            scene.status.captions === "pending",
-        );
-        if (!stillPending) {
-          setAudioBatchBusy(false);
-          setDetailAttempt((current) => current + 1);
-          void runValidation();
-        }
+        await pollSceneMedia({
+          loadSceneList: () => fetchStoryboardSceneList(projectId),
+          refreshStoryboard: refresh,
+          onSceneList: (next) => setSceneList({ kind: "ready", value: next }),
+          onSettled: () => {
+            setAudioBatchBusy(false);
+            setDetailAttempt((current) => current + 1);
+            void runValidation();
+          },
+        });
       } catch {
         // Keep the last durable projection visible and retry on the next poll.
       }
     };
     const timer = window.setInterval(() => void refreshMedia(), 3_000);
     return () => window.clearInterval(timer);
-  }, [audioBatchBusy, pendingMedia, projectId, runValidation]);
+  }, [audioBatchBusy, pendingMedia, projectId, refresh, runValidation]);
 
   const generateMissingIllustrations = useCallback(async () => {
     setActionMessage(null);
@@ -766,7 +804,9 @@ export function StoryboardPanel({
       setDetail({ kind: "loading" });
       return;
     }
-    setDetail({ kind: "loading" });
+    setDetail((current) =>
+      sceneDetailWhileReloading(current, selectedSceneId),
+    );
     let cancelled = false;
     void fetchStoryboardSceneDetail(projectId, selectedSceneId)
       .then((val) => {
@@ -812,6 +852,9 @@ export function StoryboardPanel({
             ? error.message
             : "The storyboard could not be updated.",
         );
+        // A rejected mutation is most often an `edit_conflict`; reload so the
+        // next attempt carries the current revision instead of the stale one.
+        await refresh().catch(() => undefined);
       } finally {
         setEditing(false);
       }

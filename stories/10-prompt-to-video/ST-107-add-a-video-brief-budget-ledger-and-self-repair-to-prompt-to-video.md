@@ -2,7 +2,7 @@
 story_id: ST-107
 title: "Add a Video Brief, Run Budget Ledger, Bounded Self-Repair, and Decision Log to Prompt-to-Video"
 phase: "10 — Prompt to Video"
-status: Draft
+status: Ready
 priority: should-have
 epics: ["E10", "E16", "E17", "E19", "E21"]
 prd_user_stories: ["E10-US1", "E10-US2", "E16-US1", "E16-US2", "E21-US1", "E21-US2"]

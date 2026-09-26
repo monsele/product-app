@@ -2,7 +2,7 @@
 story_id: ST-103
 title: "Add a Ducked Background Sound Bed and Post-Render Self-Review"
 phase: "06 — Audio, Validation, Rendering, and Delivery"
-status: Draft
+status: Ready
 priority: should-have
 epics: ["E6", "E14", "E15", "E16", "E17"]
 prd_user_stories: ["E6-US2", "E15-US2", "E17-US1", "E17-US2"]

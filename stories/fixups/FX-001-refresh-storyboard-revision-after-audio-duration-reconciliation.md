@@ -2,7 +2,7 @@
 story_id: FX-001
 title: "Refresh the Storyboard Revision After Audio Duration Reconciliation"
 phase: "Fixups"
-status: Ready
+status: Done
 priority: must-have
 epics: ["E5", "E13", "E14"]
 prd_user_stories: []
@@ -203,14 +203,31 @@ come back.
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
+- **Agent:** Claude Code (claude-opus-5-5)
+- **Started:** 2026-09-26
+- **Completed:** 2026-09-26
+- **Branch/PR:** `fix/fx-001-refresh-storyboard-revision` (branched from `feat/st-096-select-and-compare-standard-and-demonstration-videos`, which holds the unmerged ST-096..ST-102 work). Not pushed; no PR opened.
 - **Files changed:**
-- **Migrations:** None expected.
-- **Contracts changed:** None expected.
+  - `apps/web/app/workspace/[projectId]/storyboard/storyboard-panel.tsx`: the media poll body is extracted to the exported `pollSceneMedia`. When audio and captions settle, it now also refetches `GET /storyboard` so `storyboard.revision` (passed as `lessonSpecRevision`/`storyboardRevision` and used by add/duplicate/delete/reorder) picks up the duration-reconciliation bump. `sceneMediaPending` replaces two duplicated predicates. `runSceneMutation` now also refetches the storyboard when a mutation fails, so a conflict does not repeat. The new exported `sceneDetailWhileReloading` keeps the detail on screen while the same scene's detail is refetched; it resets to loading only when a different scene is selected. The inspector, including the illustration panel's inline `role="alert"` conflict notice, therefore stays mounted on every layout. `SceneEditorForm` already resyncs its draft when `detail.scene.scene` changes.
+  - `apps/web/app/workspace/[projectId]/storyboard/illustration-candidate-panel.tsx`: the request/response handling moves out of `act` into the exported `runIllustrationCandidateAction`. On a `409`, it reloads candidates, calls `onChanged()` (the parent then refetches the storyboard and scene detail) and returns a conflict-specific message. On any other non-OK response, it keeps the generic message and does not call `onChanged()`. The action is never retried automatically.
+  - `apps/web/app/workspace/[projectId]/storyboard/storyboard-panel.test.ts`, `illustration-candidate-panel.test.tsx`: new tests.
+- **Migrations:** None.
+- **Contracts changed:** None. API concurrency guard unchanged (AC5).
 - **Commands/tests run:**
+  - `npx vitest run storyboard-panel.test illustration-candidate-panel.test storyboard.playwright` (in `apps/web`): 3 files, 19 tests passed. This includes the existing `storyboard.playwright.test.tsx` (unchanged) and the existing `illustration-candidate-panel` render test.
+  - `npx tsc --noEmit` (in `apps/web`): clean.
+  - `pnpm --filter @avlp/web run lint`: clean.
+  - `pnpm --filter @avlp/web run test`: 266 of 267 tests passed. The one failure, `configuration/lesson-configuration-input.test.ts > pre-fills the form from a persisted configuration`, fails the same way on the base commit with these changes stashed. Its expected object lacks the `creativeStylePack: null` field that ST-102 added. It is unrelated to FX-001 and was left untouched.
 - **Decisions and assumptions:**
+  - `apps/web` has no DOM test environment; component tests either render static markup or call exported pure helpers (for example `deriveSaveVersionOutcome`). The required behavior tests therefore target the extracted `pollSceneMedia` and `runIllustrationCandidateAction`, which the components call directly.
+  - The same 409 recovery also applies to **Generate illustration**, which shares `act`. Its stale-scene 409 has the same cause and the same remedy.
+  - Recommended fix 3 (a single revision source) was not implemented because it is optional.
 - **Known risks:**
-- **Deviations:**
+  - `advanceProjectMediaStage` reconciles durations in a step after the last audio and caption rows are marked ready. A poll that lands in that short window refetches the pre-reconciliation revision. Illustration actions and add/duplicate/delete/reorder now refetch on failure, so the next attempt succeeds. Scene edits (`SceneEditorForm`) and scene-regeneration apply are outside this story's listed scope files, so they rely on their existing `onChanged` paths.
+  - Manual run-app verification was **not** performed: Docker Desktop was not running in the agent environment. A reviewer should do the Definition of Done flow (generate the storyboard, generate all audio, accept an illustration without reloading).
+  - Code-review follow-ups:
+    1. First review: the conflict message was lost when the scene detail reload unmounted the inspector. Passing the message up to the parent was tried first, but the second review found the parent's notice lives in the center canvas, which is hidden on the tabbed mobile layout and is not next to the control. The root cause was fixed instead: `sceneDetailWhileReloading` keeps the same-scene detail mounted during a refetch, and the parent-message plumbing was removed.
+    2. After that fix: `vitest run` over the illustration-candidate-panel, storyboard-panel, storyboard.playwright, scene-detail-panel and scene-editor-form tests: 5 files, 32 tests passed. `tsc --noEmit` and `eslint app/workspace/[projectId]/storyboard/` were clean. `prettier --check` still reports the edited `illustration-candidate-panel.tsx`, its test and `storyboard-panel.tsx` as unformatted, but they are equally unformatted on the base commit, so no whole-file reformat was done. A final `pnpm --filter @avlp/web run test` passed 269 of 270 tests; the only failure is the same unrelated `lesson-configuration-input.test.ts` case.
+  - Refreshing the same scene no longer remounts the inspector, so child components get new props instead of fresh state. Of the prop-derived state, `SceneEditorForm`'s draft resyncs from `detail.scene.scene`, but the nested relation editor's from/to selectors (`scene-editor-form.tsx:397-398`) are initialized once and could point at removed nodes if a background change edits that scene's nodes. Duration reconciliation only re-times scenes, so it does not trigger this.
+- **Approval:** The repository owner approved the story on 2026-09-26 after the final story-code-review ("approve with follow-ups"). The Definition of Done manual run-app check had not been performed by the agent when it was approved.
+- **Deviations:** The required tests exercise extracted helpers rather than a mounted component, because the web package has no DOM test environment. `runSceneMutation` now refetches the storyboard after a failure; this is a small defensive addition in a scope file. FX-001 has no row in `STORY_INDEX.md`, so only the story front matter status was updated.

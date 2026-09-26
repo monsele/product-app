@@ -84,6 +84,46 @@ function statusPresentation(status: string): {
   }
 }
 
+export const illustrationConflictMessage =
+  "This scene changed since it loaded. It has been refreshed — try again.";
+export const illustrationFailureMessage =
+  "Illustration action failed. Refresh and try again.";
+
+/**
+ * Sends one teacher-initiated candidate action and returns the message to
+ * show, or null on success. A 409 means the revisions this panel holds are
+ * stale (for example after duration reconciliation), so the candidates and
+ * the parent storyboard are refetched; the action itself is never retried.
+ */
+export async function runIllustrationCandidateAction({
+  send,
+  reload,
+  onChanged,
+}: {
+  send: () => Promise<Pick<Response, "ok" | "status">>;
+  reload: () => Promise<void>;
+  onChanged: () => void;
+}): Promise<string | null> {
+  try {
+    const response = await send();
+    if (!response.ok) {
+      if (response.status === 409) {
+        await reload().catch(() => undefined);
+        onChanged();
+        return illustrationConflictMessage;
+      }
+      return illustrationFailureMessage;
+    }
+    await reload();
+    onChanged();
+    return null;
+  } catch (error) {
+    return error instanceof Error
+      ? error.message
+      : "Illustration action failed.";
+  }
+}
+
 const controlBase: React.CSSProperties = {
   borderRadius: "6px",
   fontSize: "13px",
@@ -146,19 +186,18 @@ export function IllustrationCandidatePanel({
     setBusy(true);
     setMessage(null);
     try {
-      const response = await fetch(apiUrl(path), {
-        method: "POST",
-        credentials: "include",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!response.ok)
-        throw new Error("Illustration action failed. Refresh and try again.");
-      await reload();
-      onChanged();
-    } catch (error) {
       setMessage(
-        error instanceof Error ? error.message : "Illustration action failed.",
+        await runIllustrationCandidateAction({
+          send: () =>
+            fetch(apiUrl(path), {
+              method: "POST",
+              credentials: "include",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify(body),
+            }),
+          reload,
+          onChanged,
+        }),
       );
     } finally {
       setBusy(false);
