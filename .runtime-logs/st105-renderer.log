@@ -68,3 +68,87 @@
 {"timestamp":"2026-09-27T16:08:12.714Z","level":"info","event":"render.reviewed","fields":{"correlationId":"01a0e39b-1c0d-7942-97ef-de0e729628c2","findingCodes":"LOUDNESS_OUT_OF_RANGE","jobId":"01a0e39b-1d1e-7e08-a6c1-b40dca8be289","outcome":"passed","projectId":"01a0e399-b221-744b-b0a1-9025b95940da","reviewVersion":"render-review-v1","service":"renderer"}}
 {"timestamp":"2026-09-27T16:08:16.964Z","level":"info","event":"render.completed","fields":{"correlationId":"01a0e39b-1c0d-7942-97ef-de0e729628c2","jobId":"01a0e39b-1d1e-7e08-a6c1-b40dca8be289","projectId":"01a0e399-b221-744b-b0a1-9025b95940da","reused":false,"service":"renderer"}}
 {"timestamp":"2026-09-27T16:08:16.979Z","level":"info","event":"job.completed","fields":{"jobId":"01a0e39b-1d1e-7e08-a6c1-b40dca8be289","jobType":"lesson.render","projectId":"01a0e399-b221-744b-b0a1-9025b95940da","correlationId":"01a0e39b-1c0d-7942-97ef-de0e729628c2","attempt":1,"status":"succeeded","errorClassification":"none","durationMs":307570,"service":"renderer"}}
+5:35:36 PM [tsx] change in ./..\..\packages\schemas\dist\index.js Restarting...
+5:35:36 PM [tsx] change in ./..\..\packages\schemas\dist\sound-bed.js Restarting...
+5:35:38 PM [tsx] change in ./..\..\packages\observability\dist\redaction.js Restarting...
+5:35:48 PM [tsx] change in ./..\..\packages\database\dist\client.js Restarting...
+5:35:54 PM [tsx] change in ./..\..\packages\database\dist\concurrency.js Restarting...
+5:35:59 PM [tsx] change in ./..\..\packages\provider-adapters\dist\together-provider.js Restarting...
+5:36:03 PM [tsx] change in ./..\..\packages\scene-library\dist\index.js Restarting...
+5:36:09 PM [tsx] change in ./..\..\packages\scene-library\dist\scene-registry.js Restarting...
+5:36:14 PM [tsx] change in ./..\..\packages\scene-library\dist\process-scene.js Restarting...
+5:36:19 PM [tsx] change in ./..\..\packages\scene-library\dist\ipo-scene.js Restarting...
+5:36:25 PM [tsx] change in ./..\..\packages\scene-library\dist\analogy-scene.js Restarting...
+5:36:25 PM [tsx] change in ./..\..\packages\scene-library\dist\demonstration-proof\composition.js Restarting...
+5:36:25 PM [tsx] change in ./..\..\packages\scene-library\dist\demonstration-proof\validation.js Restarting...
+5:36:31 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Restarting...
+5:36:36 PM [tsx] change in ./..\..\packages\scene-library\dist\scene-preview.js Restarting...
+5:36:42 PM [tsx] change in ./..\..\packages\scene-library\dist\demonstration-proof\fixtures.js Restarting...
+{"timestamp":"2026-09-27T16:37:06.315Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
+{"timestamp":"2026-09-27T19:03:24.132Z","level":"info","event":"job.started","fields":{"jobId":"01a0e43f-ff6f-77fc-ac1a-2be4a6a7e083","jobType":"lesson.render","projectId":"01a0e3e2-50d3-7ba3-8960-544c14e3ae86","correlationId":"01a0e43f-fbb0-7e01-a4b8-1d1481e9265a","attempt":1,"service":"renderer"}}
+{"timestamp":"2026-09-27T19:04:28.279Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:04:35.794Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:04:43.311Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:04:50.820Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:04:58.335Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:06:00.864Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:06:08.372Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:06:15.906Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:06:23.410Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:06:30.924Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:06:38.434Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:06:45.961Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:06:53.472Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:07:00.975Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:07:08.480Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:07:16.069Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:07:23.572Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:07:31.097Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:07:38.603Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:07:46.107Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:07:53.642Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:08:01.147Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:08:08.690Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:08:16.196Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:08:23.701Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:08:31.203Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:08:38.711Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:08:46.216Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:08:53.720Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:09:01.222Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:09:08.728Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:09:16.230Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:09:46.312Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:09:53.817Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:10:01.334Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:10:08.848Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:10:16.361Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:10:23.971Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:10:31.475Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:10:38.993Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:10:46.507Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:10:54.020Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:11:22.483Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:11:29.995Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:11:37.506Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:11:38.649Z","level":"info","event":"render.reviewed","fields":{"correlationId":"01a0e43f-fbb0-7e01-a4b8-1d1481e9265a","findingCodes":"LOUDNESS_OUT_OF_RANGE","jobId":"01a0e43f-ff6f-77fc-ac1a-2be4a6a7e083","outcome":"passed","projectId":"01a0e3e2-50d3-7ba3-8960-544c14e3ae86","reviewVersion":"render-review-v1","service":"renderer"}}
+{"timestamp":"2026-09-27T19:11:45.046Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:11:52.559Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:12:00.419Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:12:07.925Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:12:10.678Z","level":"warn","event":"render.thumbnail_failed","fields":{"classification":"retryable","code":"THUMBNAIL_FAILED","errorName":"TimeoutError","stage":"thumbnail","correlationId":"01a0e43f-fbb0-7e01-a4b8-1d1481e9265a","jobId":"01a0e43f-ff6f-77fc-ac1a-2be4a6a7e083","projectId":"01a0e3e2-50d3-7ba3-8960-544c14e3ae86","service":"renderer"}}
+{"timestamp":"2026-09-27T19:12:11.353Z","level":"info","event":"render.completed","fields":{"correlationId":"01a0e43f-fbb0-7e01-a4b8-1d1481e9265a","jobId":"01a0e43f-ff6f-77fc-ac1a-2be4a6a7e083","projectId":"01a0e3e2-50d3-7ba3-8960-544c14e3ae86","reused":false,"service":"renderer"}}
+{"timestamp":"2026-09-27T19:12:11.371Z","level":"info","event":"job.completed","fields":{"jobId":"01a0e43f-ff6f-77fc-ac1a-2be4a6a7e083","jobType":"lesson.render","projectId":"01a0e3e2-50d3-7ba3-8960-544c14e3ae86","correlationId":"01a0e43f-fbb0-7e01-a4b8-1d1481e9265a","attempt":1,"status":"succeeded","errorClassification":"none","durationMs":527488,"service":"renderer"}}
+{"timestamp":"2026-09-27T19:12:11.573Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:12:11.891Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T19:12:12.049Z","level":"info","event":"job.started","fields":{"jobId":"01a0e440-127c-74ed-b639-35eec751b28b","jobType":"lesson.render","projectId":"01a0e3e2-50b2-7bb2-9f78-2463cc3ef883","correlationId":"01a0e440-11d3-79a7-ac33-724ead1300e9","attempt":1,"service":"renderer"}}
+{"timestamp":"2026-09-27T19:16:38.121Z","level":"info","event":"render.reviewed","fields":{"correlationId":"01a0e440-11d3-79a7-ac33-724ead1300e9","findingCodes":"LOUDNESS_OUT_OF_RANGE","jobId":"01a0e440-127c-74ed-b639-35eec751b28b","outcome":"passed","projectId":"01a0e3e2-50b2-7bb2-9f78-2463cc3ef883","reviewVersion":"render-review-v1","service":"renderer"}}
+{"timestamp":"2026-09-27T19:16:44.840Z","level":"info","event":"render.completed","fields":{"correlationId":"01a0e440-11d3-79a7-ac33-724ead1300e9","jobId":"01a0e440-127c-74ed-b639-35eec751b28b","projectId":"01a0e3e2-50b2-7bb2-9f78-2463cc3ef883","reused":false,"service":"renderer"}}
+{"timestamp":"2026-09-27T19:16:44.858Z","level":"info","event":"job.completed","fields":{"jobId":"01a0e440-127c-74ed-b639-35eec751b28b","jobType":"lesson.render","projectId":"01a0e3e2-50b2-7bb2-9f78-2463cc3ef883","correlationId":"01a0e440-11d3-79a7-ac33-724ead1300e9","attempt":1,"status":"succeeded","errorClassification":"none","durationMs":272808,"service":"renderer"}}
+{"timestamp":"2026-09-27T19:16:44.913Z","level":"info","event":"job.started","fields":{"jobId":"01a0e441-0576-78db-8201-c6247e879544","jobType":"lesson.render","projectId":"01a0e43e-6cc7-7029-b0f8-98a344e9c09e","correlationId":"01a0e441-04bc-7cea-b95e-aafed47c3a39","attempt":1,"service":"renderer"}}
+{"timestamp":"2026-09-27T19:20:11.339Z","level":"info","event":"render.reviewed","fields":{"correlationId":"01a0e441-04bc-7cea-b95e-aafed47c3a39","findingCodes":"LOUDNESS_OUT_OF_RANGE","jobId":"01a0e441-0576-78db-8201-c6247e879544","outcome":"passed","projectId":"01a0e43e-6cc7-7029-b0f8-98a344e9c09e","reviewVersion":"render-review-v1","service":"renderer"}}
+{"timestamp":"2026-09-27T19:20:15.221Z","level":"info","event":"render.completed","fields":{"correlationId":"01a0e441-04bc-7cea-b95e-aafed47c3a39","jobId":"01a0e441-0576-78db-8201-c6247e879544","projectId":"01a0e43e-6cc7-7029-b0f8-98a344e9c09e","reused":false,"service":"renderer"}}
+{"timestamp":"2026-09-27T19:20:15.233Z","level":"info","event":"job.completed","fields":{"jobId":"01a0e441-0576-78db-8201-c6247e879544","jobType":"lesson.render","projectId":"01a0e43e-6cc7-7029-b0f8-98a344e9c09e","correlationId":"01a0e441-04bc-7cea-b95e-aafed47c3a39","attempt":1,"status":"succeeded","errorClassification":"none","durationMs":210320,"service":"renderer"}}
+D:\Eronmonsele\Documents\SoundMinds\product-app\apps\renderer:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @avlp/renderer@0.0.0 dev: `tsx watch --env-file=../../.env src/main.ts`
+Exit status 4294967295

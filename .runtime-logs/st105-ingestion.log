@@ -47,3 +47,9 @@ D:\Eronmonsele\Documents\SoundMinds\product-app\services\ingestion\.venv\Lib\sit
 Loading weights:   0%|          | 0/770 [00:00<?, ?it/s]Loading weights:  31%|███▏      | 241/770 [00:00<00:00, 2104.72it/s]Loading weights:  59%|█████▊    | 452/770 [00:00<00:00, 1854.08it/s]Loading weights:  88%|████████▊ | 681/770 [00:00<00:00, 2031.85it/s]Loading weights: 100%|██████████| 770/770 [00:00<00:00, 2233.27it/s]
 INFO:     127.0.0.1:52088 - "POST /v1/ingestion-jobs HTTP/1.1" 200 OK
 INFO:     127.0.0.1:59074 - "POST /v1/ingestion-jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52767 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51317 - "POST /v1/ingestion-jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51317 - "POST /v1/ingestion-jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:51317 - "POST /v1/ingestion-jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55141 - "POST /v1/ingestion-jobs HTTP/1.1" 200 OK
+INFO:     127.0.0.1:59044 - "POST /v1/ingestion-jobs HTTP/1.1" 200 OK
