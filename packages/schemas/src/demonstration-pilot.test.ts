@@ -37,9 +37,11 @@ const otherUuid = "0189d0f4-1b2c-7abc-8def-0123456789ac";
 
 const storedConfiguration = {
   ageBand: "11-13",
+  creativeStylePack: null,
   difficulty: "introductory",
   includeRecallQuestions: false,
   lessonTitle: "Saving a little, every week",
+  soundBed: "none",
   sourceParsedDocumentVersion: 1,
   subject: "Personal finance",
   targetDurationSeconds: 180,

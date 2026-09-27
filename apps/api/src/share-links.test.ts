@@ -132,6 +132,7 @@ describe("share links", () => {
       title: "States of matter",
       playbackUrl: "https://media.example.test/video",
       thumbnailUrl: "https://media.example.test/thumbnail",
+      credits: [],
     });
     expect(signed).toHaveBeenCalledWith(
       expect.objectContaining({ expiresInSeconds: 300 }),
@@ -152,6 +153,46 @@ describe("share links", () => {
         code: "not_found",
         statusCode: 404,
       });
+  });
+
+  it("ST-103: credits the sound bed the shared video was rendered with, when its license requires it", async () => {
+    const at = new Date("2026-08-25T08:00:00.000Z");
+    const service = new PostgresShareLinkService(
+      fakeShareDatabase({
+        onSelect: () => [
+          {
+            title: "States of matter",
+            video: { storageKey: "users/u/projects/p/renders/r/lesson.mp4" },
+            thumbnail: null,
+            manifest: { schemaVersion: 2, soundBed: {
+              trackId: "future-track",
+              checksumSha256: "d".repeat(64),
+              storageKey: `catalog/sound-beds/future-track/${"d".repeat(64)}.wav`,
+              contentType: "audio/wav",
+              durationMs: 16_000,
+              loops: true,
+              integratedLoudnessLufs: -20,
+              peakDbfs: -6,
+              licenseId: "CC0-1.0",
+              attributionText: "Music: Future Track by Example Composer",
+            } },
+          },
+        ],
+      }),
+      {
+        createSignedDownload: vi
+          .fn()
+          .mockResolvedValue({ url: "https://media.example.test/video" }),
+      } as Pick<ObjectStorage, "createSignedDownload">,
+      new InMemoryPublicShareRateLimiter(() => at),
+      () => at,
+    );
+    const shared = await service.resolve({
+      token: generateShareToken(),
+      network: "203.0.113.10",
+    });
+    expect(shared.credits).toEqual(["Music: Future Track by Example Composer"]);
+    expect(JSON.stringify(shared)).not.toContain("catalog/sound-beds");
   });
 
   it("makes create and revoke owner-only while exposing a minimal public DTO", async () => {

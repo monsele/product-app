@@ -2017,6 +2017,65 @@ const server = createServer(async (request, response) => {
       canProceedToReview: false,
     });
   }
+  // ST-103: a render the post-render review blocked, for the render page.
+  const rendersMatch = url.pathname.match(/^\/projects\/([^/]+)\/renders$/);
+  if (request.method === "GET" && rendersMatch !== null) {
+    if (decodeURIComponent(rendersMatch[1]) !== existingId)
+      return send(response, 200, { renders: [] });
+    const frame =
+      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+    return send(response, 200, {
+      renders: [
+        {
+          id: "019ffbf1-7e10-7000-8000-000000000103",
+          lessonVersionId: "019ffbf1-7e10-7000-8000-000000000104",
+          validationRunId: "019ffbf1-7e10-7000-8000-000000000105",
+          status: "failed",
+          progress: 0.92,
+          attempt: 1,
+          errorCode: "RENDER_REVIEW_FAILED",
+          errorMessage:
+            "The finished video failed its quality review, so it was not delivered. See the review findings for what to correct.",
+          retryable: false,
+          correlationId: "019ffbf1-7e10-7000-8000-000000000106",
+          createdAt: now,
+          startedAt: now,
+          completedAt: now,
+          video: null,
+          review: {
+            reviewVersion: "render-review-v1",
+            outcome: "failed",
+            durationMs: 60_000,
+            findings: [
+              {
+                code: "NARRATION_SILENT",
+                severity: "error",
+                atMs: 12_000,
+                detail: "Narration is silent for 3.00 s from 12.00 s.",
+                correction:
+                  "Regenerate the narration audio for the scene at this time, then validate and render again.",
+              },
+              {
+                code: "LOUDNESS_OUT_OF_RANGE",
+                severity: "warning",
+                detail:
+                  "Integrated loudness is -22.4 LUFS (expected -20 to -12 LUFS).",
+                correction:
+                  "Optional: regenerate narration or change the sound bed if the video sounds too quiet or too loud.",
+              },
+            ],
+            contactSheet: [0.05, 0.35, 0.65, 0.95].map((position) => ({
+              position,
+              atMs: Math.round(60_000 * position),
+              url: frame,
+            })),
+            loudness: { integratedLufs: -22.4, peakDbfs: -1.8 },
+            reviewedAt: now,
+          },
+        },
+      ],
+    });
+  }
   if (request.method === "GET" && url.pathname.startsWith("/projects/")) {
     const project = projects.get(decodeURIComponent(url.pathname.slice(10)));
     return project === undefined

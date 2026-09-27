@@ -192,6 +192,16 @@ export const storageKeys = {
     );
   },
 
+  /** ST-103. One private post-render review contact-sheet frame. */
+  renderReviewFrame(input: RenderKey & { index: number }): StorageKey {
+    const renderJobId = identifierSchema.parse(input.renderJobId);
+    if (!Number.isInteger(input.index) || input.index < 1 || input.index > 8)
+      throw new Error("A contact-sheet frame index must be between 1 and 8.");
+    return validatedKey(
+      `${tenantPrefix(input)}/renders/${renderJobId}/review/contact-${input.index}.png`,
+    );
+  },
+
   renderStagingThumbnail(input: RenderKey): StorageKey {
     const renderJobId = identifierSchema.parse(input.renderJobId);
     return validatedKey(

@@ -9,6 +9,7 @@ import {
   type LessonConfigurationInput,
   type LessonDifficulty,
   type LessonTone,
+  type SoundBedChoice,
   type VideoApproach,
 } from "@avlp/schemas";
 
@@ -52,6 +53,8 @@ export interface ConfigurationFormState {
   videoApproach: VideoApproach;
   /** ST-102. `null` is the default and keeps the legacy `mvp-default` look. */
   creativeStylePack: CreativeDesignPackId | null;
+  /** ST-103. `none` is the default and plays no background bed. */
+  soundBed: SoundBedChoice;
   includeRecallQuestions: boolean;
 }
 
@@ -66,6 +69,7 @@ export function emptyConfigurationFormState(): ConfigurationFormState {
     tone: "",
     videoApproach: "standard",
     creativeStylePack: null,
+    soundBed: "none",
     includeRecallQuestions: false,
   };
 }
@@ -83,6 +87,7 @@ export function formStateFromConfiguration(
     tone: configuration.tone,
     videoApproach: configuration.videoApproach,
     creativeStylePack: configuration.creativeStylePack,
+    soundBed: configuration.soundBed,
     includeRecallQuestions: configuration.includeRecallQuestions,
   };
 }
@@ -117,6 +122,7 @@ export function hasConfigurationChanges(
       current.tone !== "" ||
       current.videoApproach !== "standard" ||
       current.creativeStylePack !== null ||
+      current.soundBed !== "none" ||
       current.includeRecallQuestions !== false
     );
   }
@@ -129,6 +135,7 @@ export function hasConfigurationChanges(
     saved.tone !== current.tone ||
     saved.videoApproach !== current.videoApproach ||
     saved.creativeStylePack !== current.creativeStylePack ||
+    saved.soundBed !== current.soundBed ||
     saved.includeRecallQuestions !== current.includeRecallQuestions
   );
 }
@@ -154,6 +161,7 @@ export function buildConfigurationSaveInput(
     tone: state.tone as LessonTone,
     videoApproach: state.videoApproach,
     creativeStylePack: state.creativeStylePack,
+    soundBed: state.soundBed,
     includeRecallQuestions: state.includeRecallQuestions,
   };
 }

@@ -223,6 +223,53 @@ describe("version-bound exports", () => {
     );
   });
 
+  it("ST-103: adds sound-bed credits to storyboard exports only when attribution is owed", async () => {
+    const data = fixture();
+    const attributed = {
+      ...data.version,
+      snapshot: { ...data.snapshot, soundBed: {
+          trackId: "future-track",
+          checksumSha256: "d".repeat(64),
+          storageKey: `catalog/sound-beds/future-track/${"d".repeat(64)}.wav`,
+          contentType: "audio/wav",
+          durationMs: 16_000,
+          loops: true,
+          integratedLoudnessLufs: -20,
+          peakDbfs: -6,
+          licenseId: "CC0-1.0",
+          attributionText: "Music: Future Track by Example Composer",
+        } },
+    };
+    const service = new ExportService(
+      database([[attributed], [attributed], [data.version]], []),
+      { createSignedDownload: vi.fn() } as unknown as Pick<
+        AuthorizedProjectStorage,
+        "createSignedDownload"
+      >,
+      () => data.at,
+    );
+    const common = {
+      ownerUserId: data.ownerUserId,
+      projectId: data.projectId,
+      lessonVersionId: data.lessonVersionId,
+      correlationId: data.ownerUserId,
+    };
+    const json = await service.build({ ...common, type: "storyboard", format: "json" });
+    expect(JSON.parse(json.body).credits).toEqual([
+      "Music: Future Track by Example Composer",
+    ]);
+    const markdown = await service.build({
+      ...common,
+      type: "storyboard",
+      format: "markdown",
+    });
+    expect(markdown.body).toContain(
+      "## Credits\n\nMusic: Future Track by Example Composer",
+    );
+    const plain = await service.build({ ...common, type: "storyboard", format: "json" });
+    expect(JSON.parse(plain.body)).not.toHaveProperty("credits");
+  });
+
   it("uses captions frozen in the selected completed render manifest", async () => {
     const data = fixture();
     const service = new ExportService(

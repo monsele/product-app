@@ -29,6 +29,7 @@ import {
   type ResolvedSceneAsset,
 } from "./scene-registry.js";
 import { secondsToFrames } from "./timing.js";
+import { SoundBedTrack, soundBedCompositionPropSchema } from "./sound-bed.js";
 
 /** Object storage in local dev is signed against a plain-HTTP loopback
  * endpoint (see OBJECT_STORAGE_ALLOW_INSECURE_ENDPOINT), mirroring the
@@ -99,6 +100,9 @@ export const fullLessonCompositionPropsSchema = z
       .object({ scenes: z.array(sceneSpecSchema).min(1).max(100) })
       .passthrough(),
     narrationTracks: z.array(narrationTrackSchema).min(1),
+    /** ST-103. Absent means no bed, and the composition renders exactly as it
+     * did before sound beds existed. */
+    soundBed: soundBedCompositionPropSchema.optional(),
   })
   .strict()
   .superRefine((value, context) => {
@@ -1024,6 +1028,7 @@ export function FullLessonComposition({
   lesson,
   narrationTracks,
   onAudioError,
+  soundBed,
   runtimeMode = "preview",
   viewportScale = 1,
 }: FullLessonCompositionProps &
@@ -1076,6 +1081,15 @@ export function FullLessonComposition({
           </Sequence>
         );
       })}
+      {soundBed === undefined ? null : (
+        <SoundBedTrack
+          bed={soundBed}
+          captions={captions}
+          {...(onAudioError === undefined ? {} : { onAudioError })}
+          fps={videoTheme.canvas.fps}
+          totalFrames={getLessonDurationInFrames(lesson)}
+        />
+      )}
       <FullLessonCaptionOverlay
         captions={captions}
         {...(creativeDesign === undefined ? {} : { creativeDesign })}

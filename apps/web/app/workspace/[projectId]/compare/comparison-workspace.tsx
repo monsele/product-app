@@ -42,7 +42,7 @@ import {
   type DemonstrationVariantView,
 } from "@avlp/schemas/demonstration-pilot";
 import type { VideoApproach } from "@avlp/schemas";
-import { comparisonStyleLabel } from "./comparison-style.js";
+import { comparisonStyleLabel } from "./comparison-style";
 
 const fps = 30;
 

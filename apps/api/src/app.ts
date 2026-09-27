@@ -101,6 +101,7 @@ import type {
 import type { DemonstrationTestLessonService } from "./demonstration-test-lessons.js";
 import type { ExportService } from "./exports.js";
 import type { ShareLinkService } from "./share-links.js";
+import type { SoundBedService } from "./sound-beds.js";
 import { searchApprovedAssets } from "./approved-assets.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
@@ -141,6 +142,7 @@ const LESSON_VALIDATION_SERVICE = Symbol("LESSON_VALIDATION_SERVICE");
 const RENDER_SERVICE = Symbol("RENDER_SERVICE");
 const EXPORT_SERVICE = Symbol("EXPORT_SERVICE");
 const SHARE_LINK_SERVICE = Symbol("SHARE_LINK_SERVICE");
+const SOUND_BED_SERVICE = Symbol("SOUND_BED_SERVICE");
 const DEMONSTRATION_PILOT_SERVICE = Symbol("DEMONSTRATION_PILOT_SERVICE");
 const DEMONSTRATION_PILOT_COHORT = Symbol("DEMONSTRATION_PILOT_COHORT");
 const DEMONSTRATION_TEST_LESSON_SERVICE = Symbol(
@@ -420,6 +422,7 @@ type RenderApiService = Pick<
   "start" | "list" | "detail" | "retry"
 >;
 type ExportApiService = Pick<ExportService, "build" | "signedVideoDownload">;
+type SoundBedApiService = Pick<SoundBedService, "list">;
 type ShareLinkApiService = Pick<
   ShareLinkService,
   "create" | "list" | "revoke" | "resolve"
@@ -512,6 +515,31 @@ class VoicesController {
     const token = request.cookies[sessionCookieName];
     if (token === undefined || (await this.auth.currentSession(token)) === null)
       throw new PublicError("unauthorized", "Authentication is required.", 401);
+  }
+}
+
+/**
+ * ST-103. The curated sound-bed catalog. It holds no tenant data, but its
+ * audition URLs are signed media, so only an authenticated session may list
+ * it. Each URL is short-lived and generated per request.
+ */
+@Controller("sound-beds")
+class SoundBedsController {
+  public constructor(
+    @Inject(AUTH_GATEWAY) private readonly auth: AuthGateway,
+    @Inject(SOUND_BED_SERVICE)
+    private readonly soundBeds: SoundBedApiService,
+  ) {}
+  @Get()
+  public async list(
+    @Req() request: RequestWithAuth,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ): Promise<unknown> {
+    const token = request.cookies[sessionCookieName];
+    if (token === undefined || (await this.auth.currentSession(token)) === null)
+      throw new PublicError("unauthorized", "Authentication is required.", 401);
+    reply.header("cache-control", "private, no-store");
+    return this.soundBeds.list();
   }
 }
 
@@ -3045,6 +3073,7 @@ class DatabaseShutdown implements OnApplicationShutdown {
     AuthController,
     AssetsController,
     VoicesController,
+    SoundBedsController,
     ProjectsController,
     DemonstrationTestLessonController,
     PublicShareController,
@@ -3091,6 +3120,7 @@ function createAppModule(
   renderService: RenderApiService,
   exportService: ExportApiService,
   shareLinkService: ShareLinkApiService,
+  soundBedService: SoundBedApiService,
   demonstrationPilotService: DemonstrationPilotApiService,
   demonstrationTestLessonService: DemonstrationTestLessonApiService,
   demonstrationPilotCohort: DemonstrationPilotCohort,
@@ -3148,6 +3178,7 @@ function createAppModule(
       { provide: RENDER_SERVICE, useValue: renderService },
       { provide: EXPORT_SERVICE, useValue: exportService },
       { provide: SHARE_LINK_SERVICE, useValue: shareLinkService },
+      { provide: SOUND_BED_SERVICE, useValue: soundBedService },
       {
         provide: DEMONSTRATION_PILOT_SERVICE,
         useValue: demonstrationPilotService,
@@ -3199,6 +3230,7 @@ export type CreateAppOptions = {
   renderService?: RenderApiService;
   exportService?: ExportApiService;
   shareLinkService?: ShareLinkApiService;
+  soundBedService?: SoundBedApiService;
   demonstrationPilotService?: DemonstrationPilotApiService;
   demonstrationTestLessonService?: DemonstrationTestLessonApiService;
   demonstrationPilotCohort?: DemonstrationPilotCohort;
@@ -4236,6 +4268,17 @@ const unavailableExportService: ExportApiService = {
       new PublicError("internal_error", "Exports are unavailable.", 503, true),
     ),
 };
+const unavailableSoundBedService: SoundBedApiService = {
+  list: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "The sound bed catalog is unavailable.",
+        503,
+        true,
+      ),
+    ),
+};
 const unavailableShareLinkService: ShareLinkApiService = {
   create: () =>
     Promise.reject(
@@ -4410,6 +4453,7 @@ export async function createApp(
       options.renderService ?? unavailableRenderService,
       options.exportService ?? unavailableExportService,
       options.shareLinkService ?? unavailableShareLinkService,
+      options.soundBedService ?? unavailableSoundBedService,
       options.demonstrationPilotService ?? unavailableDemonstrationPilotService,
       options.demonstrationTestLessonService ??
         unavailableDemonstrationTestLessonService,

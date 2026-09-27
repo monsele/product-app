@@ -19,6 +19,7 @@ const mockCompletedRender: RenderStatusResponse = {
   createdAt: "2026-08-26T18:00:00.000Z",
   startedAt: "2026-08-26T18:00:05.000Z",
   completedAt: "2026-08-26T18:01:20.000Z",
+  review: null,
   video: {
     id: "019ffbf1-e000-7000-8000-000000000005",
     durationMs: 75_000,
@@ -48,6 +49,7 @@ const mockRenderingRender: RenderStatusResponse = {
   createdAt: "2026-08-26T18:10:00.000Z",
   startedAt: "2026-08-26T18:10:05.000Z",
   completedAt: null,
+  review: null,
   video: null,
 };
 
@@ -65,10 +67,78 @@ const mockFailedRender: RenderStatusResponse = {
   createdAt: "2026-08-26T18:15:00.000Z",
   startedAt: "2026-08-26T18:15:05.000Z",
   completedAt: "2026-08-26T18:15:35.000Z",
+  review: null,
   video: null,
 };
 
 describe("RenderDelivery (Playwright)", () => {
+  it("ST-103: shows a passing review's contact sheet, loudness and advisory notes beside the delivered video", async () => {
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const page = await browser.newPage({
+        viewport: { width: 1280, height: 900 },
+      });
+      const frame =
+        "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+      await page.setContent(
+        renderToStaticMarkup(
+          createElement(RenderPanel, {
+            projectId: "019ffbf1-a000-7000-8000-000000000001",
+            projectTitle: "Photosynthesis in C3 and C4 Plants",
+            lessonVersionId: "019ffbf1-b000-7000-8000-000000000002",
+            initial: [
+              {
+                ...mockCompletedRender,
+                review: {
+                  reviewVersion: "render-review-v1",
+                  outcome: "passed",
+                  durationMs: 75_000,
+                  findings: [
+                    {
+                      code: "AUDIO_CLIPPING",
+                      severity: "warning",
+                      detail: "Audio peaks at -0.05 dBFS (limit -0.1 dBFS).",
+                      correction:
+                        "Optional: regenerate the narration for louder scenes, or choose a quieter sound bed.",
+                    },
+                  ],
+                  contactSheet: [0.05, 0.35, 0.65, 0.95].map((position) => ({
+                    position,
+                    atMs: Math.round(75_000 * position),
+                    url: frame,
+                  })),
+                  loudness: { integratedLufs: -15.6, peakDbfs: -0.05 },
+                  reviewedAt: "2026-08-26T18:01:20.000Z",
+                },
+              },
+            ],
+          }),
+        ),
+      );
+      const panel = page.getByTestId("render-review-panel");
+      expect(await panel.isVisible()).toBe(true);
+      expect(await page.getByTestId("render-review-outcome").textContent()).toBe(
+        "Passed with 1 note",
+      );
+      expect(
+        await page.getByTestId("render-review-loudness").textContent(),
+      ).toBe("-15.6 LUFS");
+      expect(
+        await page
+          .getByTestId("render-review-contact-sheet")
+          .getByRole("img")
+          .count(),
+      ).toBe(4);
+      const finding = page.getByTestId("render-review-finding");
+      expect(await finding.getAttribute("data-severity")).toBe("warning");
+      expect(await finding.textContent()).toContain("Note: Audio peaks");
+      // Warnings never block delivery: the video card is still offered.
+      expect(await page.locator("#latest-render-heading").isVisible()).toBe(true);
+    } finally {
+      await browser.close();
+    }
+  });
+
   it("renders Studio Daylight delivery board with dominant completed render at desktop (1280px)", async () => {
     const browser = await chromium.launch({ headless: true });
     try {

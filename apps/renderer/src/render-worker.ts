@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
 import { Buffer } from "node:buffer";
-import { createReadStream } from "node:fs";
-import { mkdtemp, open, rm, stat } from "node:fs/promises";
+import { createReadStream, createWriteStream } from "node:fs";
+import { mkdtemp, open, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import {
   JobExecutionError,
   defineJobHandler,
@@ -39,8 +40,24 @@ import {
   hydrateProductionComposition,
   loadImmutableFixture,
 } from "./fixture.js";
-import { readVideoApproach } from "@avlp/schemas";
+import {
+  readVideoApproach,
+  renderReviewReportSchema,
+  soundBedCatalogPrefix,
+  type RenderReviewReport,
+} from "@avlp/schemas";
 import { demonstrationVariantPlanSchema } from "@avlp/schemas/demonstration-pilot";
+import { getLessonDurationInFrames } from "@avlp/scene-library";
+import { demonstrationDurationInFrames } from "@avlp/scene-library/demonstration-proof";
+import {
+  classifyRenderReview,
+  FfmpegRenderInspector,
+  narrationSpansFromCaptions,
+  silenceFloorDb,
+  type RenderInspector,
+  type RenderReviewExpectations,
+} from "./render-review.js";
+import { renderReviewVersion } from "./render-review-thresholds.js";
 import {
   RemotionRenderEngine,
   RenderMediaError,
@@ -117,6 +134,34 @@ export async function uploadArtifactThroughStorage(
   )
     throw new Error("Private storage did not verify the uploaded artifact.");
   return { checksumSha256, sizeBytes: file.size };
+}
+
+/** ST-103. Fetches a stored render back to local disk for re-review. */
+export type DownloadArtifact = (input: {
+  checksumSha256: string;
+  localPath: string;
+  storage: ObjectStorage;
+  storageKey: StorageKey;
+}) => Promise<void>;
+
+export async function downloadArtifactThroughStorage(
+  input: Parameters<DownloadArtifact>[0],
+): Promise<void> {
+  const signed = await input.storage.createSignedDownload({
+    key: input.storageKey,
+    expiresInSeconds: 900,
+  });
+  const response = await fetch(signed.url);
+  if (!response.ok || response.body === null)
+    throw new Error(`Private storage rejected download with ${response.status}.`);
+  const hash = createHash("sha256");
+  const body = Readable.fromWeb(
+    response.body as Parameters<typeof Readable.fromWeb>[0],
+  );
+  body.on("data", (chunk: Buffer) => hash.update(chunk));
+  await pipeline(body, createWriteStream(input.localPath));
+  if (hash.digest("hex") !== input.checksumSha256)
+    throw new Error("The stored render failed integrity verification.");
 }
 
 function numberMetadata(metadata: StorageObjectMetadata, key: string): number {
@@ -272,9 +317,50 @@ async function verifyDemonstrationAssets(
   }
 }
 
+/**
+ * ST-103 - the pinned background track must exist in the catalog store with
+ * its pinned checksum. There is no fallback to "no bed": a missing or changed
+ * track fails the render explicitly.
+ */
+async function verifySoundBed(
+  payload: RenderJobPayload,
+  catalogStorage: RenderHandlerOptions["catalogStorage"],
+): Promise<void> {
+  const bed = payload.manifest?.soundBed ?? null;
+  if (bed === null) return;
+  if (!bed.storageKey.startsWith(`${soundBedCatalogPrefix}/${bed.trackId}/`))
+    throw new JobExecutionError(
+      "terminal",
+      "SOUND_BED_UNAVAILABLE",
+      "The pinned sound bed is not a catalog track.",
+    );
+  const key = storageKeySchema.parse(bed.storageKey);
+  if (catalogStorage === undefined || !(await catalogStorage.exists(key)))
+    throw new JobExecutionError(
+      "terminal",
+      "SOUND_BED_UNAVAILABLE",
+      "The pinned sound bed is missing from the catalog store.",
+    );
+  const metadata = await catalogStorage.getMetadata(key);
+  if (metadata.checksumSha256 !== bed.checksumSha256)
+    throw new JobExecutionError(
+      "terminal",
+      "SOUND_BED_CHECKSUM_MISMATCH",
+      "The pinned sound bed failed integrity verification.",
+    );
+}
+
 export type RenderHandlerOptions = {
   browserExecutable?: string;
+  /** ST-103. Read-only access to the platform sound-bed catalog prefix. */
+  catalogStorage?: Pick<
+    ObjectStorage,
+    "createSignedDownload" | "exists" | "getMetadata"
+  >;
+  downloadArtifact?: DownloadArtifact;
   engine?: RenderEngine;
+  /** ST-103. Post-render review measurements (ffprobe/ffmpeg by default). */
+  inspector?: RenderInspector;
   logger?: Pick<StructuredLogger, "info" | "warn">;
   storage: ObjectStorage;
   temporaryRoot?: string;
@@ -285,6 +371,12 @@ export type RenderHandlerOptions = {
     complete(input: {
       context: JobHandlerContext;
       result: RenderJobResult;
+    }): Promise<boolean>;
+    /** ST-103. Upserts the render's single review report; `false` means the
+     * job no longer holds its lease (for example, it was cancelled). */
+    recordReview?(input: {
+      context: JobHandlerContext;
+      report: RenderReviewReport;
     }): Promise<boolean>;
   };
 };
@@ -439,6 +531,8 @@ export function createRenderJobHandler(
 ): RegisteredJobHandler {
   const engine = options.engine ?? new RemotionRenderEngine();
   const upload = options.uploadArtifact ?? uploadArtifactThroughStorage;
+  const download = options.downloadArtifact ?? downloadArtifactThroughStorage;
+  const inspector = options.inspector ?? new FfmpegRenderInspector();
   return defineJobHandler(
     renderJobType,
     renderPayloadVersion,
@@ -479,11 +573,14 @@ export function createRenderJobHandler(
         await verifyManifest(payload, context, options.storage, composition);
         preflightStage = "demonstration_asset_validation";
         await verifyDemonstrationAssets(payload, context, options.storage);
+        preflightStage = "sound_bed_validation";
+        await verifySoundBed(payload, options.catalogStorage);
         preflightStage = "media_manifest_resolution";
         composition = await hydrateProductionComposition(
           payload,
           composition,
           options.storage,
+          options.catalogStorage,
         );
         // ST-096. Resolved after the standard composition, not instead of it:
         // the lesson, its tenant check and its asset verification are the same
@@ -535,6 +632,106 @@ export function createRenderJobHandler(
       const videoPath = join(temporaryDirectory, "lesson.mp4");
       const thumbnailPath = join(temporaryDirectory, "thumbnail.png");
       const computeStartedAt = Date.now();
+      const reviewExpectations = renderReviewExpectations(
+        payload,
+        composition,
+        demonstration,
+      );
+      /**
+       * ST-103. Reviews the local MP4 before it can become available. Runs
+       * ffmpeg with no database transaction open, stores the contact sheet
+       * privately, then upserts the one report for this render. Any error
+       * finding fails the render terminally; warnings never block.
+       */
+      const reviewRender = async (): Promise<void> => {
+        const inspection = await inspector.inspect({
+          silenceFloorDb: silenceFloorDb(payload.manifest?.soundBed ?? null),
+          videoPath,
+          workingDirectory: temporaryDirectory,
+        });
+        const findings = classifyRenderReview(
+          inspection.measurements,
+          reviewExpectations,
+        );
+        const contactSheet = [];
+        for (const [index, frame] of inspection.contactSheet.entries()) {
+          const key = storageKeys.renderReviewFrame({
+            index: index + 1,
+            projectId: context.projectId,
+            renderJobId: context.jobId,
+            userId: context.ownerUserId,
+          });
+          const body = await readFile(frame.path);
+          const checksumSha256 = createHash("sha256")
+            .update(body)
+            .digest("hex");
+          const stored = await options.storage.putBytes({
+            body,
+            contentType: "image/png",
+            key,
+            metadata: {
+              ...artifactIdentityMetadata(payload),
+              sha256: checksumSha256,
+            },
+          });
+          if (stored.checksumSha256 !== checksumSha256)
+            throw new Error("A review frame failed storage verification.");
+          contactSheet.push({
+            atMs: frame.atMs,
+            checksumSha256,
+            height: frame.height,
+            position: frame.position,
+            storageKey: key,
+            width: frame.width,
+          });
+        }
+        const report = renderReviewReportSchema.parse({
+          attempt: context.attempt,
+          contactSheet,
+          durationMs: inspection.measurements.durationMs,
+          findings,
+          jobId: context.jobId,
+          loudness: {
+            integratedLufs: inspection.measurements.integratedLufs,
+            peakDbfs: inspection.measurements.peakDbfs,
+          },
+          outcome: findings.some((item) => item.severity === "error")
+            ? "failed"
+            : "passed",
+          reviewedAt: new Date().toISOString(),
+          reviewVersion: renderReviewVersion,
+          videoChecksumSha256: inspection.checksumSha256,
+        });
+        const recorded = await options.lifecycle?.recordReview?.({
+          context,
+          report,
+        });
+        if (recorded === false)
+          throw new JobExecutionError(
+            "cancelled",
+            "RENDER_CANCELLED",
+            "The render was cancelled before its review could be saved.",
+          );
+        const findingCodes = [
+          ...new Set(report.findings.map((item) => item.code)),
+        ].join(",");
+        options.logger?.info("render.reviewed", {
+          correlationId: context.correlationId,
+          findingCodes,
+          jobId: context.jobId,
+          outcome: report.outcome,
+          projectId: context.projectId,
+          reviewVersion: report.reviewVersion,
+        });
+        if (report.outcome === "failed")
+          throw new JobExecutionError(
+            "terminal",
+            "RENDER_REVIEW_FAILED",
+            "The finished video failed its post-render review.",
+            { findingCodes, reviewVersion: report.reviewVersion },
+          );
+        await context.reportProgress(0.92);
+      };
       let stage = "artifact_reuse";
       let successfulUsageRecorded = false;
       try {
@@ -559,6 +756,9 @@ export function createRenderJobHandler(
             outputPath: videoPath,
             profile: payload.profile,
           });
+          // Review before upload: a failing video never reaches storage.
+          stage = "render_review";
+          await reviewRender();
           stage = "video_upload";
           const uploaded = await publishVerifiedArtifact({
             contentType: "video/mp4",
@@ -585,6 +785,17 @@ export function createRenderJobHandler(
           await context.reportProgress(0.95);
         } else {
           reused = true;
+          // A retried job re-runs the review against the stored bytes and
+          // upserts the same render's report (ST-103 idempotency).
+          stage = "render_review_download";
+          await download({
+            checksumSha256: video.checksumSha256,
+            localPath: videoPath,
+            storage: options.storage,
+            storageKey: video.storageKey,
+          });
+          stage = "render_review";
+          await reviewRender();
           await context.reportProgress(0.95);
         }
 
@@ -730,6 +941,50 @@ export function createRenderJobHandler(
       retryDelayMs: 30_000,
     },
   );
+}
+
+/** ST-103. What the review holds the video to, from the props actually
+ * rendered and the manifest's promises. */
+export function renderReviewExpectations(
+  payload: RenderJobPayload,
+  composition: ReturnType<typeof loadImmutableFixture>,
+  demonstration:
+    | Awaited<ReturnType<typeof hydrateDemonstrationComposition>>
+    | undefined,
+): RenderReviewExpectations {
+  const fps = payload.profile.fps;
+  const renderedCaptions = demonstration?.captions ?? composition.captions;
+  const narratedSceneIds = new Set(
+    demonstration === undefined
+      ? composition.narrationTracks
+          .filter((track) => track.kind === "browser-audio")
+          .map((track) => track.sceneId)
+      : demonstration.narrationTracks.map((track) => track.sceneId),
+  );
+  const captionedSceneIds = new Set(
+    renderedCaptions.map((cue) => cue.sceneId),
+  );
+  const durationInFrames =
+    demonstration === undefined
+      ? getLessonDurationInFrames(composition.lesson)
+      : demonstrationDurationInFrames(demonstration.scenes);
+  return {
+    captions: {
+      expectedCueCount:
+        payload.manifest?.captions.length ?? composition.captions.length,
+      narratedScenesWithoutCaptions: [...narratedSceneIds].filter(
+        (sceneId) => !captionedSceneIds.has(sceneId),
+      ).length,
+      renderedCueCount: renderedCaptions.length,
+    },
+    expectedDurationMs: Math.round((durationInFrames * 1_000) / fps),
+    narrationSpans: narrationSpansFromCaptions(
+      renderedCaptions,
+      narratedSceneIds,
+      fps,
+    ),
+    profile: payload.profile,
+  };
 }
 
 export async function temporaryDirectoryIsAbsent(

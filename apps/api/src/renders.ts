@@ -10,6 +10,7 @@ import {
   outboxEvents,
   renderJobs,
   renderedVideos,
+  renderReviewReports,
   renderThumbnails,
   captionCues,
   captionTracks,
@@ -34,7 +35,10 @@ import {
   renderStatusResponseSchema,
   creativeDesignManifestSchema,
   lessonSpecSchema,
+  readPinnedSoundBed,
   readVideoApproach,
+  renderReviewReportSchema,
+  type RenderReviewSummary,
   type VideoApproach,
   sourceTableVisualMaxCellLength,
   sourceTableVisualMaxColumns,
@@ -59,7 +63,7 @@ const renderProfile = Object.freeze({
 });
 // Must equal `renderImplementationVersion` in apps/renderer/src/contracts.ts:
 // the worker rejects any other value as an unavailable historical release.
-const rendererVersion = "st-101-remotion-4.0.507-creative-design-style-packs-v2";
+const rendererVersion = "st-103-remotion-4.0.507-sound-bed-render-review-v1";
 const renderIdentityPolicy = canonicalJsonPolicy;
 const defaultRenderLimits = Object.freeze({
   maxConcurrentPerProject: 1,
@@ -211,6 +215,14 @@ function publicErrorMessage(code: string | null): string | null {
     RENDER_CANCELLED: "This render was cancelled.",
     RENDER_FAILED:
       "The lesson could not be rendered. You can retry it when available.",
+    RENDER_REVIEW_FAILED:
+      "The finished video failed its quality review, so it was not delivered. See the review findings for what to correct.",
+    RENDER_REVIEW_UNAVAILABLE:
+      "The finished video could not be reviewed, so it was not delivered. You can retry it.",
+    SOUND_BED_UNAVAILABLE:
+      "The background sound bed pinned to this lesson version is unavailable. Choose another sound bed and save a new version.",
+    SOUND_BED_CHECKSUM_MISMATCH:
+      "The background sound bed pinned to this lesson version failed its integrity check. Choose another sound bed and save a new version.",
   };
   return (
     messages[code] ??
@@ -618,6 +630,16 @@ export class PostgresRenderService implements RenderService {
         );
         sceneOffsetFrames += scene.durationSeconds * 30;
       }
+      // ST-103. The bed comes only from the version's immutable snapshot, never
+      // from the current configuration or catalog, so changing the track
+      // later cannot change this version's re-render. A comparison variant
+      // (ST-096) is narration-only on both halves: a controlled pair must
+      // differ only in its visual explanation, and the demonstration
+      // composition has no bed track (ADR-012).
+      const soundBed =
+        input.variant === undefined
+          ? readPinnedSoundBed(version.snapshot)
+          : null;
       const manifest = {
         lessonVersionId: version.id,
         lessonVersionContentHash: version.contentHash,
@@ -625,7 +647,8 @@ export class PostgresRenderService implements RenderService {
         validationRunId: validation.id,
         validationInputHash: validation.inputHash,
         sceneLibraryVersion: version.sceneLibraryVersion,
-        schemaVersion: 1 as const,
+        schemaVersion: 2 as const,
+        soundBed,
         approach,
         ...(input.variant === undefined
           ? {}
@@ -754,6 +777,16 @@ export class PostgresRenderService implements RenderService {
       const assetManifest = {
         schemaVersion: 1 as const,
         assets: [...audio, ...sourceVisualMedia],
+        ...(soundBed === null
+          ? {}
+          : {
+              soundBed: {
+                checksumSha256: soundBed.checksumSha256,
+                contentType: soundBed.contentType,
+                storageKey: soundBed.storageKey,
+                trackId: soundBed.trackId,
+              },
+            }),
       };
       const lessonSpecSha256 = hash(lesson);
       const optionsHash = hashJobOptions({
@@ -1024,6 +1057,12 @@ export class PostgresRenderService implements RenderService {
       typeof row.job.errorMetadata.code === "string"
         ? row.job.errorMetadata.code
         : row.render.errorCode;
+    const review = await this.reviewSummary(
+      executor,
+      scope,
+      renderId,
+      row.job.id,
+    );
     const thumbnailUrl =
       row.thumbnail === null || this.storage === undefined
         ? null
@@ -1071,6 +1110,68 @@ export class PostgresRenderService implements RenderService {
               thumbnailStorageKey: row.thumbnail?.storageKey ?? null,
               thumbnailUrl,
             },
+      review,
     });
+  }
+
+  /**
+   * ST-103. The render's post-render review, tenant-scoped like every other
+   * read here. Contact-sheet frames are private objects; they are exposed
+   * only as short-lived signed URLs, and only when each key is inside the
+   * render's own tenant prefix.
+   */
+  private async reviewSummary(
+    executor: DatabaseClient,
+    scope: Scope,
+    renderId: Identifier,
+    currentJobId: string,
+  ): Promise<RenderReviewSummary | null> {
+    const [row] = await executor
+      .select({ report: renderReviewReports.report })
+      .from(renderReviewReports)
+      .where(
+        and(
+          eq(renderReviewReports.renderJobId, renderId),
+          eq(renderReviewReports.ownerUserId, scope.ownerUserId),
+          eq(renderReviewReports.projectId, scope.projectId),
+        ),
+      )
+      .limit(1);
+    if (row === undefined) return null;
+    const report = renderReviewReportSchema.parse(row.report);
+    // A superseded render reuses its row under a new job. Its previous job's
+    // review describes a different attempt and must not be shown as current.
+    if (report.jobId !== currentJobId) return null;
+    const tenantPrefix = `users/${scope.ownerUserId}/projects/${scope.projectId}/renders/`;
+    const contactSheet =
+      this.storage === undefined
+        ? []
+        : await Promise.all(
+            report.contactSheet.map(async (frame) => {
+              const key = storageKeySchema.parse(frame.storageKey);
+              if (!key.startsWith(tenantPrefix))
+                throw new Error(
+                  "A review contact-sheet frame is outside the render tenant.",
+                );
+              const signed = await this.storage!.createSignedDownload({
+                key,
+                expiresInSeconds: 300,
+              });
+              return {
+                position: frame.position,
+                atMs: frame.atMs,
+                url: signed.url,
+              };
+            }),
+          );
+    return {
+      reviewVersion: report.reviewVersion,
+      outcome: report.outcome,
+      durationMs: report.durationMs,
+      findings: report.findings,
+      contactSheet,
+      loudness: report.loudness,
+      reviewedAt: report.reviewedAt,
+    };
   }
 }

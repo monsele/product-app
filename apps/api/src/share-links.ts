@@ -18,6 +18,7 @@ import { PostgresAuditWriter } from "@avlp/observability";
 import {
   createShareLinkInputSchema,
   publicPlaybackSchema,
+  readPinnedSoundBed,
   shareLinkCreatedResponseSchema,
   shareLinkSchema,
   shareLinksResponseSchema,
@@ -260,6 +261,7 @@ export class PostgresShareLinkService implements ShareLinkService {
         title: projects.title,
         video: renderedVideos,
         thumbnail: renderThumbnails,
+        manifest: renderJobs.manifest,
       })
       .from(shareLinks)
       .innerJoin(projects, eq(projects.id, shareLinks.projectId))
@@ -267,6 +269,7 @@ export class PostgresShareLinkService implements ShareLinkService {
         renderedVideos,
         eq(renderedVideos.id, shareLinks.renderedVideoId),
       )
+      .innerJoin(renderJobs, eq(renderJobs.id, renderedVideos.renderJobId))
       .leftJoin(
         renderThumbnails,
         eq(renderThumbnails.renderedVideoId, renderedVideos.id),
@@ -294,10 +297,15 @@ export class PostgresShareLinkService implements ShareLinkService {
             expiresInSeconds: 300,
           }),
     ]);
+    // ST-103. Credits come from the rendered video's own immutable manifest,
+    // so a shared video always credits exactly the bed it was rendered with.
+    const attribution = readPinnedSoundBed(row.manifest)?.attributionText;
     return publicPlaybackSchema.parse({
       title: row.title,
       playbackUrl: playback.url,
       thumbnailUrl: thumbnail?.url ?? null,
+      credits:
+        attribution === undefined || attribution === null ? [] : [attribution],
     });
   }
 

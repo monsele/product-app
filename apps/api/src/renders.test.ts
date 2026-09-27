@@ -139,6 +139,48 @@ describe("render API authorization and explicit commands", () => {
     );
   });
 
+  it("ST-103: rejects another tenant's request for a render's review detail", async () => {
+    const fixture = createCrossUserProjectFixture();
+    const detail = vi.fn().mockResolvedValue({ id: fixture.projectId });
+    const auth: AuthGateway = {
+      register: async () => {
+        throw new Error("not used");
+      },
+      signIn: async () => null,
+      currentSession: async (token) =>
+        token === "other"
+          ? {
+              id: fixture.otherUserId,
+              email: "other@example.test",
+              displayName: "Other",
+            }
+          : null,
+      signOut: async () => {},
+      requestPasswordReset: async () => {},
+      confirmPasswordReset: async () => {},
+    };
+    app = await createApp({
+      authGateway: auth,
+      trustedOrigin: "https://app.example.test",
+      projectAuthorizer: new ProjectAuthorizationService(
+        new InMemoryOwnerScopedProjectRepository([fixture.project]),
+      ),
+      renderService: {
+        start: vi.fn(),
+        list: vi.fn(),
+        detail,
+        retry: vi.fn(),
+      },
+    });
+    const foreign = await app.getHttpAdapter().getInstance().inject({
+      method: "GET",
+      url: `/projects/${fixture.projectId}/renders/${createId()}`,
+      cookies: { [sessionCookieName]: "other" },
+    });
+    expect(foreign.statusCode).toBe(404);
+    expect(detail).not.toHaveBeenCalled();
+  }, 30_000);
+
   it("blocks rendering before a current exact validation exists", async () => {
     const fixture = createCrossUserProjectFixture();
     const database = {
@@ -982,5 +1024,319 @@ describe("render API authorization and explicit commands", () => {
       (cue) => cue.sceneId === sceneB,
     );
     expect(secondSceneCue?.startFrame).toBe(reconciledDurations[0] * 30);
+  });
+});
+
+describe("ST-103 sound bed and review in the render service", () => {
+  const soundBed = {
+    trackId: "quiet-pulse",
+    checksumSha256: "d".repeat(64),
+    storageKey: `catalog/sound-beds/quiet-pulse/${"d".repeat(64)}.wav`,
+    contentType: "audio/wav",
+    durationMs: 16_000,
+    loops: true,
+    integratedLoudnessLufs: -20,
+    peakDbfs: -6.2,
+    licenseId: "CC0-1.0",
+    attributionText: null,
+  };
+
+  async function startRender(input: {
+    snapshotExtras: Record<string, unknown>;
+    variant?: boolean;
+  }) {
+    const fixture = createCrossUserProjectFixture();
+    const now = new Date("2026-09-26T08:00:00.000Z");
+    const ids = Array.from({ length: 10 }, (_, index) =>
+      createId(new Date(now.getTime() + index * 1_000)),
+    );
+    const [lessonSpecId, sceneId, sourceDocumentId, blockId, versionId, validationId, audioId, trackId, renderId, correlationId] =
+      ids as [string, string, string, string, string, string, string, string, string, string];
+    const lesson = {
+      schemaVersion: "1.8",
+      lessonId: lessonSpecId,
+      projectId: fixture.projectId,
+      title: "States of matter",
+      subject: "Science",
+      audience: { ageBand: "11-13", difficulty: "introductory", priorKnowledge: [] },
+      targetDurationSeconds: 180,
+      tone: "friendly",
+      themeId: "mvp-default",
+      objectiveIds: [blockId],
+      voice: { providerVoiceId: "mvp-default", speakingRate: 1 },
+      scenes: [
+        {
+          id: sceneId,
+          order: 1,
+          narration: "Water changes state.",
+          durationSeconds: 180,
+          onScreenText: ["States"],
+          transition: "cut",
+          assetBindings: [],
+          sourceRefs: [
+            { documentId: sourceDocumentId, parsedDocumentVersion: 1, pageStart: 1, blockIds: [blockId] },
+          ],
+          generatedAdditions: [],
+          template: "definition",
+          visual: { term: "State", definition: "A form of matter." },
+        },
+      ],
+    };
+    const writes: Array<Record<string, unknown>> = [];
+    const database = databaseForRenderCommand({
+      writes,
+      rows: [
+        [
+          {
+            id: versionId,
+            contentHash: "a".repeat(64),
+            lessonSpecId,
+            lessonSpecRevision: 1,
+            sceneLibraryVersion: "mvp-v1",
+            snapshot: { lessonSpec: lesson, ...input.snapshotExtras },
+          },
+        ],
+        [{ id: validationId, inputHash: "b".repeat(64) }],
+        [],
+        [
+          {
+            stableSceneId: sceneId,
+            audio: {
+              id: audioId,
+              storageKey: `users/${fixture.ownerUserId}/projects/${fixture.projectId}/audio/${sceneId}/a.mp3`,
+              checksumSha256: "c".repeat(64),
+              contentType: "audio/mpeg",
+              updatedAt: now,
+            },
+          },
+        ],
+        [{ audioId, track: { id: trackId, updatedAt: now } }],
+        [{ startMs: 0, endMs: 30_000, text: "Water changes state." }],
+        [],
+        [],
+        [],
+        [],
+        [
+          {
+            render: { id: renderId, lessonVersionId: versionId, validationRunId: validationId, createdAt: now, errorCode: null },
+            job: { state: "queued", progress: 0, attempts: 0, errorMetadata: null, errorClassification: null, correlationId, startedAt: null, completedAt: null },
+            video: null,
+            thumbnail: null,
+          },
+        ],
+      ],
+    });
+    const service = new PostgresRenderService(database, undefined, undefined, () => now);
+    await service.start({
+      ownerUserId: fixture.ownerUserId,
+      projectId: fixture.projectId,
+      correlationId: correlationId as never,
+      body: { lessonVersionId: versionId },
+      ...(input.variant === true
+        ? {
+            variant: {
+              approach: "standard" as const,
+              comparisonId: createId(now) as never,
+              plan: null,
+              planSha256: null,
+            },
+          }
+        : {}),
+    });
+    const job = writes.find((value) => value.jobType === "lesson.render");
+    return job?.payload as {
+      assetManifest: { soundBed?: unknown };
+      manifest: { schemaVersion: number; soundBed: unknown };
+    };
+  }
+
+  it("pins the version snapshot's bed into manifest v2 and the asset manifest", async () => {
+    const payload = await startRender({ snapshotExtras: { soundBed } });
+    expect(payload.manifest.schemaVersion).toBe(2);
+    expect(payload.manifest.soundBed).toEqual(soundBed);
+    expect(payload.assetManifest.soundBed).toEqual({
+      checksumSha256: soundBed.checksumSha256,
+      contentType: "audio/wav",
+      storageKey: soundBed.storageKey,
+      trackId: "quiet-pulse",
+    });
+  });
+
+  it("renders a pre-ST-103 snapshot, and an explicit none, with no bed", async () => {
+    for (const snapshotExtras of [{}, { soundBed: null }]) {
+      const payload = await startRender({ snapshotExtras });
+      expect(payload.manifest.schemaVersion).toBe(2);
+      expect(payload.manifest.soundBed).toBeNull();
+      expect("soundBed" in payload.assetManifest).toBe(false);
+    }
+  });
+
+  it("keeps comparison variants narration-only", async () => {
+    const payload = await startRender({
+      snapshotExtras: { soundBed },
+      variant: true,
+    });
+    expect(payload.manifest.soundBed).toBeNull();
+    expect("soundBed" in payload.assetManifest).toBe(false);
+  });
+
+  function reviewRows(
+    scope: { ownerUserId: string; projectId: string },
+    frameKey: string,
+    reportJobId?: string,
+  ) {
+    const now = new Date("2026-09-26T08:00:00.000Z");
+    const renderId = createId(now);
+    const jobId = createId(new Date(now.getTime() + 1));
+    return {
+      renderId,
+      rows: [
+        [
+          {
+            render: { id: renderId, lessonVersionId: createId(now), validationRunId: createId(now), createdAt: now, errorCode: null },
+            job: {
+              id: jobId,
+              state: "failed",
+              progress: 0.9,
+              attempts: 1,
+              errorMetadata: { code: "RENDER_REVIEW_FAILED" },
+              errorClassification: "terminal",
+              correlationId: createId(now),
+              startedAt: now,
+              completedAt: now,
+            },
+            video: null,
+            thumbnail: null,
+          },
+        ],
+        [
+          {
+            report: {
+              attempt: 1,
+              contactSheet: [
+                {
+                  atMs: 3_000,
+                  checksumSha256: "e".repeat(64),
+                  height: 270,
+                  position: 0.05,
+                  storageKey: frameKey,
+                  width: 480,
+                },
+              ],
+              durationMs: 60_000,
+              findings: [
+                {
+                  atMs: 12_000,
+                  code: "NARRATION_SILENT",
+                  correction: "Regenerate the narration audio for the scene at this time, then validate and render again.",
+                  detail: "Narration is silent for 3.00 s from 12.00 s.",
+                  severity: "error",
+                },
+              ],
+              jobId: reportJobId ?? jobId,
+              loudness: { integratedLufs: -17.2, peakDbfs: -2.1 },
+              outcome: "failed",
+              reviewVersion: "render-review-v1",
+              reviewedAt: now.toISOString(),
+              videoChecksumSha256: "f".repeat(64),
+            },
+          },
+        ],
+      ],
+      scope,
+    };
+  }
+
+  it("returns the review with signed in-tenant contact frames and a public reason", async () => {
+    const fixture = createCrossUserProjectFixture();
+    const frameKey = `users/${fixture.ownerUserId}/projects/${fixture.projectId}/renders/${createId()}/review/contact-1.png`;
+    const { renderId, rows } = reviewRows(
+      { ownerUserId: fixture.ownerUserId, projectId: fixture.projectId },
+      frameKey,
+    );
+    const signed: string[] = [];
+    const service = new PostgresRenderService(
+      databaseForRenderCommand({ rows, writes: [] }),
+      undefined,
+      undefined,
+      undefined,
+      {
+        createSignedDownload: async ({ key }) => {
+          signed.push(key);
+          return {
+            expiresAt: new Date("2026-09-26T08:05:00.000Z"),
+            method: "GET",
+            object: { bucket: "private", key },
+            requiredHeaders: {},
+            url: "https://storage.example.test/signed-frame",
+          };
+        },
+      },
+    );
+    const response = await service.detail({
+      ownerUserId: fixture.ownerUserId,
+      projectId: fixture.projectId,
+      renderId: renderId as never,
+    });
+    expect(response.errorCode).toBe("RENDER_REVIEW_FAILED");
+    expect(response.errorMessage).toMatch(/quality review/);
+    expect(response.video).toBeNull();
+    expect(response.review).toMatchObject({
+      outcome: "failed",
+      loudness: { integratedLufs: -17.2, peakDbfs: -2.1 },
+      findings: [expect.objectContaining({ atMs: 12_000, code: "NARRATION_SILENT" })],
+      contactSheet: [
+        { atMs: 3_000, position: 0.05, url: "https://storage.example.test/signed-frame" },
+      ],
+    });
+    expect(signed).toEqual([frameKey]);
+    expect(JSON.stringify(response.review)).not.toContain("users/");
+  });
+
+  it("does not show a superseded attempt's review on the current job", async () => {
+    const fixture = createCrossUserProjectFixture();
+    const { renderId, rows } = reviewRows(
+      { ownerUserId: fixture.ownerUserId, projectId: fixture.projectId },
+      `users/${fixture.ownerUserId}/projects/${fixture.projectId}/renders/x/review/contact-1.png`,
+      createId(new Date("2026-09-25T00:00:00.000Z")),
+    );
+    const createSignedDownload = vi.fn();
+    const response = await new PostgresRenderService(
+      databaseForRenderCommand({ rows, writes: [] }),
+      undefined,
+      undefined,
+      undefined,
+      { createSignedDownload },
+    ).detail({
+      ownerUserId: fixture.ownerUserId,
+      projectId: fixture.projectId,
+      renderId: renderId as never,
+    });
+    expect(response.review).toBeNull();
+    expect(createSignedDownload).not.toHaveBeenCalled();
+  });
+
+  it("refuses to sign a contact frame outside the render's tenant", async () => {
+    const fixture = createCrossUserProjectFixture();
+    const { renderId, rows } = reviewRows(
+      { ownerUserId: fixture.ownerUserId, projectId: fixture.projectId },
+      `users/${fixture.otherUserId}/projects/${fixture.projectId}/renders/x/review/contact-1.png`,
+    );
+    const createSignedDownload = vi.fn();
+    const service = new PostgresRenderService(
+      databaseForRenderCommand({ rows, writes: [] }),
+      undefined,
+      undefined,
+      undefined,
+      { createSignedDownload },
+    );
+    await expect(
+      service.detail({
+        ownerUserId: fixture.ownerUserId,
+        projectId: fixture.projectId,
+        renderId: renderId as never,
+      }),
+    ).rejects.toThrow("outside the render tenant");
+    expect(createSignedDownload).not.toHaveBeenCalled();
   });
 });

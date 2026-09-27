@@ -46,6 +46,8 @@ Store immutable records or immutable references; a mutable URL is not a snapshot
 
 The database-owned tenant/project scope is authoritative. A manifest checksum is not permission to access its referenced media. Validate ownership and checksum integrity before resolving assets in both preview and workers.
 
+ST-103 (ADR-012) records the first shape change under this rule. Production manifest `schemaVersion` 2 adds a required `soundBed` entry: the pinned background track's identity, or `null`. The asset manifest adds a matching optional `soundBed` entry. Readers still accept version 1. Catalog media lives outside every tenant prefix and is verified by checksum before rendering, with no fallback.
+
 ## CR-03 — Version Release and Retention
 
 Publishing a changed style, treatment, recipe, preset, font, or renderer produces a new immutable release. Never overwrite bytes behind a previously published identity. Retain the implementation bundle and dependency/assets needed for the promised historical rendering capability, not just a version string.
@@ -91,6 +93,8 @@ Preflight checks ownership, schema/version support, implementation availability,
 Preflight results are tied to manifest identity, validation ruleset, and relevant runtime environment. Reusing a result for changed inputs is invalid. A newer ruleset may prevent a new render of an old manifest, but must not mutate that manifest or historical approval evidence.
 
 Postflight verifies output properties, audio presence/duration, scene coverage, and caption/event timing evidence. Use representative visual frames plus full-clip inspection for the release fixtures. A successful encoder exit alone is insufficient proof of correct content.
+
+ST-103 (ADR-012) implements postflight as a deterministic post-render review with versioned thresholds (`render-review-v1`). It checks streams and duration, black frames, missing narration, audio level and caption promises, and stores a four-frame private contact sheet. Error findings block publication with `RENDER_REVIEW_FAILED`; warnings are recorded only.
 
 Record the immutable input identity, output checksum, render environment, validation result identity, and actual output location. Keep existing privacy rules for logs: no source text, secrets, signed URLs, or raw provider payloads.
 

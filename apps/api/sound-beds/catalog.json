@@ -1,0 +1,113 @@
+{
+  "generator": "st-103-synth-v1",
+  "tracks": [
+    {
+      "trackId": "morning-pad",
+      "title": "Morning Pad",
+      "moodTags": [
+        "calm",
+        "warm"
+      ],
+      "durationMs": 16000,
+      "loops": true,
+      "integratedLoudnessLufs": -20,
+      "peakDbfs": -8.4,
+      "checksumSha256": "a38c5d2e4807d0a92f4c0e12864af80f6cd0c59cc6c398ce561b974ff638e025",
+      "storageKey": "catalog/sound-beds/morning-pad/a38c5d2e4807d0a92f4c0e12864af80f6cd0c59cc6c398ce561b974ff638e025.wav",
+      "contentType": "audio/wav",
+      "licenseId": "CC0-1.0",
+      "sourceUrl": "https://creativecommons.org/publicdomain/zero/1.0/#avlp-sound-bed-morning-pad",
+      "attributionText": null
+    },
+    {
+      "trackId": "quiet-pulse",
+      "title": "Quiet Pulse",
+      "moodTags": [
+        "focused",
+        "calm"
+      ],
+      "durationMs": 16000,
+      "loops": true,
+      "integratedLoudnessLufs": -20,
+      "peakDbfs": -6.2,
+      "checksumSha256": "01ce1376fe1393bbaa83d3f0278928452f7ec449b4a3ef9e63306a095147fab0",
+      "storageKey": "catalog/sound-beds/quiet-pulse/01ce1376fe1393bbaa83d3f0278928452f7ec449b4a3ef9e63306a095147fab0.wav",
+      "contentType": "audio/wav",
+      "licenseId": "CC0-1.0",
+      "sourceUrl": "https://creativecommons.org/publicdomain/zero/1.0/#avlp-sound-bed-quiet-pulse",
+      "attributionText": null
+    },
+    {
+      "trackId": "soft-plucks",
+      "title": "Soft Plucks",
+      "moodTags": [
+        "bright",
+        "playful"
+      ],
+      "durationMs": 16000,
+      "loops": true,
+      "integratedLoudnessLufs": -20,
+      "peakDbfs": -5.7,
+      "checksumSha256": "7e89596eb29a8957cf485de98ae0890582b3401fa4bd2df7d411a3272f5434d6",
+      "storageKey": "catalog/sound-beds/soft-plucks/7e89596eb29a8957cf485de98ae0890582b3401fa4bd2df7d411a3272f5434d6.wav",
+      "contentType": "audio/wav",
+      "licenseId": "CC0-1.0",
+      "sourceUrl": "https://creativecommons.org/publicdomain/zero/1.0/#avlp-sound-bed-soft-plucks",
+      "attributionText": null
+    },
+    {
+      "trackId": "warm-drift",
+      "title": "Warm Drift",
+      "moodTags": [
+        "warm",
+        "reflective"
+      ],
+      "durationMs": 16000,
+      "loops": true,
+      "integratedLoudnessLufs": -20,
+      "peakDbfs": -7.2,
+      "checksumSha256": "8fed8e0d79250904a78980742eac9f16610eef6c5f25e943c856c2dd54a3d6c5",
+      "storageKey": "catalog/sound-beds/warm-drift/8fed8e0d79250904a78980742eac9f16610eef6c5f25e943c856c2dd54a3d6c5.wav",
+      "contentType": "audio/wav",
+      "licenseId": "CC0-1.0",
+      "sourceUrl": "https://creativecommons.org/publicdomain/zero/1.0/#avlp-sound-bed-warm-drift",
+      "attributionText": null
+    },
+    {
+      "trackId": "bright-steps",
+      "title": "Bright Steps",
+      "moodTags": [
+        "bright",
+        "playful"
+      ],
+      "durationMs": 16000,
+      "loops": true,
+      "integratedLoudnessLufs": -20,
+      "peakDbfs": -5.8,
+      "checksumSha256": "7d690296bbc1cee1ac7003b9f66c3826e896622f73d81ad6afa7322d54f75ce8",
+      "storageKey": "catalog/sound-beds/bright-steps/7d690296bbc1cee1ac7003b9f66c3826e896622f73d81ad6afa7322d54f75ce8.wav",
+      "contentType": "audio/wav",
+      "licenseId": "CC0-1.0",
+      "sourceUrl": "https://creativecommons.org/publicdomain/zero/1.0/#avlp-sound-bed-bright-steps",
+      "attributionText": null
+    },
+    {
+      "trackId": "night-glass",
+      "title": "Night Glass",
+      "moodTags": [
+        "reflective",
+        "calm"
+      ],
+      "durationMs": 16000,
+      "loops": true,
+      "integratedLoudnessLufs": -20,
+      "peakDbfs": -8,
+      "checksumSha256": "aca66c7914dd40b2f8a35e77293bd66429d1a977ce78baab43ab539a516fba88",
+      "storageKey": "catalog/sound-beds/night-glass/aca66c7914dd40b2f8a35e77293bd66429d1a977ce78baab43ab539a516fba88.wav",
+      "contentType": "audio/wav",
+      "licenseId": "CC0-1.0",
+      "sourceUrl": "https://creativecommons.org/publicdomain/zero/1.0/#avlp-sound-bed-night-glass",
+      "attributionText": null
+    }
+  ]
+}

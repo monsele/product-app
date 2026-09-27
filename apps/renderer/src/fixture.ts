@@ -74,6 +74,7 @@ export async function hydrateProductionComposition(
   payload: RenderJobPayload,
   composition: Readonly<FullLessonCompositionProps>,
   storage: ObjectStorage,
+  catalogStorage?: Pick<ObjectStorage, "createSignedDownload">,
 ): Promise<Readonly<FullLessonCompositionProps>> {
   if (payload.manifest === undefined) return composition;
   const expectedSceneIds = new Set(
@@ -154,6 +155,25 @@ export async function hydrateProductionComposition(
     throw new Error(
       "The production manifest is missing a bound immutable lesson asset.",
     );
+  // ST-103. The pinned bed is signed here, like narration, and only from the
+  // catalog store. The worker has already verified its presence and checksum.
+  const pinnedBed = payload.manifest.soundBed ?? null;
+  let soundBed: FullLessonCompositionProps["soundBed"];
+  if (pinnedBed !== null) {
+    if (catalogStorage === undefined)
+      throw new Error("A pinned sound bed requires the catalog store.");
+    soundBed = {
+      durationInFrames: Math.round((pinnedBed.durationMs * 30) / 1_000),
+      loops: pinnedBed.loops,
+      src: (
+        await catalogStorage.createSignedDownload({
+          key: pinnedBed.storageKey,
+          expiresInSeconds: 3_600,
+        })
+      ).url,
+      trackId: pinnedBed.trackId,
+    };
+  }
   return deepFreeze(
     fullLessonCompositionPropsSchema.parse({
       ...composition,
@@ -164,6 +184,7 @@ export async function hydrateProductionComposition(
         sceneId: entry.sceneId,
         src: entry.src,
       })),
+      ...(soundBed === undefined ? {} : { soundBed }),
     }),
   );
 }

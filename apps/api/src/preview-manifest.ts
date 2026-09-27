@@ -24,6 +24,7 @@ import { storageKeySchema, type ObjectStorage } from "@avlp/storage";
 import { approvedAssetById } from "./approved-assets.js";
 import { findLatestProjectParsedDocument } from "./project-parsed-document.js";
 import type { SourceSnapshotService } from "./source-snapshot.js";
+import type { SoundBedService } from "./sound-beds.js";
 
 const previewCanvas = Object.freeze({ fps: 30, height: 1_080, width: 1_920 });
 
@@ -37,6 +38,7 @@ export class PreviewManifestService {
       SourceSnapshotService,
       "latestApprovedVisuals"
     >,
+    private readonly soundBeds?: Pick<SoundBedService, "previewForProject">,
   ) {}
 
   public async get(input: {
@@ -396,10 +398,14 @@ export class PreviewManifestService {
         src: signed.url,
       };
     }
+    // ST-103. The preview plays the *configured* bed (a draft has no pinned
+    // version yet); the saved version pins it for every later render.
+    const soundBed = await this.soundBeds?.previewForProject(input);
     return previewManifestSchema.parse({
       assets,
       canvas: previewCanvas,
       ...(creativeDesign === undefined ? {} : { creativeDesign }),
+      ...(soundBed === undefined ? {} : { soundBed }),
       storyboard,
       generatedAt: new Date().toISOString(),
       scenes: entries,

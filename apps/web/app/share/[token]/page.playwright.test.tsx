@@ -40,4 +40,49 @@ describe("SharedLessonPage", () => {
       await browser.close();
     }
   });
+
+  it("ST-103: shows the credits a licensed sound bed requires, and nothing otherwise", async () => {
+    const response = (credits?: string[]) => ({
+      ok: true,
+      json: async () => ({
+        title: "States of matter",
+        thumbnailUrl: null,
+        playbackUrl: "https://media.example.test/playback",
+        ...(credits === undefined ? {} : { credits }),
+      }),
+    });
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const page = await browser.newPage();
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(
+          response(["Music: Future Track by Example Composer"]),
+        ),
+      );
+      await page.setContent(
+        renderToStaticMarkup(
+          await SharedLessonPage({
+            params: Promise.resolve({ token: "A".repeat(43) }),
+          }),
+        ),
+      );
+      expect(await page.getByLabel("Credits").textContent()).toBe(
+        "Music: Future Track by Example Composer",
+      );
+      vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response([])));
+      await page.setContent(
+        renderToStaticMarkup(
+          await SharedLessonPage({
+            params: Promise.resolve({ token: "A".repeat(43) }),
+          }),
+        ),
+      );
+      expect(await page.getByLabel("Credits").count()).toBe(0);
+      expect(await page.getByLabel("Shared lesson video").count()).toBe(1);
+    } finally {
+      vi.unstubAllGlobals();
+      await browser.close();
+    }
+  });
 });

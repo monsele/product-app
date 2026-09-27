@@ -37,6 +37,14 @@ export default async function SharedLessonPage({
           aria-label="Shared lesson video"
         />
       </section>
+      {/* ST-103: attribution owed by the video's licensed media, if any. */}
+      {result.data.credits.length === 0 ? null : (
+        <footer className={styles.credits} aria-label="Credits">
+          {result.data.credits.map((credit) => (
+            <p key={credit}>{credit}</p>
+          ))}
+        </footer>
+      )}
     </main>
   );
 }

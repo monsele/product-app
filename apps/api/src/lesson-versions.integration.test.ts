@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Identifier } from "@avlp/config";
 import { PublicError } from "@avlp/config";
 import {
@@ -18,6 +18,7 @@ import {
   parsedDocuments,
   projects,
   scenes,
+  soundBedTracks,
   sourceDocumentIngestionArtifacts,
   sourceDocuments,
   sourceSnapshots,
@@ -26,7 +27,7 @@ import {
 } from "@avlp/database";
 import { createTestDatabase, type TestDatabase } from "@avlp/database/testing";
 import { eq } from "drizzle-orm";
-import type { VersionSaveReadiness } from "@avlp/schemas";
+import { readPinnedSoundBed, type VersionSaveReadiness } from "@avlp/schemas";
 import { PostgresLessonVersionsService } from "./lesson-versions.js";
 import type { CitationHistoryService } from "./citation-history.js";
 
@@ -214,5 +215,78 @@ describeWithPostgres("PostgresLessonVersionsService readiness (Postgres)", () =>
     const result = await service.create({ ownerUserId, projectId, body: { reason: "explicit_save" }, correlationId: "019ffbf1-4444-7000-8000-000000000098" });
     expect(result.versions).toHaveLength(1);
     expect(result.currentVersionId).toBe(result.versions[0]!.id);
+  });
+
+});
+
+// ST-103. Each case needs its own database: a saved version is immutable, so
+// the shared seed cannot be re-run after one exists.
+describeWithPostgres("PostgresLessonVersionsService sound-bed pinning (Postgres)", () => {
+  let database: TestDatabase | undefined;
+
+  beforeEach(async () => {
+    database = await createTestDatabase(serverUrl!);
+    await migrateDatabase(database.client);
+  });
+
+  afterEach(async () => {
+    await database?.destroy();
+  });
+
+  it("ST-103: pins the configured sound bed into the saved version, unaffected by later configuration changes", async () => {
+    await seed(database!.client, "approved");
+    await database!.client
+      .update(lessonConfigurations)
+      .set({ soundBedTrackId: "quiet-pulse" })
+      .where(eq(lessonConfigurations.projectId, projectId));
+    const service = new PostgresLessonVersionsService(database!.client, fakeCitations, () => now);
+
+    const saved = await service.create({ ownerUserId, projectId, body: { reason: "explicit_save" }, correlationId: "019ffbf1-4444-7000-8000-000000000097" });
+    const versionId = saved.versions[0]!.id;
+    const readSnapshot = async () =>
+      (
+        await database!.client
+          .select({ snapshot: lessonVersions.snapshot })
+          .from(lessonVersions)
+          .where(eq(lessonVersions.id, versionId))
+      )[0]!.snapshot;
+    const [track] = await database!.client
+      .select()
+      .from(soundBedTracks)
+      .where(eq(soundBedTracks.trackId, "quiet-pulse"));
+    const pinned = readPinnedSoundBed(await readSnapshot());
+    expect(pinned).toEqual({
+      trackId: "quiet-pulse",
+      checksumSha256: track!.checksumSha256,
+      storageKey: track!.storageKey,
+      contentType: "audio/wav",
+      durationMs: 16_000,
+      loops: true,
+      integratedLoudnessLufs: track!.integratedLoudnessLufs,
+      peakDbfs: track!.peakDbfs,
+      licenseId: "CC0-1.0",
+      attributionText: null,
+    });
+
+    // Changing the track afterwards does not touch the saved version.
+    await database!.client
+      .update(lessonConfigurations)
+      .set({ soundBedTrackId: "night-glass" })
+      .where(eq(lessonConfigurations.projectId, projectId));
+    expect(readPinnedSoundBed(await readSnapshot())).toEqual(pinned);
+  });
+
+  it("ST-103: a version saved with no bed pins none, and a pre-ST-103 snapshot reads as none", async () => {
+    await seed(database!.client, "approved");
+    const service = new PostgresLessonVersionsService(database!.client, fakeCitations, () => now);
+    const saved = await service.create({ ownerUserId, projectId, body: { reason: "explicit_save" }, correlationId: "019ffbf1-4444-7000-8000-000000000096" });
+    const [row] = await database!.client
+      .select({ snapshot: lessonVersions.snapshot })
+      .from(lessonVersions)
+      .where(eq(lessonVersions.id, saved.versions[0]!.id));
+    expect((row!.snapshot as { soundBed: unknown }).soundBed).toBeNull();
+    const { soundBed: _removed, ...legacy } = row!.snapshot as Record<string, unknown>;
+    void _removed;
+    expect(readPinnedSoundBed(legacy)).toBeNull();
   });
 });

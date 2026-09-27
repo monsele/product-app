@@ -146,6 +146,7 @@ const sampleRenderStatus: RenderStatusResponse = {
   createdAt: "2026-08-26T12:00:00.000Z",
   startedAt: "2026-08-26T12:00:10.000Z",
   completedAt: "2026-08-26T12:01:00.000Z",
+  review: null,
   video: {
     id: "01989a3d-8e00-7000-8000-000000000005",
     durationMs: 35000,

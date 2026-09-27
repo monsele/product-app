@@ -21,6 +21,7 @@ const persisted: LessonConfiguration = {
   visualTheme: "mvp-default",
   videoApproach: "standard",
   creativeStylePack: null,
+  soundBed: "none",
   includeRecallQuestions: true,
   sourceParsedDocumentVersion: 1,
   updatedAt: "2026-08-16T12:00:00.000Z",
@@ -42,8 +43,24 @@ describe("lesson configuration form input", () => {
       targetDurationSeconds: 300,
       tone: "friendly",
       videoApproach: "standard",
+      creativeStylePack: null,
+      soundBed: "none",
       includeRecallQuestions: true,
     });
+  });
+
+  it("ST-103: carries the sound bed choice into the save input and change detection", () => {
+    const state = formStateFromConfiguration(persisted);
+    expect(buildConfigurationSaveInput(persisted, state)).toMatchObject({
+      soundBed: "none",
+    });
+    const chosen = { ...state, soundBed: "morning-pad" };
+    expect(hasConfigurationChanges(persisted, state)).toBe(false);
+    expect(hasConfigurationChanges(persisted, chosen)).toBe(true);
+    expect(buildConfigurationSaveInput(persisted, chosen)).toMatchObject({
+      soundBed: "morning-pad",
+    });
+    expect(emptyConfigurationFormState().soundBed).toBe("none");
   });
 
   it("builds a save input carrying the expected version", () => {

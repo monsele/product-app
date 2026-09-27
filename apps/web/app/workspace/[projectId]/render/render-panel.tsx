@@ -28,6 +28,8 @@ import {
   XCircle,
 } from "@phosphor-icons/react";
 
+import { RenderReviewPanel } from "./render-review-panel";
+
 function api(path: string): string {
   return `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}${path}`;
 }
@@ -1041,6 +1043,10 @@ export function RenderPanel({
                 )}
               </div>
             </div>
+          ) : null}
+          {/* ST-103: the post-render review, for delivered and blocked videos. */}
+          {latestRender?.review ? (
+            <RenderReviewPanel review={latestRender.review} />
           ) : null}
         </section>
 

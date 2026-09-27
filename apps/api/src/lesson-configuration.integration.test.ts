@@ -6,6 +6,7 @@ import {
   migrateDatabase,
   parsedDocuments,
   projects,
+  soundBedTracks,
   sourceDocumentIngestionArtifacts,
   sourceDocumentIngestionReuses,
   sourceDocuments,
@@ -280,6 +281,111 @@ describeWithPostgres("PostgresLessonConfigurationService", () => {
         .from(lessonConfigurations)
         .where(eq(lessonConfigurations.projectId, projectId)),
     ).toHaveLength(0);
+  });
+
+  it("ST-103: defaults the sound bed to none, persists a catalog track, keeps it when omitted, and clears it with none", async () => {
+    await markSourceReady();
+    const created = await service.save({
+      ownerUserId,
+      projectId,
+      body: validBody,
+      correlationId,
+    });
+    expect(created.configuration?.soundBed).toBe("none");
+
+    const chosen = await service.save({
+      ownerUserId,
+      projectId,
+      body: { ...validBody, expectedVersion: 1, soundBed: "morning-pad" },
+      correlationId,
+    });
+    expect(chosen.configuration?.soundBed).toBe("morning-pad");
+    expect(
+      (await service.get(ownerUserId, projectId)).configuration?.soundBed,
+    ).toBe("morning-pad");
+
+    const kept = await service.save({
+      ownerUserId,
+      projectId,
+      body: { ...validBody, expectedVersion: 2, tone: "academic" },
+      correlationId,
+    });
+    expect(kept.configuration?.soundBed).toBe("morning-pad");
+
+    const cleared = await service.save({
+      ownerUserId,
+      projectId,
+      body: { ...validBody, expectedVersion: 3, soundBed: "none" },
+      correlationId,
+    });
+    expect(cleared.configuration?.soundBed).toBe("none");
+    const [row] = await database!.client
+      .select({ soundBedTrackId: lessonConfigurations.soundBedTrackId })
+      .from(lessonConfigurations)
+      .where(eq(lessonConfigurations.projectId, projectId));
+    expect(row?.soundBedTrackId).toBeNull();
+  });
+
+  it("ST-103: rejects a track that is not an active catalog entry, without saving", async () => {
+    await markSourceReady();
+    await expect(
+      service.save({
+        ownerUserId,
+        projectId,
+        body: { ...validBody, soundBed: "not-a-track" },
+        correlationId,
+      }),
+    ).rejects.toMatchObject({ code: "validation_failed", statusCode: 400 });
+    await database!.client
+      .update(soundBedTracks)
+      .set({ status: "retired" })
+      .where(eq(soundBedTracks.trackId, "night-glass"));
+    try {
+      await expect(
+        service.save({
+          ownerUserId,
+          projectId,
+          body: { ...validBody, soundBed: "night-glass" },
+          correlationId,
+        }),
+      ).rejects.toMatchObject({ code: "validation_failed" });
+    } finally {
+      await database!.client
+        .update(soundBedTracks)
+        .set({ status: "active" })
+        .where(eq(soundBedTracks.trackId, "night-glass"));
+    }
+    expect(
+      (await service.get(ownerUserId, projectId)).configuration,
+    ).toBeNull();
+  });
+
+  it("ST-103: keeps a stored track that was later retired when other fields are saved", async () => {
+    await markSourceReady();
+    await service.save({
+      ownerUserId,
+      projectId,
+      body: { ...validBody, soundBed: "warm-drift" },
+      correlationId,
+    });
+    await database!.client
+      .update(soundBedTracks)
+      .set({ status: "retired" })
+      .where(eq(soundBedTracks.trackId, "warm-drift"));
+    try {
+      const saved = await service.save({
+        ownerUserId,
+        projectId,
+        body: { ...validBody, expectedVersion: 1, tone: "academic" },
+        correlationId,
+      });
+      expect(saved.configuration?.soundBed).toBe("warm-drift");
+    } finally {
+      await database!.client
+        .update(soundBedTracks)
+        .set({ status: "active" })
+        .where(eq(soundBedTracks.trackId, "warm-drift"));
+    }
   });
 
   it("bumps the version on every save and returns it after refresh", async () => {

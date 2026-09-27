@@ -66,6 +66,15 @@
   color: var(--focus-muted);
 }
 
+.credits {
+  color: var(--focus-muted);
+  font-size: 13px;
+}
+
+.credits p {
+  margin: 0;
+}
+
 @media (max-width: 767px) {
   .theater {
     gap: 16px;

@@ -4,11 +4,13 @@ import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   lessonConfigurationResponseSchema,
+  soundBedCatalogResponseSchema,
   voiceCatalogEntrySchema,
   voiceConfigurationResponseSchema,
   type LessonConfiguration,
   type LessonConfigurationResponse,
   type PronunciationOverride,
+  type SoundBedCatalogItem,
   type VoiceCatalogEntry,
   type VoiceConfiguration,
   type VoiceConfigurationResponse,
@@ -20,6 +22,7 @@ import {
   Globe,
   Info,
   Microphone,
+  MusicNotes,
   Palette,
   Play,
   Plus,
@@ -54,6 +57,10 @@ import {
   type DemonstrationEligibility,
 } from "@avlp/schemas/demonstration-pilot";
 import { VideoApproachSelector } from "./video-approach-selector";
+import {
+  SoundBedSelector,
+  soundBedLabel,
+} from "./sound-bed-selector";
 import {
   CreativeStylePackSelector,
   creativeStylePackOptions,
@@ -149,6 +156,11 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
   );
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
 
+  // ST-103. The sound-bed catalog. A catalog failure does not block the
+  // rest of configuration; the picker then offers only "No background music".
+  const [soundBeds, setSoundBeds] = useState<SoundBedCatalogItem[]>([]);
+  const [soundBedCatalogError, setSoundBedCatalogError] = useState(false);
+
   // Field validation errors
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -159,8 +171,13 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
   const loadData = useCallback(async () => {
     try {
       setLoadingState({ kind: "loading" });
-      const [lessonRes, voiceConfigRes, catalogRes, eligibilityRes] =
-        await Promise.all([
+      const [
+        lessonRes,
+        voiceConfigRes,
+        catalogRes,
+        eligibilityRes,
+        soundBedRes,
+      ] = await Promise.all([
         fetch(apiUrl(`/projects/${encodeURIComponent(projectId)}/configuration`), {
           credentials: "include",
           cache: "no-store",
@@ -178,7 +195,21 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
           ),
           { credentials: "include", cache: "no-store" },
         ),
+        fetch(apiUrl("/sound-beds"), {
+          credentials: "include",
+          cache: "no-store",
+        }).catch(() => null),
       ]);
+      const soundBedCatalog =
+        soundBedRes?.ok === true
+          ? soundBedCatalogResponseSchema.safeParse(
+              await soundBedRes.json().catch(() => null),
+            )
+          : undefined;
+      setSoundBeds(
+        soundBedCatalog?.success === true ? soundBedCatalog.data.tracks : [],
+      );
+      setSoundBedCatalogError(soundBedCatalog?.success !== true);
 
       if (!lessonRes.ok || !voiceConfigRes.ok) {
         throw new Error("Unable to load lesson configuration settings.");
@@ -1471,6 +1502,48 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
             />
           </fieldset>
 
+          {/* Section 3a: Background sound (ST-103) */}
+          <fieldset
+            style={{
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-card)",
+              padding: "20px",
+              backgroundColor: "var(--color-surface)",
+              margin: 0,
+              display: "flex",
+              flexDirection: "column",
+              gap: "12px",
+            }}
+          >
+            <legend
+              style={{
+                fontSize: "16px",
+                fontWeight: 600,
+                color: "var(--color-text)",
+                padding: "0 8px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              <MusicNotes
+                size={18}
+                weight="bold"
+                style={{ color: "var(--color-brand)" }}
+              />
+              Background sound
+            </legend>
+            <SoundBedSelector
+              catalogUnavailable={soundBedCatalogError}
+              disabled={saveStatus.kind === "saving"}
+              onChange={(soundBed) => {
+                setLessonForm((prev) => ({ ...prev, soundBed }));
+              }}
+              tracks={soundBeds}
+              value={lessonForm.soundBed}
+            />
+          </fieldset>
+
           {/* Section 3b: Video approach (ST-096) */}
           <fieldset
             style={{
@@ -2177,6 +2250,27 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
                 {creativeStylePackOptions.find(
                   (option) => option.value === lessonForm.creativeStylePack,
                 )?.label ?? "Warm editorial"}
+              </span>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: "8px",
+              }}
+            >
+              <span style={{ color: "var(--color-text-muted)" }}>
+                Background Sound:
+              </span>
+              <span
+                style={{
+                  fontWeight: 500,
+                  color: "var(--color-text)",
+                  textAlign: "right",
+                }}
+              >
+                {soundBedLabel(lessonForm.soundBed, soundBeds)}
               </span>
             </div>
 

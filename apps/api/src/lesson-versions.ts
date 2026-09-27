@@ -19,6 +19,7 @@ import {
   narrationSets,
   projects,
   scenes,
+  soundBedTracks,
   sourceSnapshots,
   voiceConfigurations,
   type DatabaseClient,
@@ -28,6 +29,8 @@ import {
   lessonSpecSchema,
   lessonStoryboardSchema,
   lessonVersionCreateSchema,
+  pinSoundBed,
+  soundBedCatalogEntrySchema,
   lessonVersionDetailSchema,
   lessonVersionRestoreSchema,
   lessonVersionsResponseSchema,
@@ -683,9 +686,50 @@ async function loadState(db: DatabaseExecutor, scope: Scope) {
           .limit(1)
       )[0]
     : undefined;
+  // ST-103. The configured bed is resolved here, when the version is saved,
+  // and pinned by identity into the snapshot. A retired track that was chosen
+  // while active still resolves: its checksum-addressed bytes are retained.
+  const soundBedTrackId = configuration?.soundBedTrackId ?? null;
+  const soundBedRow =
+    soundBedTrackId === null
+      ? undefined
+      : (
+          await db
+            .select()
+            .from(soundBedTracks)
+            .where(eq(soundBedTracks.trackId, soundBedTrackId))
+            .limit(1)
+        )[0];
+  if (soundBedTrackId !== null && soundBedRow === undefined)
+    throw new PublicError(
+      "bad_request",
+      "The configured sound bed is no longer in the catalog. Choose another in lesson configuration.",
+      409,
+    );
+  const soundBed =
+    soundBedRow === undefined
+      ? null
+      : pinSoundBed(
+          soundBedCatalogEntrySchema.parse({
+            trackId: soundBedRow.trackId,
+            title: soundBedRow.title,
+            moodTags: soundBedRow.moodTags,
+            durationMs: soundBedRow.durationMs,
+            loops: soundBedRow.loops,
+            integratedLoudnessLufs: soundBedRow.integratedLoudnessLufs,
+            peakDbfs: soundBedRow.peakDbfs,
+            checksumSha256: soundBedRow.checksumSha256,
+            storageKey: soundBedRow.storageKey,
+            contentType: soundBedRow.contentType,
+            licenseId: soundBedRow.licenseId,
+            sourceUrl: soundBedRow.sourceUrl,
+            attributionText: soundBedRow.attributionText,
+          }),
+        );
   return {
     configuration,
     voiceConfiguration,
+    soundBed,
     objectives,
     outline,
     narration,
@@ -1095,6 +1139,10 @@ export function buildLessonVersionSnapshot(
             manifest: state.creativeDesign.manifest,
           }
         : null,
+      // ST-103: the resolved background bed, pinned by track ID and checksum.
+      // `null` means no bed. Snapshots saved before this story have no key at
+      // all, which `readPinnedSoundBed` reads the same way.
+      soundBed: state.soundBed,
       mediaReferences: mediaReferences(state.storyboard.payload),
       versions: {
         lessonSpec: "1.8",

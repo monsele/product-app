@@ -470,6 +470,13 @@
       "when": 1790000360000,
       "tag": "0066_lesson_configuration_creative_style_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1790000420000,
+      "tag": "0067_sound_bed_and_render_review",
+      "breakpoints": true
     }
   ]
 }

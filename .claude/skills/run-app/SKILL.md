@@ -60,6 +60,14 @@ docker exec product-app-postgres-1 psql -U postgres -d visual_learning -c "\dt"
 A healthy schema is 40+ tables. If you see only `database_metadata`, the migration
 did not run.
 
+Then register the sound-bed catalog bytes (ST-103). The step is idempotent and
+prints how many tracks were uploaded or already present. Without it, a render of
+a lesson with a chosen background bed fails with `SOUND_BED_UNAVAILABLE`.
+
+```sh
+pnpm --filter @avlp/api sound-beds:register
+```
+
 ## 4. Node services
 
 ```sh

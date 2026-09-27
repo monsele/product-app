@@ -4,9 +4,15 @@ import {
   creativeDesignManifestSchema,
   creativeDesignPackIdSchema,
 } from "./creative-design.js";
+import {
+  renderReviewSummarySchema,
+  soundBedChoiceSchema,
+  soundBedTrackIdSchema,
+} from "./sound-bed.js";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 export * from "./creative-design.js";
+export * from "./sound-bed.js";
 
 export const lessonSpecVersion = "1.8" as const;
 export const previousLessonSpecVersion = "1.7" as const;
@@ -2712,6 +2718,10 @@ export const lessonConfigurationSchema = z
      * when the storyboard is generated; it is independent of `visualTheme`,
      * which stays pinned to `mvp-default` as the legacy render-token axis. */
     creativeStylePack: creativeDesignPackIdSchema.nullable(),
+    /** ST-103. `none` (the default, and every configuration stored before
+     * this story) plays no background bed. A track ID is resolved against the
+     * catalog and pinned when a lesson version is saved. */
+    soundBed: soundBedChoiceSchema,
     includeRecallQuestions: z.boolean(),
     sourceParsedDocumentVersion: z.number().int().positive(),
     updatedAt: z.string().datetime({ offset: true }),
@@ -2739,6 +2749,9 @@ export const lessonConfigurationInputSchema = z
     /** ST-102. Omitted keeps the stored value untouched; an explicit `null`
      * switches back to the legacy `mvp-default` appearance. */
     creativeStylePack: creativeDesignPackIdSchema.nullable().optional(),
+    /** ST-103. Omitted keeps the stored value untouched; `none` removes the
+     * bed. A track ID must be registered in the catalog (checked by the API). */
+    soundBed: soundBedChoiceSchema.optional(),
     includeRecallQuestions: z.boolean(),
   })
   .strict();
@@ -5904,6 +5917,14 @@ export const renderErrorCodeSchema = z.enum([
   "RENDER_STORAGE_FAILED",
   "RENDER_FAILED",
   "RENDER_CANCELLED",
+  /** ST-103. The post-render review found a blocking defect. */
+  "RENDER_REVIEW_FAILED",
+  /** ST-103. The review could not run; nothing was delivered unreviewed. */
+  "RENDER_REVIEW_UNAVAILABLE",
+  /** ST-103. The pinned background track is missing from the catalog store. */
+  "SOUND_BED_UNAVAILABLE",
+  /** ST-103. The pinned background track's bytes no longer match. */
+  "SOUND_BED_CHECKSUM_MISMATCH",
 ]);
 export type RenderErrorCode = z.infer<typeof renderErrorCodeSchema>;
 
@@ -5949,6 +5970,8 @@ export const renderStatusResponseSchema = z
     startedAt: z.string().datetime({ offset: true }).nullable(),
     completedAt: z.string().datetime({ offset: true }).nullable(),
     video: renderedVideoSchema.nullable(),
+    /** ST-103. The post-render review, once it has run for this render. */
+    review: renderReviewSummarySchema.nullable(),
   })
   .strict();
 export type RenderStatusResponse = z.infer<typeof renderStatusResponseSchema>;
@@ -5976,6 +5999,9 @@ export const versionExportManifestSchema = z
     lessonVersionId: identifierSchema,
     title: boundedText(200),
     subject: boundedText(200),
+    /** ST-103. Required media attribution; omitted when none is owed, so
+     * exports of lessons without such media are unchanged. */
+    credits: z.array(boundedText(500)).min(1).max(5).optional(),
     narration: z
       .array(
         z
@@ -6055,6 +6081,10 @@ export const publicPlaybackSchema = z
     title: boundedText(200),
     thumbnailUrl: z.string().url().nullable(),
     playbackUrl: z.string().url(),
+    /** ST-103. License attribution the video's media requires (for example a
+     * sound bed whose license asks for credit). Empty when none is owed; a
+     * response from an API that predates the field reads as empty. */
+    credits: z.array(boundedText(500)).max(5).default([]),
   })
   .strict();
 export type PublicPlayback = z.infer<typeof publicPlaybackSchema>;
@@ -6383,6 +6413,18 @@ export const previewManifestSchema = z
     /** The immutable design selection paired with this storyboard revision.
      * Omitted for legacy lessons, which retain the mvp-default appearance. */
     creativeDesign: creativeDesignManifestSchema.optional(),
+    /** ST-103. The configured background bed, resolved from the catalog with
+     * a short-lived signed URL. Omitted when the lesson has no bed. */
+    soundBed: z
+      .object({
+        trackId: soundBedTrackIdSchema,
+        url: z.string().url(),
+        expiresAt: z.string().datetime({ offset: true }),
+        durationMs: z.number().int().positive(),
+        loops: z.boolean(),
+      })
+      .strict()
+      .optional(),
     canvas: z
       .object({
         fps: z.number().int().positive().max(120),

@@ -3,7 +3,10 @@ import { canonicalJsonPolicy, hashJobOptions } from "@avlp/jobs";
 import { fullLessonCompositionPropsSchema } from "@avlp/scene-library";
 import {
   lessonSpecSchema,
+  pinnedSoundBedSchema,
   readVideoApproach,
+  soundBedStorageKeySchema,
+  soundBedTrackIdSchema,
   sourceTableVisualSchema,
   videoApproachSchema,
 } from "@avlp/schemas";
@@ -24,9 +27,14 @@ export const manualLessonFixtureId = "photosynthesis-three-minute-v1" as const;
  * output made under `st-024` stays exactly as it was, and a new render of the
  * same content gets a new identity rather than silently inheriting the old
  * one's hashes.
+ *
+ * Bumped by ST-103: the full-lesson composition gained an optional ducked
+ * sound bed, and every render now passes a post-render review before it is
+ * completed. Both change what a manifest produces or whether it is
+ * delivered, so a new identity is required (CR-03).
  */
 export const renderImplementationVersion =
-  "st-101-remotion-4.0.507-creative-design-style-packs-v2" as const;
+  "st-103-remotion-4.0.507-sound-bed-render-review-v1" as const;
 /** Canonical serialization policy used for render-affecting identity hashes. */
 export const renderIdentityPolicy = canonicalJsonPolicy;
 
@@ -79,10 +87,25 @@ export const renderAssetSchema = z
   })
   .strict();
 
+/** ST-103. The pinned background track. It is platform catalog media, not a
+ * scene asset, so it has its own entry and its own verification path. */
+export const renderSoundBedAssetSchema = z
+  .object({
+    checksumSha256: sha256ChecksumSchema,
+    contentType: z.literal("audio/wav"),
+    storageKey: soundBedStorageKeySchema,
+    trackId: soundBedTrackIdSchema,
+  })
+  .strict();
+export type RenderSoundBedAsset = z.infer<typeof renderSoundBedAssetSchema>;
+
 export const renderAssetManifestSchema = z
   .object({
     assets: z.array(renderAssetSchema).max(100),
     schemaVersion: z.literal(1),
+    /** ST-103. Omitted when the lesson version has no bed, which keeps a
+     * no-bed asset manifest byte-identical to its pre-ST-103 form. */
+    soundBed: renderSoundBedAssetSchema.optional(),
   })
   .strict()
   .superRefine((manifest, context) => {
@@ -155,7 +178,11 @@ export const renderJobPayloadSchema = z
     /** A versioned production manifest contains only immutable snapshot data. */
     manifest: z
       .object({
-        schemaVersion: z.literal(1),
+        /** 1 before ST-103; 2 adds the required `soundBed` entry. Readers
+         * accept both, and a version-1 manifest renders without a bed. */
+        schemaVersion: z.union([z.literal(1), z.literal(2)]),
+        /** ST-103. Present (possibly `null`) exactly on version 2. */
+        soundBed: pinnedSoundBedSchema.nullable().optional(),
         lessonVersionId: identifierSchema,
         lessonVersionContentHash: sha256ChecksumSchema,
         /** Absent only on legacy queued manifests created before ST-098. */
@@ -253,6 +280,43 @@ export const renderJobPayloadSchema = z
         code: z.ZodIssueCode.custom,
         path: ["manifest", "demonstration"],
         message: "A standard render must not carry a demonstration plan.",
+      });
+    if (value.manifest !== undefined) {
+      const { schemaVersion, soundBed } = value.manifest;
+      if (schemaVersion === 2 && soundBed === undefined)
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["manifest", "soundBed"],
+          message:
+            "A version-2 render manifest must state its sound bed, even when there is none.",
+        });
+      if (schemaVersion === 1 && soundBed !== undefined)
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["manifest", "soundBed"],
+          message: "A version-1 render manifest predates sound beds.",
+        });
+      const pinned = soundBed ?? null;
+      const asset = value.assetManifest.soundBed ?? null;
+      if (
+        (pinned === null) !== (asset === null) ||
+        (pinned !== null &&
+          asset !== null &&
+          (pinned.trackId !== asset.trackId ||
+            pinned.checksumSha256 !== asset.checksumSha256 ||
+            pinned.storageKey !== asset.storageKey))
+      )
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["assetManifest", "soundBed"],
+          message:
+            "The asset manifest must pin exactly the manifest's sound bed.",
+        });
+    } else if (value.assetManifest.soundBed !== undefined)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["assetManifest", "soundBed"],
+        message: "A fixture render has no sound bed.",
       });
     if (value.fixtureId === undefined && value.manifest === undefined)
       context.addIssue({

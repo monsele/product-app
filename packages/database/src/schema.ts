@@ -1200,6 +1200,33 @@ export const usageRecords = pgTable(
 export const videoApproachValues = ["standard", "demonstration"] as const;
 export const videoApproach = pgEnum("video_approach", videoApproachValues);
 
+/**
+ * ST-103. The curated, licensed background-bed catalog. Platform-owned and
+ * shared by every tenant, so it has no project or owner columns. Rows are
+ * seeded by migration from `apps/api/sound-beds/catalog.json`; the bytes live
+ * at a checksum-addressed key under `catalog/sound-beds/` and are never
+ * overwritten. A retired row stays readable for pinned lesson versions.
+ */
+export const soundBedTrackStatusValues = ["active", "retired"] as const;
+export const soundBedTracks = pgTable("sound_bed_tracks", {
+  trackId: text("track_id").primaryKey(),
+  title: text("title").notNull(),
+  moodTags: jsonb("mood_tags").notNull(),
+  durationMs: integer("duration_ms").notNull(),
+  loops: boolean("loops").notNull(),
+  integratedLoudnessLufs: real("integrated_loudness_lufs").notNull(),
+  peakDbfs: real("peak_dbfs").notNull(),
+  checksumSha256: text("checksum_sha256").notNull(),
+  storageKey: text("storage_key").notNull().unique(),
+  contentType: text("content_type").notNull(),
+  licenseId: text("license_id").notNull(),
+  sourceUrl: text("source_url").notNull(),
+  attributionText: text("attribution_text"),
+  status: text("status").notNull().default("active"),
+  sortOrder: integer("sort_order").notNull(),
+  registeredAt: utcTimestamp("registered_at").notNull().defaultNow(),
+});
+
 export const lessonConfigurations = pgTable(
   "lesson_configurations",
   {
@@ -1225,6 +1252,13 @@ export const lessonConfigurations = pgTable(
      * pgEnum because the pack catalogue has already grown once (ADR-010)
      * without needing a migration. */
     creativeStylePack: text("creative_style_pack"),
+    /** ST-103. `null` (every pre-existing row) means no background bed. A
+     * track ID references the platform catalog; it is resolved and pinned
+     * into the lesson-version snapshot when a version is saved. */
+    soundBedTrackId: text("sound_bed_track_id").references(
+      () => soundBedTracks.trackId,
+      { onDelete: "restrict" },
+    ),
     includeRecallQuestions: boolean("include_recall_questions")
       .notNull()
       .default(false),
@@ -2398,6 +2432,36 @@ export const renderThumbnails = pgTable(
   (table) => [
     uniqueIndex("render_thumbnails_video_unique").on(table.renderedVideoId),
     index("render_thumbnails_owner_project_idx").on(
+      table.ownerUserId,
+      table.projectId,
+    ),
+  ],
+);
+
+/**
+ * ST-103. One versioned post-render review per render job. A retried job
+ * re-runs the review and upserts this row, so there is never more than one.
+ * Contact-sheet frames are private objects under the tenant's render prefix.
+ */
+export const renderReviewReports = pgTable(
+  "render_review_reports",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    renderJobId: uuid("render_job_id")
+      .notNull()
+      .references(() => renderJobs.id, { onDelete: "restrict" }),
+    reviewVersion: text("review_version").notNull(),
+    outcome: text("outcome").notNull(),
+    attempt: integer("attempt").notNull(),
+    report: jsonb("report").notNull(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("render_review_reports_render_job_unique").on(
+      table.renderJobId,
+    ),
+    index("render_review_reports_owner_project_idx").on(
       table.ownerUserId,
       table.projectId,
     ),

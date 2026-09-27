@@ -166,6 +166,40 @@ describe("preview manifest", () => {
     expect(manifest.creativeDesign).toEqual(design);
   });
 
+  it("ST-103: includes the project's configured sound bed with a fresh signed URL, and omits none", async () => {
+    const signer = {
+      createSignedDownload: vi.fn().mockResolvedValue({
+        url: "https://storage.example.test/audio",
+        expiresAt: new Date("2026-08-24T10:05:00.000Z"),
+      }),
+    };
+    const bed = {
+      trackId: "quiet-pulse",
+      url: "https://storage.example.test/catalog/sound-beds/quiet-pulse.wav?signature=x",
+      expiresAt: "2026-08-24T10:05:00.000Z",
+      durationMs: 16_000,
+      loops: true,
+    };
+    const previewForProject = vi.fn().mockResolvedValue(bed);
+    const withBed = await new PreviewManifestService(
+      databaseFor(rows()),
+      signer,
+      undefined,
+      { previewForProject },
+    ).get({ ownerUserId, projectId });
+    expect(withBed.soundBed).toEqual(bed);
+    expect(previewForProject).toHaveBeenCalledWith(
+      expect.objectContaining({ ownerUserId, projectId }),
+    );
+    const withoutBed = await new PreviewManifestService(
+      databaseFor(rows()),
+      signer,
+      undefined,
+      { previewForProject: vi.fn().mockResolvedValue(undefined) },
+    ).get({ ownerUserId, projectId });
+    expect(withoutBed).not.toHaveProperty("soundBed");
+  });
+
   it("marks missing scene records and unresolved assets as stale", async () => {
     const missingAssetId = "01989a3d-8e00-7000-8000-000000000020";
     const manifest = await new PreviewManifestService(

@@ -16,6 +16,7 @@ import {
   exportFormatSchema,
   exportTypeSchema,
   lessonSpecSchema,
+  readPinnedSoundBed,
   versionExportManifestSchema,
   type VersionExportManifest,
 } from "@avlp/schemas";
@@ -336,14 +337,19 @@ function storyboard(
     lessonVersionId: manifest.lessonVersionId,
     title: manifest.title,
     subject: manifest.subject,
+    ...(manifest.credits === undefined ? {} : { credits: manifest.credits }),
     scenes: [...manifest.scenes].sort(
       (left, right) => left.number - right.number,
     ),
   };
+  const creditsMarkdown =
+    manifest.credits === undefined
+      ? ""
+      : `\n## Credits\n\n${manifest.credits.join("\n\n")}\n`;
   const body =
     format === "json"
       ? JSON.stringify(document, null, 2) + "\n"
-      : `# ${document.title} storyboard\n\n${document.scenes.map((scene) => `## Scene ${scene.number}: ${scene.template}\n\nDuration: ${scene.durationSeconds} seconds\n\nOn-screen text: ${scene.onScreenText.join(" | ")}\n\nNarration: ${scene.narration}`).join("\n\n")}\n`;
+      : `# ${document.title} storyboard\n\n${document.scenes.map((scene) => `## Scene ${scene.number}: ${scene.template}\n\nDuration: ${scene.durationSeconds} seconds\n\nOn-screen text: ${scene.onScreenText.join(" | ")}\n\nNarration: ${scene.narration}`).join("\n\n")}\n${creditsMarkdown}`;
   return result(
     manifest.lessonVersionId,
     body,
@@ -382,6 +388,7 @@ function versionExportManifest(
     lessonVersionId,
     title: snapshot.lessonSpec.title,
     subject: snapshot.lessonSpec.subject,
+    ...credits(snapshot),
     narration: snapshot.narration.blocks.map((block) => ({
       order: block.order,
       text: block.text,
@@ -394,6 +401,13 @@ function versionExportManifest(
       onScreenText: scene.onScreenText,
     })),
   });
+}
+/** ST-103. Attribution owed by the version's pinned sound bed, if any. */
+function credits(snapshot: unknown): { credits?: string[] } {
+  const attribution = readPinnedSoundBed(snapshot)?.attributionText;
+  return attribution === undefined || attribution === null
+    ? {}
+    : { credits: [attribution] };
 }
 function safeStem(value: string): string {
   const normalized = value

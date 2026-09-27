@@ -8,6 +8,7 @@ import {
   ingestionQualityReports,
   lessonConfigurations,
   projects,
+  soundBedTracks,
   sourceSnapshots,
   type DatabaseClient,
   type DatabaseExecutor,
@@ -19,7 +20,9 @@ import {
   lessonConfigurationResponseSchema,
   defaultVideoApproach,
   narrationWordCountRange,
+  readSoundBedChoice,
   readVideoApproach,
+  soundBedNone,
   type LessonConfiguration,
   type LessonConfigurationInput,
   type LessonConfigurationResponse,
@@ -124,6 +127,39 @@ export class PostgresLessonConfigurationService implements LessonConfigurationSe
       );
       assertExpectedVersion(current, parsed.expectedVersion);
 
+      // ST-103. A newly chosen track must be an active catalog row. Keeping
+      // the stored choice (omitted field, or the same ID re-sent) is always
+      // allowed, so retiring a track never blocks unrelated saves.
+      const soundBedTrackId =
+        parsed.soundBed === undefined
+          ? (current?.soundBedTrackId ?? null)
+          : parsed.soundBed === soundBedNone
+            ? null
+            : parsed.soundBed;
+      if (
+        soundBedTrackId !== null &&
+        soundBedTrackId !== (current?.soundBedTrackId ?? null)
+      ) {
+        const [track] = await transaction
+          .select({ trackId: soundBedTracks.trackId })
+          .from(soundBedTracks)
+          .where(
+            and(
+              eq(soundBedTracks.trackId, soundBedTrackId),
+              eq(soundBedTracks.status, "active"),
+            ),
+          )
+          .limit(1);
+        if (track === undefined)
+          throw new PublicError(
+            "validation_failed",
+            "Request validation failed.",
+            400,
+            false,
+            { soundBed: "Choose a sound bed from the catalog, or none." },
+          );
+      }
+
       // A stale or hand-crafted request must not persist an experimental choice
       // merely because the browser hid its radio control. Recheck the *effective*
       // value too: an existing demonstration choice remains subject to the same
@@ -169,6 +205,7 @@ export class PostgresLessonConfigurationService implements LessonConfigurationSe
             visualTheme: "mvp-default",
             videoApproach: parsed.videoApproach ?? defaultVideoApproach,
             creativeStylePack: parsed.creativeStylePack ?? null,
+            soundBedTrackId,
             includeRecallQuestions: parsed.includeRecallQuestions,
             sourceParsedDocumentVersion: source.parsedDocumentVersion,
             createdAt: timestamp,
@@ -201,6 +238,7 @@ export class PostgresLessonConfigurationService implements LessonConfigurationSe
             ...(parsed.creativeStylePack === undefined
               ? {}
               : { creativeStylePack: parsed.creativeStylePack }),
+            soundBedTrackId,
             includeRecallQuestions: parsed.includeRecallQuestions,
             sourceParsedDocumentVersion: source.parsedDocumentVersion,
             updatedAt: timestamp,
@@ -248,6 +286,7 @@ export class PostgresLessonConfigurationService implements LessonConfigurationSe
           version: saved.version,
           videoApproach: saved.videoApproach,
           creativeStylePack: saved.creativeStylePack,
+          soundBed: readSoundBedChoice(saved.soundBedTrackId),
           sourceParsedDocumentVersion: saved.sourceParsedDocumentVersion,
           stage:
             project.stage === "ingestion_review"
@@ -416,6 +455,8 @@ function toConfiguration(row: ConfigRow): NonNullable<LessonConfiguration> {
     // unknown approach means.
     videoApproach: readVideoApproach(row.videoApproach),
     creativeStylePack: row.creativeStylePack,
+    // ST-103. `null` - every row stored before this story - reads as `none`.
+    soundBed: readSoundBedChoice(row.soundBedTrackId),
     includeRecallQuestions: row.includeRecallQuestions,
     sourceParsedDocumentVersion: row.sourceParsedDocumentVersion,
     updatedAt: serializeUtcTimestamp(row.updatedAt),

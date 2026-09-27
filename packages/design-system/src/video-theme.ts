@@ -63,6 +63,18 @@ export type VideoTheme = Readonly<{
   motion: Readonly<
     Record<"enter" | "exit" | "emphasize" | "reveal", MotionPreset>
   >;
+  /** ST-103. Mix levels for the optional background sound bed. Gains are
+   * linear multipliers on a catalog track that was loudness-normalised at
+   * registration; times are milliseconds on the composition timeline. */
+  audio: Readonly<{
+    soundBed: Readonly<{
+      level: number;
+      duckedLevel: number;
+      duckRampMs: number;
+      fadeInMs: number;
+      fadeOutMs: number;
+    }>;
+  }>;
 }>;
 
 export const videoFont = Object.freeze({
@@ -107,6 +119,15 @@ export const videoTheme: VideoTheme = Object.freeze({
     emphasize: { durationInFrames: 10, easing: [0.34, 1.56, 0.64, 1] },
     reveal: { durationInFrames: 15, easing: [0, 0, 0.2, 1] },
   } as const,
+  audio: {
+    soundBed: {
+      level: 0.12,
+      duckedLevel: 0.04,
+      duckRampMs: 250,
+      fadeInMs: 1_500,
+      fadeOutMs: 2_000,
+    },
+  },
 });
 
 export const transitionPresets = ["cut", "fade", "slide"] as const;

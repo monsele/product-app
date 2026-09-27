@@ -20,6 +20,7 @@ import {
   createS3CompatibleObjectStorage,
   type ObjectStorage,
 } from "@avlp/storage";
+import { soundBedCatalogPrefix } from "@avlp/schemas";
 import { z } from "zod";
 import { createRenderJobHandler } from "./render-worker.js";
 import { PostgresRenderLifecycle } from "./render-lifecycle.js";
@@ -77,15 +78,23 @@ export async function shutdownRenderWorkerResources(input: {
     input.logger.error("worker.shutdown_failed", { service: "renderer" });
 }
 
+/**
+ * The renderer's storage clients. Tenant media is confined to `users/`; the
+ * ST-103 sound-bed catalog is a second, separate client confined to the
+ * platform-owned `catalog/sound-beds` prefix, so no tenant-scoped code path
+ * can reach catalog bytes and the catalog client cannot reach tenant data.
+ */
 async function createStorage(
   environmentInput: Record<string, string | undefined>,
+  scope: "catalog" | "tenant" = "tenant",
 ): Promise<ObjectStorage> {
   const environment = storageEnvironmentSchema
     .and(z.object({ OBJECT_STORAGE_BUCKET: z.string().min(1) }))
     .parse(environmentInput);
   return createS3CompatibleObjectStorage({
-    allowedPrefix: "users",
-    allowedUploadContentTypes: ["video/mp4", "image/png"],
+    allowedPrefix: scope === "catalog" ? soundBedCatalogPrefix : "users",
+    allowedUploadContentTypes:
+      scope === "catalog" ? ["audio/wav"] : ["video/mp4", "image/png"],
     allowInsecureEndpoint: environment.OBJECT_STORAGE_ALLOW_INSECURE_ENDPOINT,
     bucket: environment.OBJECT_STORAGE_BUCKET,
     ...(environment.OBJECT_STORAGE_ACCESS_KEY === undefined
@@ -121,6 +130,7 @@ export async function runRenderWorker(
     logger?: StructuredLogger;
     signal?: AbortSignal;
     storageFactory?: () => Promise<ObjectStorage>;
+    catalogStorageFactory?: () => Promise<ObjectStorage>;
   } = {},
 ): Promise<void> {
   parseWorkerEnvironment(environmentInput);
@@ -146,6 +156,8 @@ export async function runRenderWorker(
     await database.healthCheck();
     const storage = await (options.storageFactory?.() ??
       createStorage(environmentInput));
+    const catalogStorage = await (options.catalogStorageFactory?.() ??
+      createStorage(environmentInput, "catalog"));
     const handler = createRenderJobHandler({
       ...(renderEnvironment.RENDER_BROWSER_EXECUTABLE === undefined
         ? {}
@@ -153,6 +165,7 @@ export async function runRenderWorker(
       timeoutMs: renderEnvironment.RENDER_TIMEOUT_SECONDS * 1_000,
       logger,
       storage,
+      catalogStorage,
       usageMeter: new PostgresUsageMeter(database.client),
       lifecycle: new PostgresRenderLifecycle(database.client),
     });

@@ -66,6 +66,20 @@ describe("storageKeys", () => {
       storageKeys.renderThumbnail({ ...scope, renderJobId: entityId }),
     ).toBe(`${prefix}/renders/${entityId}/thumbnail.png`);
     expect(
+      storageKeys.renderReviewFrame({
+        ...scope,
+        index: 2,
+        renderJobId: entityId,
+      }),
+    ).toBe(`${prefix}/renders/${entityId}/review/contact-2.png`);
+    expect(() =>
+      storageKeys.renderReviewFrame({
+        ...scope,
+        index: 9,
+        renderJobId: entityId,
+      }),
+    ).toThrow("between 1 and 8");
+    expect(
       storageKeys.demonstrationAsset({
         ...scope,
         assetId: "graph-grid",

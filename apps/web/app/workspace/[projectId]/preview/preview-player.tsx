@@ -2,7 +2,10 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { FullLessonPreviewPlayer } from "@avlp/scene-library";
+import {
+  FullLessonPreviewPlayer,
+  type SoundBedCompositionProp,
+} from "@avlp/scene-library";
 import {
   lessonValidationRunSchema,
   previewManifestSchema,
@@ -41,6 +44,27 @@ function formatSecondsToTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, "0")}`;
+}
+
+/**
+ * ST-103. Maps the preview manifest's configured bed to the composition prop,
+ * exactly as the renderer does from a pinned bed: the loop length in frames
+ * comes from the track's duration and the canvas fps.
+ */
+export function previewSoundBedProps(
+  manifest: Pick<PreviewManifest, "canvas" | "soundBed">,
+): { soundBed?: SoundBedCompositionProp } {
+  if (manifest.soundBed === undefined) return {};
+  return {
+    soundBed: {
+      durationInFrames: Math.round(
+        (manifest.soundBed.durationMs * manifest.canvas.fps) / 1_000,
+      ),
+      loops: manifest.soundBed.loops,
+      src: manifest.soundBed.url,
+      trackId: manifest.soundBed.trackId,
+    },
+  };
 }
 
 export function FullLessonPreview({
@@ -198,6 +222,9 @@ export function FullLessonPreview({
       ...(manifest.creativeDesign === undefined
         ? {}
         : { creativeDesign: manifest.creativeDesign }),
+      // ST-103: the configured bed, played through the same composition and
+      // envelope the render uses.
+      ...previewSoundBedProps(manifest),
       narrationTracks: manifest.storyboard.scenes.map((entry) => {
         const audio = manifest.scenes.find(
           (candidate) => candidate.sceneId === entry.stableSceneId,

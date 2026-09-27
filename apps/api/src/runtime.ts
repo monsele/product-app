@@ -52,6 +52,8 @@ import {
 } from "./demonstration-test-lessons.js";
 import { ExportService } from "./exports.js";
 import { PostgresShareLinkService } from "./share-links.js";
+import { PostgresSoundBedService } from "./sound-beds.js";
+import { soundBedCatalogPrefix } from "@avlp/schemas";
 
 export async function runApi(input: {
   telemetryShutdown: () => Promise<void>;
@@ -93,6 +95,30 @@ export async function runApi(input: {
         ? {}
         : { endpoint: environment.OBJECT_STORAGE_ENDPOINT }),
     });
+    // ST-103. A second client confined to the platform sound-bed catalog.
+    // It can only read catalog bytes; tenant data stays behind `storage`.
+    const catalogStorage = await createS3CompatibleObjectStorage({
+      bucket: environment.OBJECT_STORAGE_BUCKET,
+      allowedPrefix: soundBedCatalogPrefix,
+      allowedUploadContentTypes: ["audio/wav"],
+      maxUploadBytes: environment.MAX_UPLOAD_BYTES,
+      defaultSignedUrlTtlSeconds: environment.SIGNED_URL_TTL_SECONDS,
+      region: environment.OBJECT_STORAGE_REGION,
+      forcePathStyle: environment.OBJECT_STORAGE_FORCE_PATH_STYLE,
+      allowInsecureEndpoint: environment.OBJECT_STORAGE_ALLOW_INSECURE_ENDPOINT,
+      runtimeEnvironment: environment.NODE_ENV,
+      credentials: {
+        accessKeyId: environment.OBJECT_STORAGE_ACCESS_KEY,
+        secretAccessKey: environment.OBJECT_STORAGE_SECRET_KEY,
+      },
+      ...(environment.OBJECT_STORAGE_ENDPOINT === undefined
+        ? {}
+        : { endpoint: environment.OBJECT_STORAGE_ENDPOINT }),
+    });
+    const soundBedService = new PostgresSoundBedService(
+      database.client,
+      catalogStorage,
+    );
     const projectAuthorizer = new ProjectAuthorizationService(
       projectRepository,
     );
@@ -258,6 +284,7 @@ export async function runApi(input: {
         database.client,
         storage,
         sourceSnapshotService,
+        soundBedService,
       ),
       lessonValidationService,
       renderService,
@@ -266,6 +293,7 @@ export async function runApi(input: {
         authorizedProjectStorage,
       ),
       shareLinkService: new PostgresShareLinkService(database.client, storage),
+      soundBedService,
       demonstrationPilotService,
       demonstrationTestLessonService:
         new PostgresDemonstrationTestLessonService(database.client, storage),
