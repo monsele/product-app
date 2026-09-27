@@ -47,6 +47,7 @@ import {
   formStateFromConfiguration,
   hasConfigurationChanges,
   isConfigurationFormComplete,
+  lessonFocusPromptMaxLength,
   narrationWordCountRange,
   toneLabels,
   toneOptions,
@@ -166,6 +167,8 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
 
   const subjectInputId = useId();
   const titleInputId = useId();
+  const focusInputId = useId();
+  const focusHelpId = useId();
   const speakingRateInputId = useId();
 
   const loadData = useCallback(async () => {
@@ -381,6 +384,8 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
     if (!lessonForm.targetDurationSeconds)
       errors.targetDurationSeconds = "Please select a target duration.";
     if (!lessonForm.tone) errors.tone = "Please select an instructional tone.";
+    if (lessonForm.focusPrompt.trim().length > lessonFocusPromptMaxLength)
+      errors.focusPrompt = `Keep the focus to ${lessonFocusPromptMaxLength.toLocaleString()} characters or fewer.`;
 
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
@@ -946,7 +951,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
                 aria-label="Difficulty level"
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(2, 1fr)",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
                   gap: "8px",
                 }}
               >
@@ -1191,6 +1196,79 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
                   </button>
                 </div>
               )}
+            </div>
+
+            {/* ST-104: optional lesson focus */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <label
+                htmlFor={focusInputId}
+                style={{
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  color: "var(--color-text)",
+                }}
+              >
+                What should the lesson focus on?{" "}
+                <span style={{ fontWeight: 400, color: "var(--color-text-muted)" }}>
+                  (optional)
+                </span>
+              </label>
+              <span
+                id={focusHelpId}
+                style={{
+                  fontSize: "13px",
+                  lineHeight: "18px",
+                  color: "var(--color-text-muted)",
+                }}
+              >
+                Name the question or topic to explain. Objectives, outline, and
+                narration will concentrate on it, using only your source.
+              </span>
+              <textarea
+                id={focusInputId}
+                name="focusPrompt"
+                rows={3}
+                value={lessonForm.focusPrompt}
+                maxLength={lessonFocusPromptMaxLength}
+                aria-describedby={focusHelpId}
+                aria-invalid={fieldErrors.focusPrompt ? true : undefined}
+                onChange={(e) => {
+                  setLessonForm((prev) => ({
+                    ...prev,
+                    focusPrompt: e.target.value,
+                  }));
+                  setFieldErrors((prev) => ({ ...prev, focusPrompt: "" }));
+                }}
+                style={{
+                  padding: "10px 14px",
+                  fontSize: "14px",
+                  lineHeight: "20px",
+                  borderRadius: "var(--radius-control)",
+                  border: fieldErrors.focusPrompt
+                    ? "1.5px solid var(--color-error-fg)"
+                    : "1px solid var(--color-border)",
+                  backgroundColor: "var(--color-surface)",
+                  color: "var(--color-text)",
+                  fontFamily: "inherit",
+                  resize: "vertical",
+                }}
+              />
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: "8px",
+                  fontSize: "12px",
+                }}
+              >
+                <span role="alert" style={{ color: "var(--color-error-fg)", fontWeight: 500 }}>
+                  {fieldErrors.focusPrompt}
+                </span>
+                <span style={{ color: "var(--color-text-muted)" }}>
+                  {lessonForm.focusPrompt.length.toLocaleString()} /{" "}
+                  {lessonFocusPromptMaxLength.toLocaleString()}
+                </span>
+              </div>
             </div>
 
             {/* Target Duration & Word Calculation */}

@@ -39,6 +39,7 @@ const storedConfiguration = {
   ageBand: "11-13",
   creativeStylePack: null,
   difficulty: "introductory",
+  focusPrompt: null,
   includeRecallQuestions: false,
   lessonTitle: "Saving a little, every week",
   soundBed: "none",

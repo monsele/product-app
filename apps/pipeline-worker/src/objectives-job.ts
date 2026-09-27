@@ -14,12 +14,13 @@ import {
 import {
   learningObjectiveSetSchema,
   objectiveGenerationParamsSchema,
-  objectiveOutputV1Schema,
+  objectiveOutputFocusCoverage,
+  objectiveOutputSchema,
   sourceRefSchema,
   type LearningObjectiveSet,
   type ModelCallParams,
   type ModelCallRecord,
-  type ObjectiveOutputV1,
+  type ObjectiveOutput,
   type SourcePackage,
   type SourceRef,
   type SourceSnapshot,
@@ -125,7 +126,7 @@ function isMeasurableVerb(verb: string): boolean {
  * Throws on the first violation; a valid draft must clear every rule.
  */
 export function assertObjectiveDeterministicChecks(
-  output: ObjectiveOutputV1,
+  output: ObjectiveOutput,
   sourcePackage: SourcePackage,
 ): void {
   const valid = collectPackageBlockIds(sourcePackage);
@@ -215,7 +216,7 @@ export function assertObjectiveDeterministicChecks(
  */
 export async function persistObjectiveSet(input: {
   executor: DatabaseExecutor;
-  output: ObjectiveOutputV1;
+  output: ObjectiveOutput;
   sourcePackage: SourcePackage;
   snapshot: SourceSnapshot;
   params: ModelCallParams;
@@ -228,6 +229,7 @@ export async function persistObjectiveSet(input: {
   now: Date;
 }): Promise<{ id: Identifier }> {
   const params = objectiveGenerationParamsSchema.parse(input.params);
+  const focusCoverage = objectiveOutputFocusCoverage(input.output);
   const timestamp = input.now;
   const setId = createId(timestamp);
   const sourceRefsById = (blockIds: readonly string[]): SourceRef[] =>
@@ -292,6 +294,7 @@ export async function persistObjectiveSet(input: {
         sourceRefs: sourceRefsById(item.sourceBlockIds),
       }),
     ),
+    ...(focusCoverage === null ? {} : { focusCoverage }),
     generatedAt: serializeUtcTimestamp(timestamp),
     createdAt: serializeUtcTimestamp(timestamp),
   });
@@ -318,6 +321,7 @@ export async function persistObjectiveSet(input: {
         vocabulary: set.vocabulary,
         misconceptions: set.misconceptions,
         assessmentQuestions: set.assessmentQuestions,
+        focusCoverage,
         generatedAt: timestamp,
         createdAt: timestamp,
         updatedAt: timestamp,
@@ -383,12 +387,14 @@ export function createObjectivesGenerationJobHandler(input: {
   pricing?: ModelPricingTable;
   maxRepairs?: number;
   now?: () => Date;
-}): ReturnType<typeof createModelCallGenerationHandler<ObjectiveOutputV1>> {
-  const options: ModelCallHandlerOptions<ObjectiveOutputV1> = {
+}): ReturnType<typeof createModelCallGenerationHandler<ObjectiveOutput>> {
+  const options: ModelCallHandlerOptions<ObjectiveOutput> = {
     jobType: "objectives.generate",
     payloadVersion: 2,
     operationType: "ai.objectives",
-    outputSchema: objectiveOutputV1Schema,
+    // ST-104: V1 for jobs pinned to objectives/v2, V2 (with focus coverage)
+    // for objectives/v3.
+    outputSchema: objectiveOutputSchema,
     provider: input.provider,
     promptRegistry: input.promptRegistry,
     quotaGuard: input.quotaGuard,
@@ -409,5 +415,5 @@ export function createObjectivesGenerationJobHandler(input: {
     ...(input.maxRepairs === undefined ? {} : { maxRepairs: input.maxRepairs }),
     ...(input.now === undefined ? {} : { now: input.now }),
   };
-  return createModelCallGenerationHandler<ObjectiveOutputV1>(options);
+  return createModelCallGenerationHandler<ObjectiveOutput>(options);
 }

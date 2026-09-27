@@ -27,6 +27,8 @@ import {
 } from "@avlp/database";
 import {
   lessonSpecSchema,
+  lessonSpecVersion,
+  readableLessonSpecVersions,
   lessonStoryboardSchema,
   lessonVersionCreateSchema,
   pinSoundBed,
@@ -490,8 +492,11 @@ function assertRestorable(snapshot: unknown): void {
   };
   if (
     value?.schemaVersion !== "lesson-version-v1" ||
-    value.versions?.lessonSpec !== "1.8" ||
-    value.versions.sceneLibrary !== "mvp-v1" ||
+    // ST-104: 1.8 snapshots stay restorable exactly as stored.
+    !readableLessonSpecVersions.some(
+      (version) => version === value.versions?.lessonSpec,
+    ) ||
+    value.versions?.sceneLibrary !== "mvp-v1" ||
     !lessonSpecSchema.safeParse(value.lessonSpec).success
   )
     throw new PublicError(
@@ -1145,7 +1150,7 @@ export function buildLessonVersionSnapshot(
       soundBed: state.soundBed,
       mediaReferences: mediaReferences(state.storyboard.payload),
       versions: {
-        lessonSpec: "1.8",
+        lessonSpec: lessonSpecVersion,
         sceneLibrary: "mvp-v1",
         creativeDesign: state.creativeDesign ? "1.0" : "mvp-default",
         prompts: {
@@ -1162,7 +1167,7 @@ function portableLessonSpec(state: Awaited<ReturnType<typeof loadState>>) {
     storyboard: NonNullable<typeof state.storyboard>;
   };
   const parsed = lessonSpecSchema.safeParse({
-    schemaVersion: "1.8",
+    schemaVersion: lessonSpecVersion,
     lessonId: value.storyboard.id,
     projectId: value.storyboard.projectId,
     title: value.storyboard.title,

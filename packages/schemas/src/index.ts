@@ -14,7 +14,17 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 export * from "./creative-design.js";
 export * from "./sound-bed.js";
 
-export const lessonSpecVersion = "1.8" as const;
+export const lessonSpecVersion = "1.9" as const;
+/**
+ * ST-104. 1.9 only widens `audience`; a 1.8 document is still read *in place*
+ * (not migrated) so stored lesson versions keep byte-identical content and
+ * render identity. 1.8 remains restricted to the audience values it defined.
+ */
+export const legacyAudienceLessonSpecVersion = "1.8" as const;
+export const readableLessonSpecVersions = [
+  legacyAudienceLessonSpecVersion,
+  lessonSpecVersion,
+] as const;
 export const previousLessonSpecVersion = "1.7" as const;
 const lessonSpecV1_5Version = "1.5" as const;
 export const previousPreviousLessonSpecVersion = "1.4" as const;
@@ -887,17 +897,36 @@ const legacySceneSpecSchema = z.union([
   legacyDefinitionSceneSpecSchema,
 ]);
 
+/** Audience values a LessonSpec 1.8 document may carry (ST-104). */
+const legacyLessonSpecAgeBands: readonly string[] = [
+  "8-10",
+  "11-13",
+  "14-16",
+  "adult-beginner",
+];
+const legacyLessonSpecDifficulties: readonly string[] = [
+  "introductory",
+  "intermediate",
+];
+
 export const lessonSpecSchema = z
   .object({
-    schemaVersion: z.literal(lessonSpecVersion),
+    schemaVersion: z.enum(readableLessonSpecVersions),
     lessonId: identifierSchema,
     projectId: identifierSchema,
     title: boundedText(200),
     subject: boundedText(200),
     audience: z
       .object({
-        ageBand: z.enum(["8-10", "11-13", "14-16", "adult-beginner"]),
-        difficulty: z.enum(["introductory", "intermediate"]),
+        ageBand: z.enum([
+          "8-10",
+          "11-13",
+          "14-16",
+          "adult-beginner",
+          "adult-intermediate",
+          "adult-professional",
+        ]),
+        difficulty: z.enum(["introductory", "intermediate", "advanced"]),
         priorKnowledge: z.array(boundedText(300)).max(20),
       })
       .strict(),
@@ -919,6 +948,20 @@ export const lessonSpecSchema = z
   })
   .strict()
   .superRefine((value, context) => {
+    if (value.schemaVersion === legacyAudienceLessonSpecVersion) {
+      if (!legacyLessonSpecAgeBands.includes(value.audience.ageBand))
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["audience", "ageBand"],
+          message: `LessonSpec ${legacyAudienceLessonSpecVersion} does not support this age band; use ${lessonSpecVersion}.`,
+        });
+      if (!legacyLessonSpecDifficulties.includes(value.audience.difficulty))
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["audience", "difficulty"],
+          message: `LessonSpec ${legacyAudienceLessonSpecVersion} does not support this difficulty; use ${lessonSpecVersion}.`,
+        });
+    }
     const seenIds = new Set<string>();
     const seenOrders = new Set<number>();
     for (const [index, scene] of value.scenes.entries()) {
@@ -2592,18 +2635,27 @@ export type EffectiveFigure = z.infer<typeof effectiveFigureSchema>;
 /**
  * Learner age band. Values stay aligned with the `LessonSpec` audience so a
  * configuration can be mapped onto a lesson without enum translation. The MVP
- * targets ages 10–16 but the schema is future-safe.
+ * targets ages 10–16; ST-104 (ADR-013) adds adult and professional bands.
  */
 export const lessonAgeBandValues = [
   "8-10",
   "11-13",
   "14-16",
   "adult-beginner",
+  // ST-104. Adult and professional learners (ADR-013). Existing values are
+  // unchanged; a lesson using these writes LessonSpec 1.9.
+  "adult-intermediate",
+  "adult-professional",
 ] as const;
 export const lessonAgeBandSchema = z.enum(lessonAgeBandValues);
 export type LessonAgeBand = z.infer<typeof lessonAgeBandSchema>;
 
-export const lessonDifficultyValues = ["introductory", "intermediate"] as const;
+export const lessonDifficultyValues = [
+  "introductory",
+  "intermediate",
+  // ST-104. Assumes solid prior knowledge; paired with the adult bands.
+  "advanced",
+] as const;
 export const lessonDifficultySchema = z.enum(lessonDifficultyValues);
 export type LessonDifficulty = z.infer<typeof lessonDifficultySchema>;
 
@@ -2646,6 +2698,31 @@ export const defaultVideoApproach = "standard" as const satisfies VideoApproach;
 export function readVideoApproach(value: unknown): VideoApproach {
   if (value === undefined || value === null) return defaultVideoApproach;
   return videoApproachSchema.parse(value);
+}
+
+/**
+ * ST-104. What the teacher or learner wants the lesson to focus on. User
+ * content, like source text: it is never logged or placed in audit metadata.
+ */
+export const lessonFocusPromptMaxLength = 1_000 as const;
+export const lessonFocusPromptSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(lessonFocusPromptMaxLength);
+export type LessonFocusPrompt = z.infer<typeof lessonFocusPromptSchema>;
+
+/**
+ * The `focusPrompt` entry for generation params: present only when the
+ * configuration has a focus, so a lesson without one keeps the params (and
+ * therefore the params hash and idempotency key) it had before ST-104.
+ */
+export function focusPromptParam(
+  focusPrompt: string | null | undefined,
+): { focusPrompt?: string } {
+  return typeof focusPrompt === "string" && focusPrompt.trim().length > 0
+    ? { focusPrompt }
+    : {};
 }
 
 /** Only one visual theme is selectable in the MVP. */
@@ -2722,6 +2799,11 @@ export const lessonConfigurationSchema = z
      * this story) plays no background bed. A track ID is resolved against the
      * catalog and pinned when a lesson version is saved. */
     soundBed: soundBedChoiceSchema,
+    /** ST-104. `null` (the default, and every configuration stored before
+     * this story) means no focus: generation behaves as before. An absent key
+     * (a response from an API that predates this story) reads as `null` so a
+     * rolling deploy cannot break the configuration screen. */
+    focusPrompt: lessonFocusPromptSchema.nullable().default(null),
     includeRecallQuestions: z.boolean(),
     sourceParsedDocumentVersion: z.number().int().positive(),
     updatedAt: z.string().datetime({ offset: true }),
@@ -2752,6 +2834,9 @@ export const lessonConfigurationInputSchema = z
     /** ST-103. Omitted keeps the stored value untouched; `none` removes the
      * bed. A track ID must be registered in the catalog (checked by the API). */
     soundBed: soundBedChoiceSchema.optional(),
+    /** ST-104. Omitted keeps the stored value untouched; an explicit `null`
+     * clears the focus. Whitespace-only text is rejected, not stored. */
+    focusPrompt: lessonFocusPromptSchema.nullable().optional(),
     includeRecallQuestions: z.boolean(),
   })
   .strict();
@@ -3900,6 +3985,8 @@ export const modelCallOperationValues = [
   "ai.scene_regeneration",
   "ai.grounding",
   "ai.creative_design",
+  // ST-104. Infers subject and title from a focus prompt and headings only.
+  "ai.lesson-intent",
 ] as const;
 export const modelCallOperationSchema = z.enum(modelCallOperationValues);
 export type ModelCallOperation = z.infer<typeof modelCallOperationSchema>;
@@ -4093,6 +4180,10 @@ export const objectiveGenerationParamsSchema = z
     tone: lessonToneSchema,
     targetDurationSeconds: targetDurationSecondsSchema,
     includeRecallQuestions: z.boolean(),
+    /** ST-104. Present only when the configuration has a focus, so a lesson
+     * without one keeps its pre-story params hash. Enters `inputVersion` and
+     * therefore the idempotency key. */
+    focusPrompt: lessonFocusPromptSchema.optional(),
   })
   .strict();
 export type ObjectiveGenerationParams = z.infer<
@@ -4168,6 +4259,57 @@ export const objectiveOutputV1Schema = z
   })
   .strict();
 export type ObjectiveOutputV1 = z.infer<typeof objectiveOutputV1Schema>;
+
+/**
+ * ST-104. Whether the approved source can answer the lesson's focus. With no
+ * focus the value is always `covered`. `partial` and `not_covered` are
+ * advisory for the wizard; ST-105 stops an automatic run on `not_covered`.
+ */
+export const objectiveFocusCoverageSchema = z.discriminatedUnion("status", [
+  z.object({ status: z.literal("covered") }).strict(),
+  z
+    .object({
+      status: z.literal("partial"),
+      missing: z.array(boundedText(300)).min(1).max(10),
+    })
+    .strict(),
+  z
+    .object({
+      status: z.literal("not_covered"),
+      reason: boundedText(500),
+    })
+    .strict(),
+]);
+export type ObjectiveFocusCoverage = z.infer<
+  typeof objectiveFocusCoverageSchema
+>;
+
+/** ST-104 (`objectives/v3`): V1 plus the focus-coverage report. */
+export const objectiveOutputV2Schema = z
+  .object({
+    ...objectiveOutputV1Schema.shape,
+    schemaVersion: z.literal("objectives-v2"),
+    focusCoverage: objectiveFocusCoverageSchema,
+  })
+  .strict();
+export type ObjectiveOutputV2 = z.infer<typeof objectiveOutputV2Schema>;
+
+/**
+ * Every objectives output version the worker accepts. Prompt versions are
+ * pinned per job, so a job queued on `objectives/v2` still returns V1.
+ */
+export const objectiveOutputSchema = z.discriminatedUnion("schemaVersion", [
+  objectiveOutputV1Schema,
+  objectiveOutputV2Schema,
+]);
+export type ObjectiveOutput = z.infer<typeof objectiveOutputSchema>;
+
+/** Coverage carried by an output; V1 predates focus and reports none. */
+export function objectiveOutputFocusCoverage(
+  output: ObjectiveOutput,
+): ObjectiveFocusCoverage | null {
+  return output.schemaVersion === "objectives-v2" ? output.focusCoverage : null;
+}
 
 export const learningObjectiveSetStatusValues = [
   "draft",
@@ -4295,6 +4437,8 @@ export const learningObjectiveSetSchema = z
     vocabulary: z.array(objectiveVocabularyItemSchema).max(50),
     misconceptions: z.array(objectiveMisconceptionItemSchema).max(50),
     assessmentQuestions: z.array(objectiveAssessmentItemSchema).max(50),
+    /** ST-104. Absent for sets generated before `objectives/v3`. */
+    focusCoverage: objectiveFocusCoverageSchema.optional(),
     generatedAt: z.string().datetime({ offset: true }),
     createdAt: z.string().datetime({ offset: true }),
   })
@@ -4315,7 +4459,52 @@ export type ObjectiveGenerationCompatibility = z.infer<
 export const currentObjectiveGenerationCompatibility =
   objectiveGenerationCompatibilitySchema.parse({
     promptId: "objectives",
-    promptVersion: "v2",
+    promptVersion: "v3",
+    model: togetherModelDefaults.llm,
+  });
+
+// ---------------------------------------------------------------------------
+// ST-104 — Lesson intent (subject and title inferred from a focus prompt)
+// ---------------------------------------------------------------------------
+
+/**
+ * The only document context `ai.lesson-intent` may see: the parsed title and
+ * section headings. Body text never enters this call (ADR-013).
+ */
+export const lessonIntentDocumentOutlineSchema = z
+  .object({
+    title: boundedText(300).nullable(),
+    headings: z.array(boundedText(300)).max(200),
+  })
+  .strict();
+export type LessonIntentDocumentOutline = z.infer<
+  typeof lessonIntentDocumentOutlineSchema
+>;
+
+/** Structured output of `lesson-intent/v1`. */
+export const lessonIntentOutputV1Schema = z
+  .object({
+    schemaVersion: z.literal("lesson-intent-v1"),
+    subject: boundedText(200),
+    lessonTitle: boundedText(200),
+  })
+  .strict();
+export type LessonIntentOutputV1 = z.infer<typeof lessonIntentOutputV1Schema>;
+
+/** What `LessonIntentService.infer` returns to its caller (ST-105). */
+export const lessonIntentSchema = z
+  .object({
+    subject: boundedText(200),
+    lessonTitle: boundedText(200),
+    modelCallId: identifierSchema,
+  })
+  .strict();
+export type LessonIntent = z.infer<typeof lessonIntentSchema>;
+
+export const currentLessonIntentCompatibility =
+  objectiveGenerationCompatibilitySchema.parse({
+    promptId: "lesson-intent",
+    promptVersion: "v1",
     model: togetherModelDefaults.llm,
   });
 
@@ -4482,6 +4671,10 @@ export const outlineGenerationParamsSchema = z
     tone: lessonToneSchema,
     targetDurationSeconds: targetDurationSecondsSchema,
     includeRecallQuestions: z.boolean(),
+    /** ST-104. Present only when the configuration has a focus, so a lesson
+     * without one keeps its pre-story params hash. Enters `inputVersion` and
+     * therefore the idempotency key. */
+    focusPrompt: lessonFocusPromptSchema.optional(),
     objectiveSetId: identifierSchema,
     objectiveSetRevision: z.number().int().nonnegative(),
   })
@@ -4628,7 +4821,7 @@ export type OutlineGenerationCompatibility = z.infer<
 export const currentOutlineGenerationCompatibility =
   outlineGenerationCompatibilitySchema.parse({
     promptId: "outline",
-    promptVersion: "v2",
+    promptVersion: "v3",
     model: togetherModelDefaults.llm,
   });
 
@@ -4986,6 +5179,10 @@ export const narrationGenerationParamsSchema = z
     tone: lessonToneSchema,
     targetDurationSeconds: targetDurationSecondsSchema,
     includeRecallQuestions: z.boolean(),
+    /** ST-104. Present only when the configuration has a focus, so a lesson
+     * without one keeps its pre-story params hash. Enters `inputVersion` and
+     * therefore the idempotency key. */
+    focusPrompt: lessonFocusPromptSchema.optional(),
     outlineSetId: identifierSchema,
     outlineSetRevision: z.number().int().nonnegative(),
   })
@@ -5008,7 +5205,7 @@ export type NarrationGenerationCompatibility = z.infer<
 export const currentNarrationGenerationCompatibility =
   narrationGenerationCompatibilitySchema.parse({
     promptId: "narration",
-    promptVersion: "v3",
+    promptVersion: "v4",
     model: togetherModelDefaults.llm,
   });
 
@@ -6256,6 +6453,10 @@ export const storyboardGenerationParamsSchema = z
     tone: lessonToneSchema,
     targetDurationSeconds: targetDurationSecondsSchema,
     includeRecallQuestions: z.boolean(),
+    /** ST-104. Present only when the configuration has a focus, so a lesson
+     * without one keeps its pre-story params hash. Enters `inputVersion` and
+     * therefore the idempotency key. */
+    focusPrompt: lessonFocusPromptSchema.optional(),
     narrationSetId: identifierSchema,
     narrationSetRevision: z.number().int().nonnegative(),
   })
@@ -6278,7 +6479,7 @@ export type StoryboardGenerationCompatibility = z.infer<
 export const currentStoryboardGenerationCompatibility =
   storyboardGenerationCompatibilitySchema.parse({
     promptId: "storyboard",
-    promptVersion: "v2",
+    promptVersion: "v3",
     model: togetherModelDefaults.llm,
   });
 

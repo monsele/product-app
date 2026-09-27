@@ -25,6 +25,7 @@ import {
   sourceSnapshotSchema,
   type OutlineOutputV1,
   type SourceSnapshot,
+  type ModelCallParams,
 } from "@avlp/schemas";
 import { z } from "zod";
 import {
@@ -603,7 +604,9 @@ describe("persistOutlineSet", () => {
       output: validOutput(),
       sourcePackage: buildSourcePackage(sampleSnapshot()),
       snapshot: sampleSnapshot(),
-      params: jobParams,
+      // ST-104: the parsed params type carries an optional `focusPrompt`,
+      // which the generic job-carrier record type does not model.
+      params: jobParams as ModelCallParams,
       modelCall: {
         id: "019ffbf1-eeee-7000-8000-000000000003",
         promptId: "outline",

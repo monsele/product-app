@@ -68,6 +68,9 @@ importers:
       '@avlp/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@avlp/provider-adapters':
+        specifier: workspace:*
+        version: link:../../packages/provider-adapters
       '@avlp/scene-library':
         specifier: workspace:*
         version: link:../../packages/scene-library
@@ -387,6 +390,12 @@ importers:
       '@avlp/database':
         specifier: workspace:*
         version: link:../database
+      '@avlp/provider-adapters':
+        specifier: workspace:*
+        version: link:../provider-adapters
+      '@avlp/schemas':
+        specifier: workspace:*
+        version: link:../schemas
       '@opentelemetry/api':
         specifier: ^1.9.0
         version: 1.9.1

@@ -19,6 +19,7 @@ describe("prompt registry", () => {
     ).toEqual([
       "creative-design",
       "grounding",
+      "lesson-intent",
       "narration",
       "objectives",
       "outline",
@@ -36,21 +37,24 @@ describe("prompt registry", () => {
     expect(registry.get("objectives", latest.version)).toBe(latest);
   });
 
-  it("registers the grounded objectives v2 prompt as the latest", () => {
+  it("keeps the grounded objectives v2 prompt registered behind v3", () => {
     const registry = new StaticPromptRegistry(repositoryPrompts);
-    expect(registry.latest("objectives").version).toBe("v2");
+    expect(registry.latest("objectives").version).toBe("v3");
     const v2 = registry.get("objectives", "v2");
     expect(v2.purpose).toContain("measurable");
     expect(v2.evaluationCases).toContain("objectives-v1-faithfulness");
     expect(v2.evaluationCases).toContain("objectives-v1-age-appropriateness");
   });
 
-  it("registers the narration v3 prompt with the copied-passage guard", () => {
+  it("keeps the copied-passage guard in narration v3 and the latest v4", () => {
     const registry = new StaticPromptRegistry(repositoryPrompts);
     const definition = registry.latest("narration");
-    expect(definition.version).toBe("v3");
-    expect(definition.system).toContain("eight or more consecutive words");
-    expect(definition.system).toContain("check each cited sentence");
+    expect(definition.version).toBe("v4");
+    for (const version of ["v3", "v4"]) {
+      const pinned = registry.get("narration", version);
+      expect(pinned.system).toContain("eight or more consecutive words");
+      expect(pinned.system).toContain("check each cited sentence");
+    }
   });
 
   it("registers the narration-block v1 prompt with every mode rendered", () => {
@@ -88,11 +92,13 @@ describe("prompt registry", () => {
       outline: JSON.stringify([{ id: "item-1" }]),
       sourcePackage: JSON.stringify({ sections: [] }),
       configuration: JSON.stringify({ targetDurationSeconds: 300 }),
+      focus: "none",
+      audience: "learners aged 11-13; introductory depth.",
     });
     expect(system).toContain("storyboard planner");
     expect(system).toContain("pixel coordinates");
     expect(system).toContain("Return ONLY a JSON object");
-    expect(definition.version).toBe("v2");
+    expect(definition.version).toBe("v3");
     expect(user).toContain("storyboard-v1");
     expect(user).toContain("narrationBlockIds");
     expect(user).toContain("assetRequirements");

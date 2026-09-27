@@ -360,10 +360,10 @@ describe("narration response schema", () => {
 });
 
 describe("narration generation compatibility", () => {
-  it("targets the narration v3 prompt with the Together model", () => {
+  it("targets the narration v4 prompt with the Together model", () => {
     expect(currentNarrationGenerationCompatibility).toMatchObject({
       promptId: "narration",
-      promptVersion: "v3",
+      promptVersion: "v4",
       model: "moonshotai/Kimi-K3",
     });
   });

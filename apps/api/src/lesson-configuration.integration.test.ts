@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Identifier } from "@avlp/config";
 import {
+  auditEvents,
   ingestionQualityReports,
   lessonConfigurations,
   migrateDatabase,
@@ -13,7 +14,7 @@ import {
   users,
 } from "@avlp/database";
 import { createTestDatabase, type TestDatabase } from "@avlp/database/testing";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { PostgresLessonConfigurationService } from "./lesson-configuration.js";
 
 const serverUrl = process.env.TEST_DATABASE_URL;
@@ -467,6 +468,92 @@ describeWithPostgres("PostgresLessonConfigurationService", () => {
     ).rejects.toMatchObject({ code: "not_found", statusCode: 404 });
     const rows = await database!.client.select().from(lessonConfigurations);
     expect(rows).toHaveLength(0);
+  });
+
+  it("ST-104: saves, reloads, keeps, and clears a focus prompt without auditing its text", async () => {
+    await markSourceReady();
+    const focusCorrelationId: Identifier = "019ffbf1-4444-7000-8000-0000000000f4";
+    const focusPrompt = "Why do trusses use triangles instead of squares?";
+    const created = await service.save({
+      ownerUserId,
+      projectId,
+      body: {
+        ...validBody,
+        ageBand: "adult-professional",
+        difficulty: "advanced",
+        focusPrompt: `  ${focusPrompt}  `,
+      },
+      correlationId: focusCorrelationId,
+    });
+    expect(created.configuration).toMatchObject({
+      ageBand: "adult-professional",
+      difficulty: "advanced",
+      focusPrompt,
+    });
+    expect((await service.get(ownerUserId, projectId)).configuration).toMatchObject(
+      { focusPrompt, ageBand: "adult-professional", difficulty: "advanced" },
+    );
+
+    const kept = await service.save({
+      ownerUserId,
+      projectId,
+      body: { ...validBody, expectedVersion: 1, tone: "academic" },
+      correlationId: focusCorrelationId,
+    });
+    expect(kept.configuration?.focusPrompt).toBe(focusPrompt);
+
+    const cleared = await service.save({
+      ownerUserId,
+      projectId,
+      body: { ...validBody, expectedVersion: 2, focusPrompt: null },
+      correlationId: focusCorrelationId,
+    });
+    expect(cleared.configuration?.focusPrompt).toBeNull();
+
+    const audits = await database!.client
+      .select({ metadata: auditEvents.metadata })
+      .from(auditEvents)
+      .where(
+        and(
+          eq(auditEvents.projectId, projectId),
+          eq(auditEvents.eventType, "lesson.configuration_saved"),
+          eq(auditEvents.correlationId, focusCorrelationId),
+        ),
+      );
+    expect(audits).toHaveLength(3);
+    expect(audits.map((audit) => (audit.metadata as { focusSet?: unknown }).focusSet).sort()).toEqual([false, true, true]);
+    expect(JSON.stringify(audits)).not.toContain("triangles");
+  });
+
+  it("ST-104: reads a configuration stored before the focus column as having no focus", async () => {
+    await markSourceReady();
+    await service.save({ ownerUserId, projectId, body: validBody, correlationId });
+    const [row] = await database!.client
+      .select({ focusPrompt: lessonConfigurations.focusPrompt })
+      .from(lessonConfigurations)
+      .where(eq(lessonConfigurations.projectId, projectId));
+    expect(row?.focusPrompt).toBeNull();
+    expect((await service.get(ownerUserId, projectId)).configuration?.focusPrompt).toBeNull();
+  });
+
+  it("ST-104: rejects a blank or over-long focus and the database refuses untrimmed text", async () => {
+    await markSourceReady();
+    for (const focusPrompt of ["   ", "x".repeat(1_001)])
+      await expect(
+        service.save({
+          ownerUserId,
+          projectId,
+          body: { ...validBody, focusPrompt },
+          correlationId,
+        }),
+      ).rejects.toMatchObject({ code: "validation_failed", statusCode: 400 });
+    await service.save({ ownerUserId, projectId, body: validBody, correlationId });
+    await expect(
+      database!.client
+        .update(lessonConfigurations)
+        .set({ focusPrompt: " padded " })
+        .where(eq(lessonConfigurations.projectId, projectId)),
+    ).rejects.toThrow();
   });
 
   it("rejects a malformed body as a validation failure", async () => {

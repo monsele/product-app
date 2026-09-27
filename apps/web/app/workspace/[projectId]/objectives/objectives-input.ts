@@ -1,4 +1,7 @@
-import type { ObjectiveGenerationState } from "@avlp/schemas";
+import type {
+  ObjectiveFocusCoverage,
+  ObjectiveGenerationState,
+} from "@avlp/schemas";
 
 /** Human-readable label for the objectives review route state. */
 export function objectiveGenerationStateLabel(
@@ -46,4 +49,23 @@ export function objectiveGroundingLabel(status: "supported" | "unsupported"): st
   return status === "supported"
     ? "Supported by the reviewed source"
     : "Not supported by the reviewed source";
+}
+
+/**
+ * ST-104. Advisory copy for a focus the approved source cannot fully answer.
+ * `covered` (and sets generated before focus existed) show nothing.
+ */
+export function focusCoverageNotice(
+  coverage: ObjectiveFocusCoverage | undefined,
+): { title: string; message: string } | null {
+  if (coverage === undefined || coverage.status === "covered") return null;
+  if (coverage.status === "partial")
+    return {
+      title: "Focus partly covered by the source",
+      message: `The source does not address: ${coverage.missing.join("; ")}. These objectives cover what it does support. Add source material or narrow the focus in the lesson configuration.`,
+    };
+  return {
+    title: "Focus not covered by the source",
+    message: `${coverage.reason} These objectives describe what the source does support. Change the focus in the lesson configuration or add source material that answers it.`,
+  };
 }

@@ -320,6 +320,35 @@ describe("persistObjectiveSet", () => {
     expect(insertedSets).toHaveLength(1);
   });
 
+  it("ST-104: persists a V2 focus-coverage report, and none for V1 output", async () => {
+    const { executor, insertedSets } = storeCapture();
+    const focusCoverage = {
+      status: "partial" as const,
+      missing: ["Condensation nuclei"],
+    };
+    await persistObjectiveSet({
+      executor,
+      output: { ...validOutput(), schemaVersion: "objectives-v2", focusCoverage },
+      sourcePackage: resolvePackage(),
+      snapshot: sampleSnapshot(),
+      params: jobParams,
+      modelCall: {
+        id: "019ffbf1-eeee-7000-8000-000000000002",
+        promptId: "objectives",
+        promptVersion: "v3",
+        model: "mock-model-1",
+      } as never,
+      context: { ownerUserId, projectId, idempotencyKey: "key-v2" },
+      now: new Date("2026-08-17T10:00:00.000Z"),
+    });
+    await callPersist({ executor, idempotencyKey: "key-v1" });
+    expect(
+      insertedSets.map(
+        (set) => (set as { focusCoverage: unknown }).focusCoverage,
+      ),
+    ).toEqual([focusCoverage, null]);
+  });
+
   it("does not supersede prior sets when a new candidate is persisted", async () => {
     const { executor, updated } = storeCapture();
     await callPersist({ executor, idempotencyKey: "key-candidate" });
@@ -474,6 +503,74 @@ describe("objectives generation job", () => {
       validationStatus: "validated",
     });
     expect(result.metadata.candidateId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it("ST-104: a v3 job renders the focus and audience and accepts a not_covered report", async () => {
+    const snapshot = sampleSnapshot();
+    const provider = new MockLanguageModelProvider({
+      model: "mock-model-1",
+      completion: jsonCompletion({
+        ...validOutput(),
+        schemaVersion: "objectives-v2",
+        focusCoverage: {
+          status: "not_covered",
+          reason: "The source does not discuss glaciers.",
+        },
+      }),
+    });
+    const handler = createObjectivesGenerationJobHandler({
+      database: fakeDatabase(snapshot),
+      provider,
+      promptRegistry: new StaticPromptRegistry(repositoryPrompts),
+      quotaGuard: new InMemoryQuotaGuard([]),
+      pricing: mockPricing,
+      now: () => new Date("2026-08-17T10:00:00.000Z"),
+    });
+    const result = await execute(
+      handler,
+      jobPayload({
+        promptVersion: "v3",
+        params: {
+          ...jobParams,
+          ageBand: "adult-professional",
+          difficulty: "advanced",
+          focusPrompt: "How do glaciers shape valleys?",
+        },
+      }),
+    );
+    expect(result.outcome).toBe("succeeded");
+    const user = provider.requests[0]!.messages.find(
+      (message) => message.role === "user",
+    )!.content;
+    expect(user).toContain("How do glaciers shape valleys?");
+    expect(user).toContain("professional practitioners");
+    expect(user).toContain("advanced depth");
+    expect(user).not.toMatch(/{{\s*[a-zA-Z0-9_-]+\s*}}/);
+  });
+
+  it("ST-104: a v3 job without a focus renders the literal none", async () => {
+    const provider = new MockLanguageModelProvider({
+      model: "mock-model-1",
+      completion: jsonCompletion({
+        ...validOutput(),
+        schemaVersion: "objectives-v2",
+        focusCoverage: { status: "covered" },
+      }),
+    });
+    const handler = createObjectivesGenerationJobHandler({
+      database: fakeDatabase(sampleSnapshot()),
+      provider,
+      promptRegistry: new StaticPromptRegistry(repositoryPrompts),
+      quotaGuard: new InMemoryQuotaGuard([]),
+      pricing: mockPricing,
+      now: () => new Date("2026-08-17T10:00:00.000Z"),
+    });
+    const result = await execute(handler, jobPayload({ promptVersion: "v3" }));
+    expect(result.outcome).toBe("succeeded");
+    const user = provider.requests[0]!.messages.find(
+      (message) => message.role === "user",
+    )!.content;
+    expect(user).toMatch(/Lesson focus \([^)]*\):\nnone\n/);
   });
 
   it("rejects deterministic failures without producing a candidate", async () => {

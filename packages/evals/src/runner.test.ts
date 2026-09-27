@@ -3,7 +3,11 @@ import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
-import { lessonSpecVersion } from "@avlp/schemas";
+import {
+  lessonSpecSchema,
+  lessonSpecVersion,
+  readableLessonSpecVersions,
+} from "@avlp/schemas";
 import { evaluationCaseSchema } from "./contracts.js";
 import {
   defaultFixturesRoot,
@@ -69,7 +73,7 @@ it("reports malformed case metadata as a failed evaluation result", async () => 
   ]);
 });
 
-it("pins valid lesson-spec fixtures to the current LessonSpec contract version", async () => {
+it("pins valid lesson-spec fixtures to a readable LessonSpec version that parses unchanged", async () => {
   const validFixtures = [
     "photosynthesis.json",
     "water-cycle.json",
@@ -77,10 +81,21 @@ it("pins valid lesson-spec fixtures to the current LessonSpec contract version",
     "leaf-figure.json",
     "low-quality.json",
   ];
+  // ST-104: 1.9 widened only the audience, and 1.8 is read in place. The
+  // baseline stays on 1.8 on purpose: it proves stored lessons still validate
+  // byte-for-byte (ST-098 parity). Dropping 1.8 from the readable set fails
+  // this loudly, as any contract break should.
+  expect(readableLessonSpecVersions).toContain(lessonSpecVersion);
   for (const file of validFixtures) {
     const fixture = JSON.parse(
       readFileSync(join(root, "lesson-specs", file), "utf8"),
     ) as { schemaVersion: string };
-    expect(fixture.schemaVersion, file).toBe(lessonSpecVersion);
+    expect(
+      readableLessonSpecVersions.some(
+        (version) => version === fixture.schemaVersion,
+      ),
+      file,
+    ).toBe(true);
+    expect(lessonSpecSchema.parse(fixture), file).toEqual(fixture);
   }
 });

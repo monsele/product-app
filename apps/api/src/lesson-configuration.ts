@@ -206,6 +206,7 @@ export class PostgresLessonConfigurationService implements LessonConfigurationSe
             videoApproach: parsed.videoApproach ?? defaultVideoApproach,
             creativeStylePack: parsed.creativeStylePack ?? null,
             soundBedTrackId,
+            focusPrompt: parsed.focusPrompt ?? null,
             includeRecallQuestions: parsed.includeRecallQuestions,
             sourceParsedDocumentVersion: source.parsedDocumentVersion,
             createdAt: timestamp,
@@ -239,6 +240,11 @@ export class PostgresLessonConfigurationService implements LessonConfigurationSe
               ? {}
               : { creativeStylePack: parsed.creativeStylePack }),
             soundBedTrackId,
+            // ST-104. Same omission-keeps-existing-value semantics; an
+            // explicit `null` clears the focus.
+            ...(parsed.focusPrompt === undefined
+              ? {}
+              : { focusPrompt: parsed.focusPrompt }),
             includeRecallQuestions: parsed.includeRecallQuestions,
             sourceParsedDocumentVersion: source.parsedDocumentVersion,
             updatedAt: timestamp,
@@ -287,6 +293,8 @@ export class PostgresLessonConfigurationService implements LessonConfigurationSe
           videoApproach: saved.videoApproach,
           creativeStylePack: saved.creativeStylePack,
           soundBed: readSoundBedChoice(saved.soundBedTrackId),
+          // ST-104. The focus is user content: record only its presence.
+          focusSet: saved.focusPrompt !== null,
           sourceParsedDocumentVersion: saved.sourceParsedDocumentVersion,
           stage:
             project.stage === "ingestion_review"
@@ -457,6 +465,8 @@ function toConfiguration(row: ConfigRow): NonNullable<LessonConfiguration> {
     creativeStylePack: row.creativeStylePack,
     // ST-103. `null` - every row stored before this story - reads as `none`.
     soundBed: readSoundBedChoice(row.soundBedTrackId),
+    // ST-104. `null` - every row stored before this story - means no focus.
+    focusPrompt: row.focusPrompt,
     includeRecallQuestions: row.includeRecallQuestions,
     sourceParsedDocumentVersion: row.sourceParsedDocumentVersion,
     updatedAt: serializeUtcTimestamp(row.updatedAt),

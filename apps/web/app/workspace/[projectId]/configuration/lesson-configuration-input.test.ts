@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { LessonConfiguration } from "@avlp/schemas";
 import {
+  ageBandLabels,
+  ageBandOptions,
   buildConfigurationSaveInput,
+  difficultyLabels,
+  difficultyOptions,
   emptyConfigurationFormState,
   formStateFromConfiguration,
   hasConfigurationChanges,
@@ -22,6 +26,7 @@ const persisted: LessonConfiguration = {
   videoApproach: "standard",
   creativeStylePack: null,
   soundBed: "none",
+  focusPrompt: null,
   includeRecallQuestions: true,
   sourceParsedDocumentVersion: 1,
   updatedAt: "2026-08-16T12:00:00.000Z",
@@ -45,7 +50,49 @@ describe("lesson configuration form input", () => {
       videoApproach: "standard",
       creativeStylePack: null,
       soundBed: "none",
+      focusPrompt: "",
       includeRecallQuestions: true,
+    });
+  });
+
+  it("ST-104: saves a trimmed focus, blank as null, and detects focus changes", () => {
+    const state = formStateFromConfiguration(persisted);
+    expect(buildConfigurationSaveInput(persisted, state)).toMatchObject({
+      focusPrompt: null,
+    });
+    const focused = { ...state, focusPrompt: "  Why does ice float?  " };
+    expect(hasConfigurationChanges(persisted, focused)).toBe(true);
+    expect(buildConfigurationSaveInput(persisted, focused)).toMatchObject({
+      focusPrompt: "Why does ice float?",
+    });
+    const saved = { ...persisted, focusPrompt: "Why does ice float?" };
+    expect(formStateFromConfiguration(saved).focusPrompt).toBe(
+      "Why does ice float?",
+    );
+    expect(hasConfigurationChanges(saved, focused)).toBe(false);
+    expect(hasConfigurationChanges(saved, { ...focused, focusPrompt: "   " })).toBe(true);
+    expect(
+      buildConfigurationSaveInput(saved, { ...focused, focusPrompt: "   " }),
+    ).toMatchObject({ focusPrompt: null });
+  });
+
+  it("ST-104: offers the advanced difficulty and adult audience bands", () => {
+    expect(ageBandOptions).toEqual(
+      expect.arrayContaining(["adult-intermediate", "adult-professional"]),
+    );
+    expect(difficultyOptions).toContain("advanced");
+    for (const band of ageBandOptions)
+      expect(ageBandLabels[band].label.length).toBeGreaterThan(0);
+    for (const difficulty of difficultyOptions)
+      expect(difficultyLabels[difficulty].label.length).toBeGreaterThan(0);
+    const professional: ConfigurationFormState = {
+      ...formStateFromConfiguration(persisted),
+      ageBand: "adult-professional",
+      difficulty: "advanced",
+    };
+    expect(buildConfigurationSaveInput(persisted, professional)).toMatchObject({
+      ageBand: "adult-professional",
+      difficulty: "advanced",
     });
   });
 

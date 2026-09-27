@@ -477,6 +477,13 @@
       "when": 1790000420000,
       "tag": "0067_sound_bed_and_render_review",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1790000480000,
+      "tag": "0068_focus_prompt_and_audience",
+      "breakpoints": true
     }
   ]
 }

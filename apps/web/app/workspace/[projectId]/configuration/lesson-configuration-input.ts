@@ -1,5 +1,6 @@
 import {
   lessonAgeBandValues,
+  lessonFocusPromptMaxLength,
   lessonDifficultyValues,
   lessonToneValues,
   narrationWordCountRange,
@@ -28,11 +29,14 @@ export const ageBandLabels: Record<LessonAgeBand, { label: string; description: 
   "11-13": { label: "Middle school (11–13)", description: "Balanced depth with structured conceptual steps" },
   "14-16": { label: "High school (14–16)", description: "Formal domain terminology and analytical reasoning" },
   "adult-beginner": { label: "Adult beginner", description: "Mature tone focused on practical application" },
+  "adult-intermediate": { label: "Adult, some background", description: "Builds on working familiarity with the subject" },
+  "adult-professional": { label: "Professional", description: "Precise technical language for practitioners" },
 };
 
 export const difficultyLabels: Record<LessonDifficulty, { label: string; description: string }> = {
   introductory: { label: "Introductory", description: "Foundational concepts without assumed prior knowledge" },
   intermediate: { label: "Intermediate", description: "Builds upon standard prerequisite knowledge" },
+  advanced: { label: "Advanced", description: "Assumes solid prior knowledge; goes into mechanisms and trade-offs" },
 };
 
 export const toneLabels: Record<LessonTone, { label: string; description: string }> = {
@@ -55,7 +59,17 @@ export interface ConfigurationFormState {
   creativeStylePack: CreativeDesignPackId | null;
   /** ST-103. `none` is the default and plays no background bed. */
   soundBed: SoundBedChoice;
+  /** ST-104. Free text; blank means no focus and saves as `null`. */
+  focusPrompt: string;
   includeRecallQuestions: boolean;
+}
+
+export { lessonFocusPromptMaxLength };
+
+/** ST-104. The value saved for the focus field: trimmed text, or `null`. */
+export function normalizedFocusPrompt(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed.length === 0 ? null : trimmed;
 }
 
 /** Empty form state used before a saved configuration has loaded. */
@@ -70,6 +84,7 @@ export function emptyConfigurationFormState(): ConfigurationFormState {
     videoApproach: "standard",
     creativeStylePack: null,
     soundBed: "none",
+    focusPrompt: "",
     includeRecallQuestions: false,
   };
 }
@@ -88,6 +103,7 @@ export function formStateFromConfiguration(
     videoApproach: configuration.videoApproach,
     creativeStylePack: configuration.creativeStylePack,
     soundBed: configuration.soundBed,
+    focusPrompt: configuration.focusPrompt ?? "",
     includeRecallQuestions: configuration.includeRecallQuestions,
   };
 }
@@ -101,7 +117,8 @@ export function isConfigurationFormComplete(
     state.subject.trim().length > 0 &&
     state.lessonTitle.trim().length > 0 &&
     state.targetDurationSeconds !== "" &&
-    state.tone !== ""
+    state.tone !== "" &&
+    state.focusPrompt.trim().length <= lessonFocusPromptMaxLength
   );
 }
 
@@ -123,6 +140,7 @@ export function hasConfigurationChanges(
       current.videoApproach !== "standard" ||
       current.creativeStylePack !== null ||
       current.soundBed !== "none" ||
+      normalizedFocusPrompt(current.focusPrompt) !== null ||
       current.includeRecallQuestions !== false
     );
   }
@@ -136,6 +154,7 @@ export function hasConfigurationChanges(
     saved.videoApproach !== current.videoApproach ||
     saved.creativeStylePack !== current.creativeStylePack ||
     saved.soundBed !== current.soundBed ||
+    saved.focusPrompt !== normalizedFocusPrompt(current.focusPrompt) ||
     saved.includeRecallQuestions !== current.includeRecallQuestions
   );
 }
@@ -162,6 +181,7 @@ export function buildConfigurationSaveInput(
     videoApproach: state.videoApproach,
     creativeStylePack: state.creativeStylePack,
     soundBed: state.soundBed,
+    focusPrompt: normalizedFocusPrompt(state.focusPrompt),
     includeRecallQuestions: state.includeRecallQuestions,
   };
 }

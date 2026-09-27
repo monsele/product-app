@@ -134,6 +134,7 @@ describe("lesson configuration schemas", () => {
       videoApproach: "standard",
       creativeStylePack: null,
       soundBed: "none",
+      focusPrompt: null,
       includeRecallQuestions: true,
       sourceParsedDocumentVersion: 3,
       updatedAt: "2026-08-16T12:00:00.000Z",

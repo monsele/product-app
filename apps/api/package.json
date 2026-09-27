@@ -19,6 +19,7 @@
     "@avlp/database": "workspace:*",
     "@avlp/jobs": "workspace:*",
     "@avlp/observability": "workspace:*",
+    "@avlp/provider-adapters": "workspace:*",
     "@avlp/scene-library": "workspace:*",
     "@avlp/schemas": "workspace:*",
     "@avlp/storage": "workspace:*",

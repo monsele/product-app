@@ -309,6 +309,120 @@ function generateObjectivesJson(text: string, allUuids: string[]): string {
   return JSON.stringify(output);
 }
 
+const focusStopWords = new Set([
+  "about", "after", "also", "because", "been", "being", "between", "does",
+  "each", "from", "have", "into", "more", "most", "only", "other", "over",
+  "should", "some", "such", "than", "that", "their", "them", "then", "there",
+  "these", "they", "this", "those", "through", "under", "what", "when",
+  "where", "which", "while", "with", "would", "your", "lesson", "focus",
+  "explain", "learn", "understand", "want", "wants", "like",
+]);
+
+function extractFocus(text: string): string {
+  const match = text.match(
+    /(?:Lesson focus \([^)]*\)|What the learner wants the lesson to focus on):\n([\s\S]*?)\n\n/,
+  );
+  const focus = match?.[1]?.trim() ?? "none";
+  return focus.length === 0 ? "none" : focus;
+}
+
+function extractSubject(text: string): string {
+  const match = text.match(/"subject":\s*"([^"]+)"/);
+  return match?.[1] ?? "the subject";
+}
+
+/**
+ * Deterministic stand-in for the model's focus-coverage judgement: a focus
+ * keyword the source package never mentions is reported missing. Good enough
+ * to exercise every coverage state locally; the real model judges meaning.
+ */
+function mockFocusCoverage(text: string, focus: string): unknown {
+  if (focus === "none") return { status: "covered" };
+  const sourceStart = text.indexOf("Source material");
+  const sourceEnd = text.indexOf("Lesson configuration");
+  const source = text
+    .slice(Math.max(0, sourceStart), sourceEnd > sourceStart ? sourceEnd : undefined)
+    .toLowerCase();
+  const keywords = [
+    ...new Set(
+      focus
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter((word) => word.length >= 4 && !focusStopWords.has(word)),
+    ),
+  ];
+  if (keywords.length === 0) return { status: "covered" };
+  const missing = keywords.filter((word) => !source.includes(word));
+  if (missing.length === 0) return { status: "covered" };
+  if (missing.length === keywords.length)
+    return {
+      status: "not_covered",
+      reason: `The approved source does not discuss ${missing.slice(0, 3).join(", ")}.`,
+    };
+  return { status: "partial", missing: missing.slice(0, 10) };
+}
+
+/**
+ * `objectives/v3` output: subject-neutral wording driven by the configured
+ * subject, plus a focus-coverage report.
+ */
+function generateObjectivesV2Json(text: string, allUuids: string[]): string {
+  const v1 = JSON.parse(generateObjectivesJson(text, allUuids)) as Record<
+    string,
+    unknown
+  > & {
+    prerequisiteKnowledge: Array<{ text: string; sourceBlockIds: string[] }>;
+    misconceptions: Array<{
+      misconception: string;
+      correction: string;
+      sourceBlockIds: string[];
+    }>;
+  };
+  const subject = extractSubject(text);
+  const focus = extractFocus(text);
+  return JSON.stringify({
+    ...v1,
+    schemaVersion: "objectives-v2",
+    prerequisiteKnowledge: v1.prerequisiteKnowledge.map((item) => ({
+      ...item,
+      text: clampText(
+        `Familiarity with foundational ${subject} concepts and vocabulary.`,
+        300,
+      ),
+    })),
+    misconceptions: v1.misconceptions.map((item) => ({
+      ...item,
+      correction: "The parts described in the source depend on one another.",
+    })),
+    focusCoverage: mockFocusCoverage(text, focus),
+  });
+}
+
+function generateLessonIntentJson(text: string): string {
+  const focus = extractFocus(text);
+  const outline =
+    extractJsonObject<{ title?: string | null; headings?: string[] }>(
+      text,
+      "Document outline",
+    ) ?? {};
+  const subject =
+    outline.title ?? outline.headings?.[0] ?? "General studies";
+  const words = (focus === "none" ? subject : focus)
+    .replace(/[?!.]+$/g, "")
+    .split(/\s+/)
+    .filter((word) => word.length > 0)
+    .slice(0, 10);
+  const lessonTitle = words.join(" ");
+  return JSON.stringify({
+    schemaVersion: "lesson-intent-v1",
+    subject: clampText(subject, 200),
+    lessonTitle: clampText(
+      lessonTitle.charAt(0).toUpperCase() + lessonTitle.slice(1),
+      200,
+    ),
+  });
+}
+
 function generateOutlineJson(text: string, allUuids: string[]): string {
   const blockIds = extractBlockIds(text);
   const fallbackBlocks =
@@ -977,7 +1091,8 @@ function generateGroundingCheckJson(text: string, allUuids: string[]): string {
 /**
  * Intelligent in-process mock LLM provider for local development.
  * Automatically generates grounded, schema-compliant JSON for:
- * - objectives-v1
+ * - objectives-v1 and objectives-v2 (with focus coverage)
+ * - lesson-intent-v1
  * - outline-v1
  * - narration-v1
  * - narration-block-v1
@@ -1019,11 +1134,18 @@ export class DynamicMockLanguageModelProvider implements LanguageModelProvider {
       jsonOutput = generateStoryboardJson(fullText, allUuids);
     } else if (systemText.includes("source-grounding judge")) {
       jsonOutput = generateGroundingCheckJson(fullText, allUuids);
+    } else if (systemText.includes("You name lessons")) {
+      jsonOutput = generateLessonIntentJson(fullText);
     } else if (systemText.includes("instructional designer")) {
-      jsonOutput = generateObjectivesJson(fullText, allUuids);
+      jsonOutput = fullText.includes('"objectives-v2"')
+        ? generateObjectivesV2Json(fullText, allUuids)
+        : generateObjectivesJson(fullText, allUuids);
     } else if (systemText.includes("instructional planner")) {
       jsonOutput = generateOutlineJson(fullText, allUuids);
-    } else if (systemText.includes("science narrator")) {
+    } else if (
+      systemText.includes("science narrator") ||
+      systemText.includes("lesson narrator")
+    ) {
       jsonOutput = generateNarrationJson(fullText, allUuids);
     } else if (
       fullText.includes("scene-regeneration-v1") ||

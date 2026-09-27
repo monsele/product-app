@@ -22,6 +22,8 @@
   "dependencies": {
     "@avlp/config": "workspace:*",
     "@avlp/database": "workspace:*",
+    "@avlp/provider-adapters": "workspace:*",
+    "@avlp/schemas": "workspace:*",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/auto-instrumentations-node": "^0.67.2",
     "@opentelemetry/exporter-metrics-otlp-http": "^0.206.0",

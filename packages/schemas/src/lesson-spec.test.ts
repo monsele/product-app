@@ -23,6 +23,7 @@ import {
   parseLessonSpec,
   sceneSpecSchema,
   type LessonSpec,
+  lessonSpecVersion,
 } from "./index.js";
 
 const ids = [
@@ -83,8 +84,9 @@ describe("LessonSpec v1", () => {
 
   it("migrates compatible 1.0 lesson specs to the current contract", () => {
     const legacy = { ...validLesson, schemaVersion: initialLessonSpecVersion };
-    expect(migrateLessonSpecV1_0ToV1_1(legacy)).toEqual(validLesson);
-    expect(parseLessonSpec(legacy)).toEqual(validLesson);
+    const current = { ...validLesson, schemaVersion: lessonSpecVersion };
+    expect(migrateLessonSpecV1_0ToV1_1(legacy)).toEqual(current);
+    expect(parseLessonSpec(legacy)).toEqual(current);
   });
 
   it("refuses to truncate legacy definition content during migration", () => {
@@ -244,7 +246,7 @@ describe("LessonSpec v1", () => {
         ...validLesson,
         schemaVersion: "1.6",
       }),
-    ).toMatchObject({ schemaVersion: "1.8" });
+    ).toMatchObject({ schemaVersion: lessonSpecVersion });
     expect(() =>
       migrateLessonSpecV1_6ToV1_7({
         ...validLesson,
@@ -471,7 +473,7 @@ describe("LessonSpec v1", () => {
         ],
       }),
     ).toMatchObject({
-      schemaVersion: "1.8",
+      schemaVersion: lessonSpecVersion,
       scenes: [
         expect.objectContaining({
           visual: expect.objectContaining({
@@ -500,7 +502,7 @@ describe("LessonSpec v1", () => {
       ],
     };
     expect(migrateLessonSpecV1_3ToV1_4(prior)).toMatchObject({
-      schemaVersion: "1.8",
+      schemaVersion: lessonSpecVersion,
       scenes: [
         expect.objectContaining({
           visual: expect.objectContaining({
@@ -535,7 +537,7 @@ describe("LessonSpec v1", () => {
       ],
     };
     expect(migrateLessonSpecV1_2ToV1_3(scalarIpo)).toMatchObject({
-      schemaVersion: "1.8",
+      schemaVersion: lessonSpecVersion,
       scenes: [
         expect.objectContaining({
           template: "input-process-output",
@@ -548,7 +550,7 @@ describe("LessonSpec v1", () => {
       ],
     });
     expect(migrateLessonSpecV1_2ToV1_3(compatible)).toMatchObject({
-      schemaVersion: "1.8",
+      schemaVersion: lessonSpecVersion,
       scenes: [
         expect.objectContaining({
           template: "process",
@@ -641,7 +643,7 @@ describe("LessonSpec v1", () => {
         ],
       }),
     ).toMatchObject({
-      schemaVersion: "1.8",
+      schemaVersion: lessonSpecVersion,
       scenes: [
         expect.objectContaining({
           visual: {

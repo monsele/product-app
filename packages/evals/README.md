@@ -8,4 +8,4 @@ The automated rubric dimensions are schema validity, objective-coverage placehol
 
 ## Fixture contract pinning
 
-Valid lesson-spec fixtures are written against the current `LessonSpec` contract version (`lessonSpecVersion` from `@avlp/schemas`). A test pins the fixtures to that version so a contract bump fails loudly in CI instead of silently breaking the baseline.
+Valid lesson-spec fixtures are written against a readable `LessonSpec` contract version (`readableLessonSpecVersions` from `@avlp/schemas`). They stay on `1.8` because `1.9` (ST-104) only widened the audience and reads `1.8` in place. A test pins the fixtures to the readable set and checks they parse unchanged, so a contract break fails loudly in CI instead of silently breaking the baseline.

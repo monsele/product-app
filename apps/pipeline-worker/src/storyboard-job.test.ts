@@ -35,6 +35,7 @@ import {
   type SourceSnapshot,
   type StoryboardOutputV1,
   type StoryboardSceneOutput,
+  type ModelCallParams,
 } from "@avlp/schemas";
 import { z } from "zod";
 import { computeOutlineSetContentHash } from "./narration-job.js";
@@ -742,7 +743,9 @@ describe("persistLessonStoryboard", () => {
       executor: input.executor,
       output: validOutput(),
       sourcePackage: buildSourcePackage(sampleSnapshot()),
-      params: storyboardParams(),
+      // ST-104: the parsed params type carries an optional `focusPrompt`,
+      // which the generic job-carrier record type does not model.
+      params: storyboardParams() as ModelCallParams,
       modelCall: {
         id: "019ffbf1-eeee-7000-8000-000000000004",
         promptId: "storyboard",

@@ -34,6 +34,7 @@ import { createIdempotencyKey, createJobEnvelope } from "@avlp/jobs";
 import { createModelCallProviderApproval } from "./model-call-approval.js";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
+  focusPromptParam,
   createDefaultStoryboardSceneSpec,
   currentSceneRegenerationCompatibility,
   currentStoryboardGenerationCompatibility,
@@ -289,6 +290,8 @@ export class PostgresStoryboardService implements StoryboardService {
         tone: configuration.tone,
         targetDurationSeconds: configuration.targetDurationSeconds,
         includeRecallQuestions: configuration.includeRecallQuestions,
+        // ST-104: enters the params hash, inputVersion and idempotency key.
+        ...focusPromptParam(configuration.focusPrompt),
         narrationSetId: narrationSet.id,
         narrationSetRevision: narrationSet.revision,
       });

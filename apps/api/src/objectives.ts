@@ -20,6 +20,7 @@ import { createIdempotencyKey, createJobEnvelope } from "@avlp/jobs";
 import { createModelCallProviderApproval } from "./model-call-approval.js";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
+  focusPromptParam,
   currentObjectiveGenerationCompatibility,
   learningObjectiveSetSchema,
   modelCallJobPayloadSchema,
@@ -215,6 +216,8 @@ export class PostgresObjectivesService implements ObjectivesService {
         tone: configuration.tone,
         targetDurationSeconds: configuration.targetDurationSeconds,
         includeRecallQuestions: configuration.includeRecallQuestions,
+        // ST-104: enters the params hash, inputVersion and idempotency key.
+        ...focusPromptParam(configuration.focusPrompt),
       });
       const requestedJobId = createId(timestamp);
       const payload = modelCallJobPayloadSchema.parse({
@@ -901,6 +904,9 @@ export class PostgresObjectivesService implements ObjectivesService {
       vocabulary: draft.vocabulary,
       misconceptions: draft.misconceptions,
       assessmentQuestions: draft.assessmentQuestions,
+      // ST-104. Teacher edits do not re-judge coverage; the report stays the
+      // one the generation made for this source and focus.
+      focusCoverage: draft.focusCoverage,
       generatedAt: draft.generatedAt,
       createdAt: draft.createdAt,
       updatedAt: draft.updatedAt,
@@ -1207,6 +1213,10 @@ export class PostgresObjectivesService implements ObjectivesService {
       vocabulary: row.vocabulary,
       misconceptions: row.misconceptions,
       assessmentQuestions: row.assessmentQuestions,
+      // ST-104. `null` for sets generated before objectives/v3.
+      ...(row.focusCoverage === null
+        ? {}
+        : { focusCoverage: row.focusCoverage }),
       generatedAt: serializeUtcTimestamp(row.generatedAt),
       createdAt: serializeUtcTimestamp(row.createdAt),
     });

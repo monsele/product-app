@@ -4,7 +4,7 @@
     "LessonSpec": {
       "type": "object",
       "properties": {
-        "schemaVersion": { "type": "string", "const": "1.8" },
+        "schemaVersion": { "type": "string", "enum": ["1.8", "1.9"] },
         "lessonId": {
           "type": "string",
           "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
@@ -17,11 +17,18 @@
           "properties": {
             "ageBand": {
               "type": "string",
-              "enum": ["8-10", "11-13", "14-16", "adult-beginner"]
+              "enum": [
+                "8-10",
+                "11-13",
+                "14-16",
+                "adult-beginner",
+                "adult-intermediate",
+                "adult-professional"
+              ]
             },
             "difficulty": {
               "type": "string",
-              "enum": ["introductory", "intermediate"]
+              "enum": ["introductory", "intermediate", "advanced"]
             },
             "priorKnowledge": {
               "type": "array",

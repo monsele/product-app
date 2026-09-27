@@ -31,7 +31,27 @@ it("includes every approved input and portable LessonSpec in a snapshot", () => 
   } as unknown as Parameters<typeof buildLessonVersionSnapshot>[0];
   const snapshot = buildLessonVersionSnapshot(state, { sceneCitations: [] }) as Record<string, unknown>;
   expect(snapshot).toMatchObject({ configuration: { version: 2 }, objectives: { items: [{ id }] }, outline: { items: [{ id }] }, narration: { blocks: [{ id }] }, sourceSnapshot: { source: "immutable" }, citations: { sceneCitations: [] } });
-  expect((snapshot.lessonSpec as { schemaVersion: string }).schemaVersion).toBe("1.8");
+  expect((snapshot.lessonSpec as { schemaVersion: string }).schemaVersion).toBe("1.9");
+  expect((snapshot.versions as { lessonSpec: string }).lessonSpec).toBe("1.9");
+});
+
+it("ST-104: restores a stored 1.8 snapshot unchanged and snapshots adult-professional/advanced as 1.9", () => {
+  const id = "019ffbf1-eeee-7000-8000-000000000045";
+  const scene = { id, order: 1, narration: "Load flows to supports.", durationSeconds: 30, onScreenText: [], transition: "cut", assetBindings: [], sourceRefs: [{ documentId: id, parsedDocumentVersion: 1, pageStart: 1, sectionId: id, blockIds: [id] }], generatedAdditions: [], template: "definition", visual: { term: "Truss", definition: "A frame of triangles." } };
+  const state = (ageBand: string, difficulty: string) => ({ configuration: { version: 2, ageBand, difficulty, targetDurationSeconds: 180, tone: "academic", visualTheme: "mvp-default" }, objectives: { id }, outline: { id, sourceSnapshotId: id }, narration: { id, sourceSnapshotId: id, promptVersion: "v4" }, storyboard: { id, projectId: id, title: "Trusses", subject: "Structural engineering", objectiveIds: [id], promptVersion: "v3", basedOnNarrationSetId: id, payload: { scenes: [{ scene }] } }, source: { id, payload: {} }, objectiveItems: [{ id }], outlineItems: [{ id }], blocks: [{ id }], groundingCheckId: null }) as unknown as Parameters<typeof buildLessonVersionSnapshot>[0];
+  const professional = buildLessonVersionSnapshot(state("adult-professional", "advanced"), { sceneCitations: [] }) as { lessonSpec: { schemaVersion: string; audience: unknown } };
+  expect(professional.lessonSpec.schemaVersion).toBe("1.9");
+  expect(professional.lessonSpec.audience).toEqual({ ageBand: "adult-professional", difficulty: "advanced", priorKnowledge: [] });
+  // A version saved before ST-104: identical content, but pinned to 1.8.
+  const current = buildLessonVersionSnapshot(state("11-13", "introductory"), { sceneCitations: [] }) as { lessonSpec: Record<string, unknown>; versions: Record<string, unknown> };
+  const stored18 = { ...current, lessonSpec: { ...current.lessonSpec, schemaVersion: "1.8" }, versions: { ...current.versions, lessonSpec: "1.8" } };
+  const frozen = JSON.stringify(stored18);
+  const restored = prepareRestoredSnapshot(stored18, id, id, stored18.lessonSpec, stored18.lessonSpec) as { lessonSpec: unknown };
+  expect(restored.lessonSpec).toEqual(stored18.lessonSpec);
+  expect(JSON.stringify(stored18)).toBe(frozen);
+  // 1.8 cannot carry the new audience values.
+  const invalid = { ...stored18, lessonSpec: { ...stored18.lessonSpec, audience: { ageBand: "adult-professional", difficulty: "advanced", priorKnowledge: [] } } };
+  expect(() => prepareRestoredSnapshot(invalid, id, id, invalid.lessonSpec, invalid.lessonSpec)).toThrow("incompatible or corrupt");
 });
 
 it("clones a compatible historical snapshot without mutating it", () => {

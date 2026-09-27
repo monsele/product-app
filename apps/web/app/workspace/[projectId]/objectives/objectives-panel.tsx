@@ -9,6 +9,7 @@ import {
   type ObjectivesResponse,
 } from "@avlp/schemas";
 import {
+  focusCoverageNotice,
   isGenerating,
   objectiveFailureMessage,
   objectiveGroundingLabel,
@@ -400,6 +401,8 @@ export function ObjectivesPanel({
   }
 
   const draft = view.value.set;
+  // ST-104: advisory only — the teacher may still edit and approve.
+  const coverageNotice = focusCoverageNotice(draft?.focusCoverage);
   const approved = view.value.approved;
   const isApproved = draft !== null && draft.status === "approved";
   const hasDiffWithApproved =
@@ -438,6 +441,14 @@ export function ObjectivesPanel({
               type={actionMessageType}
               message={actionMessage}
               onClose={() => setActionMessage(null)}
+            />
+          )}
+
+          {coverageNotice && (
+            <Notice
+              type="warning"
+              title={coverageNotice.title}
+              message={coverageNotice.message}
             />
           )}
 
