@@ -135,7 +135,13 @@ describe("ST-105 prompt-to-video runner", () => {
   it("skips every step whose artifact is already current", async () => {
     const fake = new FakePipeline();
     fake.snapshot = { approved: true, stale: false };
-    fake.config = { version: 2, focusPrompt: "How do trusses carry load?" };
+    fake.config = {
+      version: 2,
+      focusPrompt: "How do trusses carry load?",
+      ageBand: "adult-professional",
+      difficulty: "advanced",
+      targetDurationSeconds: 180,
+    };
     fake.voice = true;
     for (const stage of ["objectives", "outline", "narration"] as const)
       fake.stages[stage] = { ...idleStage(), state: "approved", revision: 3 };
@@ -215,7 +221,13 @@ describe("ST-105 prompt-to-video runner", () => {
   it("fails a step with no progress for 20 minutes, and the run can be resumed", async () => {
     const fake = new FakePipeline();
     fake.snapshot = { approved: true, stale: false };
-    fake.config = { version: 1, focusPrompt: "x" };
+    fake.config = {
+      version: 1,
+      focusPrompt: "x",
+      ageBand: "adult-professional",
+      difficulty: "advanced",
+      targetDurationSeconds: 180,
+    };
     fake.voice = true;
     const stuckJob = nextId();
     fake.stages.objectives = {
@@ -274,6 +286,64 @@ describe("ST-105 prompt-to-video runner", () => {
     expect(next.currentStep).toBe("objectives");
     expect(fake.calls.filter((call) => call === "generate:objectives")).toHaveLength(2);
     expect(step(next, "objectives")?.state).toBe("running");
+  });
+
+  it("replaces a configuration an earlier run left behind with this run's request", async () => {
+    // ST-106 "Edit prompt": a cancelled run configured the project with a
+    // focus the document did not cover; the new run must use its own.
+    const fake = new FakePipeline();
+    fake.snapshot = { approved: true, stale: false };
+    fake.config = {
+      version: 3,
+      focusPrompt: "How do volcanoes erupt?",
+      ageBand: "adult-intermediate",
+      difficulty: "intermediate",
+      targetDurationSeconds: 300,
+    };
+    fake.voice = true;
+    let run = initialRun();
+    for (let tick = 0; tick < 4 && step(run, "configuration")?.state !== "done"; tick += 1) {
+      const result = await advanceOneShotRun({ run, gateway: fake, now: new Date("2026-09-27T10:00:30.000Z") });
+      run = apply(run, result, new Date("2026-09-27T10:00:30.000Z"));
+      fake.completeJobs();
+    }
+    expect(fake.calls).toContain("saveConfiguration");
+    expect(fake.config).toMatchObject({
+      version: 4,
+      focusPrompt: "How do trusses carry load?",
+      ageBand: "adult-professional",
+      difficulty: "advanced",
+      targetDurationSeconds: 180,
+    });
+  });
+
+  it("keeps the user's own configuration edits once this run has configured the lesson", async () => {
+    const fake = new FakePipeline();
+    fake.snapshot = { approved: true, stale: false };
+    fake.voice = true;
+    fake.config = {
+      version: 5,
+      focusPrompt: "How do trusses carry wind load?",
+      ageBand: "adult-professional",
+      difficulty: "advanced",
+      targetDurationSeconds: 180,
+    };
+    const run = initialRun({
+      status: "running",
+      steps: [
+        { step: "ingestion", state: "done", startedAt: "2026-09-27T09:00:00.000Z" },
+        { step: "source_snapshot", state: "done", startedAt: "2026-09-27T09:00:00.000Z" },
+        {
+          step: "configuration",
+          state: "done",
+          startedAt: "2026-09-27T09:00:00.000Z",
+          detail: { configurationVersion: 4 },
+        },
+      ],
+    });
+    await advanceOneShotRun({ run, gateway: fake, now: new Date("2026-09-27T10:00:30.000Z") });
+    expect(fake.calls).not.toContain("saveConfiguration");
+    expect(fake.config?.focusPrompt).toBe("How do trusses carry wind load?");
   });
 
   it("does not stop on a concurrent-edit conflict and stops on a refusal", async () => {

@@ -8,6 +8,7 @@ import type {
   AcceptableIllustration,
   ApprovalStage,
   ApprovalStageState,
+  ConfigurationState,
   OneShotCallContext,
   OneShotJobStatus,
   OneShotStageGateway,
@@ -39,7 +40,7 @@ export type StageFake = {
 export class FakePipeline implements OneShotStageGateway {
   public ingestionState: "pending" | "ready" | "failed" = "ready";
   public snapshot = { approved: false, stale: false };
-  public config: { version: number; focusPrompt: string | null } | null = null;
+  public config: ConfigurationState | null = null;
   public voice = false;
   public stages: Record<ApprovalStage, StageFake> = {
     objectives: idleStage(),
@@ -112,10 +113,16 @@ export class FakePipeline implements OneShotStageGateway {
   }
   public async saveConfiguration(
     _context: OneShotCallContext,
-    input: { expectedVersion: number; focusPrompt: string },
+    input: Parameters<OneShotStageGateway["saveConfiguration"]>[1],
   ) {
     this.calls.push("saveConfiguration");
-    this.config = { version: input.expectedVersion + 1, focusPrompt: input.focusPrompt };
+    this.config = {
+      version: input.expectedVersion + 1,
+      focusPrompt: input.focusPrompt,
+      ageBand: input.audience.ageBand,
+      difficulty: input.audience.difficulty,
+      targetDurationSeconds: input.targetDurationSeconds,
+    };
     return { version: this.config.version };
   }
   public async saveDefaultVoice() {

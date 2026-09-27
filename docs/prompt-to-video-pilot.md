@@ -1,7 +1,7 @@
 # The prompt-to-video pilot (runner and API)
 
 Status: invite-only pilot. Delivered by ST-105 on the decisions in
-[ADR-013](adr/ADR-013-prompt-to-video-pilot.md). The screens come in ST-106.
+[ADR-013](adr/ADR-013-prompt-to-video-pilot.md). The screens are ST-106.
 
 ## What it does
 
@@ -45,6 +45,28 @@ One run per project may be active: `queued`, `running`,
 `awaiting_render_approval`, `rendering`, `needs_attention` or `failed`. A
 failed run stays active because it can be resumed; cancel it to start another.
 
+## The screens (ST-106)
+
+| Where | What |
+| --- | --- |
+| `/workspace` | The create form offers **Quick video from a PDF** next to the step-by-step editor, only when `one-shot/eligibility` reports `visible`. Eligibility is read through the user's most recent project, so a user with no project yet does not see the option until they have one. |
+| `/workspace/<projectId>/one-shot` | One page for the whole run. The view follows the server's run status, so a reload lands on the right step. Outside the cohort it shows an unavailable state. |
+| Wizard header | Projects with a run show a **Prompt-to-video run** link back to the run page. |
+
+The run page moves through these views:
+
+1. **Request.** The existing upload panel, a focus prompt (1,000 characters with a counter), the audience (*Myself*, *Students* with an age band, or *Professional*), the length (3, 5 or 7 minutes), the itemised estimate, and **Create video**.
+2. **Progress.** Seven steps (Reading document → Planning → Outline → Narration → Visuals → Audio → Checks), the cost so far, and **Cancel** with confirmation. Polling starts at 2 s and backs off to 15 s while nothing changes. A live region announces the current step.
+3. **Needs attention.** The reason, a link to the wizard stage that fixes it, and **Resume**. `not_covered` instead shows the coverage reason and **Edit prompt**, which closes the run and prefills a new request.
+4. **Preview approval.** The full-lesson player, any partial-coverage note, validation warnings (read-only), **Render video** and **Refine in editor**.
+5. **Delivery.** The render panel from the Deliver stage, including download, sharing and the ST-103 review.
+
+Paid work starts only from **Create video** and **Render video**:
+
+- Both buttons ignore a second click while a request is in flight.
+- **Create video** sends an `Idempotency-Key` that stays the same until the request changes, so a retry replays the same run.
+- The focus prompt only travels in request bodies.
+
 ## How the runner works
 
 The runner is ordinary job code, with no agent framework (ADR-013 §5).
@@ -85,7 +107,7 @@ The runner is ordinary job code, with no agent framework (ADR-013 §5).
 | --- | --- | --- |
 | `ingestion` | Waits for the existing ingestion chain. | Parsing, document validation or quality fails (`INGESTION_FAILED`). |
 | `source_snapshot` | Approves the source review. | The service refuses (`STAGE_BLOCKED`). |
-| `configuration` | Infers subject and title (`ai.lesson-intent`), saves the configuration with the focus and audience, and saves the `english-aria` voice. | Refused. |
+| `configuration` | Infers subject and title (`ai.lesson-intent`), saves the configuration with the focus and audience, and saves the `english-aria` voice. A configuration left by an earlier run on the same project (for example before **Edit prompt**) is replaced by this run's request; once this run has configured the lesson, the user's own edits are kept (ST-106). | Refused. |
 | `objectives` | Generates, then approves with `expectedRevision`. | Coverage is `not_covered` (`FOCUS_NOT_COVERED`), or the job it queued fails. |
 | `outline`, `narration` | Generates, then approves. | The draft cannot be approved, or the job it queued fails. |
 | `storyboard` | Generates. | The job it queued fails. |

@@ -36,8 +36,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       303,
     );
 
+  // ST-106: the quick-video option opens the prompt-to-video run page. The
+  // page itself checks the cohort, so a forged `flow` only shows "unavailable".
+  const next =
+    data.get("flow") === "one-shot" ? "one-shot" : "upload";
   return NextResponse.redirect(
-    new URL(`/workspace/${parsed.data.project.id}/upload`, request.url),
+    new URL(`/workspace/${parsed.data.project.id}/${next}`, request.url),
     303,
   );
 }

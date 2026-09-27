@@ -67,6 +67,60 @@ export function previewSoundBedProps(
   };
 }
 
+/**
+ * The preview manifest as `FullLessonPreviewPlayer` input: scene timing,
+ * narration tracks, captions on the composition timeline and the sound bed.
+ * Shared with the prompt-to-video approval screen (ST-106) so both surfaces
+ * play the lesson identically.
+ */
+export function previewPlayerInput(manifest: PreviewManifest) {
+  const offsetByStableSceneId = new Map<string, number>();
+  const compositionSceneIdByStableId = new Map<string, string>();
+  let offset = 0;
+  for (const entry of manifest.storyboard.scenes) {
+    offsetByStableSceneId.set(entry.stableSceneId, offset);
+    compositionSceneIdByStableId.set(entry.stableSceneId, entry.scene.id);
+    offset += Math.round(entry.scene.durationSeconds * manifest.canvas.fps);
+  }
+  return {
+    lesson: {
+      scenes: manifest.storyboard.scenes.map((entry) => entry.scene),
+    },
+    assets: manifest.assets,
+    ...(manifest.creativeDesign === undefined
+      ? {}
+      : { creativeDesign: manifest.creativeDesign }),
+    // ST-103: the configured bed, played through the same composition and
+    // envelope the render uses.
+    ...previewSoundBedProps(manifest),
+    narrationTracks: manifest.storyboard.scenes.map((entry) => {
+      const audio = manifest.scenes.find(
+        (candidate) => candidate.sceneId === entry.stableSceneId,
+      )?.audio;
+      return audio?.url === null || audio?.url === undefined
+        ? { kind: "deterministic-silence" as const, sceneId: entry.scene.id }
+        : {
+            kind: "browser-audio" as const,
+            sceneId: entry.scene.id,
+            src: audio.url,
+          };
+    }),
+    captions: manifest.scenes.flatMap((entry) =>
+      entry.captions.map((cue) => ({
+        sceneId:
+          compositionSceneIdByStableId.get(entry.sceneId) ?? entry.sceneId,
+        startFrame:
+          (offsetByStableSceneId.get(entry.sceneId) ?? 0) +
+          Math.round((cue.startMs * manifest.canvas.fps) / 1_000),
+        endFrame:
+          (offsetByStableSceneId.get(entry.sceneId) ?? 0) +
+          Math.round((cue.endMs * manifest.canvas.fps) / 1_000),
+        text: cue.text,
+      })),
+    ),
+  };
+}
+
 export function FullLessonPreview({
   projectId,
   initialManifest,
@@ -205,53 +259,7 @@ export function FullLessonPreview({
     void loadValidation();
   }, [refreshSignedUrls, loadValidation]);
 
-  const input = useMemo(() => {
-    const offsetByStableSceneId = new Map<string, number>();
-    const compositionSceneIdByStableId = new Map<string, string>();
-    let offset = 0;
-    for (const entry of manifest.storyboard.scenes) {
-      offsetByStableSceneId.set(entry.stableSceneId, offset);
-      compositionSceneIdByStableId.set(entry.stableSceneId, entry.scene.id);
-      offset += Math.round(entry.scene.durationSeconds * manifest.canvas.fps);
-    }
-    return {
-      lesson: {
-        scenes: manifest.storyboard.scenes.map((entry) => entry.scene),
-      },
-      assets: manifest.assets,
-      ...(manifest.creativeDesign === undefined
-        ? {}
-        : { creativeDesign: manifest.creativeDesign }),
-      // ST-103: the configured bed, played through the same composition and
-      // envelope the render uses.
-      ...previewSoundBedProps(manifest),
-      narrationTracks: manifest.storyboard.scenes.map((entry) => {
-        const audio = manifest.scenes.find(
-          (candidate) => candidate.sceneId === entry.stableSceneId,
-        )?.audio;
-        return audio?.url === null || audio?.url === undefined
-          ? { kind: "deterministic-silence" as const, sceneId: entry.scene.id }
-          : {
-              kind: "browser-audio" as const,
-              sceneId: entry.scene.id,
-              src: audio.url,
-            };
-      }),
-      captions: manifest.scenes.flatMap((entry) =>
-        entry.captions.map((cue) => ({
-          sceneId:
-            compositionSceneIdByStableId.get(entry.sceneId) ?? entry.sceneId,
-          startFrame:
-            (offsetByStableSceneId.get(entry.sceneId) ?? 0) +
-            Math.round((cue.startMs * manifest.canvas.fps) / 1_000),
-          endFrame:
-            (offsetByStableSceneId.get(entry.sceneId) ?? 0) +
-            Math.round((cue.endMs * manifest.canvas.fps) / 1_000),
-          text: cue.text,
-        })),
-      ),
-    };
-  }, [manifest]);
+  const input = useMemo(() => previewPlayerInput(manifest), [manifest]);
 
   const stale = manifest.scenes.filter((entry) => entry.stale);
   const totalDurationSeconds = manifest.storyboard.scenes.reduce(

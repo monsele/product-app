@@ -1,0 +1,43 @@
+  [outsider] 1-workspace-no-entry  http://localhost:3000/workspace
+  [outsider] 2-route-unavailable  http://localhost:3000/workspace/01a0e3e1-fb8e-7099-a1f8-0a50f9145dbb/one-shot
+  [history] 1-workspace-entry  http://localhost:3000/workspace
+  [biology] 1-workspace-entry  http://localhost:3000/workspace
+  [finance] 1-workspace-entry  http://localhost:3000/workspace
+  [finance] 2-request-estimate  http://localhost:3000/workspace/01a0e3e2-50d3-7ba3-8960-544c14e3ae86/one-shot
+  [history] 2-request-estimate  http://localhost:3000/workspace/01a0e3e2-50b2-7bb2-9f78-2463cc3ef883/one-shot
+  [finance] 3-progress  http://localhost:3000/workspace/01a0e3e2-50d3-7ba3-8960-544c14e3ae86/one-shot
+  [history] 3-progress  http://localhost:3000/workspace/01a0e3e2-50b2-7bb2-9f78-2463cc3ef883/one-shot
+  [history] 4-progress-after-reload  http://localhost:3000/workspace/01a0e3e2-50b2-7bb2-9f78-2463cc3ef883/one-shot
+  [finance] 4-progress-after-reload  http://localhost:3000/workspace/01a0e3e2-50d3-7ba3-8960-544c14e3ae86/one-shot
+  [finance] 5-progress-phone  http://localhost:3000/workspace/01a0e3e2-50d3-7ba3-8960-544c14e3ae86/one-shot
+  [history] 5-progress-phone  http://localhost:3000/workspace/01a0e3e2-50b2-7bb2-9f78-2463cc3ef883/one-shot
+  [biology] 2-offtopic-not_covered  http://localhost:3000/workspace/01a0e3e2-50f1-7afb-831d-d0476f8b4c95/one-shot
+  [biology] 3-request-estimate  http://localhost:3000/workspace/01a0e3e2-50f1-7afb-831d-d0476f8b4c95/one-shot
+  [finance] 6-attention  http://localhost:3000/workspace/01a0e3e2-50d3-7ba3-8960-544c14e3ae86/one-shot
+  [finance] 99-error  http://localhost:3000/workspace/01a0e3e2-50d3-7ba3-8960-544c14e3ae86/one-shot
+  [history] 6-attention  http://localhost:3000/workspace/01a0e3e2-50b2-7bb2-9f78-2463cc3ef883/one-shot
+  [history] 99-error  http://localhost:3000/workspace/01a0e3e2-50b2-7bb2-9f78-2463cc3ef883/one-shot
+  [biology] 99-error  http://localhost:3000/workspace/01a0e3e2-50f1-7afb-831d-d0476f8b4c95/one-shot
+[
+  {
+    "subject": "outsider",
+    "entryVisible": false,
+    "unavailable": true
+  },
+  {
+    "subject": "finance",
+    "error": "Error: run stopped at attention",
+    "pageErrors": []
+  },
+  {
+    "subject": "history",
+    "error": "Error: run stopped at attention",
+    "pageErrors": []
+  },
+  {
+    "subject": "biology",
+    "error": "Error: timed out waiting for progress",
+    "pageErrors": []
+  }
+]
+exit 0

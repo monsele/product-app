@@ -186,6 +186,9 @@ export class ServiceOneShotGateway
       : {
           version: response.configuration.version,
           focusPrompt: response.configuration.focusPrompt,
+          ageBand: response.configuration.ageBand,
+          difficulty: response.configuration.difficulty,
+          targetDurationSeconds: response.configuration.targetDurationSeconds,
         };
   }
 

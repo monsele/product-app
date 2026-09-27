@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { projectListPageSchema } from "@avlp/schemas";
+import { oneShotEligibilitySchema } from "@avlp/schemas/one-shot";
 import { AuthenticatedAppShell } from "../../components/layout/authenticated-app-shell";
 import { ProjectBoardClient } from "./project-board-client";
 import { ContextualInformationRail } from "./information-rail";
@@ -39,6 +40,32 @@ export default async function WorkspacePage({
 
   const payload = parsed.data;
 
+  // ST-106. Eligibility is per user but served under a project, so it is read
+  // through the most recent one. A user with no project yet does not see the
+  // quick-video option until they have one. Hiding it is a convenience only:
+  // the API enforces the cohort on every one-shot call.
+  const eligibilityProject = payload.items[0];
+  const eligibilityResponse =
+    eligibilityProject === undefined
+      ? null
+      : await fetch(
+          apiUrl(
+            `/projects/${encodeURIComponent(eligibilityProject.id)}/one-shot/eligibility`,
+          ),
+          {
+            headers: { cookie: `avlp_session=${encodeURIComponent(token)}` },
+            cache: "no-store",
+          },
+        ).catch(() => null);
+  const eligibility =
+    eligibilityResponse?.ok === true
+      ? oneShotEligibilitySchema.safeParse(
+          await eligibilityResponse.json().catch(() => null),
+        )
+      : null;
+  const quickVideoVisible =
+    eligibility?.success === true && eligibility.data.visible;
+
   return (
     <AuthenticatedAppShell userEmail="teacher@school.org" mode="daylight">
       <div className={styles.page}>
@@ -58,6 +85,7 @@ export default async function WorkspacePage({
               nextCursor={payload.nextCursor}
               error={error}
               done={done}
+              quickVideoVisible={quickVideoVisible}
             />
           </div>
 

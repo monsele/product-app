@@ -5,6 +5,7 @@ import { AppHeader } from "./app-header";
 import { ProjectPipelineRail, type StageState } from "./project-pipeline-rail";
 import { PageContainer } from "./page-container";
 import { Drawer } from "../ui/drawer";
+import { OneShotRunLink } from "./one-shot-run-link";
 
 export interface AppShellProps {
   children: React.ReactNode;
@@ -55,7 +56,16 @@ export const AppShell: React.FC<AppShellProps> = ({
         projectStatus={projectStatus}
         userEmail={userEmail}
         onSignOut={onSignOut}
-        actions={headerActions}
+        actions={
+          stages && stages.length > 0 ? (
+            <>
+              <OneShotRunLink />
+              {headerActions}
+            </>
+          ) : (
+            headerActions
+          )
+        }
         onToggleMobileMenu={stages && stages.length > 0 ? toggleMobileMenu : undefined}
         isMobileMenuOpen={isMobileMenuOpen}
       />

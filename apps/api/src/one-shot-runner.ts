@@ -134,6 +134,9 @@ export type IngestionState =
 export type ConfigurationState = {
   version: number;
   focusPrompt: string | null;
+  ageBand: string;
+  difficulty: string;
+  targetDurationSeconds: number;
 };
 
 /**
@@ -607,10 +610,22 @@ export async function advanceOneShotRun(input: {
       gateway.configuration(scope),
       gateway.voiceConfigured(scope),
     ]);
-    // A configuration that carries a focus was written by this run or edited
-    // by the user since; either way it is the real state to continue from.
+    // Once this run has configured the lesson, a configuration with a focus is
+    // the real state to continue from, including the user's own edits since.
+    // Before that, only one that already matches this run's request counts
+    // (a tick that died after saving). A configuration left by an earlier run
+    // on the same project, as after "Edit prompt", is replaced by this run's.
+    const ownConfiguration = steps.some((entry) => entry.step === "configuration");
+    const matchesRequest =
+      configuration !== null &&
+      configuration.focusPrompt === run.focusPrompt &&
+      configuration.ageBand === run.audience.ageBand &&
+      configuration.difficulty === run.audience.difficulty &&
+      configuration.targetDurationSeconds === run.targetDurationSeconds;
     const configured =
-      configuration !== null && configuration.focusPrompt !== null;
+      configuration !== null &&
+      configuration.focusPrompt !== null &&
+      (ownConfiguration || matchesRequest);
     if (!configured) {
       const intent = await gateway.inferIntent(
         context("configuration", ":intent"),

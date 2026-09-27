@@ -1,0 +1,429 @@
+/*
+ * ST-106 — prompt-to-video run page.
+ * Studio Daylight, single column, form column capped at 720px (docs/design.md
+ * 6.3). Every grid collapses to one column below 768px with no horizontal
+ * scroll; the player reserves its 16:9 box to avoid layout shift.
+ */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 8px 0 40px 0;
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 72ch;
+}
+
+.title {
+  margin: 0;
+  font-size: 32px;
+  line-height: 38px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--color-text);
+}
+
+.lead {
+  margin: 0;
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--color-text-muted);
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  max-width: 720px;
+  min-width: 0;
+}
+
+.wide {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+  min-width: 0;
+}
+
+.card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 20px;
+  line-height: 26px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--color-text);
+}
+
+.cardLead {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-text-muted);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------- Form ---------- */
+
+.fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.legend {
+  padding: 0;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.helper {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-muted);
+}
+
+.error {
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--color-error-fg);
+}
+
+.textarea {
+  width: 100%;
+  min-height: 132px;
+  resize: vertical;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 15px;
+  line-height: 22px;
+  color: var(--color-text);
+  background-color: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+}
+
+.textarea[aria-invalid="true"] {
+  border-color: var(--color-error-fg);
+}
+
+.counterRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.counter {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.counterOver {
+  color: var(--color-error-fg);
+  font-weight: 600;
+}
+
+.choiceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.choice {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px 14px;
+  min-height: 44px;
+  box-sizing: border-box;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface-raised);
+  cursor: pointer;
+}
+
+/* Selection shows through border, surface and weight together, never colour
+   alone (docs/design.md 8.4). */
+.choice:has(input:checked) {
+  border-color: var(--color-brand);
+  background-color: var(--color-surface-brand);
+  box-shadow: inset 0 0 0 1px var(--color-brand);
+}
+
+.choice:has(input:focus-visible) {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.choice input {
+  margin: 3px 0 0;
+  accent-color: var(--color-brand);
+  flex-shrink: 0;
+}
+
+.choiceText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.choiceLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.choiceHint {
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-muted);
+}
+
+.inlineChoices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.inlineChoices .choice {
+  align-items: center;
+}
+
+/* ---------- Estimate ---------- */
+
+.estimate {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-surface-subtle);
+}
+
+.estimateTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+.estimateTable th,
+.estimateTable td {
+  padding: 6px 0;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.estimateTable th {
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.estimateTable .amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  padding-left: 12px;
+}
+
+.estimateTable tfoot td {
+  border-bottom: none;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.destructiveLink {
+  margin-left: auto;
+}
+
+/* ---------- Progress ---------- */
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  border: 1px solid transparent;
+}
+
+.stepCurrent {
+  border-color: var(--color-brand-line);
+  background-color: var(--color-surface-brand);
+}
+
+.stepName {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.stepCurrent .stepName {
+  font-weight: 700;
+}
+
+.meta {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin: 0;
+}
+
+.meta div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.meta dt {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-text-muted);
+}
+
+.meta dd {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.request {
+  margin: 0;
+  padding: 12px 14px;
+  border-left: 3px solid var(--color-brand-line);
+  background-color: var(--color-surface-subtle);
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--color-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 72ch;
+}
+
+/* ---------- Approval ---------- */
+
+.player {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-color: var(--color-stage-canvas);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.playerPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #d9d3e2;
+  font-size: 14px;
+  padding: 16px;
+  text-align: center;
+}
+
+.issueList {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--color-text);
+}
+
+.link {
+  color: var(--color-brand);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  .title {
+    font-size: 26px;
+    line-height: 32px;
+  }
+
+  .card {
+    padding: 16px;
+  }
+
+  .destructiveLink {
+    margin-left: 0;
+  }
+}

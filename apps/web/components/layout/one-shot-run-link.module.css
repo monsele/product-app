@@ -1,0 +1,33 @@
+/* ST-106: wizard header link back to the prompt-to-video run. Keeps a 36px
+   target and shortens below 768px so the header never scrolls sideways. */
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.link:hover {
+  background-color: var(--color-surface-subtle);
+}
+
+.short {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .full {
+    display: none;
+  }
+
+  .short {
+    display: inline;
+  }
+}

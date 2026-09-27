@@ -1,4 +1,5 @@
 import { createServer } from "node:http";
+import { handleOneShot } from "./one-shot-mock.mjs";
 
 const now = "2026-08-13T12:00:00.000Z";
 const existingId = "019ffbf1-610e-738a-b087-6775ff97568c";
@@ -562,6 +563,8 @@ const server = createServer(async (request, response) => {
   response.setHeader("access-control-allow-credentials", "true");
   if (request.method === "GET" && url.pathname === "/health")
     return send(response, 200, { status: "ok" });
+  if (await handleOneShot(request, response, url, { send, storyboardDraft }))
+    return;
   if (request.method === "GET" && url.pathname.endsWith("/source-document")) {
     return send(response, 200, {
       documentId: "019ffbf1-610e-738a-b087-6775ff97568c",

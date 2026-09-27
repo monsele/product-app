@@ -31,6 +31,8 @@ export interface ProjectBoardClientProps {
   error?: string | undefined;
   /** Outcome of an action that redirected back here, e.g. "delete". */
   done?: string | undefined;
+  /** ST-106: the signed-in user is in the prompt-to-video pilot cohort. */
+  quickVideoVisible?: boolean | undefined;
 }
 
 function createIdempotencyKey(): string {
@@ -59,8 +61,10 @@ export function ProjectBoardClient({
   nextCursor,
   error,
   done,
+  quickVideoVisible = false,
 }: ProjectBoardClientProps) {
   const [projectTitle, setProjectTitle] = useState("");
+  const [flow, setFlow] = useState<"editor" | "one-shot">("editor");
   const [isCreating, setIsCreating] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<{
     id: string;
@@ -269,6 +273,40 @@ export function ProjectBoardClient({
               />
             </Field>
           </div>
+
+          {quickVideoVisible && (
+            <fieldset className={styles.flowChoices}>
+              <legend className={styles.flowLegend}>How do you want to build it?</legend>
+              {(
+                [
+                  {
+                    value: "editor",
+                    label: "Step by step in the editor",
+                    hint: "Review and approve each stage yourself.",
+                  },
+                  {
+                    value: "one-shot",
+                    label: "Quick video from a PDF",
+                    hint: "Describe what to explain and preview the result before rendering.",
+                  },
+                ] as const
+              ).map((option) => (
+                <label key={option.value} className={styles.flowChoice}>
+                  <input
+                    type="radio"
+                    name="flow"
+                    value={option.value}
+                    checked={flow === option.value}
+                    onChange={() => setFlow(option.value)}
+                  />
+                  <span className={styles.flowChoiceText}>
+                    <span className={styles.flowChoiceLabel}>{option.label}</span>
+                    <span className={styles.flowChoiceHint}>{option.hint}</span>
+                  </span>
+                </label>
+              ))}
+            </fieldset>
+          )}
 
           <div className={styles.createAction}>
             <Button
