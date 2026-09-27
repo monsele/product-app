@@ -17,6 +17,7 @@ import {
   ApprovedProviderUnavailableError,
   ProviderCallError,
   ProviderEnvelopeViolationError,
+  providerSelectionReason,
   resolveJobAdapter,
   type IllustrationProvider,
 } from "@avlp/provider-adapters";
@@ -139,7 +140,7 @@ export function createIllustrationGenerationJobHandler(input: {
                   moderationCode: result.moderation.code,
                   providerSelection: {
                     contractVersion: "provider-envelope-v1",
-                    selectionReason: "approved_configuration",
+                    ...providerSelectionReason(payload.oneShotRunId),
                     approvalReference: context.jobId,
                     estimatedCostUsd: result.costUsd,
                     actualCostUsd: result.costUsd,
@@ -227,7 +228,7 @@ export function createIllustrationGenerationJobHandler(input: {
                 candidateId: candidate.id,
                 providerSelection: {
                   contractVersion: "provider-envelope-v1",
-                  selectionReason: "approved_configuration",
+                  ...providerSelectionReason(payload.oneShotRunId),
                   approvalReference: context.jobId,
                   estimatedCostUsd: result.costUsd,
                   actualCostUsd: result.costUsd,

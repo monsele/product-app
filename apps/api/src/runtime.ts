@@ -54,12 +54,55 @@ import { ExportService } from "./exports.js";
 import { PostgresShareLinkService } from "./share-links.js";
 import { PostgresSoundBedService } from "./sound-beds.js";
 import { soundBedCatalogPrefix } from "@avlp/schemas";
+import {
+  PostgresJobRepository,
+  redisConnectionFromUrl,
+  registerJobConsumer,
+} from "@avlp/jobs";
+import {
+  createStructuredLogger,
+  PostgresGenerationQuotaGuard,
+} from "@avlp/observability";
+import {
+  DynamicMockLanguageModelProvider,
+  TogetherLanguageModelProvider,
+  togetherPricing,
+  type LanguageModelProvider,
+} from "@avlp/provider-adapters";
+import { ProviderLessonIntentService } from "./lesson-intent.js";
+import {
+  createEnvironmentOneShotCohort,
+  createOneShotAdvanceJobHandler,
+  OneShotRunnerHost,
+  oneShotPricingFromEnvironment,
+  OutboxOneShotTickScheduler,
+  PostgresOneShotService,
+} from "./one-shot.js";
+import { ServiceOneShotGateway } from "./one-shot-gateway.js";
+
+function createLanguageModelProvider(
+  environment: ReturnType<typeof parseEnvironment>,
+): LanguageModelProvider {
+  if (environment.TOGETHER_API_KEY === undefined)
+    // Local deterministic execution simulates the configured Together route,
+    // exactly as the pipeline worker does.
+    return new DynamicMockLanguageModelProvider({ providerId: "together" });
+  return new TogetherLanguageModelProvider({
+    apiKey: environment.TOGETHER_API_KEY,
+    baseUrl: environment.TOGETHER_API_BASE_URL,
+    requestTimeoutMs: environment.TOGETHER_REQUEST_TIMEOUT_MS,
+    maxRetries: environment.TOGETHER_MAX_RETRIES,
+    logger: createStructuredLogger({ service: "api" }),
+  });
+}
 
 export async function runApi(input: {
   telemetryShutdown: () => Promise<void>;
 }): Promise<void> {
   const environment = parseEnvironment(process.env);
   const database = createDatabaseConnection(environment.DATABASE_URL);
+  const logger = createStructuredLogger({ service: "api" });
+  let oneShotConsumer: ReturnType<typeof registerJobConsumer> | undefined;
   try {
     await database.healthCheck();
     const projectRepository = new PostgresProjectRepository(database.client);
@@ -187,6 +230,119 @@ export async function runApi(input: {
       renderService,
       storage,
     );
+    // Services the wizard routes and the ST-105 runner share, so a run is a
+    // client of exactly the instances (and checks) the wizard uses.
+    const lessonConfigurationService = new PostgresLessonConfigurationService(
+      database.client,
+      undefined,
+      (scope) => demonstrationPilotService.eligibility(scope),
+    );
+    const ingestionStatusService = new PostgresIngestionStatusService(
+      database.client,
+    );
+    const illustrationGenerationService = new IllustrationGenerationService(
+      database.client,
+    );
+    const objectivesService = new PostgresObjectivesService(
+      database.client,
+      (input) => sourceSnapshotService.status(input),
+    );
+    const outlineService = new PostgresOutlineService(database.client, (input) =>
+      sourceSnapshotService.status(input),
+    );
+    const narrationService = new PostgresNarrationService(
+      database.client,
+      (input) => sourceSnapshotService.status(input),
+    );
+    const storyboardService = new PostgresStoryboardService(
+      database.client,
+      (input) => sourceSnapshotService.status(input),
+      (input) => sourceSnapshotService.latestApprovedVisuals(input),
+    );
+    const groundingService = new PostgresGroundingService(
+      database.client,
+      (input) => sourceSnapshotService.status(input),
+    );
+    const lessonVersionsService = new PostgresLessonVersionsService(
+      database.client,
+      citationHistoryService,
+    );
+    const voiceConfigurationService = new PostgresVoiceConfigurationService(
+      database.client,
+    );
+    const sceneAudioService = new SceneAudioService(
+      database.client,
+      undefined,
+      storage,
+    );
+
+    // ST-105. The prompt-to-video runner is hosted here, in the API process,
+    // as a consumer of the `orchestration` queue (ADR-013 §5). It is
+    // registered whatever the flag says, so turning the flag off drains runs
+    // already in flight instead of stranding them.
+    const oneShotGateway = new ServiceOneShotGateway({
+      database: database.client,
+      ingestion: ingestionStatusService,
+      sourceSnapshots: sourceSnapshotService,
+      lessonConfiguration: lessonConfigurationService,
+      voiceConfiguration: voiceConfigurationService,
+      lessonIntent: new ProviderLessonIntentService({
+        database: database.client,
+        provider: createLanguageModelProvider(environment),
+        quotaGuard: new PostgresGenerationQuotaGuard(
+          database.client,
+          { "ai.lesson-intent": { maxCallsPerHour: 20 } },
+          undefined,
+          environment.MAX_PROVIDER_CALLS_PER_HOUR,
+        ),
+        pricing: togetherPricing,
+      }),
+      objectives: objectivesService,
+      outline: outlineService,
+      narration: narrationService,
+      storyboard: storyboardService,
+      illustrations: illustrationGenerationService,
+      grounding: groundingService,
+      sceneAudio: sceneAudioService,
+      validation: lessonValidationService,
+      lessonVersions: lessonVersionsService,
+      renders: renderService,
+    });
+    const oneShotScheduler = new OutboxOneShotTickScheduler();
+    const oneShotService = new PostgresOneShotService(
+      database.client,
+      createEnvironmentOneShotCohort(environment),
+      oneShotScheduler,
+      oneShotGateway,
+      {
+        pricing: oneShotPricingFromEnvironment(environment),
+        maxRunsPerHour: environment.MAX_ONE_SHOT_RUNS_PER_HOUR,
+      },
+    );
+    const consumer = registerJobConsumer({
+      queueName: "orchestration",
+      connection: redisConnectionFromUrl(environment.REDIS_URL),
+      repository: new PostgresJobRepository(database.client),
+      handlers: [
+        createOneShotAdvanceJobHandler(
+          new OneShotRunnerHost(
+            database.client,
+            oneShotGateway,
+            oneShotScheduler,
+          ),
+        ),
+      ],
+    });
+    oneShotConsumer = consumer;
+    consumer.on("error", () => {
+      logger.error("worker.consumer_failed", { queueName: "orchestration" });
+    });
+    const closeConsumer = () => {
+      void consumer.close();
+    };
+    process.once("SIGINT", closeConsumer);
+    process.once("SIGTERM", closeConsumer);
+
     const app = await createApp({
       database,
       authGateway: new PostgresAuthGateway(
@@ -214,12 +370,8 @@ export async function runApi(input: {
         environment.MAX_UPLOAD_BYTES,
       ),
       projectAssetService: new ProjectAssetService(database.client, storage),
-      illustrationGenerationService: new IllustrationGenerationService(
-        database.client,
-      ),
-      ingestionStatusService: new PostgresIngestionStatusService(
-        database.client,
-      ),
+      illustrationGenerationService,
+      ingestionStatusService,
       parsedDocumentReviewService: new PostgresParsedDocumentReviewService(
         parsedDocumentRepository,
         authorizedProjectStorage,
@@ -233,11 +385,7 @@ export async function runApi(input: {
       figureInclusionService: new PostgresFigureInclusionService(
         database.client,
       ),
-      lessonConfigurationService: new PostgresLessonConfigurationService(
-        database.client,
-        undefined,
-        (scope) => demonstrationPilotService.eligibility(scope),
-      ),
+      lessonConfigurationService,
       creativeDesignService: new PostgresCreativeDesignService(
         database.client,
       ),
@@ -247,39 +395,17 @@ export async function runApi(input: {
         sourceSnapshotService,
         storage,
       ),
-      objectivesService: new PostgresObjectivesService(
-        database.client,
-        (input) => sourceSnapshotService.status(input),
-      ),
-      outlineService: new PostgresOutlineService(database.client, (input) =>
-        sourceSnapshotService.status(input),
-      ),
-      narrationService: new PostgresNarrationService(database.client, (input) =>
-        sourceSnapshotService.status(input),
-      ),
-      storyboardService: new PostgresStoryboardService(
-        database.client,
-        (input) => sourceSnapshotService.status(input),
-        (input) => sourceSnapshotService.latestApprovedVisuals(input),
-      ),
+      objectivesService,
+      outlineService,
+      narrationService,
+      storyboardService,
       citationService: new PostgresCitationService(database.client, (input) =>
         sourceSnapshotService.resolveSourceRefs(input),
       ),
-      groundingService: new PostgresGroundingService(database.client, (input) =>
-        sourceSnapshotService.status(input),
-      ),
-      lessonVersionsService: new PostgresLessonVersionsService(
-        database.client,
-        citationHistoryService,
-      ),
-      voiceConfigurationService: new PostgresVoiceConfigurationService(
-        database.client,
-      ),
-      sceneAudioService: new SceneAudioService(
-        database.client,
-        undefined,
-        storage,
-      ),
+      groundingService,
+      lessonVersionsService,
+      voiceConfigurationService,
+      sceneAudioService,
       previewManifestService: new PreviewManifestService(
         database.client,
         storage,
@@ -298,6 +424,7 @@ export async function runApi(input: {
       demonstrationTestLessonService:
         new PostgresDemonstrationTestLessonService(database.client, storage),
       demonstrationPilotCohort,
+      oneShotService,
       projectAuthorizer,
       ...(environment.WEB_ORIGIN === undefined
         ? {}
@@ -307,6 +434,7 @@ export async function runApi(input: {
     app.enableShutdownHooks();
     await app.listen({ port: environment.PORT, host: "0.0.0.0" });
   } catch (error) {
+    await oneShotConsumer?.close();
     await database.close();
     throw error;
   }

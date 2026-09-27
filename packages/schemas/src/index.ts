@@ -219,6 +219,8 @@ export const illustrationGenerationJobPayloadSchema = z
   .object({
     schemaVersion: z.literal(1),
     candidateId: identifierSchema,
+    /** ST-105. The prompt-to-video run that authorised this paid call. */
+    oneShotRunId: identifierSchema.optional(),
   })
   .strict();
 export type IllustrationGenerationJobPayload = z.infer<
@@ -3816,6 +3818,8 @@ export const sceneAudioGenerationJobPayloadSchema = z
     narrationHash: z.string().regex(/^[a-f0-9]{64}$/),
     voiceConfigurationHash: z.string().regex(/^[a-f0-9]{64}$/),
     provider: sceneAudioProviderOptionsSchema,
+    /** ST-105. The prompt-to-video run that authorised this paid call. */
+    oneShotRunId: identifierSchema.optional(),
   })
   .strict();
 export type SceneAudioGenerationJobPayload = z.infer<
@@ -4060,6 +4064,53 @@ export const modelCallParamsSchema = z
 export type ModelCallParams = z.infer<typeof modelCallParamsSchema>;
 
 /**
+ * Why a paid provider call was authorised.
+ *
+ * `explicit_job_request` is one user action per job. `one_shot_run` (ST-105)
+ * is a job queued by a prompt-to-video run under the run's single explicit
+ * authorisation, and must name that run so every paid call traces back to it.
+ */
+export const providerSelectionReasonValues = [
+  "explicit_job_request",
+  "one_shot_run",
+] as const;
+export const providerSelectionReasonSchema = z.enum(
+  providerSelectionReasonValues,
+);
+export type ProviderSelectionReason = z.infer<
+  typeof providerSelectionReasonSchema
+>;
+
+/**
+ * Immutable approval captured when a generation request is queued. The
+ * reference is the persisted job request itself; it binds execution to the
+ * selected provider, model, and bounded cost estimate.
+ */
+export const modelCallProviderApprovalSchema = z
+  .object({
+    approvalReference: identifierSchema,
+    providerId: z.string().trim().min(1).max(100),
+    model: z.string().trim().min(1).max(200),
+    estimatedCostUsd: z.number().finite().nonnegative(),
+    selectionReason: providerSelectionReasonSchema,
+    /** ST-105. Present exactly when `selectionReason` is `one_shot_run`. */
+    oneShotRunId: identifierSchema.optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if ((value.selectionReason === "one_shot_run") !== (value.oneShotRunId !== undefined))
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["oneShotRunId"],
+        message:
+          "A one-shot run approval must name its run, and only a one-shot run approval may.",
+      });
+  });
+export type ModelCallProviderApproval = z.infer<
+  typeof modelCallProviderApprovalSchema
+>;
+
+/**
  * Versioned job payload for one AI model-call operation. References the exact
  * approved source snapshot and the exact prompt version; the idempotency key
  * and input version are derived from these inputs.
@@ -4072,20 +4123,7 @@ export const modelCallJobPayloadSchema = z
     promptId: z.string().trim().min(1).max(100),
     promptVersion: z.string().trim().min(1).max(50),
     model: z.string().trim().min(1).max(200),
-    /**
-     * Immutable approval captured when the explicit generation request is
-     * queued.  The reference is the persisted job request itself; it binds
-     * execution to the selected provider, model, and bounded cost estimate.
-     */
-    providerApproval: z
-      .object({
-        approvalReference: identifierSchema,
-        providerId: z.string().trim().min(1).max(100),
-        model: z.string().trim().min(1).max(200),
-        estimatedCostUsd: z.number().finite().nonnegative(),
-        selectionReason: z.literal("explicit_job_request"),
-      })
-      .strict(),
+    providerApproval: modelCallProviderApprovalSchema,
     narrowing: sourcePackageNarrowingSchema.optional(),
     params: modelCallParamsSchema.optional(),
   })

@@ -44,11 +44,13 @@ import {
   modelCallRecordSchema,
   type LessonIntent,
   type LessonIntentDocumentOutline,
+  type ModelCallProviderApproval,
   type ModelCallRecord,
 } from "@avlp/schemas";
 import { and, asc, eq } from "drizzle-orm";
 import { createModelCallProviderApproval } from "./model-call-approval.js";
 import { findLatestProjectParsedDocument } from "./project-parsed-document.js";
+import { requestActor } from "./audit-actor.js";
 
 const operationType = "ai.lesson-intent" as const;
 const maximumHeadings = 200;
@@ -69,6 +71,8 @@ export interface LessonIntentService {
      * re-billed, because the result itself is not stored for replay. */
     idempotencyKey: string;
     correlationId: Identifier;
+    /** ST-105. The authorising prompt-to-video run. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<LessonIntent>;
 }
 
@@ -82,6 +86,12 @@ type Context = {
   inputVersion: string;
   inputHash: string;
   timestamp: Date;
+  /** ST-105. Which authorisation paid for the call, for the usage record. */
+  providerSelection: {
+    selectionReason: ModelCallProviderApproval["selectionReason"];
+    approvalReference: Identifier;
+    oneShotRunId?: Identifier;
+  };
 };
 
 export class ProviderLessonIntentService implements LessonIntentService {
@@ -118,6 +128,7 @@ export class ProviderLessonIntentService implements LessonIntentService {
     focusPrompt: string;
     idempotencyKey: string;
     correlationId: Identifier;
+    oneShotRunId?: Identifier | undefined;
   }): Promise<LessonIntent> {
     const focus = lessonFocusPromptSchema.safeParse(input.focusPrompt);
     if (!focus.success)
@@ -152,6 +163,11 @@ export class ProviderLessonIntentService implements LessonIntentService {
       documentOutline: JSON.stringify(outline),
     });
     const timestamp = this.now();
+    const approval = createModelCallProviderApproval({
+      jobId: createId(timestamp),
+      model: compatibility.model,
+      oneShotRunId: input.oneShotRunId,
+    });
     const context: Context = {
       ownerUserId: input.ownerUserId,
       projectId: input.projectId,
@@ -170,11 +186,14 @@ export class ProviderLessonIntentService implements LessonIntentService {
       })}`,
       inputHash: stableJsonHash({ focus: focus.data, outline }),
       timestamp,
+      providerSelection: {
+        selectionReason: approval.selectionReason,
+        approvalReference: approval.approvalReference,
+        ...(approval.oneShotRunId === undefined
+          ? {}
+          : { oneShotRunId: approval.oneShotRunId }),
+      },
     };
-    const approval = createModelCallProviderApproval({
-      jobId: createId(timestamp),
-      model: compatibility.model,
-    });
     try {
       const resolved = resolveJobAdapter({
         jobType: operationType,
@@ -186,6 +205,9 @@ export class ProviderLessonIntentService implements LessonIntentService {
         approvalReference: approval.approvalReference,
         estimatedCostUsd: approval.estimatedCostUsd,
         selectionReason: approval.selectionReason,
+        ...(approval.oneShotRunId === undefined
+          ? {}
+          : { oneShotRunId: approval.oneShotRunId }),
       });
       await this.options.quotaGuard.assertCanGenerate({
         ownerUserId: input.ownerUserId,
@@ -230,7 +252,7 @@ export class ProviderLessonIntentService implements LessonIntentService {
       await new PostgresAuditWriter(this.options.database).write({
         ownerUserId: input.ownerUserId,
         projectId: input.projectId,
-        actor: { type: "user", userId: input.ownerUserId },
+        actor: requestActor(input),
         eventType: "ai.generated",
         target: { type: "model_call", id: record.id },
         correlationId: input.correlationId,
@@ -450,6 +472,7 @@ export class ProviderLessonIntentService implements LessonIntentService {
         promptId: record.promptId,
         promptVersion: record.promptVersion,
         modelCallId: created.id,
+        providerSelection: context.providerSelection,
       },
       occurredAt: context.timestamp,
     });

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   modelCallJobPayloadSchema,
+  modelCallProviderApprovalSchema,
   modelCallParamsSchema,
   modelCallRecordSchema,
   modelCallValidationStatusSchema,
@@ -103,6 +104,43 @@ describe("model-call contracts", () => {
     });
     expect(payload.params).toEqual({ ageBand: "11-13" });
     expect(payload.narrowing).toBeUndefined();
+  });
+
+  it("ties a one-shot approval to exactly one run (ST-105)", () => {
+    const approval = {
+      approvalReference: correlationId,
+      providerId: "together",
+      model: "mock-model-1",
+      estimatedCostUsd: 1.08,
+    };
+    expect(
+      modelCallProviderApprovalSchema.parse({
+        ...approval,
+        selectionReason: "one_shot_run",
+        oneShotRunId: snapshotId,
+      }).oneShotRunId,
+    ).toBe(snapshotId);
+    // A one-shot approval must name its run...
+    expect(
+      modelCallProviderApprovalSchema.safeParse({
+        ...approval,
+        selectionReason: "one_shot_run",
+      }).success,
+    ).toBe(false);
+    // ...and an ordinary one may not claim a run.
+    expect(
+      modelCallProviderApprovalSchema.safeParse({
+        ...approval,
+        selectionReason: "explicit_job_request",
+        oneShotRunId: snapshotId,
+      }).success,
+    ).toBe(false);
+    expect(
+      modelCallProviderApprovalSchema.safeParse({
+        ...approval,
+        selectionReason: "approved_configuration",
+      }).success,
+    ).toBe(false);
   });
 
   it("accepts a job payload with narrowing", () => {

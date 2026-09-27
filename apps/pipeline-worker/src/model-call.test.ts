@@ -165,6 +165,11 @@ function handlerOptions(
   const auditWriter = {
     write: vi.fn(async () => ({ id: createId() })),
   };
+  const usageMeter = {
+    record: vi.fn<(measurement: unknown) => Promise<{ id: string }>>(
+      async () => ({ id: createId() }),
+    ),
+  };
   const handler = createModelCallGenerationHandler<{
     objectives: { statement: string; sourceBlockIds: string[] }[];
   }>({
@@ -180,9 +185,7 @@ function handlerOptions(
     } as never,
     sourceSnapshotLoader,
     modelCalls,
-    usageMeter: {
-      record: vi.fn(async () => ({ id: createId() })),
-    },
+    usageMeter,
     auditWriter,
     pricing: {
       "mock-model-1": {
@@ -206,7 +209,15 @@ function handlerOptions(
       ? {}
       : { persistCandidate: overrides.persistCandidate }),
   });
-  return { recorded, modelCalls, provider, handler, quota, auditWriter };
+  return {
+    recorded,
+    modelCalls,
+    provider,
+    handler,
+    quota,
+    auditWriter,
+    usageMeter,
+  };
 }
 
 function payload(overrides: Record<string, unknown> = {}) {
@@ -282,6 +293,45 @@ async function execute(
 }
 
 describe("model-call lifecycle", () => {
+  it("records which authorisation paid for the call on the usage record (ST-105)", async () => {
+    const runId = createId();
+    const oneShot = handlerOptions();
+    await expect(
+      execute(
+        oneShot.handler,
+        payload({
+          providerApproval: {
+            approvalReference: createId(),
+            providerId: "mock",
+            model: "mock-model-1",
+            estimatedCostUsd: 0.01,
+            selectionReason: "one_shot_run",
+            oneShotRunId: runId,
+          },
+        }),
+      ),
+    ).resolves.toMatchObject({ outcome: "succeeded" });
+    expect(oneShot.usageMeter.record).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          providerSelection: expect.objectContaining({
+            selectionReason: "one_shot_run",
+            oneShotRunId: runId,
+          }),
+        }),
+      }),
+    );
+
+    const explicit = handlerOptions();
+    await execute(explicit.handler, payload());
+    const [measurement] = explicit.usageMeter.record.mock.calls[0]!;
+    const selection = (
+      measurement as { metadata: { providerSelection: Record<string, unknown> } }
+    ).metadata.providerSelection;
+    expect(selection.selectionReason).toBe("explicit_job_request");
+    expect(selection).not.toHaveProperty("oneShotRunId");
+  });
+
   it("runs the full lifecycle with a mock provider and records metadata", async () => {
     const { handler, recorded } = handlerOptions();
     const result = await execute(handler, payload());

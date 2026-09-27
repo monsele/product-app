@@ -23,6 +23,10 @@
     "./creative-design": {
       "types": "./dist/creative-design.d.ts",
       "default": "./dist/creative-design.js"
+    },
+    "./one-shot": {
+      "types": "./dist/one-shot.d.ts",
+      "default": "./dist/one-shot.js"
     }
   },
   "scripts": {

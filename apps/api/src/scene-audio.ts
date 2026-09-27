@@ -33,6 +33,7 @@ import {
 import { storageKeySchema, type ObjectStorage } from "@avlp/storage";
 import { and, asc, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
+import { requestActor } from "./audit-actor.js";
 
 // A single explicit command must be able to cover the largest storyboard.
 // Provider-side concurrency remains serialized by the worker.
@@ -138,6 +139,8 @@ export class SceneAudioService {
     projectId: Identifier;
     body: unknown;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run requests the audio. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<LessonAudioGenerationResponse> {
     const command = parseBoundary(sceneAudioGenerationInputSchema, input.body);
     const findSpec = async (status: "draft" | "approved") =>
@@ -241,6 +244,7 @@ export class SceneAudioService {
     sceneId: Identifier;
     body: unknown;
     correlationId: Identifier;
+    oneShotRunId?: Identifier | undefined;
   }): Promise<SceneAudioStatusResponse> {
     const command = parseBoundary(sceneAudioGenerationInputSchema, input.body);
     const now = this.now();
@@ -423,6 +427,9 @@ export class SceneAudioService {
         narrationHash,
         voiceConfigurationHash: voiceHash,
         provider,
+        ...(input.oneShotRunId === undefined
+          ? {}
+          : { oneShotRunId: input.oneShotRunId }),
       });
       const envelope = createJobEnvelope(sceneAudioGenerationJobPayloadSchema, {
         jobId,
@@ -487,7 +494,7 @@ export class SceneAudioService {
       await new PostgresAuditWriter(tx).write({
         ownerUserId: input.ownerUserId,
         projectId: input.projectId,
-        actor: { type: "user", userId: input.ownerUserId },
+        actor: requestActor(input),
         eventType: "audio.generation_requested",
         target: { type: "scene_audio", id: audioId },
         correlationId: input.correlationId,

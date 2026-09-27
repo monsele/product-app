@@ -51,6 +51,7 @@ import { z } from "zod";
 import type { SourceSnapshotService } from "./source-snapshot.js";
 import { assertProjectStageTransition } from "./projects.js";
 import { resolveSnapshotSourceRefs } from "./objectives.js";
+import { requestActor } from "./audit-actor.js";
 
 function canonicalHash(value: unknown): string {
   const canonical = JSON.stringify(sortCanonical(value));
@@ -76,6 +77,8 @@ export interface OutlineService {
     projectId: Identifier;
     idempotencyKey: string | undefined;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run queues this job. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<OutlineGenerationResponse>;
   current(input: {
     ownerUserId: Identifier;
@@ -112,6 +115,8 @@ export interface OutlineService {
     projectId: Identifier;
     body: unknown;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run acts for the owner. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<OutlineResponse>;
 }
 
@@ -131,6 +136,8 @@ export class PostgresOutlineService implements OutlineService {
     projectId: Identifier;
     idempotencyKey: string | undefined;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run queues this job. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<OutlineGenerationResponse> {
     const idempotencyKey = input.idempotencyKey?.trim();
     if (
@@ -211,6 +218,7 @@ export class PostgresOutlineService implements OutlineService {
         providerApproval: createModelCallProviderApproval({
           jobId: requestedJobId,
           model: currentOutlineGenerationCompatibility.model,
+          oneShotRunId: input.oneShotRunId,
         }),
         ...(blockIds.length === 0 ? {} : { narrowing: { blockIds } }),
         params,
@@ -285,7 +293,7 @@ export class PostgresOutlineService implements OutlineService {
         await new PostgresAuditWriter(transaction).write({
           ownerUserId: input.ownerUserId,
           projectId: input.projectId,
-          actor: { type: "user", userId: input.ownerUserId },
+          actor: requestActor(input),
           eventType: "ai.generated",
           target: { type: "outline_generation", id: jobId },
           correlationId: input.correlationId,
@@ -766,6 +774,8 @@ export class PostgresOutlineService implements OutlineService {
     projectId: Identifier;
     body: unknown;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run acts for the owner. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<OutlineResponse> {
     const parsed = parseBoundary(outlineApproveInputSchema, input.body);
     const timestamp = this.now();
@@ -875,7 +885,7 @@ export class PostgresOutlineService implements OutlineService {
       await new PostgresAuditWriter(transaction).write({
         ownerUserId: input.ownerUserId,
         projectId: input.projectId,
-        actor: { type: "user", userId: input.ownerUserId },
+        actor: requestActor(input),
         eventType: "outline.approved",
         target: { type: "outline_set", id: draft.id },
         correlationId: input.correlationId,

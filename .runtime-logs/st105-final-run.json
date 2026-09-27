@@ -1,0 +1,132 @@
+{
+  "id": "01a0e399-cf0c-7700-8604-66a0fe849c84",
+  "projectId": "01a0e399-b221-744b-b0a1-9025b95940da",
+  "status": "completed",
+  "currentStep": null,
+  "steps": [
+    {
+      "step": "ingestion",
+      "state": "done",
+      "startedAt": "2026-09-27T16:01:43.499Z",
+      "finishedAt": "2026-09-27T16:02:08.323Z"
+    },
+    {
+      "step": "source_snapshot",
+      "state": "done",
+      "startedAt": "2026-09-27T16:02:08.323Z",
+      "finishedAt": "2026-09-27T16:02:12.462Z"
+    },
+    {
+      "step": "configuration",
+      "state": "done",
+      "startedAt": "2026-09-27T16:02:12.462Z",
+      "finishedAt": "2026-09-27T16:02:20.683Z",
+      "detail": {
+        "configurationVersion": 1
+      }
+    },
+    {
+      "step": "objectives",
+      "state": "done",
+      "jobId": "01a0e39a-6239-7fdb-a1be-4692e912178a",
+      "startedAt": "2026-09-27T16:02:20.683Z",
+      "finishedAt": "2026-09-27T16:02:28.990Z"
+    },
+    {
+      "step": "outline",
+      "state": "done",
+      "jobId": "01a0e39a-8303-7563-b955-a29008772bd5",
+      "startedAt": "2026-09-27T16:02:28.990Z",
+      "finishedAt": "2026-09-27T16:02:37.168Z"
+    },
+    {
+      "step": "narration",
+      "state": "done",
+      "jobId": "01a0e39a-a358-76a4-871f-96f5355c8e65",
+      "startedAt": "2026-09-27T16:02:37.168Z",
+      "finishedAt": "2026-09-27T16:02:45.354Z"
+    },
+    {
+      "step": "storyboard",
+      "state": "done",
+      "jobId": "01a0e39a-c3af-797d-be63-76057a9faa23",
+      "startedAt": "2026-09-27T16:02:45.354Z",
+      "finishedAt": "2026-09-27T16:02:49.523Z",
+      "detail": {
+        "lessonSpecId": "01a0e39a-c5eb-7e57-a6f4-96bc7b71dcac"
+      }
+    },
+    {
+      "step": "illustrations",
+      "state": "done",
+      "startedAt": "2026-09-27T16:02:49.523Z",
+      "finishedAt": "2026-09-27T16:02:53.607Z",
+      "detail": {
+        "queued": 0,
+        "skipped": 0,
+        "requestedFor": "01a0e39a-c5eb-7e57-a6f4-96bc7b71dcac"
+      }
+    },
+    {
+      "step": "grounding",
+      "state": "done",
+      "jobId": "01a0e39b-0450-7743-aef7-6d4e50cb0603",
+      "startedAt": "2026-09-27T16:03:02.006Z",
+      "finishedAt": "2026-09-27T16:03:06.201Z"
+    },
+    {
+      "step": "audio",
+      "state": "done",
+      "startedAt": "2026-09-27T16:02:57.747Z",
+      "finishedAt": "2026-09-27T16:03:06.201Z",
+      "detail": {
+        "ready": 4,
+        "total": 4,
+        "failed": 0,
+        "pending": 0
+      }
+    },
+    {
+      "step": "validation",
+      "state": "done",
+      "startedAt": "2026-09-27T16:03:06.201Z",
+      "finishedAt": "2026-09-27T16:03:06.201Z",
+      "detail": {
+        "errors": 0,
+        "warnings": 0,
+        "validationRunId": "01a0e39b-1657-7eba-9a5e-e20ed5826949"
+      }
+    },
+    {
+      "step": "render",
+      "state": "done",
+      "jobId": "01a0e39b-1d1e-792c-968c-b1de80196dc2",
+      "startedAt": "2026-09-27T16:03:12.406Z",
+      "finishedAt": "2026-09-27T16:08:18.504Z",
+      "detail": {
+        "progress": 1
+      }
+    }
+  ],
+  "focusPrompt": "How do mitochondria and chloroplasts supply energy to a cell?",
+  "audience": {
+    "ageBand": "adult-beginner",
+    "difficulty": "introductory",
+    "tone": "friendly"
+  },
+  "targetDurationSeconds": 180,
+  "acceptedEstimateUsd": 6.53274,
+  "actualCostUsd": 0.05775,
+  "focusCoverage": {
+    "status": "partial",
+    "missing": [
+      "supply"
+    ]
+  },
+  "needsAttention": null,
+  "lessonVersionId": "01a0e39b-1c1c-7e2c-a9ee-3d756ce372e7",
+  "renderJobId": "01a0e39b-1d1e-792c-968c-b1de80196dc2",
+  "correlationId": "01a0e399-cef7-737c-955a-7502a67ed985",
+  "createdAt": "2026-09-27T16:01:43.180Z",
+  "updatedAt": "2026-09-27T16:08:18.525Z"
+}

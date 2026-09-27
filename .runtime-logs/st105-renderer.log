@@ -1,0 +1,70 @@
+
+> @avlp/renderer@0.0.0 dev D:\Eronmonsele\Documents\SoundMinds\product-app\apps\renderer
+> tsx watch --env-file=../../.env src/main.ts
+
+{"timestamp":"2026-09-27T15:01:48.982Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
+{"timestamp":"2026-09-27T15:05:04.937Z","level":"info","event":"job.started","fields":{"jobId":"01a0e365-efe4-7244-99a4-17f3ba97d90b","jobType":"lesson.render","projectId":"01a0e363-bb4a-7f0e-8b0e-3e330291ceca","correlationId":"01a0e365-ee4e-700a-9f6d-4440665490ef","attempt":1,"service":"renderer"}}
+{"timestamp":"2026-09-27T15:05:37.892Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:05:45.401Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:06:09.864Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:06:17.377Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:06:24.886Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:06:32.395Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:06:39.900Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:06:47.411Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:06:54.912Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:07:02.423Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:07:09.938Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:07:17.445Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:07:24.947Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:07:32.457Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:07:39.961Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:07:47.463Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:08:02.460Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:08:09.963Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:08:17.464Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:08:24.975Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:08:32.483Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:08:39.988Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:08:47.505Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:08:55.008Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:09:02.516Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:09:10.027Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:09:17.538Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:09:25.048Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:09:32.555Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:09:40.063Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:09:47.577Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:10:05.005Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:10:12.522Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:10:19.148Z","level":"info","event":"render.reviewed","fields":{"correlationId":"01a0e365-ee4e-700a-9f6d-4440665490ef","findingCodes":"LOUDNESS_OUT_OF_RANGE","jobId":"01a0e365-efe4-7244-99a4-17f3ba97d90b","outcome":"passed","projectId":"01a0e363-bb4a-7f0e-8b0e-3e330291ceca","reviewVersion":"render-review-v1","service":"renderer"}}
+{"timestamp":"2026-09-27T15:10:20.031Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:10:21.788Z","level":"info","event":"render.completed","fields":{"correlationId":"01a0e365-ee4e-700a-9f6d-4440665490ef","jobId":"01a0e365-efe4-7244-99a4-17f3ba97d90b","projectId":"01a0e363-bb4a-7f0e-8b0e-3e330291ceca","reused":false,"service":"renderer"}}
+{"timestamp":"2026-09-27T15:10:21.802Z","level":"info","event":"job.completed","fields":{"jobId":"01a0e365-efe4-7244-99a4-17f3ba97d90b","jobType":"lesson.render","projectId":"01a0e363-bb4a-7f0e-8b0e-3e330291ceca","correlationId":"01a0e365-ee4e-700a-9f6d-4440665490ef","attempt":1,"status":"succeeded","errorClassification":"none","durationMs":316865,"service":"renderer"}}
+{"timestamp":"2026-09-27T15:10:21.846Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+{"timestamp":"2026-09-27T15:10:21.850Z","level":"error","event":"worker.consumer_failed","fields":{"queueName":"render","service":"renderer"}}
+4:25:03 PM [tsx] change in ./..\..\packages\schemas\dist\sound-bed.js Restarting...
+4:25:03 PM [tsx] change in ./..\..\packages\schemas\dist\index.js Restarting...
+4:25:06 PM [tsx] change in ./..\..\packages\schemas\dist\demonstration-pilot.js Restarting...
+4:25:15 PM [tsx] change in ./..\..\packages\provider-adapters\dist\cost.js Restarting...
+4:25:15 PM [tsx] change in ./..\..\packages\provider-adapters\dist\dynamic-mock-provider.js Restarting...
+4:25:16 PM [tsx] change in ./..\..\packages\provider-adapters\dist\index.js Restarting...
+4:25:16 PM [tsx] change in ./..\..\packages\database\dist\migrations.js Restarting...
+4:25:16 PM [tsx] change in ./..\..\packages\database\dist\schema.js Restarting...
+4:25:18 PM [tsx] change in ./..\..\packages\database\dist\index.js Restarting...
+4:25:40 PM [tsx] change in ./..\..\packages\observability\dist\index.js Restarting...
+4:25:47 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Restarting...
+4:25:48 PM [tsx] change in ./..\..\packages\scene-library\dist\scene-preview-composition.js Restarting...
+4:25:49 PM [tsx] change in ./..\..\packages\scene-library\dist\definition-scene.fixtures.js Restarting...
+4:25:49 PM [tsx] change in ./..\..\packages\scene-library\dist\scene-preview.js Restarting...
+4:25:49 PM [tsx] change in ./..\..\packages\scene-library\dist\index.js Restarting...
+4:25:49 PM [tsx] change in ./..\..\packages\jobs\dist\contracts.js Restarting...
+4:25:50 PM [tsx] change in ./..\..\packages\jobs\dist\index.js Restarting...
+4:25:50 PM [tsx] change in ./..\..\packages\scene-library\dist\demonstration-proof\fixtures.js Restarting...
+4:25:50 PM [tsx] change in ./..\..\packages\scene-library\dist\demonstration-proof\pilot-bindings.js Restarting...
+4:25:51 PM [tsx] change in ./..\..\packages\scene-library\dist\demonstration-proof\index.js Restarting...
+{"timestamp":"2026-09-27T15:26:33.113Z","level":"info","event":"worker.started","fields":{"service":"renderer"}}
+{"timestamp":"2026-09-27T16:03:09.410Z","level":"info","event":"job.started","fields":{"jobId":"01a0e39b-1d1e-7e08-a6c1-b40dca8be289","jobType":"lesson.render","projectId":"01a0e399-b221-744b-b0a1-9025b95940da","correlationId":"01a0e39b-1c0d-7942-97ef-de0e729628c2","attempt":1,"service":"renderer"}}
+{"timestamp":"2026-09-27T16:08:12.714Z","level":"info","event":"render.reviewed","fields":{"correlationId":"01a0e39b-1c0d-7942-97ef-de0e729628c2","findingCodes":"LOUDNESS_OUT_OF_RANGE","jobId":"01a0e39b-1d1e-7e08-a6c1-b40dca8be289","outcome":"passed","projectId":"01a0e399-b221-744b-b0a1-9025b95940da","reviewVersion":"render-review-v1","service":"renderer"}}
+{"timestamp":"2026-09-27T16:08:16.964Z","level":"info","event":"render.completed","fields":{"correlationId":"01a0e39b-1c0d-7942-97ef-de0e729628c2","jobId":"01a0e39b-1d1e-7e08-a6c1-b40dca8be289","projectId":"01a0e399-b221-744b-b0a1-9025b95940da","reused":false,"service":"renderer"}}
+{"timestamp":"2026-09-27T16:08:16.979Z","level":"info","event":"job.completed","fields":{"jobId":"01a0e39b-1d1e-7e08-a6c1-b40dca8be289","jobType":"lesson.render","projectId":"01a0e399-b221-744b-b0a1-9025b95940da","correlationId":"01a0e39b-1c0d-7942-97ef-de0e729628c2","attempt":1,"status":"succeeded","errorClassification":"none","durationMs":307570,"service":"renderer"}}

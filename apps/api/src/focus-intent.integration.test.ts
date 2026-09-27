@@ -151,6 +151,96 @@ describeWithPostgres("ST-104 focus and lesson intent (Postgres)", () => {
     expect(JSON.stringify(audits)).not.toMatch(/gusset|welded/);
   });
 
+  it("queues objectives under a prompt-to-video run's authorisation (ST-105)", async () => {
+    const runId: Identifier = "019ffbf1-7777-7000-8000-0000000001a5";
+    const { jobId } = await objectivesService().generate({
+      ownerUserId,
+      projectId,
+      idempotencyKey: `oneshot:${runId}:objectives:r0`,
+      correlationId,
+      oneShotRunId: runId,
+    });
+    const [job] = await database!.client.select().from(jobs).where(eq(jobs.id, jobId));
+    expect((job!.payload as { providerApproval: unknown }).providerApproval).toMatchObject({
+      approvalReference: jobId,
+      selectionReason: "one_shot_run",
+      oneShotRunId: runId,
+    });
+    // The wizard's own request stays an explicit job request.
+    const wizard = await generate("request-wizard");
+    const approval = (wizard.payload as { providerApproval: Record<string, unknown> })
+      .providerApproval;
+    expect(approval.selectionReason).toBe("explicit_job_request");
+    expect(approval).not.toHaveProperty("oneShotRunId");
+  });
+
+  it("attributes a run's automatic approval and generation to the run, never to the teacher (ST-105)", async () => {
+    const runId: Identifier = "019ffbf1-7777-7000-8000-0000000001a6";
+    const setId: Identifier = "019ffbf1-6666-7000-8000-0000000001a6";
+    await seedSet(database!.client, setId, { status: "covered" });
+    await database!.client.insert(learningObjectives).values({
+      id: "019ffbf1-6666-7000-8000-0000000001a7",
+      ownerUserId,
+      projectId,
+      setId,
+      order: 1,
+      statement: "Explain how gusset plates transfer load.",
+      verb: "Explain",
+      confidence: 0.9,
+      sourceRefs: [],
+    });
+    await objectivesService().approve({
+      ownerUserId,
+      projectId,
+      body: { expectedRevision: 0 },
+      correlationId,
+      oneShotRunId: runId,
+    });
+    await objectivesService().generate({
+      ownerUserId,
+      projectId,
+      idempotencyKey: `oneshot:${runId}:objectives:r1`,
+      correlationId,
+      oneShotRunId: runId,
+    });
+    // This file does not clear audit events between tests, so look only at
+    // what these two calls wrote.
+    const events = (
+      await database!.client
+        .select()
+        .from(auditEvents)
+        .where(eq(auditEvents.projectId, projectId))
+    ).filter(
+      (event) =>
+        event.eventType === "objectives.approved" ||
+        (event.metadata as { oneShotRunId?: string }).oneShotRunId === runId,
+    );
+    expect(events.map((event) => event.eventType).sort()).toEqual([
+      "ai.generated",
+      "objectives.approved",
+    ]);
+    for (const event of events) {
+      expect(event.actorType).toBe("one_shot_run");
+      expect(event.actorUserId).toBe(ownerUserId);
+      expect(event.metadata).toMatchObject({ oneShotRunId: runId });
+    }
+
+    // The teacher's own request is still attributed to the teacher.
+    const before = await database!.client
+      .select({ id: auditEvents.id })
+      .from(auditEvents)
+      .where(eq(auditEvents.projectId, projectId));
+    await generate("request-teacher");
+    const [teacher] = (
+      await database!.client
+        .select()
+        .from(auditEvents)
+        .where(and(eq(auditEvents.projectId, projectId), eq(auditEvents.eventType, "ai.generated")))
+    ).filter((event) => !before.some((row) => row.id === event.id));
+    expect(teacher).toMatchObject({ actorType: "user", actorUserId: ownerUserId });
+    expect(teacher!.metadata).not.toHaveProperty("oneShotRunId");
+  });
+
   it("surfaces a not_covered focus report on GET objectives, and none for pre-v3 sets", async () => {
     const setId: Identifier = "019ffbf1-6666-7000-8000-0000000001a4";
     await seedSet(database!.client, setId, {

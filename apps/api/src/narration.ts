@@ -63,6 +63,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { SourceSnapshotService } from "./source-snapshot.js";
 import { resolveSnapshotSourceRefs } from "./objectives.js";
+import { requestActor } from "./audit-actor.js";
 
 function canonicalHash(value: unknown): string {
   const canonical = JSON.stringify(sortCanonical(value));
@@ -125,6 +126,8 @@ export interface NarrationService {
     projectId: Identifier;
     idempotencyKey: string | undefined;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run queues this job. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<NarrationGenerationResponse>;
   current(input: {
     ownerUserId: Identifier;
@@ -135,6 +138,8 @@ export interface NarrationService {
     projectId: Identifier;
     body: unknown;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run acts for the owner. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<NarrationResponse>;
   updateBlock(input: {
     ownerUserId: Identifier;
@@ -197,6 +202,8 @@ export class PostgresNarrationService implements NarrationService {
     projectId: Identifier;
     idempotencyKey: string | undefined;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run queues this job. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<NarrationGenerationResponse> {
     const idempotencyKey = input.idempotencyKey?.trim();
     if (
@@ -271,6 +278,7 @@ export class PostgresNarrationService implements NarrationService {
         providerApproval: createModelCallProviderApproval({
           jobId: requestedJobId,
           model: currentNarrationGenerationCompatibility.model,
+          oneShotRunId: input.oneShotRunId,
         }),
         ...(blockIds.length === 0 ? {} : { narrowing: { blockIds } }),
         params,
@@ -345,7 +353,7 @@ export class PostgresNarrationService implements NarrationService {
         await new PostgresAuditWriter(transaction).write({
           ownerUserId: input.ownerUserId,
           projectId: input.projectId,
-          actor: { type: "user", userId: input.ownerUserId },
+          actor: requestActor(input),
           eventType: "ai.generated",
           target: { type: "narration_generation", id: jobId },
           correlationId: input.correlationId,
@@ -491,6 +499,8 @@ export class PostgresNarrationService implements NarrationService {
     projectId: Identifier;
     body: unknown;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run acts for the owner. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<NarrationResponse> {
     const parsed = parseBoundary(narrationApproveInputSchema, input.body);
     const timestamp = this.now();
@@ -595,7 +605,7 @@ export class PostgresNarrationService implements NarrationService {
       await new PostgresAuditWriter(transaction).write({
         ownerUserId: input.ownerUserId,
         projectId: input.projectId,
-        actor: { type: "user", userId: input.ownerUserId },
+        actor: requestActor(input),
         eventType: "narration.approved",
         target: { type: "narration_set", id: draft.id },
         correlationId: input.correlationId,

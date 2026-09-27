@@ -24,6 +24,7 @@ const now = () => new Date("2026-08-24T10:00:00.000Z");
 
 async function execute(
   handler: ReturnType<typeof createSceneAudioGenerationJobHandler>,
+  payloadExtra: Record<string, unknown> = {},
 ): Promise<JobMetadata> {
   return (
     handler as unknown as {
@@ -36,6 +37,7 @@ async function execute(
       narrationHash: hash("Water enters through roots."),
       voiceConfigurationHash: voiceHash,
       provider: { providerId: "fixture-v1", outputFormat: "wav" },
+      ...payloadExtra,
     },
     {
       attempt: 1,
@@ -232,6 +234,52 @@ describe("scene audio generation job", () => {
     id: sceneId,
     sceneJson: { narration: "Water enters through roots." },
   };
+
+  it("records the authorising prompt-to-video run on the TTS usage record (ST-105)", async () => {
+    const runId = "01989a3d-8e00-7000-8000-000000000105";
+    const metered = async (payloadExtra: Record<string, unknown>) => {
+      const inserts: Array<Record<string, unknown>> = [];
+      const handler = createSceneAudioGenerationJobHandler({
+        database: databaseFor(
+          [
+            [queuedAudio],
+            [scene],
+            [voice],
+            [],
+            [{ id: sceneId }],
+            [{ status: "ready" }],
+            [{ id: "01989a3d-8e00-7000-8000-000000000010" }],
+            [{ id: sceneId }],
+            [{ id: audioId, sceneId, status: "ready", updatedAt: now() }],
+            [{ sceneAudioId: audioId }],
+          ],
+          [],
+          inserts,
+        ),
+        storage: {
+          putBytes: vi.fn().mockResolvedValue({ checksumSha256: "a".repeat(64) }),
+        },
+        provider: {
+          providerId: "fixture-v1",
+          outputFormat: "wav",
+          contentType: "audio/wav",
+          synthesize: ({ narration, speakingRate }: { narration: string; speakingRate: number }) =>
+            synthesizeFixtureAudio(narration, speakingRate),
+        },
+        now,
+      });
+      await execute(handler, payloadExtra);
+      return inserts.find((row) => row.operationType === "tts.generation")
+        ?.metadata as { providerSelection: Record<string, unknown> } | undefined;
+    };
+    expect((await metered({ oneShotRunId: runId }))?.providerSelection).toMatchObject({
+      selectionReason: "one_shot_run",
+      oneShotRunId: runId,
+    });
+    const configured = (await metered({}))?.providerSelection;
+    expect(configured?.selectionReason).toBe("approved_configuration");
+    expect(configured).not.toHaveProperty("oneShotRunId");
+  });
 
   it("persists a ready per-scene audio artifact and records metered usage", async () => {
     const updates: Array<Record<string, unknown>> = [];

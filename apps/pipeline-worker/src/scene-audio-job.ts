@@ -22,6 +22,7 @@ import {
   ApprovedProviderUnavailableError,
   ProviderCallError,
   ProviderEnvelopeViolationError,
+  providerSelectionReason,
   resolveJobAdapter,
 } from "@avlp/provider-adapters";
 import {
@@ -561,7 +562,7 @@ export function createSceneAudioGenerationJobHandler(input: {
                 durationMs: output.durationMs,
                 providerSelection: {
                   contractVersion: "provider-envelope-v1",
-                  selectionReason: "approved_configuration",
+                  ...providerSelectionReason(payload.oneShotRunId),
                   approvalReference: context.jobId,
                   estimatedCostUsd: output.costUsd ?? 0,
                   actualCostUsd: output.costUsd ?? 0,
@@ -602,7 +603,7 @@ export function createSceneAudioGenerationJobHandler(input: {
                   phase: "forced_alignment",
                   providerSelection: {
                     contractVersion: "provider-envelope-v1",
-                    selectionReason: "approved_configuration",
+                    ...providerSelectionReason(payload.oneShotRunId),
                     approvalReference: context.jobId,
                     estimatedCostUsd: aligned.costUsd ?? 0,
                     actualCostUsd: aligned.costUsd ?? 0,

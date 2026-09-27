@@ -1,0 +1,764 @@
+
+> @avlp/api@0.0.0 dev D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api
+> tsx watch --env-file=../../.env src/main.ts
+
+{"level":30,"time":1790521382562,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1790521382563,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.193:3001"}
+{"level":30,"time":1790521382563,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.176.1:3001"}
+{"level":30,"time":1790521382563,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+{"level":30,"time":1790521400017,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":64647},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:03:20.019Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e364-5ad2-76df-8111-7734950cc2eb","method":"GET","route":"/health","service":"api"}}
+{"level":30,"time":1790521400025,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1","res":{"statusCode":200},"responseTime":8.012699999999313,"msg":"request completed"}
+{"level":30,"time":1790521412080,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:03:32.081Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e364-89f0-7ee1-947e-96613ca2af10","method":"POST","route":"/auth/login","service":"api"}}
+{"level":30,"time":1790521412323,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2","res":{"statusCode":201},"responseTime":242.835699999996,"msg":"request completed"}
+{"level":30,"time":1790521412340,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-3","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58692},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:03:32.341Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e364-8af4-778a-bb0a-6e3bcb2c4c85","method":"GET","route":"/projects/:projectId/one-shot/eligibility","service":"api"}}
+{"level":30,"time":1790521412355,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-3","res":{"statusCode":200},"responseTime":14.940099999999802,"msg":"request completed"}
+{"level":30,"time":1790521412359,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-4","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:03:32.360Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e364-8b08-7cc2-b2c0-2b5ece89879b","method":"POST","route":"/projects/:projectId/one-shot/estimate","service":"api"}}
+{"level":30,"time":1790521412373,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-4","res":{"statusCode":200},"responseTime":13.694499999997788,"msg":"request completed"}
+{"level":30,"time":1790521412377,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-5","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58692},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:03:32.378Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e364-8b19-7dfa-ab18-cbab6f441af4","method":"POST","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521412467,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-5","res":{"statusCode":202},"responseTime":89.86989999999787,"msg":"request completed"}
+{"level":30,"time":1790521412469,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-6","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:03:32.469Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e364-8b75-7351-aca3-94376bbaee00","method":"POST","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521412479,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-6","res":{"statusCode":202},"responseTime":9.585299999998824,"msg":"request completed"}
+{"level":30,"time":1790521412481,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-7","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58692},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:03:32.481Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e364-8b81-746e-8fb4-0449300b09a9","method":"POST","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521412506,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-7","res":{"statusCode":409},"responseTime":25.312799999999697,"msg":"request completed"}
+{"level":30,"time":1790521412508,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-8","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:03:32.509Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e364-8b9d-7c54-a8a4-af6f8906b322","method":"POST","route":"/projects/:projectId/one-shot/render","service":"api"}}
+{"level":30,"time":1790521412521,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-8","res":{"statusCode":409},"responseTime":12.555700000004435,"msg":"request completed"}
+{"level":30,"time":1790521412523,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-9","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58692},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:03:32.524Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e364-8bac-7479-9934-8f02f5e0e2f3","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521412535,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-9","res":{"statusCode":200},"responseTime":11.642400000004272,"msg":"request completed"}
+{"level":30,"time":1790521415546,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-a","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:03:35.546Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e364-977a-799e-9ef1-d2d5489eea51","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521415557,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-a","res":{"statusCode":200},"responseTime":11.187899999997171,"msg":"request completed"}
+{"level":30,"time":1790521418574,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-b","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:03:38.574Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e364-a34e-73d4-8471-cdb5a7f65b98","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521418583,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-b","res":{"statusCode":200},"responseTime":9.661699999996927,"msg":"request completed"}
+{"level":30,"time":1790521421585,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-c","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:03:41.586Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e364-af11-70ad-8c26-0f40ac04f11b","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521421640,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-c","res":{"statusCode":200},"responseTime":54.6018999999942,"msg":"request completed"}
+{"level":30,"time":1790521424644,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-d","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:03:44.645Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e364-bb04-734a-a027-14052efa583a","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521424654,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-d","res":{"statusCode":200},"responseTime":9.586699999999837,"msg":"request completed"}
+{"level":30,"time":1790521427661,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-e","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:03:47.662Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e364-c6cd-7763-8f3c-5c0cd400a608","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521427676,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-e","res":{"statusCode":200},"responseTime":14.965800000005402,"msg":"request completed"}
+{"level":30,"time":1790521430685,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-f","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:03:50.686Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e364-d29d-78ba-b036-55e31bba731f","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521430695,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-f","res":{"statusCode":200},"responseTime":9.296399999999267,"msg":"request completed"}
+{"level":30,"time":1790521433701,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-g","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:03:53.701Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e364-de65-7f9e-a87e-714d461ea30d","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521433710,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-g","res":{"statusCode":200},"responseTime":9.554100000001199,"msg":"request completed"}
+{"level":30,"time":1790521436716,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-h","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:03:56.716Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e364-ea2c-7299-b0ab-397d3f186076","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521436725,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-h","res":{"statusCode":200},"responseTime":9.082300000001851,"msg":"request completed"}
+{"level":30,"time":1790521439738,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-i","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:03:59.738Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e364-f5fa-744e-8d8c-2c1f60a544f4","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521439752,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-i","res":{"statusCode":200},"responseTime":14.50850000000355,"msg":"request completed"}
+{"level":30,"time":1790521442756,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-j","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:04:02.756Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-01c4-7cfc-bdaf-4b176809cc3e","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521442772,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-j","res":{"statusCode":200},"responseTime":16.24199999999837,"msg":"request completed"}
+{"level":30,"time":1790521445787,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-k","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:04:05.788Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-0d9b-7074-959e-26437d7d6961","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521445797,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-k","res":{"statusCode":200},"responseTime":10.251100000008591,"msg":"request completed"}
+{"level":30,"time":1790521448811,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-l","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:04:08.812Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-196b-77ae-a565-b8e626ef5929","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521448824,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-l","res":{"statusCode":200},"responseTime":12.851899999994203,"msg":"request completed"}
+{"level":30,"time":1790521451840,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-m","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:04:11.841Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-2540-7387-a727-a5cfa9fb19c3","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521451854,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-m","res":{"statusCode":200},"responseTime":13.319499999997788,"msg":"request completed"}
+{"level":30,"time":1790521454856,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-n","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:04:14.857Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-3108-7ab0-8611-6ccc61d2b48b","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521454868,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-n","res":{"statusCode":200},"responseTime":11.813800000003539,"msg":"request completed"}
+{"level":30,"time":1790521457880,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-o","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:04:17.880Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-3cd8-7c05-ac34-96f1738bdb5a","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521457893,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-o","res":{"statusCode":200},"responseTime":12.790099999998347,"msg":"request completed"}
+{"level":30,"time":1790521460897,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-p","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:04:20.897Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-48a1-747b-9a87-ce5f911b26a3","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521460908,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-p","res":{"statusCode":200},"responseTime":11.39549999999872,"msg":"request completed"}
+{"level":30,"time":1790521463914,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-q","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:04:23.914Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-546a-7a6d-90fe-68141029d97f","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521463923,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-q","res":{"statusCode":200},"responseTime":9.783299999995506,"msg":"request completed"}
+{"level":30,"time":1790521466930,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-r","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:04:26.930Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-6032-7c30-add0-0121c3cb75c6","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521466941,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-r","res":{"statusCode":200},"responseTime":11.270799999998417,"msg":"request completed"}
+{"level":30,"time":1790521469956,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-s","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:04:29.957Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-6c04-7735-8c24-eb27078b19f8","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521469966,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-s","res":{"statusCode":200},"responseTime":9.440899999986868,"msg":"request completed"}
+{"level":30,"time":1790521472968,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-t","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:04:32.969Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-77c9-77bc-9113-47aa7684ac23","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521472985,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-t","res":{"statusCode":200},"responseTime":16.190700000006473,"msg":"request completed"}
+{"level":30,"time":1790521475998,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-u","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:04:35.998Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-839e-7b26-aecd-61c9b49f1e22","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521476009,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-u","res":{"statusCode":200},"responseTime":10.750299999999697,"msg":"request completed"}
+{"level":30,"time":1790521479013,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-v","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:04:39.013Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-8f65-77c4-a3d0-e1eadff2bf4d","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521479021,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-v","res":{"statusCode":200},"responseTime":7.669299999994109,"msg":"request completed"}
+{"level":30,"time":1790521482030,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-w","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:04:42.030Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-9b2e-70b4-8f8d-a4ebe5f72cdb","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521482040,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-w","res":{"statusCode":200},"responseTime":10.222099999999045,"msg":"request completed"}
+{"level":30,"time":1790521485043,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-x","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:04:45.044Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-a6f4-7ffd-8ad2-117517eed99a","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521485059,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-x","res":{"statusCode":200},"responseTime":15.420700000002398,"msg":"request completed"}
+{"level":30,"time":1790521488068,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-y","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:04:48.068Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-b2c4-7206-afcf-56839b800783","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521488168,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-y","res":{"statusCode":200},"responseTime":99.7896000000037,"msg":"request completed"}
+{"level":30,"time":1790521491176,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-z","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:04:51.177Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-bee8-7c86-a51f-eaf71b8808f6","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521491186,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-z","res":{"statusCode":200},"responseTime":9.46809999999823,"msg":"request completed"}
+{"level":30,"time":1790521494199,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-10","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:04:54.199Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-cab7-767b-9b2c-2c4235eb8ae2","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521494238,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-10","res":{"statusCode":200},"responseTime":39.537899999995716,"msg":"request completed"}
+{"level":30,"time":1790521497251,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-11","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:04:57.251Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-d6a3-7691-acd9-0171cace28dd","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521497262,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-11","res":{"statusCode":200},"responseTime":10.951000000000931,"msg":"request completed"}
+{"level":30,"time":1790521500275,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-12","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:05:00.276Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-e273-76b5-b990-77645f2f5117","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521500286,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-12","res":{"statusCode":200},"responseTime":10.403400000010151,"msg":"request completed"}
+{"level":30,"time":1790521503292,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-13","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:05:03.292Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-ee3c-723a-807c-de90ec94c8fb","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521503304,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-13","res":{"statusCode":200},"responseTime":12.12730000000738,"msg":"request completed"}
+{"level":30,"time":1790521503310,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-14","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58930},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:05:03.311Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-ee4e-700a-9f6d-4440665490ef","method":"POST","route":"/projects/:projectId/one-shot/render","service":"api"}}
+{"level":30,"time":1790521504377,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-14","res":{"statusCode":202},"responseTime":1066.5455000000075,"msg":"request completed"}
+{"level":30,"time":1790521504378,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-15","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:05:04.378Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e365-f27a-74a6-ab9b-1b1dd385a28d","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521504389,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-15","res":{"statusCode":200},"responseTime":10.88310000000638,"msg":"request completed"}
+{"level":30,"time":1790521509391,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-16","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:05:09.392Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e366-060f-7c91-a27e-e186d0e113bc","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521509401,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-16","res":{"statusCode":200},"responseTime":9.49900000001071,"msg":"request completed"}
+{"level":30,"time":1790521514410,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-17","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:05:14.410Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e366-19aa-73c2-bbb6-5bea4a478ae0","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521514419,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-17","res":{"statusCode":200},"responseTime":9.160899999988033,"msg":"request completed"}
+{"level":30,"time":1790521519433,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-18","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:05:19.434Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e366-2d4a-714c-afcd-5c755f274fc8","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521519443,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-18","res":{"statusCode":200},"responseTime":9.526100000017323,"msg":"request completed"}
+{"level":30,"time":1790521524454,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-19","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:05:24.454Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e366-40e6-7bcd-b77b-34cbd26c7a51","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521524462,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-19","res":{"statusCode":200},"responseTime":8.294599999993807,"msg":"request completed"}
+{"level":30,"time":1790521529477,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1a","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:05:29.477Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e366-5485-77b5-b7b6-80f3a991ad76","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521529486,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1a","res":{"statusCode":200},"responseTime":8.82719999999972,"msg":"request completed"}
+{"level":30,"time":1790521534499,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1b","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:05:34.499Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e366-6823-7340-a740-f12b89fafcb6","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521534507,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1b","res":{"statusCode":200},"responseTime":8.406299999973271,"msg":"request completed"}
+{"level":30,"time":1790521539510,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1c","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:05:39.511Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e366-7bb6-7dc7-adaa-6bd4de42af60","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521539521,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1c","res":{"statusCode":200},"responseTime":10.743400000006659,"msg":"request completed"}
+{"level":30,"time":1790521544527,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1d","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:05:44.527Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e366-8f4f-7308-a339-ef4a304de47a","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521544537,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1d","res":{"statusCode":200},"responseTime":10.014999999984866,"msg":"request completed"}
+{"level":30,"time":1790521549540,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1e","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:05:49.540Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e366-a2e4-7e24-963e-6f28a5d2c67f","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521549550,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1e","res":{"statusCode":200},"responseTime":9.854699999996228,"msg":"request completed"}
+{"level":30,"time":1790521554559,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1f","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:05:54.560Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e366-b67f-71db-84e4-d15abbfbbb26","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521554568,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1f","res":{"statusCode":200},"responseTime":8.775300000008428,"msg":"request completed"}
+{"level":30,"time":1790521559570,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1g","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:05:59.570Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e366-ca12-73a2-b346-b2a22da50a55","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521559583,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1g","res":{"statusCode":200},"responseTime":13.080500000010943,"msg":"request completed"}
+{"level":30,"time":1790521564578,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1h","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:06:04.579Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e366-dda2-7f35-a1cf-f2041a314d5b","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521564585,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1h","res":{"statusCode":200},"responseTime":6.881299999979092,"msg":"request completed"}
+{"level":30,"time":1790521569587,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1i","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:06:09.588Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e366-f134-7d06-a783-6ade53c04529","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521569598,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1i","res":{"statusCode":200},"responseTime":10.738000000012107,"msg":"request completed"}
+{"level":30,"time":1790521574611,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1j","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:06:14.611Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e367-04d3-7f43-b7f4-bbbe7f404ca1","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521574633,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1j","res":{"statusCode":200},"responseTime":22.617499999993015,"msg":"request completed"}
+{"level":30,"time":1790521579636,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1k","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:06:19.637Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e367-1874-7a0d-98f6-e1bc92989a2d","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521579647,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1k","res":{"statusCode":200},"responseTime":10.352799999993294,"msg":"request completed"}
+{"level":30,"time":1790521584650,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1l","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:06:24.651Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e367-2c0b-7c6d-bd50-ddedb07da64c","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521584660,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1l","res":{"statusCode":200},"responseTime":9.190800000011222,"msg":"request completed"}
+{"level":30,"time":1790521589662,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1m","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:06:29.663Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e367-3f9e-7c61-8368-b26ba512fba3","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521589672,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1m","res":{"statusCode":200},"responseTime":9.279899999994086,"msg":"request completed"}
+{"level":30,"time":1790521594684,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1n","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:06:34.685Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e367-533c-7d7d-a27d-a5590b87feda","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521594697,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1n","res":{"statusCode":200},"responseTime":12.845600000000559,"msg":"request completed"}
+{"level":30,"time":1790521599711,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1o","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:06:39.711Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e367-66df-7d32-8af9-7243301cef9e","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521599721,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1o","res":{"statusCode":200},"responseTime":10.473199999978533,"msg":"request completed"}
+{"level":30,"time":1790521604726,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1p","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:06:44.727Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e367-7a76-720e-b55a-f3763e0fefe6","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521604737,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1p","res":{"statusCode":200},"responseTime":10.610899999999674,"msg":"request completed"}
+{"level":30,"time":1790521609744,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1q","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:06:49.745Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e367-8e10-7aca-8f59-ebffc23a298c","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521609768,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1q","res":{"statusCode":200},"responseTime":23.130899999989197,"msg":"request completed"}
+{"level":30,"time":1790521614784,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1r","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:06:54.784Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e367-a1c0-7875-ab4f-738b1468033d","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521614807,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1r","res":{"statusCode":200},"responseTime":22.784100000018952,"msg":"request completed"}
+{"level":30,"time":1790521619814,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1s","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:06:59.814Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e367-b566-7553-a43a-e96ee5032315","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521619829,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1s","res":{"statusCode":200},"responseTime":15.146899999992456,"msg":"request completed"}
+{"level":30,"time":1790521624837,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1t","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:07:04.838Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e367-c905-7b46-823b-4f3179e070a0","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521624851,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1t","res":{"statusCode":200},"responseTime":13.673999999999069,"msg":"request completed"}
+{"level":30,"time":1790521629854,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1u","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:07:09.854Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e367-dc9e-77cc-b7ab-3812a0e6b71f","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521629870,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1u","res":{"statusCode":200},"responseTime":16.347299999993993,"msg":"request completed"}
+{"level":30,"time":1790521634877,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1v","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:07:14.877Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e367-f03d-7f75-9aba-7bc35eafd049","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521634893,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1v","res":{"statusCode":200},"responseTime":16.18299999998999,"msg":"request completed"}
+{"level":30,"time":1790521639898,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1w","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:07:19.899Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e368-03da-7202-9802-b1153555a8e3","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521639914,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1w","res":{"statusCode":200},"responseTime":15.684899999992922,"msg":"request completed"}
+{"level":30,"time":1790521644927,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1x","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:07:24.927Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e368-177f-79c3-8090-a198d9b1a2b6","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521644937,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1x","res":{"statusCode":200},"responseTime":10.182199999981094,"msg":"request completed"}
+{"level":30,"time":1790521649950,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1y","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:07:29.950Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e368-2b1e-7cbc-9c79-1cf5cd4dde8d","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521649966,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1y","res":{"statusCode":200},"responseTime":15.82640000001993,"msg":"request completed"}
+{"level":30,"time":1790521654977,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1z","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:07:34.977Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e368-3ec1-7bd6-9abf-e360e2d02287","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521654996,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1z","res":{"statusCode":200},"responseTime":18.68760000000475,"msg":"request completed"}
+{"level":30,"time":1790521659999,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-20","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:07:39.999Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e368-525f-7f67-af32-c9e3571a37bb","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521660016,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-20","res":{"statusCode":200},"responseTime":17.505900000047404,"msg":"request completed"}
+{"level":30,"time":1790521665025,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-21","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:07:45.025Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e368-6601-762b-bb70-0be03969283d","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521665041,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-21","res":{"statusCode":200},"responseTime":16.26429999998072,"msg":"request completed"}
+{"level":30,"time":1790521670051,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-22","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:07:50.052Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e368-79a3-7081-b51e-813456e5046f","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521670068,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-22","res":{"statusCode":200},"responseTime":16.870100000000093,"msg":"request completed"}
+{"level":30,"time":1790521675083,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-23","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:07:55.084Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e368-8d4b-7378-bfbc-c2c18101b179","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521675105,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-23","res":{"statusCode":200},"responseTime":21.525399999984074,"msg":"request completed"}
+{"level":30,"time":1790521680108,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-24","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:08:00.108Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e368-a0ec-78ba-b1cc-55f7ba42de8e","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521680121,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-24","res":{"statusCode":200},"responseTime":13.033100000000559,"msg":"request completed"}
+{"level":30,"time":1790521685117,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-25","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:08:05.117Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e368-b47d-772c-ad1a-61b29c59c62a","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521685138,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-25","res":{"statusCode":200},"responseTime":21.432900000014342,"msg":"request completed"}
+{"level":30,"time":1790521690148,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-26","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:08:10.149Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e368-c825-7402-ad71-79e09848b0d1","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521690160,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-26","res":{"statusCode":200},"responseTime":11.048600000038277,"msg":"request completed"}
+{"level":30,"time":1790521695174,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-27","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:08:15.174Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e368-dbc6-7c06-ba33-184b5fb113ec","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521695186,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-27","res":{"statusCode":200},"responseTime":12.634599999990314,"msg":"request completed"}
+{"level":30,"time":1790521700200,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-28","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:08:20.200Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e368-ef68-7aa5-accb-9e2abfe14bae","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521700217,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-28","res":{"statusCode":200},"responseTime":16.56669999996666,"msg":"request completed"}
+{"level":30,"time":1790521705229,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-29","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:08:25.229Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e369-030d-78a4-a199-92643ba972c5","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521705252,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-29","res":{"statusCode":200},"responseTime":23.254100000020117,"msg":"request completed"}
+{"level":30,"time":1790521710259,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2a","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:08:30.260Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e369-16b3-7b07-8a0b-f08cc150ea08","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521710278,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2a","res":{"statusCode":200},"responseTime":19.070299999963026,"msg":"request completed"}
+{"level":30,"time":1790521715289,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2b","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:08:35.289Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e369-2a59-74ee-9d90-2b433a167b7b","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521715302,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2b","res":{"statusCode":200},"responseTime":13.582699999969918,"msg":"request completed"}
+{"level":30,"time":1790521720310,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2c","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:08:40.310Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e369-3df6-791a-90e0-50a25db2ea93","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521720328,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2c","res":{"statusCode":200},"responseTime":17.98719999997411,"msg":"request completed"}
+{"level":30,"time":1790521725331,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2d","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:08:45.332Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e369-5194-7720-81f1-233b8254acf9","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521725348,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2d","res":{"statusCode":200},"responseTime":16.31380000000354,"msg":"request completed"}
+{"level":30,"time":1790521730351,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2e","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:08:50.351Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e369-652f-70e2-8e23-dbc6643be6a8","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521730365,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2e","res":{"statusCode":200},"responseTime":13.900900000007823,"msg":"request completed"}
+{"level":30,"time":1790521735368,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2f","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:08:55.368Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e369-78c8-707f-b7f7-9d337cb3c5bc","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521735386,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2f","res":{"statusCode":200},"responseTime":17.555500000016764,"msg":"request completed"}
+{"level":30,"time":1790521740391,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2g","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:09:00.392Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e369-8c67-75f6-9a49-8eaa4811048a","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521740403,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2g","res":{"statusCode":200},"responseTime":11.897400000016205,"msg":"request completed"}
+{"level":30,"time":1790521745404,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2h","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:09:05.404Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e369-9ffc-7a47-a6b8-e4354da2bef3","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521745420,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2h","res":{"statusCode":200},"responseTime":15.849300000001676,"msg":"request completed"}
+{"level":30,"time":1790521750427,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2i","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:09:10.427Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e369-b39b-73e2-9b09-7a7034fd0c25","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521750437,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2i","res":{"statusCode":200},"responseTime":9.977399999974295,"msg":"request completed"}
+{"level":30,"time":1790521755444,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2j","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:09:15.444Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e369-c734-726f-867a-259d7d2d0987","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521755457,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2j","res":{"statusCode":200},"responseTime":13.147999999986496,"msg":"request completed"}
+{"level":30,"time":1790521760461,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2k","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:09:20.461Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e369-dacd-78b2-97c2-6a0c0c433cf0","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521760473,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2k","res":{"statusCode":200},"responseTime":12.012500000011642,"msg":"request completed"}
+{"level":30,"time":1790521765485,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2l","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:09:25.486Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e369-ee6d-7507-ab71-71f92f5d8478","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521765503,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2l","res":{"statusCode":200},"responseTime":18.09560000000056,"msg":"request completed"}
+{"level":30,"time":1790521770511,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2m","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:09:30.511Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e36a-020f-7708-bcfd-d20c45b0032a","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521770522,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2m","res":{"statusCode":200},"responseTime":11.488100000016857,"msg":"request completed"}
+{"level":30,"time":1790521775528,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2n","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:09:35.528Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e36a-15a8-7c0f-bbf6-c343a406222c","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521775540,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2n","res":{"statusCode":200},"responseTime":11.59320000000298,"msg":"request completed"}
+{"level":30,"time":1790521780544,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2o","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:09:40.545Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e36a-2941-7466-8600-4a0dbe35985e","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521780558,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2o","res":{"statusCode":200},"responseTime":13.085900000005495,"msg":"request completed"}
+{"level":30,"time":1790521785561,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2p","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:09:45.562Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e36a-3cd9-7fee-aafa-699303014e60","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521785573,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2p","res":{"statusCode":200},"responseTime":12.259099999966566,"msg":"request completed"}
+{"level":30,"time":1790521790584,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2q","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:09:50.584Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e36a-5078-737a-9bfe-36572538fdc4","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521790598,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2q","res":{"statusCode":200},"responseTime":14.002800000016578,"msg":"request completed"}
+{"level":30,"time":1790521795612,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2r","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:09:55.613Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e36a-641d-77e4-8f70-211465d15579","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521795625,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2r","res":{"statusCode":200},"responseTime":12.575399999972433,"msg":"request completed"}
+{"level":30,"time":1790521800637,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2s","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:10:00.638Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e36a-77bd-7ca9-ba1f-91fb14938160","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521800651,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2s","res":{"statusCode":200},"responseTime":14.069399999978486,"msg":"request completed"}
+{"level":30,"time":1790521805652,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2t","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:10:05.653Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e36a-8b55-7636-8496-f1775d95f002","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521805676,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2t","res":{"statusCode":200},"responseTime":23.12799999996787,"msg":"request completed"}
+{"level":30,"time":1790521810682,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2u","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:10:10.683Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e36a-9efa-7f2e-9ad8-b1ad4e7fd3f3","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521810713,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2u","res":{"statusCode":200},"responseTime":30.258999999961816,"msg":"request completed"}
+{"level":30,"time":1790521815723,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2v","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:10:15.724Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e36a-b2ac-790b-8bf8-a9c2ebda91c9","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521815736,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2v","res":{"statusCode":200},"responseTime":12.731700000003912,"msg":"request completed"}
+{"timestamp":"2026-09-27T15:10:20.752Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e36a-c64f-74b9-a1d4-0a3fe5b21a6a","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521820751,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2w","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"level":30,"time":1790521820769,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2w","res":{"statusCode":200},"responseTime":18.082900000037625,"msg":"request completed"}
+{"level":30,"time":1790521825783,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2x","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":58690},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:10:25.783Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e36a-d9f7-7c54-bb6b-5e1bbe06dbd6","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790521825793,"pid":21244,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2x","res":{"statusCode":200},"responseTime":10.172199999971781,"msg":"request completed"}
+4:12:04 PM [tsx] change in ./src\one-shot-gateway.ts Restarting...
+{"level":30,"time":1790521988343,"pid":18684,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1790521988343,"pid":18684,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.193:3001"}
+{"level":30,"time":1790521988343,"pid":18684,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.176.1:3001"}
+{"level":30,"time":1790521988343,"pid":18684,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+4:17:21 PM [tsx] change in ./src\one-shot.ts Restarting...
+{"level":30,"time":1790522249367,"pid":11848,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1790522249367,"pid":11848,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.193:3001"}
+{"level":30,"time":1790522249367,"pid":11848,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.176.1:3001"}
+{"level":30,"time":1790522249367,"pid":11848,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+4:17:38 PM [tsx] change in ./src\one-shot.ts Restarting...
+{"level":30,"time":1790522265764,"pid":14124,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1790522265765,"pid":14124,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.193:3001"}
+{"level":30,"time":1790522265765,"pid":14124,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.176.1:3001"}
+{"level":30,"time":1790522265765,"pid":14124,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+4:17:54 PM [tsx] change in ./src\runtime.ts Restarting...
+4:17:57 PM [tsx] change in ./src\one-shot.ts Restarting...
+{"level":30,"time":1790522285677,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1790522285677,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.193:3001"}
+{"level":30,"time":1790522285677,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.176.1:3001"}
+{"level":30,"time":1790522285677,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+{"level":30,"time":1790522690854,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57811},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:24:50.857Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e378-0d27-777f-af31-26fef3f3fd37","method":"POST","route":"/auth/login","service":"api"}}
+{"level":30,"time":1790522690972,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1","res":{"statusCode":201},"responseTime":117.3131000000285,"msg":"request completed"}
+{"level":30,"time":1790522690983,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57814},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:24:50.984Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e378-0da7-70f0-aa0f-e0bc8723566f","method":"GET","route":"/projects/:projectId/one-shot/eligibility","service":"api"}}
+{"level":30,"time":1790522690995,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2","res":{"statusCode":200},"responseTime":11.665100000042003,"msg":"request completed"}
+{"level":30,"time":1790522690997,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-3","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57811},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:24:50.998Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e378-0db5-7b5f-80d4-7d5d6ba4446c","method":"POST","route":"/projects/:projectId/one-shot/estimate","service":"api"}}
+{"level":30,"time":1790522691009,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-3","res":{"statusCode":200},"responseTime":11.474099999992177,"msg":"request completed"}
+{"level":30,"time":1790522691013,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-4","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57814},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:24:51.013Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e378-0dc5-7c71-89a8-3c843aa96579","method":"POST","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790522691066,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-4","res":{"statusCode":202},"responseTime":53.3241000000271,"msg":"request completed"}
+{"level":30,"time":1790522691068,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-5","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57811},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:24:51.069Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e378-0dfd-742c-b192-276979880725","method":"POST","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790522691080,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-5","res":{"statusCode":202},"responseTime":11.511200000008103,"msg":"request completed"}
+{"level":30,"time":1790522691082,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-6","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57814},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:24:51.082Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e378-0e0a-732b-aaaa-63edf36b0804","method":"POST","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790522691110,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-6","res":{"statusCode":409},"responseTime":27.397600000025705,"msg":"request completed"}
+{"level":30,"time":1790522691112,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-7","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57811},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:24:51.112Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e378-0e28-7eb9-9a18-49ceb0e74534","method":"POST","route":"/projects/:projectId/one-shot/render","service":"api"}}
+{"level":30,"time":1790522691125,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-7","res":{"statusCode":409},"responseTime":13.616099999984726,"msg":"request completed"}
+{"level":30,"time":1790522691127,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-8","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57814},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:24:51.128Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e378-0e38-704f-adb9-f297b63fa2d1","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790522691139,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-8","res":{"statusCode":200},"responseTime":11.6083000000217,"msg":"request completed"}
+{"level":30,"time":1790522694156,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-9","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57811},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:24:54.157Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e378-1a0d-7150-9c59-724106ffae9d","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790522694185,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-9","res":{"statusCode":200},"responseTime":28.69900000002235,"msg":"request completed"}
+{"level":30,"time":1790522697200,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-a","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57811},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:24:57.201Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e378-25f1-78d1-a78f-f2c34a6532a7","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790522697223,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-a","res":{"statusCode":200},"responseTime":22.397699999972247,"msg":"request completed"}
+{"level":30,"time":1790522697261,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-b","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57814},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:24:57.262Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e378-262d-71cf-8368-359b624bf63e","method":"POST","route":"/projects/:projectId/one-shot/render","service":"api"}}
+{"level":30,"time":1790522697621,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-b","res":{"statusCode":202},"responseTime":359.7532999999821,"msg":"request completed"}
+{"level":30,"time":1790522697622,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-c","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57811},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:24:57.623Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e378-2797-72c1-a2ae-e5f683b8888a","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790522697638,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-c","res":{"statusCode":200},"responseTime":15.378800000005867,"msg":"request completed"}
+{"level":30,"time":1790522702647,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-d","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57811},"msg":"incoming request"}
+{"timestamp":"2026-09-27T15:25:02.648Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e378-3b38-7215-b842-0715dbef7d88","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790522702663,"pid":21240,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-d","res":{"statusCode":200},"responseTime":15.637199999997392,"msg":"request completed"}
+4:25:03 PM [tsx] change in ./..\..\packages\schemas\dist\sound-bed.js Restarting...
+4:25:03 PM [tsx] change in ./..\..\packages\schemas\dist\index.js Restarting...
+4:25:06 PM [tsx] change in ./..\..\packages\schemas\dist\demonstration-pilot.js Restarting...
+4:25:06 PM [tsx] change in ./..\..\packages\schemas\dist\one-shot.js Restarting...
+4:25:15 PM [tsx] change in ./..\..\packages\provider-adapters\dist\cost.js Restarting...
+4:25:15 PM [tsx] change in ./..\..\packages\provider-adapters\dist\dynamic-mock-provider.js Restarting...
+4:25:16 PM [tsx] change in ./..\..\packages\provider-adapters\dist\index.js Restarting...
+4:25:16 PM [tsx] change in ./..\..\packages\database\dist\migrations.js Restarting...
+4:25:16 PM [tsx] change in ./..\..\packages\database\dist\schema.js Restarting...
+4:25:18 PM [tsx] change in ./..\..\packages\database\dist\index.js Restarting...
+4:25:40 PM [tsx] change in ./..\..\packages\observability\dist\index.js Restarting...
+4:25:47 PM [tsx] change in ./..\..\packages\scene-library\dist\full-lesson.js Restarting...
+4:25:48 PM [tsx] change in ./..\..\packages\auth\dist\contracts.js Restarting...
+4:25:48 PM [tsx] change in ./..\..\packages\auth\dist\index.js Restarting...
+4:25:48 PM [tsx] change in ./..\..\packages\scene-library\dist\scene-preview-composition.js Restarting...
+4:25:49 PM [tsx] change in ./..\..\packages\scene-library\dist\definition-scene.fixtures.js Restarting...
+4:25:49 PM [tsx] change in ./..\..\packages\scene-library\dist\scene-preview.js Restarting...
+4:25:49 PM [tsx] change in ./..\..\packages\scene-library\dist\index.js Restarting...
+4:25:49 PM [tsx] change in ./..\..\packages\jobs\dist\contracts.js Restarting...
+4:25:50 PM [tsx] change in ./..\..\packages\jobs\dist\index.js Restarting...
+4:25:50 PM [tsx] change in ./..\..\packages\scene-library\dist\demonstration-proof\fixtures.js Restarting...
+4:25:50 PM [tsx] change in ./..\..\packages\scene-library\dist\demonstration-proof\pilot-bindings.js Restarting...
+4:25:51 PM [tsx] change in ./..\..\packages\scene-library\dist\demonstration-proof\index.js Restarting...
+{"level":30,"time":1790522794843,"pid":13176,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1790522794843,"pid":13176,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.193:3001"}
+{"level":30,"time":1790522794843,"pid":13176,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.176.1:3001"}
+{"level":30,"time":1790522794843,"pid":13176,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+4:41:24 PM [tsx] unlink in ./src\one-shot.ts Restarting...
+node:internal/modules/esm/resolve:275
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api\src\one-shot.js' imported from D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api\src\runtime.ts
+    at finalizeResolution (node:internal/modules/esm/resolve:275:11)
+    at moduleResolve (node:internal/modules/esm/resolve:865:10)
+    at defaultResolve (node:internal/modules/esm/resolve:991:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:719:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveBaseSync (file:///D:/Eronmonsele/Documents/SoundMinds/product-app/node_modules/.pnpm/tsx@4.23.10/node_modules/tsx/dist/register-DdgZzFJi.mjs:2:10932)
+    at resolveDirectorySync (file:///D:/Eronmonsele/Documents/SoundMinds/product-app/node_modules/.pnpm/tsx@4.23.10/node_modules/tsx/dist/register-DdgZzFJi.mjs:2:12238)
+    at resolveTsPathsSync (file:///D:/Eronmonsele/Documents/SoundMinds/product-app/node_modules/.pnpm/tsx@4.23.10/node_modules/tsx/dist/register-DdgZzFJi.mjs:2:13445)
+    at resolve (file:///D:/Eronmonsele/Documents/SoundMinds/product-app/node_modules/.pnpm/tsx@4.23.10/node_modules/tsx/dist/register-DdgZzFJi.mjs:2:15991) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///D:/Eronmonsele/Documents/SoundMinds/product-app/apps/api/src/one-shot.js'
+}
+
+Node.js v24.14.0
+4:42:07 PM [tsx] change in ./src\one-shot-runner.ts Rerunning...
+4:42:07 PM [tsx] change in ./src\one-shot.ts Restarting...
+{"level":30,"time":1790523741884,"pid":17112,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1790523741884,"pid":17112,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.193:3001"}
+{"level":30,"time":1790523741884,"pid":17112,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.176.1:3001"}
+{"level":30,"time":1790523741884,"pid":17112,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+4:57:18 PM [tsx] change in ./src\scene-audio.ts Restarting...
+4:57:46 PM [tsx] change in ./src\voice-configuration.ts Restarting...
+4:57:56 PM [tsx] change in ./src\one-shot-gateway.ts Restarting...
+{"level":30,"time":1790524686700,"pid":32176,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1790524686700,"pid":32176,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.193:3001"}
+{"level":30,"time":1790524686700,"pid":32176,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.176.1:3001"}
+{"level":30,"time":1790524686700,"pid":32176,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+4:58:30 PM [tsx] change in ./src\one-shot.ts Restarting...
+{"level":30,"time":1790524719420,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1790524719420,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.193:3001"}
+{"level":30,"time":1790524719420,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.176.1:3001"}
+{"level":30,"time":1790524719420,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+{"level":30,"time":1790524895360,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":59062},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:01:35.363Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e399-b081-77da-890c-a742bfe44f91","method":"GET","route":"/health","service":"api"}}
+{"level":30,"time":1790524895396,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1","res":{"statusCode":200},"responseTime":35.98440000001574,"msg":"request completed"}
+{"level":30,"time":1790524895596,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":59066},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:01:35.596Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e399-b16c-7c46-813b-fc77e5da9208","method":"POST","route":"/auth/login","service":"api"}}
+{"level":30,"time":1790524895761,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2","res":{"statusCode":201},"responseTime":165.58139999999548,"msg":"request completed"}
+{"level":30,"time":1790524895771,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-3","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":59068},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:01:35.772Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e399-b21b-7d47-b3c7-0e7f2966884d","method":"POST","route":"/projects","service":"api"}}
+{"level":30,"time":1790524895855,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-3","res":{"statusCode":201},"responseTime":84.07950000002165,"msg":"request completed"}
+{"level":30,"time":1790524895858,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-4","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":59066},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:01:35.859Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e399-b272-7624-b650-214d8b3ec2d7","method":"POST","route":"/projects/:projectId/source-upload","service":"api"}}
+{"level":30,"time":1790524895972,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-4","res":{"statusCode":201},"responseTime":113.34510000000591,"msg":"request completed"}
+{"level":30,"time":1790524896318,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-5","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":59066},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:01:36.318Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e399-b43e-7b2a-b3e5-d2f4e67d6963","method":"POST","route":"/projects/:projectId/source-upload/:sessionId/complete","service":"api"}}
+{"level":30,"time":1790524896412,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-5","res":{"statusCode":202},"responseTime":94.01070000001346,"msg":"request completed"}
+{"level":30,"time":1790524903081,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-6","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:01:43.081Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e399-cea9-7bb8-9d60-0bb6e85756a6","method":"POST","route":"/auth/login","service":"api"}}
+{"level":30,"time":1790524903125,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-6","res":{"statusCode":201},"responseTime":44.053699999989476,"msg":"request completed"}
+{"level":30,"time":1790524903135,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-7","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50110},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:01:43.135Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e399-cedf-7c00-b495-18a7994acfb7","method":"GET","route":"/projects/:projectId/one-shot/eligibility","service":"api"}}
+{"level":30,"time":1790524903142,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-7","res":{"statusCode":200},"responseTime":6.926399999996647,"msg":"request completed"}
+{"level":30,"time":1790524903145,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-8","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:01:43.145Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e399-cee9-7b3a-bc79-f12041f4a684","method":"POST","route":"/projects/:projectId/one-shot/estimate","service":"api"}}
+{"level":30,"time":1790524903156,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-8","res":{"statusCode":200},"responseTime":10.69419999999809,"msg":"request completed"}
+{"level":30,"time":1790524903159,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-9","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50110},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:01:43.160Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e399-cef7-737c-955a-7502a67ed985","method":"POST","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524903230,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-9","res":{"statusCode":202},"responseTime":71.14629999999306,"msg":"request completed"}
+{"level":30,"time":1790524903232,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-a","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:01:43.233Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e399-cf40-7a7f-9552-7cd2b2a7a4f7","method":"POST","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524903244,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-a","res":{"statusCode":202},"responseTime":11.428899999998976,"msg":"request completed"}
+{"level":30,"time":1790524903246,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-b","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50110},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:01:43.247Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e399-cf4f-74c5-9b09-360e052a47d5","method":"POST","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524903261,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-b","res":{"statusCode":429},"responseTime":14.441900000005262,"msg":"request completed"}
+{"level":30,"time":1790524903264,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-c","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:01:43.264Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e399-cf60-7779-bef7-cd4a72bdaa3d","method":"POST","route":"/projects/:projectId/one-shot/render","service":"api"}}
+{"level":30,"time":1790524903276,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-c","res":{"statusCode":409},"responseTime":12.512799999996787,"msg":"request completed"}
+{"level":30,"time":1790524903278,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-d","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50110},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:01:43.279Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e399-cf6e-75fd-be31-3d1e63c93fdf","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524903289,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-d","res":{"statusCode":200},"responseTime":10.863299999997253,"msg":"request completed"}
+{"level":30,"time":1790524906306,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-e","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:01:46.306Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e399-db42-7410-b2d6-1120814cb0da","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524906324,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-e","res":{"statusCode":200},"responseTime":17.957999999984168,"msg":"request completed"}
+{"level":30,"time":1790524909334,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-f","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:01:49.335Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e399-e717-7a14-8ee8-001cb0956869","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524909350,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-f","res":{"statusCode":200},"responseTime":15.842399999994086,"msg":"request completed"}
+{"level":30,"time":1790524912364,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-g","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:01:52.365Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e399-f2ec-75cd-af67-b4904880d574","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524912379,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-g","res":{"statusCode":200},"responseTime":14.241399999998976,"msg":"request completed"}
+{"level":30,"time":1790524915381,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-h","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:01:55.382Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e399-feb5-7cef-8840-8324d5e86551","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524915393,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-h","res":{"statusCode":200},"responseTime":11.299599999998463,"msg":"request completed"}
+{"level":30,"time":1790524918402,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-i","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:01:58.402Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-0a82-79ec-b08c-3dd9a45001cb","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524918422,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-i","res":{"statusCode":200},"responseTime":19.480099999986123,"msg":"request completed"}
+{"level":30,"time":1790524921426,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-j","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:02:01.427Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-1652-738f-b5ec-957e114cfa49","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524921452,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-j","res":{"statusCode":200},"responseTime":25.941700000024866,"msg":"request completed"}
+{"level":30,"time":1790524924461,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-k","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:02:04.461Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-222d-7712-bf59-79b129541da2","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524924475,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-k","res":{"statusCode":200},"responseTime":14.22410000002128,"msg":"request completed"}
+{"level":30,"time":1790524927480,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-l","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:02:07.481Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-2df9-7fb9-87db-25aba8ecf264","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524927490,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-l","res":{"statusCode":200},"responseTime":9.805200000002515,"msg":"request completed"}
+{"level":30,"time":1790524930505,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-m","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:02:10.506Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-39c9-7fad-9ed4-e0f9df135c4b","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524930557,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-m","res":{"statusCode":200},"responseTime":51.80409999997937,"msg":"request completed"}
+{"level":30,"time":1790524933564,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-n","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:02:13.564Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-45bc-7490-bd9c-bd399b010f69","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524933590,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-n","res":{"statusCode":200},"responseTime":26.426799999986542,"msg":"request completed"}
+{"level":30,"time":1790524936600,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-o","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:02:16.600Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-5198-7d38-a88c-8294ef44b227","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524936658,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-o","res":{"statusCode":200},"responseTime":57.94150000001537,"msg":"request completed"}
+{"level":30,"time":1790524939664,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-p","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:02:19.664Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-5d90-7e53-9452-74cf00a6ff37","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524939676,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-p","res":{"statusCode":200},"responseTime":12.509200000000419,"msg":"request completed"}
+{"level":30,"time":1790524942678,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-q","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:02:22.679Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-6956-738e-8124-9ac9e67dd326","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524942712,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-q","res":{"statusCode":200},"responseTime":33.329999999987194,"msg":"request completed"}
+{"level":30,"time":1790524945725,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-r","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:02:25.726Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-753d-7cb6-a1db-69d29eb5e4d7","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524945753,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-r","res":{"statusCode":200},"responseTime":28.04420000000391,"msg":"request completed"}
+{"level":30,"time":1790524948755,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-s","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:02:28.756Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-8114-74ba-a326-87d106667943","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524948849,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-s","res":{"statusCode":200},"responseTime":93.08969999998226,"msg":"request completed"}
+{"level":30,"time":1790524951861,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-t","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:02:31.862Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-8d36-7cc8-bb34-27c18dce10fe","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524951881,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-t","res":{"statusCode":200},"responseTime":19.447299999999814,"msg":"request completed"}
+{"level":30,"time":1790524954890,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-u","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:02:34.891Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-990b-798e-8a49-47e132249e40","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524954948,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-u","res":{"statusCode":200},"responseTime":57.46679999999469,"msg":"request completed"}
+{"level":30,"time":1790524957956,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-v","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:02:37.957Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-a505-7333-9db7-a20de36d054b","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524957973,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-v","res":{"statusCode":200},"responseTime":16.75769999998738,"msg":"request completed"}
+{"level":30,"time":1790524960981,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-w","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:02:40.981Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-b0d5-7707-ad3b-6026da368c24","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524961016,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-w","res":{"statusCode":200},"responseTime":35.2666999999783,"msg":"request completed"}
+{"level":30,"time":1790524964025,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-x","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:02:44.026Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-bcb9-75c3-b9a5-ab7eff81e8b9","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524964043,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-x","res":{"statusCode":200},"responseTime":17.621299999998882,"msg":"request completed"}
+{"level":30,"time":1790524967044,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-y","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:02:47.045Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-c885-71ec-be4e-b69dfcad2c66","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524967068,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-y","res":{"statusCode":200},"responseTime":23.255000000004657,"msg":"request completed"}
+{"level":30,"time":1790524970071,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-z","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:02:50.072Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-d457-7a53-8cac-73f6b3b81477","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524970087,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-z","res":{"statusCode":200},"responseTime":15.988299999997253,"msg":"request completed"}
+{"level":30,"time":1790524973099,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-10","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:02:53.099Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-e02b-7078-9817-9e2ebd611b3f","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524973133,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-10","res":{"statusCode":200},"responseTime":33.630400000023656,"msg":"request completed"}
+{"level":30,"time":1790524976139,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-11","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:02:56.140Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-ec0c-7692-b857-b4cbe8fad1e5","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524976174,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-11","res":{"statusCode":200},"responseTime":34.114400000020396,"msg":"request completed"}
+{"level":30,"time":1790524979178,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-12","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:02:59.179Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39a-f7eb-7771-8cdf-1d82303d962a","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524979332,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-12","res":{"statusCode":200},"responseTime":153.18699999997625,"msg":"request completed"}
+{"level":30,"time":1790524982333,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-13","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:03:02.334Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39b-043d-74cc-a97e-eb3c30d50339","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524982367,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-13","res":{"statusCode":200},"responseTime":33.480899999965914,"msg":"request completed"}
+{"level":30,"time":1790524985374,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-14","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:03:05.374Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39b-101e-7428-8cdb-982008abdce1","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524985404,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-14","res":{"statusCode":200},"responseTime":29.824900000006892,"msg":"request completed"}
+{"level":30,"time":1790524988407,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-15","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:03:08.408Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39b-1bf7-7f27-a119-7cb2ba6bafd0","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524988425,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-15","res":{"statusCode":200},"responseTime":17.258000000030734,"msg":"request completed"}
+{"level":30,"time":1790524988428,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-16","req":{"method":"POST","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":64102},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:03:08.429Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39b-1c0d-7942-97ef-de0e729628c2","method":"POST","route":"/projects/:projectId/one-shot/render","service":"api"}}
+{"level":30,"time":1790524989001,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-16","res":{"statusCode":202},"responseTime":572.0323999999673,"msg":"request completed"}
+{"level":30,"time":1790524989002,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-17","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:03:09.002Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39b-1e4a-7e08-89f5-d0b927e6d19a","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524989013,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-17","res":{"statusCode":200},"responseTime":11.149000000033993,"msg":"request completed"}
+{"level":30,"time":1790524994027,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-18","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:03:14.028Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39b-31eb-7085-b4bf-159a346c37f4","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524994037,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-18","res":{"statusCode":200},"responseTime":9.10940000001574,"msg":"request completed"}
+{"level":30,"time":1790524999048,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-19","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:03:19.049Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39b-4589-7fc4-84ae-78ba4ac3bd15","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790524999083,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-19","res":{"statusCode":200},"responseTime":34.59939999994822,"msg":"request completed"}
+{"level":30,"time":1790525004090,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1a","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:03:24.091Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39b-593a-7084-b212-1d8039d70d02","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525004101,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1a","res":{"statusCode":200},"responseTime":11.014999999955762,"msg":"request completed"}
+{"level":30,"time":1790525009103,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1b","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:03:29.104Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39b-6ccf-7dbb-8e4e-0ec7dda51b6d","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525009140,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1b","res":{"statusCode":200},"responseTime":36.23809999995865,"msg":"request completed"}
+{"level":30,"time":1790525014156,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1c","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:03:34.156Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39b-808c-794b-ac3d-7bfa787c20c6","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525014171,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1c","res":{"statusCode":200},"responseTime":14.461200000019744,"msg":"request completed"}
+{"level":30,"time":1790525019184,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1d","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:03:39.185Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39b-9430-7116-962e-27e1c43f8d3c","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525019198,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1d","res":{"statusCode":200},"responseTime":13.431199999991804,"msg":"request completed"}
+{"level":30,"time":1790525024204,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1e","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:03:44.204Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39b-a7cc-7aad-926a-73d3f12cc81d","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525024222,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1e","res":{"statusCode":200},"responseTime":18.619799999985844,"msg":"request completed"}
+{"level":30,"time":1790525029238,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1f","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:03:49.239Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39b-bb77-7aaa-98b0-e35ccec94c3e","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525029321,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1f","res":{"statusCode":200},"responseTime":82.20809999998892,"msg":"request completed"}
+{"level":30,"time":1790525034333,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1g","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:03:54.333Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39b-cf5d-7e40-bce7-33a5cc02c220","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525034355,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1g","res":{"statusCode":200},"responseTime":21.831400000024587,"msg":"request completed"}
+{"level":30,"time":1790525039359,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1h","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:03:59.360Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39b-e300-7eb5-bf00-451533e20053","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525039384,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1h","res":{"statusCode":200},"responseTime":24.929999999993015,"msg":"request completed"}
+{"level":30,"time":1790525044395,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1i","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:04:04.396Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39b-f6ab-758d-b595-524092402f11","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525044430,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1i","res":{"statusCode":200},"responseTime":34.66980000003241,"msg":"request completed"}
+{"level":30,"time":1790525049448,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1j","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:04:09.449Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39c-0a68-7fa4-80fb-d3ece9fe96a1","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525049470,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1j","res":{"statusCode":200},"responseTime":21.77900000003865,"msg":"request completed"}
+{"level":30,"time":1790525054483,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1k","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:04:14.484Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39c-1e13-7917-9463-7e5c728792c5","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525054502,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1k","res":{"statusCode":200},"responseTime":18.459200000041164,"msg":"request completed"}
+{"timestamp":"2026-09-27T16:04:19.507Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39c-31b2-7586-8ba6-581c31d72e26","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525059506,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1l","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"level":30,"time":1790525059541,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1l","res":{"statusCode":200},"responseTime":34.40790000004927,"msg":"request completed"}
+{"level":30,"time":1790525064553,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1m","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:04:24.553Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39c-4569-7360-82ac-5dfc8d974dc8","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525064571,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1m","res":{"statusCode":200},"responseTime":18.54829999996582,"msg":"request completed"}
+{"level":30,"time":1790525069581,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1n","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:04:29.581Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39c-590d-71ae-9111-28a04b4d360a","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525069611,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1n","res":{"statusCode":200},"responseTime":29.581300000019837,"msg":"request completed"}
+{"level":30,"time":1790525074619,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1o","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:04:34.620Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39c-6cbc-711a-b9d8-4ccbe3a9ec68","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525074645,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1o","res":{"statusCode":200},"responseTime":25.043899999989662,"msg":"request completed"}
+{"level":30,"time":1790525079651,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1p","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:04:39.652Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39c-8064-7625-b7bc-5693a343c25d","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525079670,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1p","res":{"statusCode":200},"responseTime":18.087500000023283,"msg":"request completed"}
+{"level":30,"time":1790525084686,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1q","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:04:44.686Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39c-940e-71db-8a0d-c6d4254d1bda","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525084719,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1q","res":{"statusCode":200},"responseTime":33.64459999999963,"msg":"request completed"}
+{"level":30,"time":1790525089737,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1r","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:04:49.738Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39c-a7c9-7279-8f16-f39d7c3d1925","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525089767,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1r","res":{"statusCode":200},"responseTime":29.34289999998873,"msg":"request completed"}
+{"level":30,"time":1790525094808,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1s","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:04:54.809Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39c-bb98-7fca-9f15-e12c20efe85b","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525094831,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1s","res":{"statusCode":200},"responseTime":22.51150000002235,"msg":"request completed"}
+{"timestamp":"2026-09-27T16:04:59.839Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39c-cf3f-7882-af5c-d0d8676b2d93","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525099839,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1t","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"level":30,"time":1790525099871,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1t","res":{"statusCode":200},"responseTime":32.02339999994729,"msg":"request completed"}
+{"level":30,"time":1790525104941,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1u","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:05:04.942Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39c-e32d-7bd7-ab84-2d4943baa6d8","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525105089,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1u","res":{"statusCode":200},"responseTime":147.34010000003036,"msg":"request completed"}
+{"timestamp":"2026-09-27T16:05:10.094Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39c-f74d-7209-a0d0-746a7256524e","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525110093,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1v","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"level":30,"time":1790525110110,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1v","res":{"statusCode":200},"responseTime":17.25119999999879,"msg":"request completed"}
+{"level":30,"time":1790525115123,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1w","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:05:15.123Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39d-0af3-790a-8608-c34ac3d26757","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525115142,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1w","res":{"statusCode":200},"responseTime":18.46820000000298,"msg":"request completed"}
+{"level":30,"time":1790525120152,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1x","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:05:20.153Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39d-1e98-793a-ba32-b414e564bce9","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525120172,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1x","res":{"statusCode":200},"responseTime":19.595300000044517,"msg":"request completed"}
+{"level":30,"time":1790525125176,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1y","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:05:25.177Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39d-3238-7c56-aff3-5f3a7f8b6a9d","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525125201,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1y","res":{"statusCode":200},"responseTime":24.92189999995753,"msg":"request completed"}
+{"level":30,"time":1790525130208,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1z","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:05:30.208Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39d-45e0-70d0-bd51-7fd3ab8ddea0","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525130228,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1z","res":{"statusCode":200},"responseTime":19.866599999950267,"msg":"request completed"}
+{"level":30,"time":1790525135236,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-20","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:05:35.237Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39d-5984-7874-8f89-bb4f13548289","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525135250,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-20","res":{"statusCode":200},"responseTime":13.222400000027847,"msg":"request completed"}
+{"level":30,"time":1790525140256,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-21","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:05:40.257Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39d-6d21-7115-ac65-bece2b1faf7a","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525140276,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-21","res":{"statusCode":200},"responseTime":18.996999999973923,"msg":"request completed"}
+{"level":30,"time":1790525145294,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-22","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:05:45.294Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39d-80ce-7091-9181-4c542b401b31","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525145310,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-22","res":{"statusCode":200},"responseTime":15.73200000001816,"msg":"request completed"}
+{"level":30,"time":1790525150312,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-23","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:05:50.313Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39d-9468-7f8d-b074-9430b2b5fb9f","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525150331,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-23","res":{"statusCode":200},"responseTime":19.138599999947473,"msg":"request completed"}
+{"level":30,"time":1790525155337,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-24","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:05:55.337Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39d-a809-7e87-8304-846e7ce0e0f0","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525155357,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-24","res":{"statusCode":200},"responseTime":20.340399999986403,"msg":"request completed"}
+{"level":30,"time":1790525160359,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-25","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:06:00.359Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39d-bba7-7ff6-bb89-85f9a11853eb","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525160369,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-25","res":{"statusCode":200},"responseTime":10.460300000035204,"msg":"request completed"}
+{"level":30,"time":1790525165372,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-26","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:06:05.373Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39d-cf3c-782c-bcb4-3a81727be1b7","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525165384,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-26","res":{"statusCode":200},"responseTime":12.260999999998603,"msg":"request completed"}
+{"level":30,"time":1790525170388,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-27","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:06:10.389Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39d-e2d4-7044-aced-8aef370da02d","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525170402,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-27","res":{"statusCode":200},"responseTime":13.989400000020396,"msg":"request completed"}
+{"level":30,"time":1790525175407,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-28","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:06:15.407Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39d-f66f-7592-8e00-b79b7b48e31e","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525175423,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-28","res":{"statusCode":200},"responseTime":16.665399999998044,"msg":"request completed"}
+{"level":30,"time":1790525180428,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-29","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:06:20.430Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39e-0a0d-70db-b85c-0260f918a31e","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525180448,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-29","res":{"statusCode":200},"responseTime":19.367100000032224,"msg":"request completed"}
+{"level":30,"time":1790525185454,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2a","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:06:25.454Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39e-1dae-7915-993a-c282ff7b1c33","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525185469,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2a","res":{"statusCode":200},"responseTime":15.117900000012014,"msg":"request completed"}
+{"level":30,"time":1790525190471,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2b","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:06:30.472Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39e-3147-7191-94ab-6ad0c8c530fc","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525190487,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2b","res":{"statusCode":200},"responseTime":16.113000000012107,"msg":"request completed"}
+{"level":30,"time":1790525195501,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2c","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:06:35.502Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39e-44ee-770a-956b-e4f49fc90512","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525195514,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2c","res":{"statusCode":200},"responseTime":12.755099999951199,"msg":"request completed"}
+{"level":30,"time":1790525200527,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2d","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:06:40.528Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39e-588f-7ca7-82ff-8175d6b052e9","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525200549,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2d","res":{"statusCode":200},"responseTime":21.424300000013318,"msg":"request completed"}
+{"level":30,"time":1790525205561,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2e","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:06:45.562Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39e-6c39-76b6-b17e-b62da92f163a","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525205580,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2e","res":{"statusCode":200},"responseTime":18.854600000020582,"msg":"request completed"}
+{"level":30,"time":1790525210585,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2f","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:06:50.585Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39e-7fd9-79c5-a95d-1af9fe7a697d","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525210595,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2f","res":{"statusCode":200},"responseTime":10.48479999997653,"msg":"request completed"}
+{"level":30,"time":1790525215599,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2g","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:06:55.599Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39e-936f-775f-83c9-efdafc843dfc","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525215613,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2g","res":{"statusCode":200},"responseTime":13.455599999986589,"msg":"request completed"}
+{"level":30,"time":1790525220618,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2h","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:07:00.618Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39e-a70a-75ee-ada9-e4900f4f1a25","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525220661,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2h","res":{"statusCode":200},"responseTime":42.84309999999823,"msg":"request completed"}
+{"level":30,"time":1790525225671,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2i","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:07:05.672Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39e-bac8-7522-ae85-cdf4f2f9443c","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525225706,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2i","res":{"statusCode":200},"responseTime":34.68789999996079,"msg":"request completed"}
+{"level":30,"time":1790525230721,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2j","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:07:10.722Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39e-ce82-7406-9beb-54bc0df0f8d1","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525230754,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2j","res":{"statusCode":200},"responseTime":32.38699999998789,"msg":"request completed"}
+{"level":30,"time":1790525235759,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2k","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:07:15.759Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39e-e22f-72a3-b75b-e86c5e776659","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525235778,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2k","res":{"statusCode":200},"responseTime":19.202400000067428,"msg":"request completed"}
+{"level":30,"time":1790525240786,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2l","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:07:20.786Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39e-f5d2-742e-bbd7-c1819f0e8c95","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525240821,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2l","res":{"statusCode":200},"responseTime":35.1577999999281,"msg":"request completed"}
+{"level":30,"time":1790525245844,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2m","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:07:25.845Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39f-0994-7264-afdf-760b4dd2097b","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525245912,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2m","res":{"statusCode":200},"responseTime":67.69459999992978,"msg":"request completed"}
+{"level":30,"time":1790525250920,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2n","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:07:30.920Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39f-1d68-780b-b008-f2e517917729","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525250933,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2n","res":{"statusCode":200},"responseTime":13.632800000021234,"msg":"request completed"}
+{"level":30,"time":1790525255954,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2o","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:07:35.954Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39f-3112-7ee8-91a0-6ecb758bed6b","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525256066,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2o","res":{"statusCode":200},"responseTime":112.06260000006296,"msg":"request completed"}
+{"level":30,"time":1790525261073,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2p","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:07:41.073Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39f-4511-72dc-b2fd-3a61472171ce","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525261086,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2p","res":{"statusCode":200},"responseTime":12.747199999983422,"msg":"request completed"}
+{"level":30,"time":1790525266092,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2q","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:07:46.092Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39f-58ac-705f-986b-742233ffae62","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525266118,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2q","res":{"statusCode":200},"responseTime":26.51270000007935,"msg":"request completed"}
+{"level":30,"time":1790525271130,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2r","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:07:51.130Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39f-6c5a-714d-ae38-38da53d6fb00","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525271146,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2r","res":{"statusCode":200},"responseTime":16.581000000005588,"msg":"request completed"}
+{"level":30,"time":1790525276156,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2s","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:07:56.156Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39f-7ffc-76c9-a70b-bcd0b90d9dc2","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525276173,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2s","res":{"statusCode":200},"responseTime":17.2506000000285,"msg":"request completed"}
+{"timestamp":"2026-09-27T16:08:01.192Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39f-93a8-7988-97c6-a8f2b9d6937d","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525281191,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2t","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"level":30,"time":1790525281215,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2t","res":{"statusCode":200},"responseTime":23.817299999995157,"msg":"request completed"}
+{"level":30,"time":1790525286232,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2u","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:08:06.232Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39f-a758-7dc0-af09-5ededa7be60b","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525286243,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2u","res":{"statusCode":200},"responseTime":11.707900000037625,"msg":"request completed"}
+{"level":30,"time":1790525291252,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2v","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:08:11.252Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39f-baf4-778e-850d-850b2dd89604","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525291285,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2v","res":{"statusCode":200},"responseTime":32.907500000088476,"msg":"request completed"}
+{"level":30,"time":1790525296294,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2w","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:08:16.295Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39f-cea6-7c5f-be61-52cc4359dd4b","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525296304,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2w","res":{"statusCode":200},"responseTime":9.154199999989942,"msg":"request completed"}
+{"level":30,"time":1790525301310,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2x","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":50108},"msg":"incoming request"}
+{"timestamp":"2026-09-27T16:08:21.310Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e39f-e23e-7bde-a823-9a077c094c97","method":"GET","route":"/projects/:projectId/one-shot","service":"api"}}
+{"level":30,"time":1790525301321,"pid":3524,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2x","res":{"statusCode":200},"responseTime":11.344600000069477,"msg":"request completed"}

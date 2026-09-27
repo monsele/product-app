@@ -1,0 +1,15 @@
+eligibility {"visible":true,"canStart":true,"reasons":[]}
+estimate total 6.53274 9 items
+started 01a0e378-0dd6-74cc-bf65-6905a919adeb queued replay same id: true
+second concurrent run rejected: POST /projects/01a0e363-bb4a-7f0e-8b0e-3e330291ceca/one-shot
+early render rejected: POST /projects/01a0e363-bb4a-7f0e-8b0e-3e330291ceca/one-shot
+2026-09-27T15:24:51.134Z queued/null cost 0
+2026-09-27T15:24:54.181Z running/illustrations cost 0
+2026-09-27T15:24:57.218Z awaiting_render_approval/render cost 0
+stopped at awaiting_render_approval null {"status":"partial","missing":["supply"]}
+steps ingestion:done source_snapshot:done configuration:done objectives:done outline:done narration:done storyboard:done illustrations:done grounding:done audio:done validation:done
+render approved rendering 01a0e365-efe4-7893-b552-36b251b50303 01a0e365-ee5b-7b9f-810a-15dedc2b2c6d
+2026-09-27T15:24:57.633Z rendering/{}
+2026-09-27T15:25:02.659Z completed/{"progress":1}
+final completed null cost 0
+exit 0

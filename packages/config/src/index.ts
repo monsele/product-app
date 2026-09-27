@@ -519,6 +519,27 @@ export const apiEnvironmentSchema = baseEnvironmentSchema
       .default("false")
       .transform((value) => value === "true"),
     DEMONSTRATION_PILOT_USER_IDS: z.string().max(4_000).default(""),
+    /**
+     * ST-105 - the prompt-to-video pilot's cohort gate (ADR-013).
+     *
+     * Same two-switch shape as the demonstration pilot. `ENABLED` gates the
+     * API commands that start new runs; turning it off rejects new runs while
+     * runs already in flight drain to completion. `USER_IDS` is the cohort.
+     * Both default to closed.
+     */
+    ONE_SHOT_PILOT_ENABLED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+    ONE_SHOT_PILOT_USER_IDS: z.string().max(4_000).default(""),
+    /** ST-105. Prompt-to-video runs one user may start per rolling hour. Each
+     * model call inside a run still counts against its own generation quota. */
+    MAX_ONE_SHOT_RUNS_PER_HOUR: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .default(3),
   })
   .superRefine((value, context) => {
     validateStorageCredentialPair(value, context);

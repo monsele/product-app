@@ -45,6 +45,7 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { SourceSnapshotService } from "./source-snapshot.js";
 import { assertProjectStageTransition } from "./projects.js";
+import { requestActor } from "./audit-actor.js";
 
 function canonicalHash(value: unknown): string {
   const canonical = JSON.stringify(sortCanonical(value));
@@ -70,6 +71,8 @@ export interface ObjectivesService {
     projectId: Identifier;
     idempotencyKey: string | undefined;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run queues this job. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<ObjectiveGenerationResponse>;
   current(input: {
     ownerUserId: Identifier;
@@ -106,6 +109,8 @@ export interface ObjectivesService {
     projectId: Identifier;
     body: unknown;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run acts for the owner. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<ObjectivesResponse>;
 }
 
@@ -178,6 +183,8 @@ export class PostgresObjectivesService implements ObjectivesService {
     projectId: Identifier;
     idempotencyKey: string | undefined;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run queues this job. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<ObjectiveGenerationResponse> {
     const idempotencyKey = input.idempotencyKey?.trim();
     if (
@@ -230,6 +237,7 @@ export class PostgresObjectivesService implements ObjectivesService {
         providerApproval: createModelCallProviderApproval({
           jobId: requestedJobId,
           model: currentObjectiveGenerationCompatibility.model,
+          oneShotRunId: input.oneShotRunId,
         }),
         params,
       });
@@ -324,7 +332,7 @@ export class PostgresObjectivesService implements ObjectivesService {
         await new PostgresAuditWriter(transaction).write({
           ownerUserId: input.ownerUserId,
           projectId: input.projectId,
-          actor: { type: "user", userId: input.ownerUserId },
+          actor: requestActor(input),
           eventType: "ai.generated",
           target: { type: "objective_generation", id: jobId },
           correlationId: input.correlationId,
@@ -707,6 +715,8 @@ export class PostgresObjectivesService implements ObjectivesService {
     projectId: Identifier;
     body: unknown;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run acts for the owner. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<ObjectivesResponse> {
     const parsed = parseBoundary(objectiveApproveInputSchema, input.body);
     const timestamp = this.now();
@@ -775,7 +785,7 @@ export class PostgresObjectivesService implements ObjectivesService {
       await new PostgresAuditWriter(transaction).write({
         ownerUserId: input.ownerUserId,
         projectId: input.projectId,
-        actor: { type: "user", userId: input.ownerUserId },
+        actor: requestActor(input),
         eventType: "objectives.approved",
         target: { type: "objective_set", id: draft.id },
         correlationId: input.correlationId,

@@ -102,6 +102,8 @@ import type { DemonstrationTestLessonService } from "./demonstration-test-lesson
 import type { ExportService } from "./exports.js";
 import type { ShareLinkService } from "./share-links.js";
 import type { SoundBedService } from "./sound-beds.js";
+import type { OneShotService } from "./one-shot.js";
+import { oneShotEligibilitySchema } from "@avlp/schemas/one-shot";
 import { searchApprovedAssets } from "./approved-assets.js";
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
@@ -148,6 +150,7 @@ const DEMONSTRATION_PILOT_COHORT = Symbol("DEMONSTRATION_PILOT_COHORT");
 const DEMONSTRATION_TEST_LESSON_SERVICE = Symbol(
   "DEMONSTRATION_TEST_LESSON_SERVICE",
 );
+const ONE_SHOT_SERVICE = Symbol("ONE_SHOT_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -2956,6 +2959,114 @@ class DemonstrationTestLessonController {
   }
 }
 
+/**
+ * ST-105 - the prompt-to-video pilot (ADR-013).
+ *
+ * Every route is under `/projects/:projectId`, so the same project authorizer
+ * as the rest of the API rejects cross-tenant project ids before the handler
+ * runs. The service then re-checks cohort membership on every read and write.
+ */
+@Controller("projects")
+class OneShotController {
+  public constructor(
+    @Inject(TRUSTED_ORIGIN)
+    private readonly trustedOrigin: string | undefined,
+    @Inject(ONE_SHOT_SERVICE) private readonly oneShot: OneShotService,
+  ) {}
+
+  @Get(":projectId/one-shot/eligibility")
+  public async eligibility(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    return this.oneShot.eligibility(
+      assertAuthorizedProject(request, projectId),
+    );
+  }
+
+  @Post(":projectId/one-shot/estimate")
+  @HttpCode(200)
+  public async estimate(
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.oneShot.estimate({
+      ...assertAuthorizedProject(request, projectId),
+      body,
+    });
+  }
+
+  @Post(":projectId/one-shot")
+  @HttpCode(202)
+  public async start(
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+    @Headers("idempotency-key") idempotencyKey: string | undefined,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.oneShot.create({
+      ...assertAuthorizedProject(request, projectId),
+      body,
+      idempotencyKey,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Get(":projectId/one-shot")
+  public async current(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    return this.oneShot.current(assertAuthorizedProject(request, projectId));
+  }
+
+  @Post(":projectId/one-shot/render")
+  @HttpCode(202)
+  public async render(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.oneShot.render({
+      ...assertAuthorizedProject(request, projectId),
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/one-shot/resume")
+  @HttpCode(202)
+  public async resume(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.oneShot.resume({
+      ...assertAuthorizedProject(request, projectId),
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/one-shot/cancel")
+  @HttpCode(200)
+  public async cancel(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.oneShot.cancel({
+      ...assertAuthorizedProject(request, projectId),
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+}
+
 @Controller("share")
 class PublicShareController {
   public constructor(
@@ -3075,6 +3186,7 @@ class DatabaseShutdown implements OnApplicationShutdown {
     VoicesController,
     SoundBedsController,
     ProjectsController,
+    OneShotController,
     DemonstrationTestLessonController,
     PublicShareController,
   ],
@@ -3124,6 +3236,7 @@ function createAppModule(
   demonstrationPilotService: DemonstrationPilotApiService,
   demonstrationTestLessonService: DemonstrationTestLessonApiService,
   demonstrationPilotCohort: DemonstrationPilotCohort,
+  oneShotService: OneShotService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -3191,6 +3304,7 @@ function createAppModule(
         provide: DEMONSTRATION_PILOT_COHORT,
         useValue: demonstrationPilotCohort,
       },
+      { provide: ONE_SHOT_SERVICE, useValue: oneShotService },
     ],
   };
 }
@@ -3234,6 +3348,7 @@ export type CreateAppOptions = {
   demonstrationPilotService?: DemonstrationPilotApiService;
   demonstrationTestLessonService?: DemonstrationTestLessonApiService;
   demonstrationPilotCohort?: DemonstrationPilotCohort;
+  oneShotService?: OneShotService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -4389,6 +4504,39 @@ const unavailableDemonstrationPilotService: DemonstrationPilotApiService = {
     ),
 };
 
+/**
+ * ST-105. No runner wired means no cohort: reads report the feature as
+ * invisible and every write answers 409, the same as for a user outside it.
+ */
+const closedOneShotEligibility = oneShotEligibilitySchema.parse({
+  visible: false,
+  canStart: false,
+  reasons: [
+    {
+      code: "pilot_disabled",
+      message: "Prompt-to-video is not enabled on this server.",
+    },
+  ],
+});
+const oneShotUnavailable = () =>
+  Promise.reject(
+    new PublicError(
+      "bad_request",
+      "Prompt-to-video is not enabled on this server.",
+      409,
+    ),
+  );
+const unavailableOneShotService: OneShotService = {
+  eligibility: () => Promise.resolve(closedOneShotEligibility),
+  current: () =>
+    Promise.resolve({ eligibility: closedOneShotEligibility, run: null }),
+  estimate: oneShotUnavailable,
+  create: oneShotUnavailable,
+  render: oneShotUnavailable,
+  resume: oneShotUnavailable,
+  cancel: oneShotUnavailable,
+};
+
 /** No pilot configured means no cohort, so the routes answer 404. */
 const closedDemonstrationPilotCohort: DemonstrationPilotCohort = {
   enabled: () => false,
@@ -4458,6 +4606,7 @@ export async function createApp(
       options.demonstrationTestLessonService ??
         unavailableDemonstrationTestLessonService,
       options.demonstrationPilotCohort ?? closedDemonstrationPilotCohort,
+      options.oneShotService ?? unavailableOneShotService,
     ),
     new FastifyAdapter({
       logger: {

@@ -30,6 +30,7 @@ import {
 } from "@avlp/schemas";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import type { SourceSnapshotService } from "./source-snapshot.js";
+import { requestActor } from "./audit-actor.js";
 
 function canonicalHash(value: unknown): string {
   const canonical = JSON.stringify(sortCanonical(value));
@@ -56,6 +57,8 @@ export interface GroundingService {
     body: unknown;
     idempotencyKey: string | undefined;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run queues this job. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<GroundingCheckResponse>;
   current(input: {
     ownerUserId: Identifier;
@@ -86,6 +89,8 @@ export class PostgresGroundingService implements GroundingService {
     body: unknown;
     idempotencyKey: string | undefined;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run queues this job. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<GroundingCheckResponse> {
     const parsed = parseBoundary(input.body);
     const idempotencyKey = input.idempotencyKey?.trim();
@@ -166,6 +171,7 @@ export class PostgresGroundingService implements GroundingService {
         providerApproval: createModelCallProviderApproval({
           jobId: requestedJobId,
           model: currentGroundingCompatibility.model,
+          oneShotRunId: input.oneShotRunId,
         }),
         ...(blockIds.length === 0 ? {} : { narrowing: { blockIds } }),
         params,
@@ -242,7 +248,7 @@ export class PostgresGroundingService implements GroundingService {
         await new PostgresAuditWriter(transaction).write({
           ownerUserId: input.ownerUserId,
           projectId: input.projectId,
-          actor: { type: "user", userId: input.ownerUserId },
+          actor: requestActor(input),
           eventType: "ai.generated",
           target: { type: "grounding_check", id: jobId },
           correlationId: input.correlationId,

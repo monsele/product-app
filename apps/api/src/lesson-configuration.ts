@@ -32,6 +32,7 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { findLatestProjectParsedDocument } from "./project-parsed-document.js";
 import { assertProjectStageTransition } from "./projects.js";
+import { requestActor } from "./audit-actor.js";
 
 export interface LessonConfigurationService {
   get(
@@ -43,6 +44,8 @@ export interface LessonConfigurationService {
     projectId: Identifier;
     body: unknown;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run acts for the owner. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<LessonConfigurationResponse>;
 }
 
@@ -101,6 +104,8 @@ export class PostgresLessonConfigurationService implements LessonConfigurationSe
     projectId: Identifier;
     body: unknown;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run acts for the owner. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<LessonConfigurationResponse> {
     const parsed = parseBoundary(lessonConfigurationInputSchema, input.body);
     const timestamp = this.now();
@@ -284,7 +289,7 @@ export class PostgresLessonConfigurationService implements LessonConfigurationSe
       await new PostgresAuditWriter(transaction).write({
         ownerUserId: input.ownerUserId,
         projectId: input.projectId,
-        actor: { type: "user", userId: input.ownerUserId },
+        actor: requestActor(input),
         eventType: "lesson.configuration_saved",
         target: { type: "lesson_configuration", id: saved.id },
         correlationId: input.correlationId,

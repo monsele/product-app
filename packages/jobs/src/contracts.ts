@@ -13,6 +13,8 @@ export const queueNameSchema = z.enum([
   "pipeline",
   "media",
   "render",
+  // ST-105. Prompt-to-video run ticks, consumed inside the API process.
+  "orchestration",
 ]);
 export type QueueName = z.infer<typeof queueNameSchema>;
 

@@ -1,0 +1,44 @@
+eligibility {"visible":true,"canStart":true,"reasons":[]}
+estimate total 6.53274 9 items
+started 01a0e364-8b2c-7f8b-ba9d-a739f10e5633 queued replay same id: true
+second concurrent run rejected: POST /projects/01a0e363-bb4a-7f0e-8b0e-3e330291ceca/one-shot
+early render rejected: POST /projects/01a0e363-bb4a-7f0e-8b0e-3e330291ceca/one-shot
+2026-09-27T15:03:32.532Z queued/null cost 0
+2026-09-27T15:03:35.554Z running/ingestion cost 0
+2026-09-27T15:03:59.749Z running/source_snapshot cost 0
+2026-09-27T15:04:02.777Z running/configuration cost 0.00825
+2026-09-27T15:04:11.858Z running/objectives cost 0.00825
+2026-09-27T15:04:20.913Z running/outline cost 0.0165
+2026-09-27T15:04:26.945Z running/narration cost 0.02475
+2026-09-27T15:04:36.005Z running/storyboard cost 0.033
+2026-09-27T15:04:39.017Z running/illustrations cost 0.04125
+2026-09-27T15:04:45.055Z running/grounding cost 0.04125
+2026-09-27T15:04:48.164Z running/audio cost 0.0495
+2026-09-27T15:04:57.258Z running/grounding cost 0.0495
+2026-09-27T15:05:03.308Z awaiting_render_approval/render cost 0.05775
+stopped at awaiting_render_approval null {"status":"partial","missing":["supply"]}
+steps ingestion:done source_snapshot:done configuration:done objectives:done outline:done narration:done storyboard:done illustrations:done grounding:done audio:done validation:done
+render approved rendering 01a0e365-efe4-7893-b552-36b251b50303 01a0e365-ee5b-7b9f-810a-15dedc2b2c6d
+2026-09-27T15:05:04.393Z rendering/{}
+2026-09-27T15:05:09.405Z rendering/{"progress":0}
+2026-09-27T15:06:59.826Z rendering/{"progress":0.054}
+2026-09-27T15:07:09.875Z rendering/{"progress":0.108}
+2026-09-27T15:07:19.918Z rendering/{"progress":0.162}
+2026-09-27T15:07:34.993Z rendering/{"progress":0.216}
+2026-09-27T15:07:50.065Z rendering/{"progress":0.27}
+2026-09-27T15:08:00.117Z rendering/{"progress":0.324}
+2026-09-27T15:08:10.164Z rendering/{"progress":0.378}
+2026-09-27T15:08:25.257Z rendering/{"progress":0.432}
+2026-09-27T15:08:35.299Z rendering/{"progress":0.486}
+2026-09-27T15:08:50.361Z rendering/{"progress":0.54}
+2026-09-27T15:09:05.424Z rendering/{"progress":0.594}
+2026-09-27T15:09:20.477Z rendering/{"progress":0.648}
+2026-09-27T15:09:30.527Z rendering/{"progress":0.702}
+2026-09-27T15:09:40.554Z rendering/{"progress":0.756}
+2026-09-27T15:09:45.570Z rendering/{"progress":0.81}
+2026-09-27T15:10:00.647Z rendering/{"progress":0.864}
+2026-09-27T15:10:05.680Z rendering/{"progress":0.9}
+2026-09-27T15:10:20.774Z rendering/{"progress":0.92}
+2026-09-27T15:10:25.797Z completed/{"progress":1}
+final completed null cost 0.05775
+exit 0

@@ -4,6 +4,7 @@ import { PostgresAuditWriter } from "@avlp/observability";
 import { voiceCatalogEntrySchema, voiceConfigurationInputSchema, voiceConfigurationResponseSchema, type VoiceCatalogEntry, type VoiceConfiguration, type VoiceConfigurationResponse } from "@avlp/schemas";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
+import { requestActor } from "./audit-actor.js";
 
 export interface TextToSpeechProvider {
   readonly provider: string;
@@ -39,7 +40,7 @@ export function approvedVoicePreview(voiceId: string, tts: TextToSpeechProvider 
 
 export interface VoiceConfigurationService {
   get(input: { ownerUserId: Identifier; projectId: Identifier }): Promise<VoiceConfigurationResponse>;
-  save(input: { ownerUserId: Identifier; projectId: Identifier; body: unknown; correlationId: Identifier }): Promise<VoiceConfigurationResponse>;
+  save(input: { ownerUserId: Identifier; projectId: Identifier; body: unknown; correlationId: Identifier; /** ST-105. Set when a prompt-to-video run acts for the owner. */ oneShotRunId?: Identifier | undefined }): Promise<VoiceConfigurationResponse>;
 }
 
 export class PostgresVoiceConfigurationService implements VoiceConfigurationService {
@@ -50,7 +51,7 @@ export class PostgresVoiceConfigurationService implements VoiceConfigurationServ
     const entries = await this.database.select().from(pronunciationEntries).where(and(eq(pronunciationEntries.ownerUserId, input.ownerUserId), eq(pronunciationEntries.projectId, input.projectId), eq(pronunciationEntries.voiceConfigurationId, row.id)));
     return voiceConfigurationResponseSchema.parse({ configuration: mapConfiguration(row, entries) });
   }
-  public async save(input: { ownerUserId: Identifier; projectId: Identifier; body: unknown; correlationId: Identifier }): Promise<VoiceConfigurationResponse> {
+  public async save(input: { ownerUserId: Identifier; projectId: Identifier; body: unknown; correlationId: Identifier; /** ST-105. Set when a prompt-to-video run acts for the owner. */ oneShotRunId?: Identifier | undefined }): Promise<VoiceConfigurationResponse> {
     const command = parse(voiceConfigurationInputSchema, input.body);
     const now = this.now();
     return this.database.transaction(async (tx) => {
@@ -72,7 +73,7 @@ export class PostgresVoiceConfigurationService implements VoiceConfigurationServ
         await tx.update(sceneAudio).set({ status: "stale", updatedAt: now, voiceConfigurationVersion: version }).where(and(eq(sceneAudio.ownerUserId, input.ownerUserId), eq(sceneAudio.projectId, input.projectId)));
         await tx.update(captionTracks).set({ status: "stale", updatedAt: now }).where(and(eq(captionTracks.ownerUserId, input.ownerUserId), eq(captionTracks.projectId, input.projectId)));
       }
-      await new PostgresAuditWriter(tx).write({ ownerUserId: input.ownerUserId, projectId: input.projectId, actor: { type: "user", userId: input.ownerUserId }, eventType: "voice.configuration_saved", target: { type: "voice_configuration", id: saved.id }, correlationId: input.correlationId, metadata: { version, voiceId: saved.voiceId, invalidated: changed ? ["audio", "captions"] : [] }, occurredAt: now });
+      await new PostgresAuditWriter(tx).write({ ownerUserId: input.ownerUserId, projectId: input.projectId, actor: requestActor(input), eventType: "voice.configuration_saved", target: { type: "voice_configuration", id: saved.id }, correlationId: input.correlationId, metadata: { version, voiceId: saved.voiceId, invalidated: changed ? ["audio", "captions"] : [] }, occurredAt: now });
       return voiceConfigurationResponseSchema.parse({ configuration: { version, voiceId: saved.voiceId as VoiceConfiguration["voiceId"], speakingRate: saved.speakingRate, pronunciationOverrides: command.pronunciationOverrides, updatedAt: serializeUtcTimestamp(saved.updatedAt) } });
     });
   }

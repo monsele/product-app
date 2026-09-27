@@ -90,6 +90,42 @@ describe("IllustrationGenerationService.request", () => {
     expect(inserts).toHaveLength(3);
   });
 
+  it("carries a prompt-to-video run's authorisation into the paid job payload (ST-105)", async () => {
+    const runId = "019ffbf1-eeee-7000-8000-000000000105" as Identifier;
+    const { database, inserts } = fakeDatabase(
+      [
+        [
+          {
+            id: "019ffbf1-eeee-7000-8000-000000000050",
+            stableSceneId: sceneId,
+            revision: 3,
+            template: "hook",
+          },
+        ],
+        [],
+      ],
+      [[{ id: candidateId }], [{ id: jobId }]],
+    );
+    const service = new IllustrationGenerationService(database, () =>
+      new Date("2026-08-23T12:00:00.000Z"),
+    );
+    await service.request({ ...request, oneShotRunId: runId });
+    const job = inserts.find(
+      (row) => (row as { jobType?: string }).jobType === "illustration.generate",
+    ) as { payload: Record<string, unknown> };
+    expect(job.payload).toEqual({ schemaVersion: 1, candidateId, oneShotRunId: runId });
+
+    const plain = fakeDatabase(
+      [[{ id: "019ffbf1-eeee-7000-8000-000000000050", stableSceneId: sceneId, revision: 3, template: "hook" }], []],
+      [[{ id: candidateId }], [{ id: jobId }]],
+    );
+    await new IllustrationGenerationService(plain.database).request(request);
+    const plainJob = plain.inserts.find(
+      (row) => (row as { jobType?: string }).jobType === "illustration.generate",
+    ) as { payload: Record<string, unknown> };
+    expect(plainJob.payload).not.toHaveProperty("oneShotRunId");
+  });
+
   it("returns the existing candidate and job for a repeated idempotency key", async () => {
     const { database, inserts } = fakeDatabase(
       [
@@ -210,6 +246,41 @@ describe("IllustrationGenerationService.request", () => {
     expect(
       request.mock.calls.map((call) => (call[0] as { slot: string }).slot),
     ).toEqual(["subject", "left-subject-image", "right-subject-image"]);
+  });
+
+  it("derives deterministic per-slot keys from a run's request key (ST-105)", async () => {
+    const runId = "019ffbf1-eeee-7000-8000-000000000105" as Identifier;
+    const sceneRows = [
+      {
+        stableSceneId: "019ffbf1-eeee-7000-8000-000000000101",
+        revision: 3,
+        order: 1,
+        assetRequirements: [{ slot: "subject", purpose: "Anchor image." }],
+        sceneJson: createDefaultStoryboardSceneSpec("hook", {
+          id: "019ffbf1-eeee-7000-8000-000000000101" as Identifier,
+          order: 1,
+          durationSeconds: 20,
+        }),
+      },
+    ];
+    const { database } = fakeDatabase([sceneRows], []);
+    const service = new IllustrationGenerationService(database);
+    const requestSpy = vi.fn().mockResolvedValue({ candidateId, jobId, status: "queued" });
+    service.request = requestSpy as unknown as typeof service.request;
+    await service.generateMissing({
+      ownerUserId,
+      projectId,
+      correlationId,
+      requestKey: "oneshot:run:illustrations:r0:spec",
+      oneShotRunId: runId,
+    });
+    expect(requestSpy.mock.calls[0]?.[0]).toMatchObject({
+      oneShotRunId: runId,
+      body: {
+        idempotencyKey:
+          "oneshot:run:illustrations:r0:spec:019ffbf1-eeee-7000-8000-000000000101:subject",
+      },
+    });
   });
 
   it("queues every eligible missing slot without an application hourly cap", async () => {

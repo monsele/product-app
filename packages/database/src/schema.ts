@@ -985,7 +985,13 @@ export const outboxEvents = pgTable(
   ],
 );
 
-export const auditActorTypeValues = ["user", "system"] as const;
+export const auditActorTypeValues = [
+  "user",
+  "system",
+  // ST-105. An automatic approval made by a prompt-to-video run on its
+  // owner's behalf; the audit row names the run in its metadata.
+  "one_shot_run",
+] as const;
 export const auditActorType = pgEnum("audit_actor_type", auditActorTypeValues);
 
 export const auditEventTypeValues = [
@@ -1041,6 +1047,12 @@ export const auditEventTypeValues = [
   "demonstration.variant_retried",
   "demonstration.feedback_saved",
   "demonstration.test_lesson_created",
+  // ST-105 (ADR-013). Prompt-to-video runs.
+  "one_shot.run_started",
+  "one_shot.stage_approved",
+  "one_shot.render_approved",
+  "one_shot.run_resumed",
+  "one_shot.run_cancelled",
 ] as const;
 export const auditEventType = pgEnum("audit_event_type", auditEventTypeValues);
 
@@ -2684,6 +2696,93 @@ export const demonstrationFeedback = pgTable(
       table.ownerUserId,
       table.projectId,
       table.comparisonId,
+    ),
+  ],
+);
+
+export const oneShotRunStatusValues = [
+  "queued",
+  "running",
+  "awaiting_render_approval",
+  "rendering",
+  "completed",
+  "needs_attention",
+  "failed",
+  "cancelled",
+] as const;
+export const oneShotRunStatus = pgEnum(
+  "one_shot_run_status",
+  oneShotRunStatusValues,
+);
+
+/**
+ * ST-105 (ADR-013). One prompt-to-video run: a single explicit authorisation
+ * that drives the existing pipeline stages up to the render gate.
+ *
+ * - `steps` is the persisted progress record the runner resumes from after an
+ *   API restart; the runner still re-reads real artifact state every tick.
+ * - `tick_sequence` and `tick_lease_expires_at` keep exactly one tick chain
+ *   live: each tick claims the lease, and the next tick's job idempotency key
+ *   is derived from the sequence, so a replayed tick cannot fork the chain.
+ * - `focus_prompt` is user content: never logged, never in audit metadata.
+ * - At most one active run per project (partial unique index). `failed` and
+ *   `needs_attention` runs remain active because they can be resumed.
+ */
+export const oneShotRuns = pgTable(
+  "one_shot_runs",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    requestHash: text("request_hash").notNull(),
+    focusPrompt: text("focus_prompt").notNull(),
+    audience: jsonb("audience").notNull(),
+    targetDurationSeconds: integer("target_duration_seconds").notNull(),
+    acceptedEstimateUsd: numeric("accepted_estimate_usd", {
+      precision: 12,
+      scale: 6,
+    }).notNull(),
+    actualCostUsd: numeric("actual_cost_usd", { precision: 12, scale: 6 })
+      .notNull()
+      .default("0"),
+    status: oneShotRunStatus("status").notNull().default("queued"),
+    currentStep: text("current_step"),
+    steps: jsonb("steps").notNull().default([]),
+    needsAttentionStage: text("needs_attention_stage"),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    focusCoverage: jsonb("focus_coverage"),
+    resumeCount: integer("resume_count").notNull().default(0),
+    tickSequence: integer("tick_sequence").notNull().default(0),
+    tickLeaseExpiresAt: utcTimestamp("tick_lease_expires_at"),
+    /** The `oneshot.advance` job holding the lease; the same job retried
+     * after a crash may reclaim it before the lease expires. */
+    tickJobId: uuid("tick_job_id"),
+    lastProgressAt: utcTimestamp("last_progress_at").notNull().defaultNow(),
+    lessonVersionId: uuid("lesson_version_id").references(
+      () => lessonVersions.id,
+      { onDelete: "restrict" },
+    ),
+    renderJobId: uuid("render_job_id").references(() => renderJobs.id, {
+      onDelete: "restrict",
+    }),
+    correlationId: uuid("correlation_id").notNull(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("one_shot_runs_request_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.idempotencyKey,
+    ),
+    uniqueIndex("one_shot_runs_one_active_per_project")
+      .on(table.projectId)
+      .where(
+        sql`${table.status} in ('queued', 'running', 'awaiting_render_approval', 'rendering', 'needs_attention', 'failed')`,
+      ),
+    index("one_shot_runs_owner_created_idx").on(
+      table.ownerUserId,
+      table.createdAt,
     ),
   ],
 );

@@ -43,6 +43,14 @@ function canonicalMetadata(metadata: SafeMetadata): string {
   return JSON.stringify(normalize(metadata));
 }
 
+function metadataRecord(metadata: unknown): Record<string, unknown> {
+  return typeof metadata === "object" &&
+    metadata !== null &&
+    !Array.isArray(metadata)
+    ? (metadata as Record<string, unknown>)
+    : {};
+}
+
 export class PostgresAuditWriter {
   public constructor(private readonly executor: DatabaseExecutor) {}
 
@@ -56,12 +64,16 @@ export class PostgresAuditWriter {
         ownerUserId: event.ownerUserId,
         projectId: event.projectId ?? null,
         actorType: event.actor.type,
-        actorUserId: event.actor.type === "user" ? event.actor.userId : null,
+        actorUserId: event.actor.type === "system" ? null : event.actor.userId,
         eventType: event.eventType,
         targetType: event.target.type,
         targetId: event.target.id,
         correlationId: event.correlationId,
-        metadata: sanitizedMetadata(event.metadata),
+        metadata: sanitizedMetadata(
+          event.actor.type === "one_shot_run"
+            ? { ...metadataRecord(event.metadata), oneShotRunId: event.actor.runId }
+            : event.metadata,
+        ),
         occurredAt: event.occurredAt ?? new Date(),
       })
       .returning({ id: auditEvents.id });

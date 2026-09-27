@@ -185,6 +185,14 @@ export class IllustrationGenerationService {
     ownerUserId: Identifier;
     projectId: Identifier;
     correlationId: Identifier;
+    /**
+     * ST-105. A deterministic per-request key, so a replayed prompt-to-video
+     * tick reuses the candidates it already queued instead of paying again.
+     * Each slot's key is derived from it. Absent, every call is a new request.
+     */
+    requestKey?: string | undefined;
+    /** ST-105. The prompt-to-video run that authorised these paid calls. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<LessonIllustrationGenerationResponse> {
     const sceneRows = await this.database
       .select({
@@ -256,10 +264,14 @@ export class IllustrationGenerationService {
         sceneId: entry.sceneId,
         slot: entry.slot,
         correlationId: input.correlationId,
+        oneShotRunId: input.oneShotRunId,
         body: {
           useCase: "conceptual-supporting-illustration",
           expectedSceneRevision: entry.revision,
-          idempotencyKey: createId(this.now()),
+          idempotencyKey:
+            input.requestKey === undefined
+              ? createId(this.now())
+              : `${input.requestKey}:${entry.sceneId}:${entry.slot}`,
         },
       });
       requests.push({
@@ -291,6 +303,7 @@ export class IllustrationGenerationService {
     slot: string;
     body: unknown;
     correlationId: Identifier;
+    oneShotRunId?: Identifier | undefined;
   }): Promise<IllustrationGenerationResponse> {
     const request = illustrationGenerationInputSchema.parse(input.body);
     if (!/^[a-z][a-z0-9-]{0,63}$/.test(input.slot))
@@ -414,6 +427,9 @@ export class IllustrationGenerationService {
       const payload = illustrationGenerationJobPayloadSchema.parse({
         schemaVersion: 1,
         candidateId: resolvedCandidateId,
+        ...(input.oneShotRunId === undefined
+          ? {}
+          : { oneShotRunId: input.oneShotRunId }),
       });
       const envelope = createJobEnvelope(
         illustrationGenerationJobPayloadSchema,

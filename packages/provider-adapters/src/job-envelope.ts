@@ -75,7 +75,13 @@ export type ProviderSelection = {
   contractVersion: "provider-envelope-v1";
   provider: string;
   model: string | null;
-  selectionReason: "approved_configuration" | "explicit_job_request";
+  selectionReason:
+    | "approved_configuration"
+    | "explicit_job_request"
+    // ST-105. Queued by a prompt-to-video run under its single authorisation.
+    | "one_shot_run";
+  /** ST-105. The authorising run, present only for `one_shot_run`. */
+  oneShotRunId?: string;
   approvalReference: string | null;
   estimatedCostUsd: number | null;
   actualCostUsd: number | null;
@@ -96,6 +102,7 @@ export function resolveJobAdapter<
   /** The model requested from adapters that select it per call. */
   executingModel?: string;
   selectionReason?: ProviderSelection["selectionReason"];
+  oneShotRunId?: string;
   approvalReference?: string;
   estimatedCostUsd?: number;
 }): { adapter: T; selection: ProviderSelection } {
@@ -141,9 +148,25 @@ export function resolveJobAdapter<
       provider: input.adapter.providerId,
       model: input.adapter.model ?? null,
       selectionReason: input.selectionReason ?? "approved_configuration",
+      ...(input.oneShotRunId === undefined
+        ? {}
+        : { oneShotRunId: input.oneShotRunId }),
       approvalReference: input.approvalReference ?? null,
       estimatedCostUsd: input.estimatedCostUsd ?? null,
       actualCostUsd: null,
     },
   };
+}
+
+/**
+ * ST-105. The selection reason for a paid media job (image, TTS) recorded on
+ * its usage row: `one_shot_run` naming the run when a prompt-to-video run
+ * queued the job, otherwise the approved project configuration.
+ */
+export function providerSelectionReason(
+  oneShotRunId: string | undefined,
+): Pick<ProviderSelection, "selectionReason" | "oneShotRunId"> {
+  return oneShotRunId === undefined
+    ? { selectionReason: "approved_configuration" }
+    : { selectionReason: "one_shot_run", oneShotRunId };
 }

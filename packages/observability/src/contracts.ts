@@ -39,6 +39,13 @@ export const auditActorTypeSchema = z.enum(auditActorTypeValues);
 export const auditActorSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("user"), userId: identifierSchema }),
   z.object({ type: z.literal("system") }),
+  /** ST-105. An automatic approval made by a prompt-to-video run on behalf of
+   * `userId`, the run owner. The writer records `oneShotRunId` in metadata. */
+  z.object({
+    type: z.literal("one_shot_run"),
+    runId: identifierSchema,
+    userId: identifierSchema,
+  }),
 ]);
 export type AuditActor = z.infer<typeof auditActorSchema>;
 

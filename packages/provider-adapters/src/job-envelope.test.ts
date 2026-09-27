@@ -3,6 +3,7 @@ import {
   ApprovedProviderUnavailableError,
   ProviderEnvelopeViolationError,
   pipelineJobAdapterEnvelopes,
+  providerSelectionReason,
   resolveJobAdapter,
 } from "./job-envelope.js";
 
@@ -44,5 +45,33 @@ describe("pipeline job provider envelopes", () => {
         approvedModel: "approved-model",
       }),
     ).toThrow(ApprovedProviderUnavailableError);
+  });
+});
+
+describe("ST-105 provider selection reason", () => {
+  it("names the run for a one-shot media job and keeps configured jobs unchanged", () => {
+    expect(providerSelectionReason(undefined)).toEqual({
+      selectionReason: "approved_configuration",
+    });
+    expect(providerSelectionReason("run-1")).toEqual({
+      selectionReason: "one_shot_run",
+      oneShotRunId: "run-1",
+    });
+  });
+
+  it("carries a one-shot run through adapter resolution", () => {
+    const { selection } = resolveJobAdapter({
+      jobType: "objectives.generate",
+      adapterFamily: "language-model",
+      adapter: { providerId: "together", model: "m", supportedModels: ["m"] },
+      approvedProvider: "together",
+      approvedModel: "m",
+      selectionReason: "one_shot_run",
+      oneShotRunId: "run-1",
+    });
+    expect(selection).toMatchObject({
+      selectionReason: "one_shot_run",
+      oneShotRunId: "run-1",
+    });
   });
 });

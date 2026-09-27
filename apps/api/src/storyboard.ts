@@ -93,6 +93,7 @@ import { z } from "zod";
 import type { SourceSnapshotService } from "./source-snapshot.js";
 import { approvedAssetById } from "./approved-assets.js";
 import { findLatestProjectParsedDocument } from "./project-parsed-document.js";
+import { requestActor } from "./audit-actor.js";
 
 function canonicalHash(value: unknown): string {
   const canonical = JSON.stringify(sortCanonical(value));
@@ -118,6 +119,8 @@ export interface StoryboardService {
     projectId: Identifier;
     idempotencyKey: string | undefined;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run queues this job. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<StoryboardGenerationResponse>;
   current(input: {
     ownerUserId: Identifier;
@@ -218,6 +221,8 @@ export interface StoryboardService {
     candidateId: Identifier;
     body: unknown;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run acts for the owner. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<StoryboardSceneEditResponse>;
 }
 
@@ -239,6 +244,8 @@ export class PostgresStoryboardService implements StoryboardService {
     projectId: Identifier;
     idempotencyKey: string | undefined;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run queues this job. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<StoryboardGenerationResponse> {
     const idempotencyKey = input.idempotencyKey?.trim();
     if (
@@ -306,6 +313,7 @@ export class PostgresStoryboardService implements StoryboardService {
         providerApproval: createModelCallProviderApproval({
           jobId: requestedJobId,
           model: currentStoryboardGenerationCompatibility.model,
+          oneShotRunId: input.oneShotRunId,
         }),
         ...(blockIds.length === 0 ? {} : { narrowing: { blockIds } }),
         params,
@@ -380,7 +388,7 @@ export class PostgresStoryboardService implements StoryboardService {
         await new PostgresAuditWriter(transaction).write({
           ownerUserId: input.ownerUserId,
           projectId: input.projectId,
-          actor: { type: "user", userId: input.ownerUserId },
+          actor: requestActor(input),
           eventType: "ai.generated",
           target: { type: "storyboard_generation", id: jobId },
           correlationId: input.correlationId,
@@ -1349,6 +1357,8 @@ export class PostgresStoryboardService implements StoryboardService {
     candidateId: Identifier;
     body: unknown;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run acts for the owner. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<StoryboardSceneEditResponse> {
     const parsed = parseBoundary(
       illustrationCandidateDecisionInputSchema,
@@ -1509,7 +1519,7 @@ export class PostgresStoryboardService implements StoryboardService {
       await new PostgresAuditWriter(transaction).write({
         ownerUserId: input.ownerUserId,
         projectId: input.projectId,
-        actor: { type: "user", userId: input.ownerUserId },
+        actor: requestActor(input),
         eventType: "storyboard.scene_candidate_accepted",
         target: { type: "illustration_candidate", id: candidate.id },
         correlationId: input.correlationId,

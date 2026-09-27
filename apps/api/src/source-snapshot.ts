@@ -50,6 +50,7 @@ import {
 } from "@avlp/schemas";
 import { and, desc, eq } from "drizzle-orm";
 import { findLatestProjectParsedDocument } from "./project-parsed-document.js";
+import { requestActor } from "./audit-actor.js";
 
 /** Immutable section shape needed to materialize the effective source. */
 export interface EffectiveSectionInput {
@@ -340,6 +341,8 @@ export interface SourceSnapshotService {
     ownerUserId: Identifier;
     projectId: Identifier;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run acts for the owner. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<SourceApprovalResponse>;
   metadata(input: {
     ownerUserId: Identifier;
@@ -390,6 +393,8 @@ export class PostgresSourceSnapshotService implements SourceSnapshotService {
     ownerUserId: Identifier;
     projectId: Identifier;
     correlationId: Identifier;
+    /** ST-105. Set when a prompt-to-video run acts for the owner. */
+    oneShotRunId?: Identifier | undefined;
   }): Promise<SourceApprovalResponse> {
     const timestamp = this.now();
     return this.database.transaction(async (transaction) => {
@@ -453,7 +458,7 @@ export class PostgresSourceSnapshotService implements SourceSnapshotService {
       await new PostgresAuditWriter(transaction).write({
         ownerUserId: input.ownerUserId,
         projectId: input.projectId,
-        actor: { type: "user", userId: input.ownerUserId },
+        actor: requestActor(input),
         eventType: "source.review_approved",
         target: { type: "source_snapshot", id },
         correlationId: input.correlationId,

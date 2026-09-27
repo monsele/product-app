@@ -338,6 +338,9 @@ export function createModelCallGenerationHandler<T>(
         approvalReference: payload.providerApproval.approvalReference,
         estimatedCostUsd: payload.providerApproval.estimatedCostUsd,
         selectionReason: payload.providerApproval.selectionReason,
+        ...(payload.providerApproval.oneShotRunId === undefined
+          ? {}
+          : { oneShotRunId: payload.providerApproval.oneShotRunId }),
       });
       await options.quotaGuard.assertCanGenerate({
         ownerUserId: context.ownerUserId,
@@ -807,6 +810,14 @@ async function recordUsage(input: {
       promptId: input.payload.promptId,
       promptVersion: input.payload.promptVersion,
       modelCallId: input.record.id,
+      // ST-105. Which authorisation paid for this call.
+      providerSelection: {
+        selectionReason: input.payload.providerApproval.selectionReason,
+        approvalReference: input.payload.providerApproval.approvalReference,
+        ...(input.payload.providerApproval.oneShotRunId === undefined
+          ? {}
+          : { oneShotRunId: input.payload.providerApproval.oneShotRunId }),
+      },
     },
     occurredAt: input.timestamp,
   });
