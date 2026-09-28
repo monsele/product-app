@@ -21,7 +21,7 @@ import {
 } from "./storyboard-input";
 
 /** Fixed row height used by the windowing math. */
-export const sceneRowHeight = 72;
+export const sceneRowHeight = 88;
 const overscanRows = 3;
 const minimumWindowRows = 12;
 
@@ -284,10 +284,7 @@ export function SceneList({
                 <p
                   className={`${styles.sceneTitle} ${selected ? styles.sceneTitleSelected : ""}`}
                 >
-                  {scene.template} · {scene.durationSeconds}s ·{" "}
-                  {scene.narrationBlockCount} narration block
-                  {scene.narrationBlockCount === 1 ? "" : "s"}
-                  {scene.title !== null ? ` · ${scene.title}` : ""}
+                  {scene.title ?? scene.template}
                 </p>
               </div>
 
@@ -316,7 +313,11 @@ export function SceneList({
               </div>
             </div>
 
-            <p className={styles.sceneSummary}>{scene.narrationSummary}</p>
+            <p className={styles.sceneSummary}>
+              <span>{scene.template}</span>
+              <span className="tabular-nums">{scene.durationSeconds}s</span>
+              <span>{scene.narrationSummary}</span>
+            </p>
 
             <p className={styles.sceneMeta}>
               {sceneAssetStatusLabel(scene.status.assets)} ·{" "}

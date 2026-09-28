@@ -9,8 +9,8 @@
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 20px 24px 24px;
+  gap: 14px;
+  padding: 22px 24px 32px;
   min-height: calc(100dvh - 80px);
 }
 
@@ -43,31 +43,31 @@
 
 .header {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 16px;
-  padding-bottom: 16px;
+  padding-bottom: 18px;
   border-bottom: 1px solid var(--color-border);
 }
 
 .headingRow {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .title {
   font: var(--text-editor-title);
   margin: 0;
   color: var(--color-text);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.045em;
 }
 
 .badge {
   font: var(--text-supporting);
   font-weight: 600;
-  padding: 3px 10px;
+  padding: 4px 10px;
   border-radius: var(--radius-pill);
   background-color: var(--color-surface-brand);
   color: var(--color-brand);
@@ -75,14 +75,28 @@
 
 .projectTitle {
   font: var(--text-body);
-  margin: 6px 0 0;
+  margin: 3px 0 0;
   color: var(--color-text-muted);
 }
 
 .headerStatus {
   font: var(--text-supporting);
-  margin: 4px 0 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 0 0;
   color: var(--color-text-muted);
+}
+
+.headerStatus > span:not(:first-child) {
+  padding-left: 10px;
+  border-left: 1px solid var(--color-border);
+}
+
+.statusLabel {
+  color: var(--color-brand);
+  font-weight: 600;
 }
 
 .headerStatus strong {
@@ -95,6 +109,50 @@
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+.moreActions {
+  position: relative;
+}
+
+.moreActions > summary {
+  list-style: none;
+}
+
+.moreActions > summary::-webkit-details-marker {
+  display: none;
+}
+
+.moreActions > summary svg {
+  transition: transform var(--motion-quick) var(--motion-easing);
+}
+
+.moreActions[open] > summary svg {
+  transform: rotate(180deg);
+}
+
+.moreActionsMenu {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  gap: 4px;
+  width: max-content;
+  min-width: 252px;
+  padding: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-elevation);
+}
+
+.moreActionsMenu .button {
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 38px;
+  border-color: transparent;
+  border-radius: var(--radius-control);
 }
 
 /* Buttons. Pill for actions, control radius for inputs. */
@@ -165,10 +223,16 @@
 
 /* Alerts */
 
+.readinessRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 430px), 1fr));
+  gap: 12px;
+}
+
 .alert {
   font: var(--text-supporting);
   margin: 0;
-  padding: 11px 14px;
+  padding: 11px 16px;
   border-radius: var(--radius-control);
   border: 1px solid transparent;
 }
@@ -189,6 +253,14 @@
   background-color: var(--color-surface-brand);
   border-color: var(--color-brand-line);
   color: var(--color-text);
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.alertInfo strong {
+  color: var(--color-brand);
+  white-space: nowrap;
 }
 
 .noteMuted {
@@ -245,15 +317,19 @@
 
 .grid {
   display: grid;
-  grid-template-columns: 288px minmax(0, 1fr) 380px;
-  gap: 20px;
+  grid-template-columns: minmax(248px, 268px) minmax(0, 1fr) minmax(
+      316px,
+      344px
+    );
+  gap: 16px;
   align-items: start;
 }
 
 .leftPanel {
   display: flex;
   flex-direction: column;
-  height: 720px;
+  height: min(780px, calc(100dvh - 176px));
+  min-height: 550px;
   background-color: var(--color-surface);
   border-radius: var(--radius-card);
   border: 1px solid var(--color-border);
@@ -261,7 +337,7 @@
 }
 
 .panelHead {
-  padding: 14px 16px;
+  padding: 16px;
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -287,8 +363,13 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
   margin-top: 12px;
+}
+
+.toolbar .buttonCompact {
+  padding-inline: 9px;
+  font-size: 12px;
 }
 
 .fieldLabel {
@@ -297,6 +378,12 @@
   align-items: center;
   gap: 6px;
   color: var(--color-text-muted);
+  width: 100%;
+}
+
+.fieldLabel .select {
+  flex: 1;
+  min-width: 0;
 }
 
 .select {
@@ -316,7 +403,7 @@
 .scroller {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .scrollerNote {
@@ -339,7 +426,7 @@
   background-color: var(--color-stage);
   border-radius: var(--radius-card);
   border: 1px solid var(--color-border);
-  box-shadow: var(--shadow-elevation);
+  box-shadow: 0 20px 60px rgb(8 4 14 / 0.3);
   overflow: hidden;
 }
 
@@ -349,7 +436,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 16px;
+  padding: 11px 16px;
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -362,6 +449,7 @@
 .stageSceneName {
   font-weight: 600;
   color: var(--color-text);
+  letter-spacing: -0.01em;
 }
 
 .stageMeta {
@@ -439,7 +527,7 @@
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  padding: 14px 16px;
+  padding: 14px 18px;
   background-color: var(--color-surface);
   border-radius: var(--radius-card);
   border: 1px solid var(--color-border);
@@ -470,6 +558,113 @@
 
 .rightPanel {
   min-width: 0;
+}
+
+.rightPanel > div {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.lessonStyle {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.lessonStyle > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.lessonStyle > summary::-webkit-details-marker {
+  display: none;
+}
+
+.lessonStyle > summary span {
+  display: grid;
+  gap: 3px;
+}
+
+.lessonStyle > summary strong {
+  font: var(--text-control);
+  font-weight: 650;
+  color: var(--color-text);
+}
+
+.lessonStyle > summary small {
+  font: var(--text-supporting);
+  color: var(--color-text-muted);
+}
+
+.lessonStyle[open] > summary {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.lessonStyle[open] > summary svg {
+  transform: rotate(180deg);
+}
+
+.creativePanel {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.creativePanel h3,
+.creativePanel p {
+  margin: 0;
+}
+
+.creativePanel h3 {
+  font: var(--text-subsection-title);
+}
+
+.creativePanel > label,
+.creativePanel form label {
+  display: grid;
+  gap: 6px;
+  color: var(--color-text-muted);
+  font: var(--text-supporting);
+}
+
+.creativePanel fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+}
+
+.creativePanel fieldset label {
+  display: grid;
+  gap: 5px;
+  min-width: 78px;
+  margin: 0 !important;
+  font: var(--text-supporting);
+  color: var(--color-text-muted);
+}
+
+.creativePanel input[type="color"] {
+  width: 100%;
+  height: 34px;
+  padding: 2px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-canvas);
+}
+
+.creativePanel form {
+  display: grid;
+  gap: 9px;
 }
 
 .inspectorState {
@@ -508,11 +703,11 @@
 .sceneRow {
   box-sizing: border-box;
   position: relative;
-  height: 72px;
-  padding: 10px 16px 10px 18px;
+  height: 88px;
+  padding: 11px 12px 10px 16px;
   cursor: grab;
   border-bottom: 1px solid var(--color-border);
-  border-left: 2px solid transparent;
+  border-left: 3px solid transparent;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -549,7 +744,7 @@
 .sceneRowLabel {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
 }
 
@@ -560,6 +755,8 @@
   font-variant-numeric: tabular-nums;
   color: var(--color-text-muted);
   flex-shrink: 0;
+  width: 23px;
+  font-size: 12px;
 }
 
 .sceneIndexSelected {
@@ -567,7 +764,8 @@
 }
 
 .sceneTitle {
-  font: var(--text-supporting);
+  font: var(--text-control);
+  font-weight: 600;
   margin: 0;
   color: var(--color-text-muted);
   overflow: hidden;
@@ -577,7 +775,7 @@
 
 .sceneTitleSelected {
   color: var(--color-text);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .sceneReorder {
@@ -628,6 +826,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  padding-left: 33px;
+}
+
+.sceneSummary span + span::before {
+  content: "·";
+  margin: 0 6px;
+  color: var(--color-text-muted);
 }
 
 .sceneMeta {
@@ -638,6 +843,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  padding-left: 33px;
 }
 
 .staleFlag {
@@ -660,7 +866,7 @@
    reflow when the scenes arrive. */
 
 .skeletonRow {
-  height: 72px;
+  height: 88px;
   padding: 14px 16px 14px 18px;
   border-bottom: 1px solid var(--color-border);
   display: flex;
@@ -705,7 +911,7 @@
 /* Tablet: inspector drops below the canvas, scene rail narrows. */
 @media (max-width: 1180px) {
   .grid {
-    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-columns: 248px minmax(0, 1fr);
   }
 
   .rightPanel {
@@ -727,12 +933,28 @@
     display: block;
   }
 
+  .headerActions {
+    width: 100%;
+  }
+
+  .moreActionsMenu {
+    right: auto;
+    left: 0;
+  }
+
+  .alertInfo {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
   .regionHidden {
     display: none;
   }
 
   .leftPanel {
     height: 520px;
+    min-height: 0;
     margin-bottom: 16px;
   }
 

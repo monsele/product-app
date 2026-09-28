@@ -53,6 +53,7 @@ import { toast } from "../../../../components/ui/toast-provider";
 import { useTaskStatusNotification } from "../../../../lib/use-task-notification";
 import {
   ArrowRight as ArrowRightIcon,
+  CaretDown as CaretDownIcon,
   Copy as CopyIcon,
   Plus as PlusIcon,
 } from "@phosphor-icons/react";
@@ -94,7 +95,9 @@ function extractErrorMessage(payload: unknown, fallback: string): string {
 /** Reads the structured, deterministically-ordered blocker list from a
  * blocked version-save response, if present. Returns an empty array for any
  * other error shape so callers can fall back to the generic message. */
-function extractVersionSaveBlockers(payload: unknown): readonly VersionSaveBlocker[] {
+function extractVersionSaveBlockers(
+  payload: unknown,
+): readonly VersionSaveBlocker[] {
   const error =
     typeof payload === "object" && payload !== null && "error" in payload
       ? (payload as { error?: unknown }).error
@@ -109,7 +112,11 @@ function extractVersionSaveBlockers(payload: unknown): readonly VersionSaveBlock
 
 export type SaveVersionOutcome =
   | { kind: "success" }
-  | { kind: "blocked"; message: string; blockers: readonly VersionSaveBlocker[] }
+  | {
+      kind: "blocked";
+      message: string;
+      blockers: readonly VersionSaveBlocker[];
+    }
   | { kind: "error"; message: string };
 
 /** Turns a version-save response into exactly one outcome. A blocked save
@@ -804,9 +811,7 @@ export function StoryboardPanel({
       setDetail({ kind: "loading" });
       return;
     }
-    setDetail((current) =>
-      sceneDetailWhileReloading(current, selectedSceneId),
-    );
+    setDetail((current) => sceneDetailWhileReloading(current, selectedSceneId));
     let cancelled = false;
     void fetchStoryboardSceneDetail(projectId, selectedSceneId)
       .then((val) => {
@@ -1048,57 +1053,79 @@ export function StoryboardPanel({
           ) : null}
 
           <p role="status" className={styles.headerStatus}>
-            {storyboardGenerationStateLabel(view.value.state)}
+            <span className={styles.statusLabel}>
+              {storyboardGenerationStateLabel(view.value.state)}
+            </span>
             {listScenes.length > 0 ? (
               <span>
-                {" "}
-                · <strong className="tabular-nums">
-                  {listScenes.length}
-                </strong>{" "}
-                scenes ·{" "}
-                <strong className="tabular-nums">{totalDuration}s</strong> total
-                duration
+                <strong className="tabular-nums">{listScenes.length}</strong>{" "}
+                scenes
+              </span>
+            ) : null}
+            {listScenes.length > 0 ? (
+              <span>
+                <strong className="tabular-nums">{totalDuration}s</strong>{" "}
+                runtime
               </span>
             ) : null}
           </p>
         </div>
 
         <div className={styles.headerActions}>
-          {view.value.canGenerate ? (
+          {storyboard === null && view.value.canGenerate ? (
             <button
               type="button"
               onClick={() => void generate()}
               disabled={submitting || generating}
-              className={`${styles.button} ${styles.buttonSecondary}`}
+              className={`${styles.button} ${styles.buttonPrimary}`}
             >
               {submitting || generating
                 ? "Starting generation…"
-                : storyboard === null
-                  ? "Generate storyboard"
-                  : "Regenerate storyboard"}
+                : "Generate storyboard"}
             </button>
           ) : null}
-
           {storyboard !== null ? (
-            <button
-              type="button"
-              onClick={() => void generateMissingIllustrations()}
-              disabled={illustrationBatchBusy || generating || editing}
-              className={`${styles.button} ${styles.buttonSecondary}`}
-            >
-              {illustrationBatchBusy
-                ? "Queueing illustrations…"
-                : "Generate missing illustrations"}
-            </button>
-          ) : null}
-
-          {storyboard !== null ? (
-            <Link
-              href={`/workspace/${encodeURIComponent(projectId)}/storyboard/candidates`}
-              className={`${styles.button} ${styles.buttonSecondary}`}
-            >
-              Review illustration candidates
-            </Link>
+            <details className={styles.moreActions}>
+              <summary className={`${styles.button} ${styles.buttonSecondary}`}>
+                More actions <CaretDownIcon size={14} aria-hidden />
+              </summary>
+              <div className={styles.moreActionsMenu}>
+                {view.value.canGenerate ? (
+                  <button
+                    type="button"
+                    onClick={() => void generate()}
+                    disabled={submitting || generating}
+                    className={`${styles.button} ${styles.buttonSecondary}`}
+                  >
+                    {submitting || generating
+                      ? "Starting generation…"
+                      : storyboard === null
+                        ? "Generate storyboard"
+                        : "Regenerate storyboard"}
+                  </button>
+                ) : null}
+                {storyboard !== null ? (
+                  <button
+                    type="button"
+                    onClick={() => void generateMissingIllustrations()}
+                    disabled={illustrationBatchBusy || generating || editing}
+                    className={`${styles.button} ${styles.buttonSecondary}`}
+                  >
+                    {illustrationBatchBusy
+                      ? "Queueing illustrations…"
+                      : "Generate missing illustrations"}
+                  </button>
+                ) : null}
+                {storyboard !== null ? (
+                  <Link
+                    href={`/workspace/${encodeURIComponent(projectId)}/storyboard/candidates`}
+                    className={`${styles.button} ${styles.buttonSecondary}`}
+                  >
+                    Review illustration candidates
+                  </Link>
+                ) : null}
+              </div>
+            </details>
           ) : null}
 
           {storyboard !== null && !mediaReady ? (
@@ -1136,16 +1163,32 @@ export function StoryboardPanel({
         </div>
       </header>
 
-      {storyboard !== null && !canOpenPreview ? (
-        <div role="status" className={`${styles.alert} ${styles.alertInfo}`}>
-          Complete before Preview: {missingAudioCount} scene audio,{" "}
-          {missingCaptionCount} caption track
-          {missingCaptionCount === 1 ? "" : "s"}, {missingAssetCount} required
-          asset{missingAssetCount === 1 ? "" : "s"}, and {invalidSceneCount}{" "}
-          invalid scene{invalidSceneCount === 1 ? "" : "s"} remaining.
-          {mediaReady && !validationReady
-            ? " Run final checks to finish this stage."
-            : ""}
+      {(storyboard !== null && !canOpenPreview) || warnings.length > 0 ? (
+        <div className={styles.readinessRow}>
+          {storyboard !== null && !canOpenPreview ? (
+            <div
+              role="status"
+              className={`${styles.alert} ${styles.alertInfo}`}
+            >
+              <strong>Next step</strong>
+              <span>
+                {mediaReady &&
+                missingAssetCount === 0 &&
+                invalidSceneCount === 0
+                  ? "Run final checks to enable Preview lesson."
+                  : `To preview: ${missingAudioCount} scene audio, ${missingCaptionCount} caption tracks, ${missingAssetCount} required assets, and ${invalidSceneCount} invalid scenes remaining.`}
+              </span>
+            </div>
+          ) : null}
+          {warnings.map((warning) => (
+            <p
+              key={warning}
+              role="alert"
+              className={`${styles.alert} ${styles.alertWarning}`}
+            >
+              {warning}
+            </p>
+          ))}
         </div>
       ) : null}
 
@@ -1175,16 +1218,6 @@ export function StoryboardPanel({
           {actionMessage}
         </p>
       ) : null}
-
-      {warnings.map((warning) => (
-        <p
-          key={warning}
-          role="alert"
-          className={`${styles.alert} ${styles.alertError}`}
-        >
-          {warning}
-        </p>
-      ))}
 
       {view.value.approved !== null &&
       view.value.approved.id !== storyboard?.id ? (
@@ -1494,10 +1527,6 @@ export function StoryboardPanel({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
                 >
-                  <CreativeDesignPanel
-                    projectId={projectId}
-                    selectedSceneId={selectedSceneId}
-                  />
                   <SceneDetailPanel
                     projectId={projectId}
                     detail={detail.value}
@@ -1526,6 +1555,19 @@ export function StoryboardPanel({
                     onPreviewVersion={(vId) => void previewVersion(vId)}
                     onRestoreVersion={(vId) => void restoreVersion(vId)}
                   />
+                  <details className={styles.lessonStyle}>
+                    <summary>
+                      <span>
+                        <strong>Lesson style</strong>
+                        <small>Design settings for the full lesson</small>
+                      </span>
+                      <CaretDownIcon size={16} aria-hidden />
+                    </summary>
+                    <CreativeDesignPanel
+                      projectId={projectId}
+                      selectedSceneId={selectedSceneId}
+                    />
+                  </details>
                 </motion.div>
               )}
             </aside>

@@ -9,6 +9,7 @@ import {
   type CreativeDesignManifest,
 } from "@avlp/schemas";
 import { creativeDesignColorIssues } from "./creative-design-colors";
+import styles from "./storyboard.module.css";
 
 type Draft = {
   revision: number;
@@ -483,15 +484,8 @@ export function CreativeDesignPanel({
   if (!pilotAvailable) return null;
   if (draft === null || local === null)
     return (
-      <section
-        aria-label="Creative design"
-        style={{
-          borderTop: "1px solid #d7dce5",
-          marginTop: 16,
-          paddingTop: 16,
-        }}
-      >
-        <h3>Creative design pilot</h3>
+      <section aria-label="Creative design" className={styles.creativePanel}>
+        <h3>Appearance settings</h3>
         <p>
           Choose a style only when every scene in this lesson is supported.
           Existing lessons keep their saved appearance.
@@ -510,11 +504,8 @@ export function CreativeDesignPanel({
     );
   const colorIssues = creativeDesignColorIssues(local.settings.colors);
   return (
-    <section
-      aria-label="Creative design"
-      style={{ borderTop: "1px solid #d7dce5", marginTop: 16, paddingTop: 16 }}
-    >
-      <h3>Creative design pilot</h3>
+    <section aria-label="Creative design" className={styles.creativePanel}>
+      <h3>Appearance settings</h3>
       {draft.eligibility.length > 0 ? (
         <p role="alert">{draft.eligibility.join(" ")}</p>
       ) : (
@@ -637,7 +628,7 @@ export function CreativeDesignPanel({
         >
           {selectedSceneId === null
             ? "Select a storyboard scene to preview its treatment."
-            : `Selected scene ${selectedSceneId} uses ${local.selections[selectedSceneId]?.treatmentId ?? "its resolved treatment"}.`}
+            : `Selected scene uses ${local.selections[selectedSceneId]?.treatmentId ?? "its resolved treatment"}.`}
         </p>
       </div>
       <label>
@@ -729,7 +720,9 @@ export function CreativeDesignPanel({
       </form>
       <button
         type="button"
-        disabled={busy || draft.eligibility.length > 0 || colorIssues.length > 0}
+        disabled={
+          busy || draft.eligibility.length > 0 || colorIssues.length > 0
+        }
         onClick={() => void apply()}
       >
         Apply to lesson
