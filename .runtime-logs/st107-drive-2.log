@@ -1,0 +1,11 @@
+  [finance] 1-request
+  [finance] document still being read; retrying
+  [biology] 1-request
+  [biology] document still being read; retrying
+  [finance] 2-brief
+  [finance] 3-brief-phone
+  [biology] 2-brief
+  [biology] 3-brief-phone
+  [finance] 4-progress-after-reload
+  [biology] 4-progress-after-reload
+exit=127

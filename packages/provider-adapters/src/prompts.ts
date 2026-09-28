@@ -9,6 +9,7 @@ export const promptKindValues = [
   "grounding",
   "creative-design",
   "lesson-intent",
+  "one-shot-brief",
 ] as const;
 export const promptKindSchema = z.enum(promptKindValues);
 export type PromptKind = z.infer<typeof promptKindSchema>;

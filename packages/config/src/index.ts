@@ -540,6 +540,17 @@ export const apiEnvironmentSchema = baseEnvironmentSchema
       .min(1)
       .max(100)
       .default(3),
+    /** ST-107. A run's budget cap is its confirmed estimate times this. The
+     * run stops with ONE_SHOT_BUDGET_CAP before any paid step that would take
+     * actual spend past the cap. */
+    ONE_SHOT_BUDGET_TOLERANCE: z.coerce.number().min(1).max(3).default(1.25),
+    /** ST-107. Brief calls (the first brief plus revisions) allowed per run. */
+    ONE_SHOT_MAX_BRIEF_REVISIONS: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(10)
+      .default(3),
   })
   .superRefine((value, context) => {
     validateStorageCredentialPair(value, context);

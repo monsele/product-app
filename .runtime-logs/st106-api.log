@@ -6285,3 +6285,137 @@
 {"level":30,"time":1790537319980,"pid":15020,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1jb","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":57458},"msg":"incoming request"}
 {"timestamp":"2026-09-27T19:28:39.980Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e457-462c-7fcf-87e8-5af57fd2a43b","method":"GET","route":"/projects/:projectId/objectives","service":"api"}}
 {"level":30,"time":1790537320257,"pid":15020,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1jb","res":{"statusCode":200},"responseTime":277.7874000000302,"msg":"request completed"}
+9:24:57 PM [tsx] change in ./src\objectives.ts Restarting...
+D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api\src\objectives.ts:24
+  briefObjectiveGenerationCompatibility,
+  ^
+SyntaxError: The requested module '@avlp/schemas' does not provide an export named 'briefObjectiveGenerationCompatibility'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:319:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:422:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async bootstrap (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api\src\main.ts:11:24)
+
+Node.js v24.14.0
+9:26:12 PM [tsx] change in ./src\storyboard.ts Rerunning...
+D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api\src\objectives.ts:24
+  briefObjectiveGenerationCompatibility,
+  ^
+SyntaxError: The requested module '@avlp/schemas' does not provide an export named 'briefObjectiveGenerationCompatibility'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:319:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:422:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async bootstrap (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api\src\main.ts:11:24)
+
+Node.js v24.14.0
+9:30:14 PM [tsx] change in ./src\one-shot-runner.ts Rerunning...
+D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api\src\objectives.ts:24
+  briefObjectiveGenerationCompatibility,
+  ^
+SyntaxError: The requested module '@avlp/schemas' does not provide an export named 'briefObjectiveGenerationCompatibility'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:319:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:422:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async bootstrap (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api\src\main.ts:11:24)
+
+Node.js v24.14.0
+9:30:38 PM [tsx] change in ./src\one-shot-runner.ts Rerunning...
+9:30:39 PM [tsx] change in ./src\one-shot-runner.ts Restarting...
+9:30:40 PM [tsx] change in ./src\one-shot-runner.ts Restarting...
+9:30:41 PM [tsx] change in ./src\one-shot-runner.ts Restarting...
+9:30:42 PM [tsx] change in ./src\one-shot-runner.ts Restarting...
+D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api\src\objectives.ts:24
+  briefObjectiveGenerationCompatibility,
+  ^
+SyntaxError: The requested module '@avlp/schemas' does not provide an export named 'briefObjectiveGenerationCompatibility'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:319:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:422:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async bootstrap (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api\src\main.ts:11:24)
+
+Node.js v24.14.0
+9:31:33 PM [tsx] change in ./src\one-shot-runner.ts Rerunning...
+D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api\src\objectives.ts:24
+  briefObjectiveGenerationCompatibility,
+  ^
+SyntaxError: The requested module '@avlp/schemas' does not provide an export named 'briefObjectiveGenerationCompatibility'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:319:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:422:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async bootstrap (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api\src\main.ts:11:24)
+
+Node.js v24.14.0
+9:32:05 PM [tsx] change in ./src\one-shot-runner.ts Rerunning...
+D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api\src\objectives.ts:24
+  briefObjectiveGenerationCompatibility,
+  ^
+SyntaxError: The requested module '@avlp/schemas' does not provide an export named 'briefObjectiveGenerationCompatibility'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:319:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:422:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async bootstrap (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api\src\main.ts:11:24)
+
+Node.js v24.14.0
+9:33:02 PM [tsx] change in ./src\one-shot-gateway.ts Rerunning...
+D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api\src\objectives.ts:24
+  briefObjectiveGenerationCompatibility,
+  ^
+SyntaxError: The requested module '@avlp/schemas' does not provide an export named 'briefObjectiveGenerationCompatibility'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:319:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:422:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async bootstrap (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api\src\main.ts:11:24)
+
+Node.js v24.14.0
+9:33:24 PM [tsx] change in ./..\..\packages\config\dist\index.js Rerunning...
+D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api\src\objectives.ts:24
+  briefObjectiveGenerationCompatibility,
+  ^
+SyntaxError: The requested module '@avlp/schemas' does not provide an export named 'briefObjectiveGenerationCompatibility'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:319:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:422:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async bootstrap (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api\src\main.ts:11:24)
+
+Node.js v24.14.0
+9:33:33 PM [tsx] change in ./..\..\packages\schemas\dist\creative-design.js Rerunning...
+9:33:33 PM [tsx] change in ./..\..\packages\schemas\dist\sound-bed.js Restarting...
+9:33:33 PM [tsx] change in ./..\..\packages\schemas\dist\index.js Restarting...
+9:33:35 PM [tsx] change in ./..\..\packages\schemas\dist\demonstration-proof.js Restarting...
+9:33:35 PM [tsx] change in ./..\..\packages\schemas\dist\demonstration-pilot.js Restarting...
+9:33:35 PM [tsx] change in ./..\..\packages\schemas\dist\one-shot.js Restarting...
+9:33:42 PM [tsx] change in ./..\..\packages\database\dist\schema.js Restarting...
+9:33:43 PM [tsx] change in ./..\..\packages\database\dist\index.js Restarting...
+9:33:50 PM [tsx] change in ./..\..\packages\provider-adapters\dist\dynamic-mock-provider.js Restarting...
+9:33:50 PM [tsx] change in ./..\..\packages\provider-adapters\dist\prompts\objectives\v3.js Restarting...
+9:33:50 PM [tsx] change in ./..\..\packages\provider-adapters\dist\index.js Restarting...
+9:33:58 PM [tsx] change in ./src\one-shot-runner.ts Restarting...
+{"level":30,"time":1790541292995,"pid":11320,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1790541292996,"pid":11320,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.193:3001"}
+{"level":30,"time":1790541292996,"pid":11320,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.176.1:3001"}
+{"level":30,"time":1790541292996,"pid":11320,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+9:38:59 PM [tsx] change in ./src\one-shot.ts Restarting...
+{"level":30,"time":1790541548100,"pid":19752,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1790541548101,"pid":19752,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.193:3001"}
+{"level":30,"time":1790541548101,"pid":19752,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.176.1:3001"}
+{"level":30,"time":1790541548101,"pid":19752,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+9:39:41 PM [tsx] change in ./..\..\packages\observability\dist\index.js Restarting...
+9:39:41 PM [tsx] change in ./src\one-shot.ts Restarting...
+9:39:46 PM [tsx] change in ./src\one-shot.ts Restarting...
+{"level":30,"time":1790541595641,"pid":11660,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1790541595642,"pid":11660,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.193:3001"}
+{"level":30,"time":1790541595642,"pid":11660,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.176.1:3001"}
+{"level":30,"time":1790541595642,"pid":11660,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+9:40:09 PM [tsx] change in ./src\runtime.ts Restarting...
+{"level":30,"time":1790541618533,"pid":17616,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1790541618533,"pid":17616,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.193:3001"}
+{"level":30,"time":1790541618533,"pid":17616,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.176.1:3001"}
+{"level":30,"time":1790541618533,"pid":17616,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+9:50:21 PM [tsx] change in ./..\..\packages\database\dist\schema.js Restarting...
+9:50:22 PM [tsx] change in ./..\..\packages\database\dist\index.js Restarting...
+{"level":30,"time":1790542283460,"pid":31428,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1790542283460,"pid":31428,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.193:3001"}
+{"level":30,"time":1790542283460,"pid":31428,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.176.1:3001"}
+{"level":30,"time":1790542283460,"pid":31428,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @avlp/api@0.0.0 dev: `tsx watch --env-file=../../.env src/main.ts`
+Exit status 4294967295

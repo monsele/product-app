@@ -12,9 +12,23 @@ import type {
   OneShotCallContext,
   OneShotJobStatus,
   OneShotStageGateway,
+  PromiseState,
   RenderState,
+  RepairContext,
+  SceneRepairStatus,
   ValidationOutcome,
 } from "./one-shot-runner.js";
+import type { RepairFinding } from "./one-shot-repair.js";
+
+/** ST-107. One scene-regeneration job queued by a repair. */
+export type FakeRepairJob = {
+  sceneId: string;
+  key: string;
+  mode: string;
+  instruction: string;
+  job: OneShotJobStatus;
+  candidate: NonNullable<SceneRepairStatus["candidate"]> | null;
+};
 
 export const fakeSpecId = "019ffc10-eeee-7000-8000-000000000105" as Identifier;
 
@@ -76,6 +90,33 @@ export class FakePipeline implements OneShotStageGateway {
   public audits: { step: string; targetType: string }[] = [];
   public keys: string[] = [];
   public throwOn: { method: string; error: unknown } | null = null;
+  // ---- ST-107 ------------------------------------------------------------
+  /** Unacknowledged validation findings; `validation` counts follow them
+   * when `findingsDriveValidation` is set. */
+  public findings: RepairFinding[] = [];
+  public findingsDriveValidation = false;
+  public repairContextFake: RepairContext = { scenes: [], objectives: [] };
+  public repairJobs: FakeRepairJob[] = [];
+  /** Scenes whose regenerated candidate drops a source reference. */
+  public dropSourceRefsFor = new Set<string>();
+  /** Scenes whose repair job fails. */
+  public failRepairFor = new Set<string>();
+  /** What applying a repair to a scene fixes (the test decides). */
+  public onRepairApplied: (sceneId: string, fake: FakePipeline) => void = (
+    sceneId,
+    fake,
+  ) => {
+    fake.findings = fake.findings.filter((finding) => finding.sceneId !== sceneId);
+  };
+  public promise: PromiseState = {
+    sceneSections: [],
+    sectionOrder: new Map(),
+    measuredDurationSeconds: 180,
+    toleranceSeconds: 30,
+    pinned: { stylePackId: null, soundBed: null },
+  };
+  /** Every cost the pipeline would meter, summed like the usage records. */
+  public cost = 0.42;
 
   private maybeThrow(method: string) {
     if (this.throwOn?.method === method) {
@@ -122,6 +163,17 @@ export class FakePipeline implements OneShotStageGateway {
       ageBand: input.audience.ageBand,
       difficulty: input.audience.difficulty,
       targetDurationSeconds: input.targetDurationSeconds,
+      ...(input.creativeStylePack === undefined
+        ? {}
+        : { creativeStylePack: input.creativeStylePack }),
+      ...(input.soundBed === undefined ? {} : { soundBed: input.soundBed }),
+    };
+    this.promise = {
+      ...this.promise,
+      pinned: {
+        stylePackId: input.creativeStylePack ?? null,
+        soundBed: input.soundBed ?? null,
+      },
     };
     return { version: this.config.version };
   }
@@ -142,12 +194,15 @@ export class FakePipeline implements OneShotStageGateway {
         : {}),
     };
   }
+  public briefCoverageSeen: readonly string[] | undefined;
   public async generate(
     context: OneShotCallContext,
     stage: ApprovalStage | "storyboard",
+    options?: { briefCoverage?: readonly string[] },
   ) {
     this.maybeThrow("generate");
     this.calls.push(`generate:${stage}`);
+    if (stage === "objectives") this.briefCoverageSeen = options?.briefCoverage;
     this.keys.push(context.requestKey);
     const job: OneShotJobStatus = { id: nextId(), state: "queued", errorCode: null };
     const fake = stage === "storyboard" ? this.storyboardFake : this.stages[stage];
@@ -207,19 +262,94 @@ export class FakePipeline implements OneShotStageGateway {
   public async audio() {
     return { ...this.audioFake };
   }
-  public async requestAudio() {
+  public async requestAudio(context: OneShotCallContext) {
     this.calls.push("requestAudio");
+    this.keys.push(context.requestKey);
     this.audioFake = { total: 3, ready: 0, pending: 3, failed: 0, missing: 0 };
   }
   public async validate() {
     this.calls.push("validate");
-    return { ...this.validation };
+    if (!this.findingsDriveValidation)
+      return { ...this.validation, findings: [...this.findings] };
+    const errors = this.findings.filter((finding) => finding.severity === "error").length;
+    return {
+      runId: nextId(),
+      status: errors === 0 ? ("passed" as const) : ("failed" as const),
+      errors,
+      warnings: this.findings.filter((finding) => finding.severity === "warning").length,
+      findings: [...this.findings],
+    };
   }
   public async render() {
     return { ...this.renderFake };
   }
   public async costSoFar() {
-    return 0.42;
+    return this.cost;
+  }
+
+  // ---- ST-107 ------------------------------------------------------------
+
+  public async repairContext() {
+    return JSON.parse(JSON.stringify(this.repairContextFake)) as RepairContext;
+  }
+  public async requestSceneRepair(
+    context: OneShotCallContext,
+    repair: { sceneId: string; mode: string; instruction: string },
+  ) {
+    this.calls.push(`repairScene:${repair.sceneId}`);
+    this.keys.push(context.requestKey);
+    // The service's idempotency: the same key finds the same job.
+    const existing = this.repairJobs.find((entry) => entry.key === context.requestKey);
+    if (existing !== undefined) return { jobId: existing.job.id };
+    const job: FakeRepairJob = {
+      sceneId: repair.sceneId,
+      key: context.requestKey,
+      mode: repair.mode,
+      instruction: repair.instruction,
+      job: { id: nextId(), state: "queued", errorCode: null },
+      candidate: null,
+    };
+    this.repairJobs.push(job);
+    return { jobId: job.job.id };
+  }
+  public async sceneRepairStatus(
+    _scope: unknown,
+    repair: { sceneId: string; jobId: Identifier },
+  ): Promise<SceneRepairStatus> {
+    const entry = this.repairJobs.find((job) => job.job.id === repair.jobId);
+    if (entry === undefined) return { job: null, candidate: null };
+    return { job: { ...entry.job }, candidate: entry.candidate === null ? null : { ...entry.candidate } };
+  }
+  public async applySceneRepair(
+    _context: OneShotCallContext,
+    repair: { sceneId: string; candidateId: Identifier },
+  ) {
+    this.calls.push(`applyRepair:${repair.sceneId}`);
+    const entry = this.repairJobs.find((job) => job.candidate?.id === repair.candidateId);
+    if (entry?.candidate !== undefined && entry.candidate !== null)
+      entry.candidate = { ...entry.candidate, status: "accepted" };
+    // The storyboard changed: grounding and the scene's audio are stale.
+    this.storyboardFake.revision = (this.storyboardFake.revision ?? 0) + 1;
+    this.groundingCurrent = false;
+    this.groundingJob = null;
+    this.audioFake = {
+      ...this.audioFake,
+      ready: Math.max(0, this.audioFake.ready - 1),
+      missing: this.audioFake.missing + 1,
+    };
+    this.onRepairApplied(repair.sceneId, this);
+  }
+  public async rejectSceneRepair(
+    _context: OneShotCallContext,
+    repair: { sceneId: string; candidateId: Identifier },
+  ) {
+    this.calls.push(`rejectRepair:${repair.sceneId}`);
+    const entry = this.repairJobs.find((job) => job.candidate?.id === repair.candidateId);
+    if (entry?.candidate !== undefined && entry.candidate !== null)
+      entry.candidate = { ...entry.candidate, status: "rejected" };
+  }
+  public async promiseState() {
+    return { ...this.promise };
   }
   public async auditApproval(
     _context: OneShotCallContext,
@@ -281,6 +411,22 @@ export class FakePipeline implements OneShotStageGateway {
         ready: this.audioFake.total,
         pending: 0,
       };
+    for (const entry of this.repairJobs) {
+      if (entry.job.state !== "queued") continue;
+      if (this.failRepairFor.has(entry.sceneId)) {
+        entry.job = { ...entry.job, state: "failed", errorCode: "MODEL_OUTPUT_INVALID" };
+        continue;
+      }
+      entry.job = { ...entry.job, state: "succeeded" };
+      entry.candidate = {
+        id: nextId(),
+        status: "pending",
+        keepsSourceRefs: !this.dropSourceRefsFor.has(entry.sceneId),
+        costUsd: 0.01,
+        modelCallId: nextId(),
+      };
+      this.cost = Math.round((this.cost + 0.01) * 1_000_000) / 1_000_000;
+    }
   }
 }
 

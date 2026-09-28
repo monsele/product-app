@@ -11,6 +11,7 @@ import { narrationPromptV4 } from "./narration/v4.js";
 import { objectivesPromptV1 } from "./objectives/v1.js";
 import { objectivesPromptV2 } from "./objectives/v2.js";
 import { objectivesPromptV3 } from "./objectives/v3.js";
+import { objectivesPromptV4 } from "./objectives/v4.js";
 import { outlinePromptV1 } from "./outline/v1.js";
 import { outlinePromptV2 } from "./outline/v2.js";
 import { outlinePromptV3 } from "./outline/v3.js";
@@ -20,6 +21,7 @@ import { storyboardPromptV1 } from "./storyboard/v1.js";
 import { storyboardPromptV2 } from "./storyboard/v2.js";
 import { storyboardPromptV3 } from "./storyboard/v3.js";
 import { lessonIntentPromptV1 } from "./lesson-intent/v1.js";
+import { oneShotBriefPromptV1 } from "./one-shot-brief/v1.js";
 
 /**
  * The repository's versioned prompt files. Every prompt change must bump a
@@ -29,6 +31,7 @@ export const repositoryPrompts: readonly PromptDefinition[] = [
   objectivesPromptV1,
   objectivesPromptV2,
   objectivesPromptV3,
+  objectivesPromptV4,
   outlinePromptV1,
   outlinePromptV2,
   outlinePromptV3,
@@ -46,4 +49,5 @@ export const repositoryPrompts: readonly PromptDefinition[] = [
   groundingPromptV2,
   creativeDesignPromptV1,
   lessonIntentPromptV1,
+  oneShotBriefPromptV1,
 ];

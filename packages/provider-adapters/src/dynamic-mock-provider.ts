@@ -423,6 +423,85 @@ function generateLessonIntentJson(text: string): string {
   });
 }
 
+/**
+ * ST-107. A deterministic video brief: the sections whose heading or opening
+ * text share the most words with the focus become the coverage points (the
+ * first sections when nothing matches), the first listed style pack and sound
+ * bed are chosen, and the scene count is the middle of the allowed range.
+ */
+function generateOneShotBriefJson(text: string): string {
+  const focusMatch = text.match(
+    /What the learner wants the video to explain:\n([\s\S]*?)\n\n/,
+  );
+  const focus = focusMatch?.[1]?.trim() ?? "";
+  const outline =
+    extractJsonObject<{
+      title?: string | null;
+      sections?: { sectionId: string; heading: string; firstBlock?: string }[];
+    }>(text, "Document outline") ?? {};
+  const sections = outline.sections ?? [];
+  const packs = extractJsonArray<{ id?: string }>(text, "Style packs") ?? [];
+  const tracks =
+    extractJsonArray<{ trackId?: string }>(text, "Sound-bed tracks") ?? [];
+  const range = /Plan between (\d+) and (\d+) scenes/.exec(text);
+  const minScenes = Number(range?.[1] ?? 3);
+  const maxScenes = Number(range?.[2] ?? minScenes);
+  const words = new Set(
+    focus
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((word) => word.length >= 4 && !focusStopWords.has(word)),
+  );
+  const scored = sections.map((section, index) => {
+    const haystack = `${section.heading} ${section.firstBlock ?? ""}`.toLowerCase();
+    const score = [...words].filter((word) => haystack.includes(word)).length;
+    return { section, index, score };
+  });
+  const matching = scored.filter((entry) => entry.score > 0);
+  const chosen = (matching.length >= 2 ? matching : scored)
+    .sort((left, right) => right.score - left.score || left.index - right.index)
+    .slice(0, 4)
+    .sort((left, right) => left.index - right.index);
+  const coverage = chosen.map(({ section }) => ({
+    point: clampText(`Explain ${section.heading}`, 300),
+    sectionIds: [section.sectionId],
+  }));
+  while (coverage.length < 2 && sections[0] !== undefined)
+    coverage.push({
+      point: clampText(`Summarise ${sections[0].heading}`, 300),
+      sectionIds: [sections[0].sectionId],
+    });
+  const skipped = sections
+    .filter((section) => !chosen.some((entry) => entry.section === section))
+    .slice(0, 3)
+    .map((section) => clampText(section.heading, 300));
+  const subject = outline.title ?? sections[0]?.heading ?? "General studies";
+  const titleWords = (focus.length > 0 ? focus : subject)
+    .replace(/[?!.]+$/g, "")
+    .split(/\s+/)
+    .filter((word) => word.length > 0)
+    .slice(0, 10)
+    .join(" ");
+  return JSON.stringify({
+    schemaVersion: "one-shot-brief-v1",
+    subject: clampText(subject, 200),
+    lessonTitle: clampText(
+      titleWords.charAt(0).toUpperCase() + titleWords.slice(1),
+      200,
+    ),
+    coverage,
+    notCovered: skipped,
+    plannedSceneCount: Math.round((minScenes + maxScenes) / 2),
+    stylePackId: packs[0]?.id ?? "essential",
+    stylePackReason: "A clear, neutral look that keeps attention on the explanation.",
+    soundBed: tracks[0]?.trackId ?? "none",
+    soundBedReason:
+      tracks[0]?.trackId === undefined
+        ? "No background track is available, so the narration plays alone."
+        : "A calm bed that sits under the narration without competing with it.",
+  });
+}
+
 function generateOutlineJson(text: string, allUuids: string[]): string {
   const blockIds = extractBlockIds(text);
   const fallbackBlocks =
@@ -1093,6 +1172,7 @@ function generateGroundingCheckJson(text: string, allUuids: string[]): string {
  * Automatically generates grounded, schema-compliant JSON for:
  * - objectives-v1 and objectives-v2 (with focus coverage)
  * - lesson-intent-v1
+ * - one-shot-brief-v1
  * - outline-v1
  * - narration-v1
  * - narration-block-v1
@@ -1136,6 +1216,8 @@ export class DynamicMockLanguageModelProvider implements LanguageModelProvider {
       jsonOutput = generateGroundingCheckJson(fullText, allUuids);
     } else if (systemText.includes("You name lessons")) {
       jsonOutput = generateLessonIntentJson(fullText);
+    } else if (systemText.includes("You plan short explainer videos")) {
+      jsonOutput = generateOneShotBriefJson(fullText);
     } else if (systemText.includes("instructional designer")) {
       jsonOutput = fullText.includes('"objectives-v2"')
         ? generateObjectivesV2Json(fullText, allUuids)

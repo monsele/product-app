@@ -22,6 +22,7 @@ describe("prompt registry", () => {
       "lesson-intent",
       "narration",
       "objectives",
+      "one-shot-brief",
       "outline",
       "storyboard",
     ]);
@@ -37,9 +38,11 @@ describe("prompt registry", () => {
     expect(registry.get("objectives", latest.version)).toBe(latest);
   });
 
-  it("keeps the grounded objectives v2 prompt registered behind v3", () => {
+  it("keeps the grounded objectives v2 prompt registered behind v3 and the ST-107 v4", () => {
     const registry = new StaticPromptRegistry(repositoryPrompts);
-    expect(registry.latest("objectives").version).toBe("v3");
+    // v4 only adds the brief-coverage slot; the wizard pins v3 explicitly.
+    expect(registry.latest("objectives").version).toBe("v4");
+    expect(registry.get("objectives", "v3").userTemplate).not.toContain("{{briefCoverage}}");
     const v2 = registry.get("objectives", "v2");
     expect(v2.purpose).toContain("measurable");
     expect(v2.evaluationCases).toContain("objectives-v1-faithfulness");

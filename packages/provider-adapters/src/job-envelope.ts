@@ -39,6 +39,8 @@ export const pipelineJobAdapterEnvelopes = {
   "ai.grounding": ["language-model"],
   // ST-104. A synchronous service call (no queued job), named by operation.
   "ai.lesson-intent": ["language-model"],
+  // ST-107. The prompt-to-video brief, also a synchronous service call.
+  "ai.one-shot-brief": ["language-model"],
 } as const satisfies Record<string, readonly ProviderAdapterFamily[]>;
 
 export type PipelineJobType = keyof typeof pipelineJobAdapterEnvelopes;

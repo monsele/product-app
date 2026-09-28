@@ -146,6 +146,39 @@ infers `{ subject, lessonTitle }` for ST-105:
   pipeline worker to `@avlp/observability`, so both processes record and meter
   calls through one implementation.
 
+### 7. Amendment (ST-107, 2026-09-27): the brief is the authorisation
+
+ST-107 changes how a run is authorised. Everything else above still holds.
+
+- **Brief first.** A pilot request no longer starts a run directly. It first
+  prepares a video brief with `ai.one-shot-brief` (prompt `one-shot-brief/v1`).
+  The brief is one small call, made on the user's explicit "Prepare brief". It
+  is quota-checked, recorded and metered like every other model call. It sees
+  only the focus prompt, the audience, the length, the document title, the
+  section headings and each section's first block.
+- **Closed choices.** The brief may choose only section IDs from the document,
+  a registered style pack, and an active sound-bed track or `none`. The output
+  schema is built at call time over those lists. Anything else fails
+  validation and goes through the bounded repair policy, with no fallback.
+- **Replaces lesson intent.** The brief supersedes `ai.lesson-intent` for runs
+  that have one. It returns the same subject and title, so those runs make no
+  lesson-intent call.
+- **Deterministic cost.** The estimate is computed from the brief's
+  `plannedSceneCount` and the configured prices. The model never produces a
+  cost.
+- **Single authorisation.** Confirming one brief revision and its estimate is
+  now the single explicit authorisation for every paid call after the brief.
+  It replaces ST-105's bare estimate. The confirmation reserves the estimate.
+  The run's cap is `reserved × ONE_SHOT_BUDGET_TOLERANCE`, and it stops with
+  `ONE_SHOT_BUDGET_CAP` before any paid step that would take actual spend past
+  the cap. Continuing needs a second explicit acceptance of a new estimate.
+- **Bounded repair.** Automatic repair before the preview is bounded: at most
+  two rounds of four scenes, plus one round for an unmet brief coverage point.
+  Repairs use only the existing scene-regeneration job. Deterministic
+  validation decides what is wrong and whether a round helped. Grounding
+  findings are never repaired or acknowledged automatically.
+- **Unchanged.** The human gate before render does not change.
+
 ## Consequences
 
 - The PRD's approval rules and market boundary are no longer universal. The

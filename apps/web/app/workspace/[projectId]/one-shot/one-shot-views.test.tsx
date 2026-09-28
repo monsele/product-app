@@ -4,15 +4,25 @@ import { describe, expect, it, vi } from "vitest";
 import type { ValidationIssue } from "@avlp/schemas";
 import type { OneShotResponse, OneShotRunView } from "@avlp/schemas/one-shot";
 import {
+  briefView,
+  decisionLog,
   estimate,
   projectId,
   runView,
 } from "../../../../lib/one-shot-fixtures";
-import type { RequestFormValues } from "../../../../lib/one-shot";
 import {
+  soundBedOptions,
+  type RequestFormValues,
+} from "../../../../lib/one-shot";
+import {
+  BriefCard,
+  BudgetCapCard,
+  CoverageGapNotice,
   CoverageNotice,
+  DecisionPanel,
   EstimatePanel,
   RequestFields,
+  RunMeta,
   ValidationWarnings,
 } from "./one-shot-views";
 import { OneShotWorkspace, announcementFor } from "./one-shot-workspace";
@@ -50,7 +60,7 @@ function fields(
     <RequestFields
       values={values}
       errors={{}}
-      estimate={{ kind: "ready", estimate }}
+      revisions={null}
       documentSlot={<p>document</p>}
       blockedReason={null}
       submitting={false}
@@ -66,7 +76,7 @@ function fields(
 }
 
 describe("request form", () => {
-  it("offers the prompt, the three audiences, three lengths and Create video", () => {
+  it("offers the prompt, the three audiences, three lengths and Prepare brief", () => {
     const html = fields();
     expect(html).toContain("What should the video explain?");
     expect(html).toContain("0 / 1,000 characters");
@@ -75,7 +85,10 @@ describe("request form", () => {
     expect(html).toContain("Professional");
     for (const minutes of [3, 5, 7])
       expect(html).toContain(`${minutes} minutes`);
-    expect(html).toContain("Create video");
+    expect(html).toContain("Prepare brief");
+    expect(html).not.toContain("Create video");
+    // No cost is shown before the brief: it is computed from the brief.
+    expect(html).not.toContain('data-testid="one-shot-estimate"');
     // The example is generic, not tied to one subject's vocabulary.
     expect(html).toContain("explain the main idea of section 2");
   });
@@ -122,15 +135,19 @@ describe("request form", () => {
     expect(html).toContain("Ages 14–16");
   });
 
-  it("disables Create video while submitting and while the pilot is paused", () => {
-    expect(fields({ submitting: true })).toMatch(
-      /<button[^>]*disabled=""[^>]*data-testid="one-shot-create"/,
-    );
+  it("disables Prepare brief while submitting, while paused and once every brief is used", () => {
+    const disabled = /<button[^>]*disabled=""[^>]*data-testid="one-shot-prepare-brief"/;
+    expect(fields({ submitting: true })).toMatch(disabled);
     const paused = fields({ blockedReason: "Prompt-to-video is paused." });
     expect(paused).toContain("New runs are paused");
-    expect(paused).toMatch(
-      /<button[^>]*disabled=""[^>]*data-testid="one-shot-create"/,
-    );
+    expect(paused).toMatch(disabled);
+    const exhausted = fields({ revisions: { used: 3, max: 3 } });
+    expect(exhausted).toMatch(disabled);
+    expect(exhausted).toContain("the most for one video");
+    const revising = fields({ revisions: { used: 1, max: 3 }, onBackToBrief: noop });
+    expect(revising).toContain("Brief 1 of 3 prepared");
+    expect(revising).toContain("Back to the brief");
+    expect(revising).not.toMatch(disabled);
   });
 });
 
@@ -333,7 +350,7 @@ describe("run status views", () => {
       reasons: [{ code: "not_in_cohort", message: "Not enabled." }],
     } as unknown as typeof eligible);
     expect(html).toContain('data-testid="one-shot-unavailable"');
-    expect(html).not.toContain("Create video");
+    expect(html).not.toContain("Prepare brief");
   });
 
   it("announces the current step through a live region", () => {
@@ -401,5 +418,184 @@ describe("coverage and warnings", () => {
     expect(html).toContain("Caption 3 is long.");
     expect(html).not.toContain("Scene 2 has no audio.");
     expect(html).not.toMatch(/<button/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ST-107
+// ---------------------------------------------------------------------------
+
+function briefCard(overrides: Partial<React.ComponentProps<typeof BriefCard>> = {}): string {
+  const brief = briefView();
+  return renderToStaticMarkup(
+    <BriefCard
+      brief={brief}
+      revisions={{ used: 1, max: 3 }}
+      stylePackIds={["essential", "systems", "field-notes"]}
+      stylePackId={brief.stylePackId}
+      soundBed={brief.soundBed}
+      soundBedOptions={soundBedOptions([{ trackId: "morning-pad", title: "Morning Pad" }], brief.soundBed)}
+      onStylePackChange={noop}
+      onSoundBedChange={noop}
+      onEdit={noop}
+      onConfirm={noop}
+      onCancel={noop}
+      confirming={false}
+      confirmError={null}
+      blockedReason={null}
+      {...overrides}
+    />,
+  );
+}
+
+describe("ST-107 video brief", () => {
+  it("lists every coverage point with its source-section chips, and what is left out", () => {
+    const html = briefCard();
+    expect(html.match(/data-testid="one-shot-brief-point"/g)).toHaveLength(2);
+    expect(html).toContain("How evaporation absorbs heat");
+    expect(html).toMatch(/data-testid="one-shot-source-chip"[^>]*>Evaporation</);
+    expect(html).toMatch(/data-testid="one-shot-source-chip"[^>]*>Condensation</);
+    expect(html).toContain("What it will leave out");
+    expect(html).toContain("Ocean currents");
+    expect(html).toContain("about 8 scenes");
+  });
+
+  it("offers the style pack and sound bed from the closed lists, each with its reason", () => {
+    const html = briefCard();
+    expect(html).toContain('<label for="one-shot-style"');
+    expect(html).toMatch(/<option value="field-notes" selected="">Field Notes<\/option>/);
+    expect(html).toContain("Suggested: Documentary tones suit an earth-science explanation.");
+    expect(html).toMatch(/<option value="morning-pad" selected="">Morning Pad<\/option>/);
+    expect(html).toContain('<option value="none">No background sound</option>');
+    expect(html).toContain("Suggested: A calm bed that sits under the narration.");
+    const changed = briefCard({ stylePackId: "systems", soundBed: "none" });
+    expect(changed).toContain("Your choice. The brief suggested Field Notes.");
+    expect(changed).toContain("Your choice. It plays quietly under the narration.");
+  });
+
+  it("shows the itemised estimate and confirms with one guarded action", () => {
+    const html = briefCard();
+    expect(html).toContain('data-testid="one-shot-estimate-total"');
+    expect(html).toContain("$1.84");
+    expect(html).toContain("Confirm &amp; create video");
+    expect(html).toContain("Brief 1 of 3 prepared");
+    expect(briefCard({ confirming: true })).toMatch(
+      /<button[^>]*disabled=""[^>]*data-testid="one-shot-confirm"/,
+    );
+    expect(briefCard({ confirmError: "A newer brief has been prepared." })).toContain(
+      "A newer brief has been prepared.",
+    );
+  });
+
+  it("disables Edit request once every brief is used", () => {
+    expect(briefCard({ revisions: { used: 3, max: 3 } })).toMatch(
+      /<button[^>]*disabled=""[^>]*data-testid="one-shot-edit-brief"/,
+    );
+    expect(briefCard()).not.toMatch(/<button[^>]*disabled=""[^>]*data-testid="one-shot-edit-brief"/);
+  });
+
+  it("a run in a brief status opens the brief view and loads the brief", () => {
+    const html = page(runView({ status: "brief_ready", currentStep: null, steps: [], budget: null, briefRevision: null }));
+    expect(html).toContain('data-view="brief"');
+    expect(html).toContain("Loading your brief");
+  });
+});
+
+describe("ST-107 budget", () => {
+  it("shows cost so far, the approved estimate and the cap", () => {
+    const html = renderToStaticMarkup(<RunMeta run={runView()} />);
+    expect(html).toContain('data-testid="one-shot-cost"');
+    expect(html).toMatch(/data-testid="one-shot-estimate-approved"[^>]*>\$1\.84/);
+    expect(html).toMatch(/data-testid="one-shot-cap"[^>]*>\$2\.30/);
+    // A run from before briefs has no cap to show.
+    expect(renderToStaticMarkup(<RunMeta run={runView({ budget: null })} />)).not.toContain("one-shot-cap");
+  });
+
+  it("a budget-capped run asks to accept the new estimate before continuing", () => {
+    const run = runView({
+      status: "needs_attention",
+      needsAttention: {
+        stage: "storyboard",
+        errorCode: "ONE_SHOT_BUDGET_CAP",
+        message: "The next step would take this video past its budget cap of $2.30.",
+      },
+      budget: {
+        reservedUsd: 1.84,
+        capUsd: 2.3,
+        actualUsd: 2.1,
+        reservationRevision: 1,
+        proposedEstimateUsd: 3.25,
+      },
+    });
+    const card = renderToStaticMarkup(
+      <BudgetCapCard run={run} busy={false} onAccept={noop} onCancel={noop} />,
+    );
+    expect(card).toContain("The video reached its budget");
+    expect(card).toContain("past its budget cap of $2.30");
+    expect(card).toContain("Accept $3.25 and continue");
+    expect(page(run)).toContain('data-view="budget"');
+  });
+});
+
+describe("ST-107 decision log and coverage gaps", () => {
+  it("lists every decision with its reason, model and cost, and the ledger", () => {
+    const html = renderToStaticMarkup(
+      <DecisionPanel state={{ kind: "ready", log: decisionLog }} onExport={noop} />,
+    );
+    expect(html).toContain("How this video was made");
+    expect(html.match(/data-testid="one-shot-decision"/g)).toHaveLength(2);
+    expect(html).toContain("Round 1: applied the regenerated scene 3.");
+    expect(html).toContain("on-screen text overflowed its layout");
+    expect(html).toContain("Model: mock-model-1 · Cost: $0.01");
+    expect(html.match(/data-testid="one-shot-ledger-row"/g)).toHaveLength(2);
+    expect(html).toContain("Automatic fixes");
+    expect(html).toContain('data-testid="one-shot-decisions-export"');
+    expect(html).not.toMatch(/<button[^>]*disabled=""[^>]*data-testid="one-shot-decisions-export"/);
+  });
+
+  it("keeps Export disabled until the log has loaded", () => {
+    const loading = renderToStaticMarkup(<DecisionPanel state={{ kind: "loading" }} onExport={noop} />);
+    expect(loading).toContain("Loading the decision log");
+    expect(loading).toMatch(/<button[^>]*disabled=""[^>]*data-testid="one-shot-decisions-export"/);
+    expect(
+      renderToStaticMarkup(<DecisionPanel state={{ kind: "error", message: "Not loaded." }} onExport={noop} />),
+    ).toContain('role="alert"');
+  });
+
+  it("shows each unmet brief point as Not covered on the preview", () => {
+    const html = page(
+      runView({
+        status: "awaiting_render_approval",
+        currentStep: "render",
+        coverageGaps: ["How condensation releases it"],
+      }),
+    );
+    expect(html).toContain('data-testid="one-shot-coverage-gap"');
+    expect(html).toContain("Not covered: How condensation releases it");
+    expect(html).toContain('data-testid="one-shot-decisions"');
+    expect(renderToStaticMarkup(<CoverageGapNotice gaps={[]} />)).toBe("");
+  });
+
+  it("a failed render review offers Retry render with the findings", () => {
+    const html = page(
+      runView({
+        status: "needs_attention",
+        currentStep: "render",
+        needsAttention: {
+          stage: "render",
+          errorCode: "RENDER_REVIEW_FAILED",
+          message: "The finished video failed its quality review (NARRATION_SILENT: no narration from 0:12).",
+        },
+      }),
+    );
+    expect(html).toContain('data-view="delivery"');
+    expect(html).toContain("The video failed its quality review");
+    expect(html).toContain("NARRATION_SILENT");
+    expect(html).toContain('data-testid="one-shot-resume"');
+    expect(html).toContain("Retry render");
+    // The same lesson renders to the same video: the fix comes first.
+    expect(html).toMatch(new RegExp(`data-testid="one-shot-review-fix-link"`));
+    expect(html).toContain(`href="/workspace/${projectId}/storyboard"`);
+    expect(html).toContain("fix the findings in the editor first");
   });
 });

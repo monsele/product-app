@@ -3991,6 +3991,8 @@ export const modelCallOperationValues = [
   "ai.creative_design",
   // ST-104. Infers subject and title from a focus prompt and headings only.
   "ai.lesson-intent",
+  // ST-107. The prompt-to-video brief: coverage, style, sound and scene plan.
+  "ai.one-shot-brief",
 ] as const;
 export const modelCallOperationSchema = z.enum(modelCallOperationValues);
 export type ModelCallOperation = z.infer<typeof modelCallOperationSchema>;
@@ -4222,6 +4224,19 @@ export const objectiveGenerationParamsSchema = z
      * without one keeps its pre-story params hash. Enters `inputVersion` and
      * therefore the idempotency key. */
     focusPrompt: lessonFocusPromptSchema.optional(),
+    /** ST-107. The coverage points of a confirmed prompt-to-video brief, one
+     * per line (job params hold scalars only). Present only for a run with a
+     * brief, which also selects the `objectives/v4` prompt; every other
+     * generation keeps its params hash. */
+    briefCoverage: z
+      .string()
+      .trim()
+      .min(1)
+      .max(8 * 301)
+      .refine((value) => value.split("\n").length <= 8, {
+        message: "A brief has at most 8 coverage points.",
+      })
+      .optional(),
   })
   .strict();
 export type ObjectiveGenerationParams = z.infer<
@@ -4542,6 +4557,24 @@ export type LessonIntent = z.infer<typeof lessonIntentSchema>;
 export const currentLessonIntentCompatibility =
   objectiveGenerationCompatibilitySchema.parse({
     promptId: "lesson-intent",
+    promptVersion: "v1",
+    model: togetherModelDefaults.llm,
+  });
+
+/** ST-107. Objectives for a prompt-to-video run with a confirmed brief: v3
+ * plus the `{{briefCoverage}}` slot. The wizard keeps
+ * `currentObjectiveGenerationCompatibility`. */
+export const briefObjectiveGenerationCompatibility =
+  objectiveGenerationCompatibilitySchema.parse({
+    promptId: "objectives",
+    promptVersion: "v4",
+    model: togetherModelDefaults.llm,
+  });
+
+/** ST-107. The prompt-to-video brief call (`ai.one-shot-brief`). */
+export const currentOneShotBriefCompatibility =
+  objectiveGenerationCompatibilitySchema.parse({
+    promptId: "one-shot-brief",
     promptVersion: "v1",
     model: togetherModelDefaults.llm,
   });

@@ -79,6 +79,7 @@ import {
   PostgresOneShotService,
 } from "./one-shot.js";
 import { ServiceOneShotGateway } from "./one-shot-gateway.js";
+import { ProviderOneShotBriefService } from "./one-shot-brief.js";
 
 function createLanguageModelProvider(
   environment: ReturnType<typeof parseEnvironment>,
@@ -317,6 +318,21 @@ export async function runApi(input: {
       {
         pricing: oneShotPricingFromEnvironment(environment),
         maxRunsPerHour: environment.MAX_ONE_SHOT_RUNS_PER_HOUR,
+        // ST-107. The brief: one small call per "Prepare brief", with its own
+        // hourly quota on top of the per-run brief limit.
+        briefs: new ProviderOneShotBriefService({
+          database: database.client,
+          provider: createLanguageModelProvider(environment),
+          quotaGuard: new PostgresGenerationQuotaGuard(
+            database.client,
+            { "ai.one-shot-brief": { maxCallsPerHour: 20 } },
+            undefined,
+            environment.MAX_PROVIDER_CALLS_PER_HOUR,
+          ),
+          pricing: togetherPricing,
+        }),
+        budgetTolerance: environment.ONE_SHOT_BUDGET_TOLERANCE,
+        maxBriefRevisions: environment.ONE_SHOT_MAX_BRIEF_REVISIONS,
       },
     );
     const consumer = registerJobConsumer({

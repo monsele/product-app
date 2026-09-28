@@ -1053,6 +1053,9 @@ export const auditEventTypeValues = [
   "one_shot.render_approved",
   "one_shot.run_resumed",
   "one_shot.run_cancelled",
+  // ST-107. The video brief and the run budget.
+  "one_shot.brief_prepared",
+  "one_shot.budget_accepted",
 ] as const;
 export const auditEventType = pgEnum("audit_event_type", auditEventTypeValues);
 
@@ -1095,6 +1098,7 @@ export const usageOperationTypeValues = [
   "ai.grounding",
   "ai.creative_design",
   "ai.lesson-intent",
+  "ai.one-shot-brief",
   "image.generation",
   "tts.generation",
   "video.render",
@@ -2701,6 +2705,8 @@ export const demonstrationFeedback = pgTable(
 );
 
 export const oneShotRunStatusValues = [
+  "brief_pending",
+  "brief_ready",
   "queued",
   "running",
   "awaiting_render_approval",
@@ -2767,6 +2773,29 @@ export const oneShotRuns = pgTable(
       onDelete: "restrict",
     }),
     correlationId: uuid("correlation_id").notNull(),
+    // ---- ST-107 ----------------------------------------------------------
+    /** Brief calls made for this run, counted before each call. */
+    briefAttempts: integer("brief_attempts").notNull().default(0),
+    /** The brief revision the user confirmed; `null` until confirmation and
+     * for runs from before ST-107. */
+    confirmedBriefRevision: integer("confirmed_brief_revision"),
+    stylePackId: text("style_pack_id"),
+    soundBed: text("sound_bed"),
+    /** The confirmed reservation and its cap (reserved x tolerance). */
+    reservedUsd: numeric("reserved_usd", { precision: 12, scale: 6 }),
+    capUsd: numeric("cap_usd", { precision: 12, scale: 6 }),
+    reservationRevision: integer("reservation_revision").notNull().default(0),
+    /** The estimate to accept while stopped with ONE_SHOT_BUDGET_CAP. */
+    budgetProposalUsd: numeric("budget_proposal_usd", {
+      precision: 12,
+      scale: 6,
+    }),
+    /** Bounded self-repair bookkeeping (rounds, planned and applied fixes). */
+    repairState: jsonb("repair_state"),
+    /** Confirmed coverage points still unmet after the coverage repair. */
+    coverageGaps: jsonb("coverage_gaps").notNull().default([]),
+    /** Last decision `seq` handed out; bumped in the writer's transaction. */
+    decisionSequence: integer("decision_sequence").notNull().default(0),
     ...auditColumns(),
   },
   (table) => [
@@ -2778,11 +2807,112 @@ export const oneShotRuns = pgTable(
     uniqueIndex("one_shot_runs_one_active_per_project")
       .on(table.projectId)
       .where(
-        sql`${table.status} in ('queued', 'running', 'awaiting_render_approval', 'rendering', 'needs_attention', 'failed')`,
+        // Every status but the two finished ones (ST-107 added the brief
+        // statuses), written so the migration never uses a new enum value.
+        sql`${table.status} not in ('completed', 'cancelled')`,
       ),
     index("one_shot_runs_owner_created_idx").on(
       table.ownerUserId,
       table.createdAt,
+    ),
+  ],
+);
+
+/**
+ * ST-107. Every prepared brief revision of a run. Rows are never rewritten:
+ * revising the brief inserts the next revision, and confirmation names the
+ * revision it authorises, so a stale confirmation is detectable.
+ */
+export const oneShotRunBriefs = pgTable(
+  "one_shot_run_briefs",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => oneShotRuns.id, { onDelete: "cascade" }),
+    revision: integer("revision").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    requestHash: text("request_hash").notNull(),
+    /** User content, like the run's own focus prompt: never logged. */
+    focusPrompt: text("focus_prompt").notNull(),
+    audience: jsonb("audience").notNull(),
+    targetDurationSeconds: integer("target_duration_seconds").notNull(),
+    /** The validated brief: coverage, not-covered, style, sound, scenes. */
+    brief: jsonb("brief").notNull(),
+    estimate: jsonb("estimate").notNull(),
+    modelCallId: uuid("model_call_id")
+      .notNull()
+      .references(() => modelCalls.id, { onDelete: "restrict" }),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("one_shot_run_briefs_run_revision_unique").on(
+      table.runId,
+      table.revision,
+    ),
+    uniqueIndex("one_shot_run_briefs_request_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.idempotencyKey,
+    ),
+  ],
+);
+
+/**
+ * ST-107. The run budget ledger: one row per paid step, reconciled from the
+ * run's usage records (by correlation id) after every tick.
+ */
+export const oneShotRunLedgerEntries = pgTable(
+  "one_shot_run_ledger_entries",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => oneShotRuns.id, { onDelete: "cascade" }),
+    step: text("step").notNull(),
+    estimateUsd: numeric("estimate_usd", { precision: 12, scale: 6 }).notNull(),
+    actualUsd: numeric("actual_usd", { precision: 12, scale: 6 }).notNull(),
+    usageRecordIds: jsonb("usage_record_ids").notNull().default([]),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("one_shot_run_ledger_entries_run_step_unique").on(
+      table.runId,
+      table.step,
+    ),
+  ],
+);
+
+/**
+ * ST-107. The production decision log: every automatic decision a run made,
+ * with its reason, model and cost. Append-only (a trigger rejects updates);
+ * `seq` is handed out from `one_shot_runs.decision_sequence`.
+ */
+export const oneShotRunDecisions = pgTable(
+  "one_shot_run_decisions",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => oneShotRuns.id, { onDelete: "cascade" }),
+    seq: integer("seq").notNull(),
+    kind: text("kind").notNull(),
+    /** User-facing text, stored like the focus prompt: never logged. */
+    summary: text("summary").notNull(),
+    reason: text("reason"),
+    model: text("model"),
+    promptVersion: text("prompt_version"),
+    costUsd: numeric("cost_usd", { precision: 12, scale: 6 }),
+    relatedIds: jsonb("related_ids").notNull().default([]),
+    createdAt: utcTimestamp("created_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("one_shot_run_decisions_run_seq_unique").on(
+      table.runId,
+      table.seq,
     ),
   ],
 );

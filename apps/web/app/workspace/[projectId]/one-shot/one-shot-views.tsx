@@ -4,18 +4,33 @@
  * ST-106 — presentational pieces of the prompt-to-video run page. They hold no
  * state and make no requests, so each run status renders the same on the
  * server, in the browser and in the component tests.
+ *
+ * ST-107 adds the video brief, the budget readout and cap card, the
+ * "How this video was made" panel and the coverage-gap notice.
  */
 
 import React from "react";
 import Link from "next/link";
 import {
   ArrowClockwise,
+  CheckCircle,
+  DownloadSimple,
   FilmSlate,
   PencilSimple,
   Sparkle,
 } from "@phosphor-icons/react";
-import type { ObjectiveFocusCoverage, ValidationIssue } from "@avlp/schemas";
-import type { OneShotEstimate, OneShotRunView } from "@avlp/schemas/one-shot";
+import type {
+  CreativeDesignPackId,
+  ObjectiveFocusCoverage,
+  SoundBedChoice,
+  ValidationIssue,
+} from "@avlp/schemas";
+import type {
+  OneShotBrief,
+  OneShotDecisionsResponse,
+  OneShotEstimate,
+  OneShotRunView,
+} from "@avlp/schemas/one-shot";
 import { Button } from "../../../../components/ui/button";
 import { Notice } from "../../../../components/ui/notice";
 import {
@@ -24,9 +39,12 @@ import {
 } from "../../../../components/ui/status-label";
 import {
   audienceKindOptions,
+  decisionKindLabels,
   durationOptions,
   focusPromptMaxLength,
   formatUsd,
+  ledgerStepLabels,
+  stylePackLabels,
   studentAgeBandLabels,
   studentAgeBands,
   toDisplaySteps,
@@ -35,6 +53,7 @@ import {
   type DisplayStepState,
   type RequestFormErrors,
   type RequestFormValues,
+  type SoundBedOption,
   type StudentAgeBand,
 } from "../../../../lib/one-shot";
 import styles from "./one-shot.module.css";
@@ -80,7 +99,10 @@ export type EstimateState =
   | { kind: "ready"; estimate: OneShotEstimate }
   | { kind: "error"; message: string };
 
-export function EstimatePanel({ state }: Readonly<{ state: EstimateState }>) {
+export function EstimatePanel({
+  state,
+  lead,
+}: Readonly<{ state: EstimateState; lead?: string }>) {
   return (
     <section
       aria-labelledby="one-shot-estimate-heading"
@@ -106,8 +128,8 @@ export function EstimatePanel({ state }: Readonly<{ state: EstimateState }>) {
       ) : (
         <>
           <p className={styles.helper}>
-            An upper bound for about {state.estimate.estimatedScenes} scenes.
-            You are charged only for what the run actually uses.
+            {lead ??
+              `An upper bound for about ${state.estimate.estimatedScenes} scenes. You are charged only for what the run actually uses.`}
           </p>
           <table className={styles.estimateTable}>
             <caption className={styles.srOnly}>Itemised cost estimate</caption>
@@ -155,7 +177,11 @@ export function EstimatePanel({ state }: Readonly<{ state: EstimateState }>) {
 export interface RequestFieldsProps {
   values: RequestFormValues;
   errors: RequestFormErrors;
-  estimate: EstimateState;
+  /** ST-107. Brief calls used for this video and the limit, once a brief
+   * exists; `null` before the first one. */
+  revisions: { used: number; max: number } | null;
+  /** ST-107. Shown when revising an existing brief: return to it unchanged. */
+  onBackToBrief?: (() => void) | undefined;
   /** The upload panel, or a "document ready" summary. */
   documentSlot: React.ReactNode;
   documentError?: string | undefined;
@@ -172,7 +198,8 @@ export interface RequestFieldsProps {
 export function RequestFields({
   values,
   errors,
-  estimate,
+  revisions,
+  onBackToBrief,
   documentSlot,
   blockedReason,
   submitting,
@@ -346,11 +373,6 @@ export function RequestFields({
           </div>
         </fieldset>
 
-        <EstimatePanel state={estimate} />
-        {errors.estimate !== undefined && estimate.kind === "ready" && (
-          <p className={styles.error}>{errors.estimate}</p>
-        )}
-
         {blockedReason !== null && (
           <Notice
             type="warning"
@@ -361,9 +383,15 @@ export function RequestFields({
         {submitError !== null && (
           <Notice
             type="error"
-            title="The video was not started"
+            title="The brief was not prepared"
             message={submitError}
           />
+        )}
+
+        {revisions !== null && (
+          <p className={styles.helper} data-testid="one-shot-brief-revisions">
+            {revisionsLeftText(revisions)}
+          </p>
         )}
 
         <div className={styles.actions}>
@@ -371,16 +399,32 @@ export function RequestFields({
             type="submit"
             variant="primary"
             size="large"
-            disabled={submitting || blockedReason !== null}
+            disabled={
+              submitting ||
+              blockedReason !== null ||
+              (revisions !== null && revisions.used >= revisions.max)
+            }
             isLoading={submitting}
             leftIcon={<Sparkle weight="bold" />}
-            data-testid="one-shot-create"
+            data-testid="one-shot-prepare-brief"
           >
-            {submitting ? "Creating video…" : "Create video"}
+            {submitting ? "Preparing the brief…" : "Prepare brief"}
           </Button>
+          {onBackToBrief !== undefined && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onBackToBrief}
+              disabled={submitting}
+              data-testid="one-shot-back-to-brief"
+            >
+              Back to the brief
+            </Button>
+          )}
           <p className={styles.helper}>
-            Creating the video approves the estimate above. Nothing is rendered
-            until you approve the preview.
+            The brief shows what the video will cover and what it will cost. It
+            makes one small AI call; nothing else is paid for until you confirm
+            it.
           </p>
         </div>
       </form>
@@ -433,15 +477,23 @@ export function RunSteps({ run }: Readonly<{ run: OneShotRunView }>) {
 
 export function RunMeta({ run }: Readonly<{ run: OneShotRunView }>) {
   return (
-    <dl className={styles.meta}>
+    <dl className={styles.meta} data-testid="one-shot-budget">
       <div>
         <dt>Cost so far</dt>
         <dd data-testid="one-shot-cost">{formatUsd(run.actualCostUsd)}</dd>
       </div>
       <div>
-        <dt>Approved estimate</dt>
-        <dd>{formatUsd(run.acceptedEstimateUsd)}</dd>
+        <dt>Estimate you approved</dt>
+        <dd data-testid="one-shot-estimate-approved">
+          {formatUsd(run.budget?.reservedUsd ?? run.acceptedEstimateUsd)}
+        </dd>
       </div>
+      {run.budget !== null && (
+        <div>
+          <dt>Stops before passing</dt>
+          <dd data-testid="one-shot-cap">{formatUsd(run.budget.capUsd)}</dd>
+        </div>
+      )}
       <div>
         <dt>Length</dt>
         <dd>{Math.round(run.targetDurationSeconds / 60)} minutes</dd>
@@ -742,5 +794,504 @@ export function ApprovalActions({
         Cancel video
       </Button>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ST-107 — video brief
+// ---------------------------------------------------------------------------
+
+export function revisionsLeftText(revisions: {
+  used: number;
+  max: number;
+}): string {
+  const left = Math.max(0, revisions.max - revisions.used);
+  if (left === 0)
+    return `You have prepared this brief ${revisions.max} times, the most for one video. Confirm it, or cancel and start again.`;
+  return `Brief ${revisions.used} of ${revisions.max} prepared. You can change the request and prepare it again ${left} more time${left === 1 ? "" : "s"}.`;
+}
+
+export interface BriefCardProps {
+  brief: OneShotBrief;
+  revisions: { used: number; max: number };
+  stylePackIds: readonly CreativeDesignPackId[];
+  stylePackId: CreativeDesignPackId;
+  soundBed: SoundBedChoice;
+  soundBedOptions: readonly SoundBedOption[];
+  onStylePackChange: (value: CreativeDesignPackId) => void;
+  onSoundBedChange: (value: SoundBedChoice) => void;
+  onEdit: () => void;
+  onConfirm: () => void;
+  onCancel: () => void;
+  confirming: boolean;
+  confirmError: string | null;
+  blockedReason: string | null;
+}
+
+export function BriefCard({
+  brief,
+  revisions,
+  stylePackIds,
+  stylePackId,
+  soundBed,
+  soundBedOptions,
+  onStylePackChange,
+  onSoundBedChange,
+  onEdit,
+  onConfirm,
+  onCancel,
+  confirming,
+  confirmError,
+  blockedReason,
+}: Readonly<BriefCardProps>) {
+  const headings = new Map(
+    brief.sections.map((section) => [section.sectionId, section.heading]),
+  );
+  const canRevise = revisions.used < revisions.max;
+  return (
+    <section
+      aria-labelledby="one-shot-brief-heading"
+      className={styles.card}
+      data-testid="one-shot-brief"
+      data-revision={brief.revision}
+    >
+      <div>
+        <h2 id="one-shot-brief-heading" className={styles.cardTitle}>
+          Review the video brief
+        </h2>
+        <p className={styles.cardLead}>
+          This is what the video will cover, how it will look and sound, and
+          what it will cost. Nothing else is paid for until you confirm it.
+        </p>
+      </div>
+
+      <dl className={styles.meta}>
+        <div>
+          <dt>Lesson</dt>
+          <dd data-testid="one-shot-brief-title">{brief.lessonTitle}</dd>
+        </div>
+        <div>
+          <dt>Subject</dt>
+          <dd>{brief.subject}</dd>
+        </div>
+        <div>
+          <dt>Length</dt>
+          <dd>
+            {Math.round(brief.targetDurationSeconds / 60)} minutes, about{" "}
+            {brief.plannedSceneCount} scenes
+          </dd>
+        </div>
+      </dl>
+
+      <RunRequestSummaryText text={brief.focusPrompt} />
+
+      <div className={styles.fieldset}>
+        <h3 className={styles.label} style={{ margin: 0 }}>
+          What the video will cover
+        </h3>
+        <ol className={styles.coverageList}>
+          {brief.coverage.map((point) => (
+            <li
+              key={point.point}
+              className={styles.coveragePoint}
+              data-testid="one-shot-brief-point"
+            >
+              <span>{point.point}</span>
+              <ul className={styles.chips} aria-label="From these sections">
+                {point.sectionIds.map((sectionId) => (
+                  <li
+                    key={sectionId}
+                    className={styles.chip}
+                    data-testid="one-shot-source-chip"
+                  >
+                    {headings.get(sectionId) ?? "Document section"}
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      {brief.notCovered.length > 0 && (
+        <div className={styles.fieldset} data-testid="one-shot-brief-not-covered">
+          <h3 className={styles.label} style={{ margin: 0 }}>
+            What it will leave out
+          </h3>
+          <ul className={styles.issueList}>
+            {brief.notCovered.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <div className={styles.choiceRow}>
+        <div className={styles.fieldset}>
+          <label htmlFor="one-shot-style" className={styles.label}>
+            Style pack
+          </label>
+          <select
+            id="one-shot-style"
+            className={styles.select}
+            value={stylePackId}
+            onChange={(event) =>
+              onStylePackChange(event.target.value as CreativeDesignPackId)
+            }
+            disabled={confirming}
+            aria-describedby="one-shot-style-reason"
+            data-testid="one-shot-style"
+          >
+            {stylePackIds.map((id) => (
+              <option key={id} value={id}>
+                {stylePackLabels[id]}
+              </option>
+            ))}
+          </select>
+          <p className={styles.helper} id="one-shot-style-reason">
+            {stylePackId === brief.stylePackId
+              ? `Suggested: ${brief.stylePackReason}`
+              : `Your choice. The brief suggested ${stylePackLabels[brief.stylePackId]}.`}
+          </p>
+        </div>
+        <div className={styles.fieldset}>
+          <label htmlFor="one-shot-sound" className={styles.label}>
+            Background sound
+          </label>
+          <select
+            id="one-shot-sound"
+            className={styles.select}
+            value={soundBed}
+            onChange={(event) => onSoundBedChange(event.target.value)}
+            disabled={confirming}
+            aria-describedby="one-shot-sound-reason"
+            data-testid="one-shot-sound"
+          >
+            {soundBedOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <p className={styles.helper} id="one-shot-sound-reason">
+            {soundBed === brief.soundBed
+              ? `Suggested: ${brief.soundBedReason}`
+              : "Your choice. It plays quietly under the narration."}
+          </p>
+        </div>
+      </div>
+
+      <EstimatePanel
+        state={{ kind: "ready", estimate: brief.estimate }}
+        lead={`An upper bound for about ${brief.plannedSceneCount} scenes, including automatic fixes the checks may need. You are charged only for what the run uses, and it stops before any step that would go past its budget.`}
+      />
+
+      {blockedReason !== null && (
+        <Notice type="warning" title="New runs are paused" message={blockedReason} />
+      )}
+      {confirmError !== null && (
+        <Notice
+          type="error"
+          title="The video was not started"
+          message={confirmError}
+        />
+      )}
+      <p className={styles.helper} data-testid="one-shot-brief-revisions">
+        {revisionsLeftText(revisions)}
+      </p>
+
+      <div className={styles.actions}>
+        <Button
+          type="button"
+          variant="primary"
+          size="large"
+          onClick={onConfirm}
+          disabled={confirming || blockedReason !== null}
+          isLoading={confirming}
+          leftIcon={<CheckCircle weight="bold" />}
+          data-testid="one-shot-confirm"
+        >
+          {confirming ? "Creating video…" : "Confirm & create video"}
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onEdit}
+          disabled={confirming || !canRevise}
+          leftIcon={<PencilSimple weight="bold" />}
+          data-testid="one-shot-edit-brief"
+        >
+          Edit request
+        </Button>
+        <Button
+          type="button"
+          variant="destructive"
+          onClick={onCancel}
+          disabled={confirming}
+          className={styles.destructiveLink}
+          data-testid="one-shot-cancel"
+        >
+          Cancel video
+        </Button>
+      </div>
+      <p className={styles.helper}>
+        Confirming approves the estimate above. Nothing is rendered until you
+        approve the preview.
+      </p>
+    </section>
+  );
+}
+
+function RunRequestSummaryText({ text }: Readonly<{ text: string }>) {
+  return (
+    <div className={styles.fieldset}>
+      <span className={styles.label}>Your request</span>
+      <p className={styles.request}>{text}</p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ST-107 — budget cap
+// ---------------------------------------------------------------------------
+
+export function BudgetCapCard({
+  run,
+  busy,
+  onAccept,
+  onCancel,
+}: Readonly<{
+  run: OneShotRunView;
+  busy: boolean;
+  onAccept: () => void;
+  onCancel: () => void;
+}>) {
+  const proposal = run.budget?.proposedEstimateUsd ?? null;
+  return (
+    <section
+      aria-labelledby="one-shot-budget-heading"
+      className={styles.card}
+      data-testid="one-shot-budget-cap"
+    >
+      <div>
+        <h2 id="one-shot-budget-heading" className={styles.cardTitle}>
+          The video reached its budget
+        </h2>
+        <p className={styles.cardLead}>
+          The run stopped before a step that would cost more than you approved.
+          Nothing past that step has been paid for.
+        </p>
+      </div>
+      <Notice
+        type="warning"
+        title="Budget reached"
+        message={run.needsAttention?.message ?? "The next step would pass the budget."}
+      />
+      <RunSteps run={run} />
+      <RunMeta run={run} />
+      <div className={styles.actions}>
+        <Button
+          type="button"
+          variant="primary"
+          onClick={onAccept}
+          disabled={busy || proposal === null}
+          leftIcon={<ArrowClockwise weight="bold" />}
+          data-testid="one-shot-accept-budget"
+        >
+          {busy
+            ? "Continuing…"
+            : proposal === null
+              ? "Accept the new estimate"
+              : `Accept ${formatUsd(proposal)} and continue`}
+        </Button>
+        <Button
+          type="button"
+          variant="destructive"
+          onClick={onCancel}
+          disabled={busy}
+          className={styles.destructiveLink}
+          data-testid="one-shot-cancel"
+        >
+          Cancel video
+        </Button>
+      </div>
+      <p className={styles.helper}>
+        The new estimate covers what has been spent and the rest of the video.
+        The run again stops before any step that would go past the new budget.
+      </p>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ST-107 — coverage gaps and "How this video was made"
+// ---------------------------------------------------------------------------
+
+export function CoverageGapNotice({
+  gaps,
+}: Readonly<{ gaps: readonly string[] }>) {
+  if (gaps.length === 0) return null;
+  return (
+    <section
+      aria-labelledby="one-shot-gap-heading"
+      className={styles.card}
+      data-testid="one-shot-coverage-gap"
+      style={{
+        backgroundColor: "var(--color-warning-bg)",
+        borderColor: "var(--color-warning-border)",
+      }}
+    >
+      <h3
+        id="one-shot-gap-heading"
+        className={styles.label}
+        style={{ margin: 0, color: "var(--color-warning-fg)" }}
+      >
+        Some of the brief is not covered
+      </h3>
+      <p className={styles.cardLead} style={{ color: "var(--color-text)" }}>
+        No scene uses the document sections behind these points, even after an
+        automatic fix. Decide whether to render as it is or refine it in the
+        editor first.
+      </p>
+      <ul className={styles.issueList}>
+        {gaps.map((gap) => (
+          <li key={gap}>Not covered: {gap}</li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+export type DecisionsState =
+  | { kind: "loading" }
+  | { kind: "ready"; log: OneShotDecisionsResponse }
+  | { kind: "error"; message: string };
+
+export function DecisionPanel({
+  state,
+  onExport,
+}: Readonly<{ state: DecisionsState; onExport: () => void }>) {
+  return (
+    <section
+      aria-labelledby="one-shot-decisions-heading"
+      aria-busy={state.kind === "loading"}
+      className={styles.card}
+      data-testid="one-shot-decisions"
+    >
+      <div className={styles.actions}>
+        <div style={{ flex: "1 1 240px", minWidth: 0 }}>
+          <h3 id="one-shot-decisions-heading" className={styles.cardTitle}>
+            How this video was made
+          </h3>
+          <p className={styles.cardLead}>
+            Every automatic decision, with its reason, the model that made it
+            and what it cost.
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="secondary"
+          size="compact"
+          onClick={onExport}
+          disabled={state.kind !== "ready"}
+          leftIcon={<DownloadSimple weight="bold" />}
+          data-testid="one-shot-decisions-export"
+        >
+          Export JSON
+        </Button>
+      </div>
+      {state.kind === "loading" ? (
+        <p className={styles.helper} role="status">
+          Loading the decision log…
+        </p>
+      ) : state.kind === "error" ? (
+        <p className={styles.error} role="alert">
+          {state.message}
+        </p>
+      ) : (
+        <>
+          {state.log.ledger.length > 0 && (
+            <table className={styles.estimateTable} data-testid="one-shot-ledger">
+              <caption className={styles.srOnly}>
+                Estimated and actual cost by step
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Step</th>
+                  <th scope="col" className={styles.amount}>
+                    Estimated
+                  </th>
+                  <th scope="col" className={styles.amount}>
+                    Actual
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {state.log.ledger.map((line) => (
+                  <tr key={line.step} data-testid="one-shot-ledger-row">
+                    <td>{ledgerStepLabels[line.step]}</td>
+                    <td className={styles.amount}>
+                      {formatUsd(line.estimateUsd)}
+                    </td>
+                    <td className={styles.amount}>{formatUsd(line.actualUsd)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>Total</td>
+                  <td className={styles.amount}>
+                    {formatUsd(
+                      state.log.ledger.reduce((sum, line) => sum + line.estimateUsd, 0),
+                    )}
+                  </td>
+                  <td className={styles.amount} data-testid="one-shot-ledger-actual">
+                    {formatUsd(
+                      state.log.ledger.reduce((sum, line) => sum + line.actualUsd, 0),
+                    )}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          )}
+          {state.log.decisions.length === 0 ? (
+            <p className={styles.helper}>No decisions have been made yet.</p>
+          ) : (
+            <ol className={styles.decisionList}>
+              {state.log.decisions.map((decision) => (
+                <li
+                  key={decision.seq}
+                  className={styles.decision}
+                  data-testid="one-shot-decision"
+                  data-kind={decision.kind}
+                >
+                  <span className={styles.decisionKind}>
+                    {decisionKindLabels[decision.kind]}
+                  </span>
+                  <div className={styles.decisionBody}>
+                    <p className={styles.decisionSummary}>{decision.summary}</p>
+                    {decision.reason !== null && (
+                      <p className={styles.helper}>{decision.reason}</p>
+                    )}
+                    {(decision.model !== null || decision.costUsd !== null) && (
+                      <p className={styles.helper}>
+                        {[
+                          decision.model === null ? null : `Model: ${decision.model}`,
+                          decision.costUsd === null
+                            ? null
+                            : `Cost: ${formatUsd(decision.costUsd)}`,
+                        ]
+                          .filter((part) => part !== null)
+                          .join(" · ")}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+        </>
+      )}
+    </section>
   );
 }

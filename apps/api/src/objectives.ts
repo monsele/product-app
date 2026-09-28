@@ -21,6 +21,7 @@ import { createModelCallProviderApproval } from "./model-call-approval.js";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
   focusPromptParam,
+  briefObjectiveGenerationCompatibility,
   currentObjectiveGenerationCompatibility,
   learningObjectiveSetSchema,
   modelCallJobPayloadSchema,
@@ -73,6 +74,9 @@ export interface ObjectivesService {
     correlationId: Identifier;
     /** ST-105. Set when a prompt-to-video run queues this job. */
     oneShotRunId?: Identifier | undefined;
+    /** ST-107. The run's confirmed brief coverage points. Present only for a
+     * prompt-to-video run with a brief; selects `objectives/v4`. */
+    briefCoverage?: readonly string[] | undefined;
   }): Promise<ObjectiveGenerationResponse>;
   current(input: {
     ownerUserId: Identifier;
@@ -185,6 +189,7 @@ export class PostgresObjectivesService implements ObjectivesService {
     correlationId: Identifier;
     /** ST-105. Set when a prompt-to-video run queues this job. */
     oneShotRunId?: Identifier | undefined;
+    briefCoverage?: readonly string[] | undefined;
   }): Promise<ObjectiveGenerationResponse> {
     const idempotencyKey = input.idempotencyKey?.trim();
     if (
@@ -225,18 +230,31 @@ export class PostgresObjectivesService implements ObjectivesService {
         includeRecallQuestions: configuration.includeRecallQuestions,
         // ST-104: enters the params hash, inputVersion and idempotency key.
         ...focusPromptParam(configuration.focusPrompt),
+        // ST-107: likewise, only when a prompt-to-video brief was confirmed.
+        ...(input.briefCoverage === undefined ||
+        input.briefCoverage.length === 0
+          ? {}
+          : {
+              briefCoverage: input.briefCoverage
+                .map((point) => point.replace(/\s+/g, " ").trim())
+                .join("\n"),
+            }),
       });
+      const compatibility =
+        params.briefCoverage === undefined
+          ? currentObjectiveGenerationCompatibility
+          : briefObjectiveGenerationCompatibility;
       const requestedJobId = createId(timestamp);
       const payload = modelCallJobPayloadSchema.parse({
         schemaVersion: 2,
         operationType: "ai.objectives",
         sourceSnapshotId: approval.snapshotId,
-        promptId: currentObjectiveGenerationCompatibility.promptId,
-        promptVersion: currentObjectiveGenerationCompatibility.promptVersion,
-        model: currentObjectiveGenerationCompatibility.model,
+        promptId: compatibility.promptId,
+        promptVersion: compatibility.promptVersion,
+        model: compatibility.model,
         providerApproval: createModelCallProviderApproval({
           jobId: requestedJobId,
-          model: currentObjectiveGenerationCompatibility.model,
+          model: compatibility.model,
           oneShotRunId: input.oneShotRunId,
         }),
         params,
@@ -246,7 +264,7 @@ export class PostgresObjectivesService implements ObjectivesService {
         "objectives",
         approval.snapshotId,
         approval.contentHash ?? "none",
-        currentObjectiveGenerationCompatibility.promptVersion,
+        compatibility.promptVersion,
         paramsHash,
       ].join(":");
       const envelope = createJobEnvelope(modelCallJobPayloadSchema, {

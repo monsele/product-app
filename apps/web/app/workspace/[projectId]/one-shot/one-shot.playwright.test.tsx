@@ -11,9 +11,20 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import type { OneShotRunView } from "@avlp/schemas/one-shot";
-import { projectId, runView } from "../../../../lib/one-shot-fixtures";
+import {
+  briefView,
+  decisionLog,
+  projectId,
+  runView,
+} from "../../../../lib/one-shot-fixtures";
+import { soundBedOptions } from "../../../../lib/one-shot";
 import { OneShotWorkspace } from "./one-shot-workspace";
-import { OneShotUnavailable } from "./one-shot-views";
+import {
+  BriefCard,
+  CoverageGapNotice,
+  DecisionPanel,
+  OneShotUnavailable,
+} from "./one-shot-views";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ prefetch: () => undefined, push: () => undefined }),
@@ -55,6 +66,38 @@ const views: ReadonlyArray<[string, OneShotRunView | null]> = [
     }),
   ],
   ["rendering", runView({ status: "rendering", currentStep: "render" })],
+  // ST-107
+  ["brief", runView({ status: "brief_ready", currentStep: null, steps: [] })],
+  [
+    "budget cap",
+    runView({
+      status: "needs_attention",
+      needsAttention: {
+        stage: "storyboard",
+        errorCode: "ONE_SHOT_BUDGET_CAP",
+        message: "The next step would pass the budget.",
+      },
+      budget: {
+        reservedUsd: 1.84,
+        capUsd: 2.3,
+        actualUsd: 2.1,
+        reservationRevision: 1,
+        proposedEstimateUsd: 3.25,
+      },
+    }),
+  ],
+  [
+    "render review failed",
+    runView({
+      status: "needs_attention",
+      currentStep: "render",
+      needsAttention: {
+        stage: "render",
+        errorCode: "RENDER_REVIEW_FAILED",
+        message: "The finished video failed its quality review.",
+      },
+    }),
+  ],
 ];
 
 describe("ST-106 prompt-to-video accessibility (Playwright + axe)", () => {
@@ -142,6 +185,45 @@ describe("ST-106 prompt-to-video accessibility (Playwright + axe)", () => {
         await page.close();
       }
     });
+
+  it("has no serious violations in the video brief, the decision log and the coverage gap, at phone width", async () => {
+    const brief = briefView();
+    const page = await render(
+      <div>
+        <BriefCard
+          brief={brief}
+          revisions={{ used: 1, max: 3 }}
+          stylePackIds={["essential", "systems", "field-notes"]}
+          stylePackId={brief.stylePackId}
+          soundBed={brief.soundBed}
+          soundBedOptions={soundBedOptions([{ trackId: "morning-pad", title: "Morning Pad" }], brief.soundBed)}
+          onStylePackChange={() => undefined}
+          onSoundBedChange={() => undefined}
+          onEdit={() => undefined}
+          onConfirm={() => undefined}
+          onCancel={() => undefined}
+          confirming={false}
+          confirmError={null}
+          blockedReason={null}
+        />
+        <CoverageGapNotice gaps={["How condensation releases it"]} />
+        <DecisionPanel state={{ kind: "ready", log: decisionLog }} onExport={() => undefined} />
+      </div>,
+      390,
+    );
+    try {
+      expect(await seriousViolations(page)).toEqual([]);
+      // Every select has a visible label.
+      const unlabelled = await page.$$eval(
+        "select",
+        (selects) =>
+          selects.filter((select) => document.querySelector(`label[for="${select.id}"]`) === null).length,
+      );
+      expect(unlabelled).toBe(0);
+    } finally {
+      await page.close();
+    }
+  });
 
   it("has no serious violations in the unavailable state", async () => {
     const page = await render(

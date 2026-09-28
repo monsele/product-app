@@ -7,6 +7,9 @@
  * own suites). That isolates what this story adds: persistence, the tick
  * lease and chain, idempotent start, one active run per project, cohort
  * drain, cancel, restart recovery and audit.
+ *
+ * ST-107: every run now starts from a brief, so `start` prepares one (with a
+ * brief generator that records its call like the real one) and confirms it.
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
@@ -15,10 +18,12 @@ import {
   auditEvents,
   jobs,
   migrateDatabase,
+  modelCalls,
   oneShotRuns,
   outboxEvents,
   projects,
   sourceDocuments,
+  usageRecords,
   users,
   type DatabaseClient,
 } from "@avlp/database";
@@ -30,14 +35,16 @@ import {
   OneShotRunnerHost,
   OutboxOneShotTickScheduler,
   PostgresOneShotService,
-  estimateOneShotRun,
+  estimateOneShotBrief,
   type OneShotPilotCohort,
   type OneShotPricing,
   type OneShotRenderGate,
+  type OneShotTickScheduler,
 } from "./one-shot.js";
 import { writeOneShotApprovalAudit } from "./one-shot-gateway.js";
 import type { OneShotCallContext, OneShotStageGateway } from "./one-shot-runner.js";
 import { FakePipeline } from "./one-shot-test-pipeline.js";
+import { FakeBriefGenerator } from "./one-shot-test-brief.js";
 
 /** The simulated pipeline, writing its automatic-approval audits for real. */
 class AuditedPipeline extends FakePipeline {
@@ -68,12 +75,11 @@ const pricing: OneShotPricing = {
   ttsCostUsdPerMillionCharacters: 15,
   alignmentCostUsdPerAudioMinute: 0.0015,
 };
-const estimate = estimateOneShotRun({ targetDurationSeconds: 180, pricing });
-const body = {
+const estimate = estimateOneShotBrief({ targetDurationSeconds: 180, plannedSceneCount: 6, pricing });
+const briefBody = {
   focusPrompt,
   audience: { ageBand: "adult-professional", difficulty: "advanced", tone: "academic" },
   targetDurationSeconds: 180,
-  acceptedEstimateUsd: estimate.totalUsd,
 };
 const scope = { ownerUserId, projectId };
 
@@ -83,6 +89,7 @@ describeWithPostgres("ST-105 prompt-to-video runs (Postgres)", () => {
   const now = () => clock;
   let cohort: { enabled: boolean; members: Set<string> };
   let fake: FakePipeline;
+  let briefs: FakeBriefGenerator;
   let renderCalls: string[];
 
   beforeAll(async () => {
@@ -93,6 +100,8 @@ describeWithPostgres("ST-105 prompt-to-video runs (Postgres)", () => {
   beforeEach(async () => {
     const client = database!.client;
     await client.delete(oneShotRuns);
+    await client.delete(usageRecords);
+    await client.delete(modelCalls);
     await client.delete(outboxEvents);
     await client.delete(jobs);
     await client.delete(auditEvents);
@@ -103,6 +112,7 @@ describeWithPostgres("ST-105 prompt-to-video runs (Postgres)", () => {
     clock = new Date("2026-09-27T10:00:00.000Z");
     cohort = { enabled: true, members: new Set([ownerUserId]) };
     fake = new AuditedPipeline(() => database!.client);
+    briefs = new FakeBriefGenerator(() => database!.client, now);
     renderCalls = [];
   });
 
@@ -125,15 +135,33 @@ describeWithPostgres("ST-105 prompt-to-video runs (Postgres)", () => {
     },
   };
 
-  function service(maxRunsPerHour = 3) {
+  function service(
+    maxRunsPerHour = 3,
+    scheduler: OneShotTickScheduler = new OutboxOneShotTickScheduler(now),
+  ) {
     return new PostgresOneShotService(
       database!.client,
       pilotCohort,
-      new OutboxOneShotTickScheduler(now),
+      scheduler,
       renderGate,
-      { pricing, maxRunsPerHour },
+      { pricing, maxRunsPerHour, briefs, budgetTolerance: 1.25, maxBriefRevisions: 3 },
       now,
     );
+  }
+
+  /** ST-107: a run starts from a confirmed brief. */
+  async function start(key: string, subject = service()) {
+    const prepared = await subject.brief({ ...scope, body: briefBody, idempotencyKey: key, correlationId });
+    return confirm(prepared.brief!.revision, subject);
+  }
+
+  function confirm(briefRevision: number, subject = service(), acceptedEstimateUsd = estimate.totalUsd) {
+    return subject.create({
+      ...scope,
+      body: { briefRevision, acceptedEstimateUsd },
+      idempotencyKey: undefined,
+      correlationId,
+    });
   }
 
   function host() {
@@ -189,8 +217,8 @@ describeWithPostgres("ST-105 prompt-to-video runs (Postgres)", () => {
   }
 
   it("runs the full chain to the render gate through real ticks, and audits every automatic approval", async () => {
-    const started = await service().create({ ...scope, body, idempotencyKey: "start-1", correlationId });
-    expect(started.run).toMatchObject({ status: "queued", focusPrompt });
+    const started = await start("start-1");
+    expect(started.run).toMatchObject({ status: "queued", focusPrompt, briefRevision: 1 });
 
     const run = await pump();
     expect(run.status).toBe("awaiting_render_approval");
@@ -201,6 +229,8 @@ describeWithPostgres("ST-105 prompt-to-video runs (Postgres)", () => {
     expect(view.focusCoverage).toEqual({ status: "covered" });
     // Nothing is versioned or rendered without the human gate.
     expect(renderCalls).toEqual([]);
+    // The brief supplied subject and title: no lesson-intent call.
+    expect(fake.calls).not.toContain("inferIntent");
 
     // One job per tick, each succeeded, none duplicated.
     const ticks = await tickJobs();
@@ -230,7 +260,7 @@ describeWithPostgres("ST-105 prompt-to-video runs (Postgres)", () => {
 
   it("stops after objectives when the focus is not covered, creating no later job", async () => {
     fake.coverageOnGenerate = { status: "not_covered", reason: "The document never discusses trusses." };
-    await service().create({ ...scope, body, idempotencyKey: "start-1", correlationId });
+    await start("start-1");
     const run = await pump();
     expect(run).toMatchObject({
       status: "needs_attention",
@@ -245,39 +275,45 @@ describeWithPostgres("ST-105 prompt-to-video runs (Postgres)", () => {
     expect(await pumpOnce()).toBe(0);
   });
 
-  it("replays the same key to the same run and rejects a second concurrent run", async () => {
-    const first = await service().create({ ...scope, body, idempotencyKey: "start-1", correlationId });
-    const replay = await service().create({ ...scope, body, idempotencyKey: "start-1", correlationId });
+  it("replays the same keys to the same brief and run, and rejects a second concurrent run", async () => {
+    const first = await start("start-1");
+    const replayBrief = await service().brief({ ...scope, body: briefBody, idempotencyKey: "start-1", correlationId });
+    expect(replayBrief.brief!.revision).toBe(1);
+    expect(briefs.calls).toHaveLength(1);
+    const replay = await confirm(1);
     expect(replay.run!.id).toBe(first.run!.id);
     expect(await tickJobs()).toHaveLength(1);
 
     await expect(
-      service().create({
+      service().brief({
         ...scope,
-        body: { ...body, focusPrompt: "Something else" },
+        body: { ...briefBody, focusPrompt: "Something else" },
         idempotencyKey: "start-1",
         correlationId,
       }),
     ).rejects.toMatchObject({ statusCode: 409 });
-    await expect(
-      service().create({ ...scope, body, idempotencyKey: "start-2", correlationId }),
-    ).rejects.toMatchObject({ statusCode: 409 });
+    await expect(start("start-2")).rejects.toMatchObject({ statusCode: 409 });
     expect(await database!.client.select().from(oneShotRuns)).toHaveLength(1);
   });
 
-  it("lets exactly one of two racing starts win on the partial unique index", async () => {
-    const results = await Promise.allSettled([
-      service().create({ ...scope, body, idempotencyKey: "race-a", correlationId }),
-      service().create({ ...scope, body, idempotencyKey: "race-b", correlationId }),
+  it("lets exactly one of two racing confirmations start the run", async () => {
+    const prepared = await service().brief({ ...scope, body: briefBody, idempotencyKey: "race", correlationId });
+    const results = await Promise.all([
+      confirm(prepared.brief!.revision),
+      confirm(prepared.brief!.revision),
     ]);
-    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
-    const rejected = results.find((result) => result.status === "rejected");
-    expect((rejected as PromiseRejectedResult).reason).toMatchObject({ statusCode: 409 });
+    expect(results[0]!.run!.id).toBe(results[1]!.run!.id);
     expect(await database!.client.select().from(oneShotRuns)).toHaveLength(1);
+    expect(await tickJobs()).toHaveLength(1);
+    const started = await database!.client
+      .select()
+      .from(auditEvents)
+      .where(eq(auditEvents.eventType, "one_shot.run_started"));
+    expect(started).toHaveLength(1);
   });
 
   it("resumes from persisted state after an API restart mid-tick without duplicating any job", async () => {
-    await service().create({ ...scope, body, idempotencyKey: "start-1", correlationId });
+    await start("start-1");
     for (let round = 0; round < 6; round += 1) {
       clock = new Date(clock.getTime() + 3_000);
       await pumpOnce();
@@ -330,7 +366,7 @@ describeWithPostgres("ST-105 prompt-to-video runs (Postgres)", () => {
 
   it("stops on a failed stage job and continues the same run on resume", async () => {
     fake.failNext.add("narration");
-    await service().create({ ...scope, body, idempotencyKey: "start-1", correlationId });
+    await start("start-1");
     const stopped = await pump();
     expect(stopped).toMatchObject({ status: "needs_attention", needsAttentionStage: "narration", errorCode: "STAGE_JOB_FAILED" });
 
@@ -342,28 +378,25 @@ describeWithPostgres("ST-105 prompt-to-video runs (Postgres)", () => {
     await expect(service().resume({ ...scope, correlationId })).rejects.toMatchObject({ statusCode: 409 });
   });
 
-  it("never commits a start or resume without the tick job that advances it", async () => {
-    const failing = new PostgresOneShotService(
-      database!.client,
-      pilotCohort,
-      {
-        schedule: async () => {
-          throw new Error("outbox unavailable");
-        },
+  it("never commits a confirmation or resume without the tick job that advances it", async () => {
+    const failing = service(3, {
+      schedule: async () => {
+        throw new Error("outbox unavailable");
       },
-      renderGate,
-      { pricing, maxRunsPerHour: 3 },
-      now,
-    );
-    await expect(
-      failing.create({ ...scope, body, idempotencyKey: "start-1", correlationId }),
-    ).rejects.toThrow("outbox unavailable");
-    // Nothing was committed: no run, no audit, and the key is still free.
-    expect(await database!.client.select().from(oneShotRuns)).toHaveLength(0);
-    expect(await database!.client.select().from(auditEvents)).toHaveLength(0);
+    });
+    await expect(start("start-1", failing)).rejects.toThrow("outbox unavailable");
+    // The confirmation rolled back: the brief still waits for it, and no run
+    // was started.
+    expect(await latestRun()).toMatchObject({ status: "brief_ready", confirmedBriefRevision: null });
+    expect(
+      await database!.client
+        .select()
+        .from(auditEvents)
+        .where(eq(auditEvents.eventType, "one_shot.run_started")),
+    ).toHaveLength(0);
 
     fake.failNext.add("outline");
-    await service().create({ ...scope, body, idempotencyKey: "start-1", correlationId });
+    await confirm(1);
     const stopped = await pump();
     expect(stopped.status).toBe("needs_attention");
     await expect(failing.resume({ ...scope, correlationId })).rejects.toThrow("outbox unavailable");
@@ -374,25 +407,54 @@ describeWithPostgres("ST-105 prompt-to-video runs (Postgres)", () => {
     });
   });
 
-  it("refuses to start a run on a project with no usable source document", async () => {
+  it("refuses a brief on a project with no usable source document", async () => {
     await database!.client
       .update(sourceDocuments)
       .set({ status: "rejected" })
       .where(eq(sourceDocuments.projectId, projectId));
-    await expect(
-      service().create({ ...scope, body, idempotencyKey: "start-1", correlationId }),
-    ).rejects.toMatchObject({ statusCode: 409 });
+    await expect(start("start-1")).rejects.toMatchObject({ statusCode: 409 });
     expect(await database!.client.select().from(oneShotRuns)).toHaveLength(0);
+    expect(briefs.calls).toHaveLength(0);
+  });
+
+  it("ST-107: two brief revisions racing store one revision each or answer 409, never a 500", async () => {
+    await service().brief({ ...scope, body: briefBody, idempotencyKey: "race-0", correlationId });
+    const results = await Promise.allSettled([
+      service().brief({ ...scope, body: { ...briefBody, focusPrompt: "Explain truss joints." }, idempotencyKey: "race-a", correlationId }),
+      service().brief({ ...scope, body: { ...briefBody, focusPrompt: "Explain truss members." }, idempotencyKey: "race-b", correlationId }),
+    ]);
+    expect(results.some((result) => result.status === "fulfilled")).toBe(true);
+    for (const result of results)
+      if (result.status === "rejected")
+        expect(result.reason).toMatchObject({ statusCode: 409 });
+    // The run is confirmable afterwards.
+    const latest = await service().currentBrief(scope);
+    expect(latest.brief!.revision).toBeGreaterThanOrEqual(2);
+    expect((await latestRun()).status).toBe("brief_ready");
+  });
+
+  it("ST-107: waiting for the document to be read never uses up a brief call", async () => {
+    briefs.ready = false;
+    for (const key of ["wait-1", "wait-2", "wait-3", "wait-4"])
+      await expect(
+        service().brief({ ...scope, body: briefBody, idempotencyKey: key, correlationId }),
+      ).rejects.toMatchObject({ statusCode: 409, retryable: true });
+    expect(await database!.client.select().from(oneShotRuns)).toHaveLength(0);
+    expect(briefs.calls).toHaveLength(0);
+
+    briefs.ready = true;
+    const prepared = await service().brief({ ...scope, body: briefBody, idempotencyKey: "wait-5", correlationId });
+    expect(prepared).toMatchObject({ revisionsUsed: 1, maxRevisions: 3, brief: { revision: 1 } });
   });
 
   it("refuses to render before the run awaits render approval", async () => {
-    await service().create({ ...scope, body, idempotencyKey: "start-1", correlationId });
+    await start("start-1");
     await expect(service().render({ ...scope, correlationId })).rejects.toMatchObject({ statusCode: 409 });
     expect(renderCalls).toEqual([]);
   });
 
   it("makes ticks of a cancelled run no-ops and frees the project for a new run", async () => {
-    await service().create({ ...scope, body, idempotencyKey: "start-1", correlationId });
+    await start("start-1");
     clock = new Date(clock.getTime() + 3_000);
     await pumpOnce();
     const cancelled = await service().cancel({ ...scope, correlationId });
@@ -410,16 +472,18 @@ describeWithPostgres("ST-105 prompt-to-video runs (Postgres)", () => {
     expect(ticks.map((job) => job.resultMetadata)).toContainEqual({ outcome: "not_ticking" });
     expect(ticks.every((job) => job.state === "succeeded")).toBe(true);
 
-    const next = await service().create({ ...scope, body, idempotencyKey: "start-2", correlationId });
+    const next = await start("start-2");
     expect(next.run!.status).toBe("queued");
+    expect(next.run!.id).not.toBe(cancelled.run!.id);
   });
 
   it("drains in-flight runs when the flag is turned off, while rejecting new ones", async () => {
-    await service().create({ ...scope, body, idempotencyKey: "start-1", correlationId });
+    await start("start-1");
     cohort.enabled = false;
     await expect(
-      service().create({ ...scope, body, idempotencyKey: "start-2", correlationId }),
+      service().brief({ ...scope, body: briefBody, idempotencyKey: "start-2", correlationId }),
     ).rejects.toMatchObject({ statusCode: 409 });
+    await expect(confirm(1)).rejects.toMatchObject({ statusCode: 409 });
     const run = await pump();
     expect(run.status).toBe("awaiting_render_approval");
     // Cohort members can still see their run.
@@ -427,7 +491,7 @@ describeWithPostgres("ST-105 prompt-to-video runs (Postgres)", () => {
   });
 
   it("never exposes or advances a run from another tenant's scope", async () => {
-    const { run } = await service().create({ ...scope, body, idempotencyKey: "start-1", correlationId });
+    const { run } = await start("start-1");
     cohort.members.add(otherOwnerUserId);
     const foreign = await service().current({ ownerUserId: otherOwnerUserId, projectId });
     expect(foreign.run).toBeNull();
@@ -440,24 +504,17 @@ describeWithPostgres("ST-105 prompt-to-video runs (Postgres)", () => {
     expect((await latestRun()).status).toBe("queued");
   });
 
-  it("rejects an accepted estimate below the current one and enforces the hourly run limit", async () => {
+  it("rejects an accepted estimate below the brief's and enforces the hourly run limit", async () => {
+    const prepared = await service(2).brief({ ...scope, body: briefBody, idempotencyKey: "cheap", correlationId });
     await expect(
-      service().create({
-        ...scope,
-        body: { ...body, acceptedEstimateUsd: estimate.totalUsd - 0.01 },
-        idempotencyKey: "cheap",
-        correlationId,
-      }),
+      confirm(prepared.brief!.revision, service(2), estimate.totalUsd - 0.01),
     ).rejects.toMatchObject({ statusCode: 409 });
+    await service(2).cancel({ ...scope, correlationId });
 
-    for (const key of ["q-1", "q-2"]) {
-      clock = new Date(clock.getTime() + 1_000);
-      await service(2).create({ ...scope, body, idempotencyKey: key, correlationId });
-      await service(2).cancel({ ...scope, correlationId });
-    }
-    await expect(
-      service(2).create({ ...scope, body, idempotencyKey: "q-3", correlationId }),
-    ).rejects.toMatchObject({ statusCode: 429 });
+    clock = new Date(clock.getTime() + 1_000);
+    await start("q-1", service(2));
+    await service(2).cancel({ ...scope, correlationId });
+    await expect(start("q-2", service(2))).rejects.toMatchObject({ statusCode: 429 });
     const rows = await database!.client
       .select()
       .from(oneShotRuns)

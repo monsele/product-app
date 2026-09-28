@@ -14,6 +14,19 @@
  * stop condition, timeout and resume path unit-testable against a fake
  * gateway.
  *
+ * ST-107 adds, for runs with a confirmed brief:
+ *
+ * - a budget guard before every paid action: a call that would take actual
+ *   spend past the reservation's cap stops the run with ONE_SHOT_BUDGET_CAP
+ *   before the call, and proposes a new estimate to accept;
+ * - bounded self-repair after validation (at most two rounds of at most four
+ *   scenes, through the existing scene-regeneration job), where validation
+ *   alone decides what is wrong and whether a round helped;
+ * - the brief-promise check before the preview (coverage by citation, the
+ *   duration band, and the pinned style pack and sound bed);
+ * - decision-log entries for every automatic decision, and the ST-103 render
+ *   review on the render it tracks.
+ *
  * The runner is a *client* of the existing services. It never bypasses their
  * checks (snapshot staleness, `expectedRevision`, grounding, validation,
  * version and render requirements); a service refusal becomes
@@ -23,16 +36,45 @@
  */
 
 import { PublicError, type Identifier } from "@avlp/config";
-import type { ObjectiveFocusCoverage } from "@avlp/schemas";
+import {
+  currentSceneRegenerationCompatibility,
+  type CreativeDesignPackId,
+  type ObjectiveFocusCoverage,
+  type SoundBedChoice,
+} from "@avlp/schemas";
 import type {
   OneShotAttentionStage,
   OneShotAudience,
+  OneShotBriefCoveragePoint,
+  OneShotDecisionDraft,
   OneShotErrorCode,
+  OneShotEstimate,
+  OneShotLedgerStep,
   OneShotRunStatus,
   OneShotStep,
   OneShotStepDetail,
   OneShotStepRecord,
 } from "@avlp/schemas/one-shot";
+import { z } from "zod";
+import {
+  oneShotMaxRepairRounds,
+  oneShotMaxRepairScenesPerRound,
+  paidActionEstimateUsd,
+  proposedBudgetUsd,
+  wouldExceedCap,
+  type OneShotPaidAction,
+} from "./one-shot-budget.js";
+import {
+  checkBriefPromises,
+  classifyFindings,
+  nextRepairRound,
+  planCoverageRepair,
+  planRepairRound,
+  type PlannedRepair,
+  type RepairFinding,
+  type RepairObjective,
+  type RepairScene,
+} from "./one-shot-repair.js";
 
 /** A step with no progress for this long fails with ONE_SHOT_STEP_TIMEOUT. */
 export const oneShotStepTimeoutMs = 20 * 60 * 1_000;
@@ -118,12 +160,53 @@ export type ValidationOutcome = {
   status: "passed" | "failed";
   errors: number;
   warnings: number;
+  /** ST-107. Every unacknowledged error and warning, for the repair map. */
+  findings?: RepairFinding[];
+};
+
+/** ST-103's post-render review, as the runner needs it. */
+export type RenderReviewState = {
+  outcome: "passed" | "failed";
+  findings: { code: string; severity: "error" | "warning"; detail: string }[];
 };
 
 export type RenderState = {
   status: "queued" | "running" | "completed" | "failed" | "cancelled";
   progress: number;
   errorCode: string | null;
+  /** ST-107. `null` until the render has been reviewed. */
+  review?: RenderReviewState | null;
+};
+
+/** ST-107. What repair planning needs to know about the working storyboard. */
+export type RepairContext = {
+  scenes: (RepairScene & { sectionIds: readonly string[] })[];
+  objectives: RepairObjective[];
+};
+
+/** ST-107. A scene-regeneration job the run queued, and its candidate. */
+export type SceneRepairStatus = {
+  job: OneShotJobStatus | null;
+  candidate: {
+    id: Identifier;
+    /** `accepted` or `rejected` when a tick that settled it died before
+     * saving; the runner then records the settlement without acting again. */
+    status: "pending" | "accepted" | "rejected";
+    /** Every source block the scene cited before is still cited. */
+    keepsSourceRefs: boolean;
+    costUsd: number;
+    modelCallId: Identifier;
+  } | null;
+};
+
+/** ST-107. What the brief-promise check reads. */
+export type PromiseState = {
+  sceneSections: { sceneId: string; order: number; sectionIds: string[] }[];
+  sectionOrder: ReadonlyMap<string, number>;
+  measuredDurationSeconds: number;
+  toleranceSeconds: number;
+  /** What a lesson version saved now would pin (the configuration). */
+  pinned: { stylePackId: string | null; soundBed: string | null };
 };
 
 export type IngestionState =
@@ -137,6 +220,9 @@ export type ConfigurationState = {
   ageBand: string;
   difficulty: string;
   targetDurationSeconds: number;
+  /** ST-107. */
+  creativeStylePack?: string | null;
+  soundBed?: string;
 };
 
 /**
@@ -167,6 +253,9 @@ export interface OneShotStageGateway {
       focusPrompt: string;
       audience: OneShotAudience;
       targetDurationSeconds: 180 | 300 | 420;
+      /** ST-107. The confirmed brief's choices; omitted without a brief. */
+      creativeStylePack?: CreativeDesignPackId;
+      soundBed?: SoundBedChoice;
     },
   ): Promise<{ version: number }>;
   saveDefaultVoice(context: OneShotCallContext): Promise<void>;
@@ -177,6 +266,7 @@ export interface OneShotStageGateway {
   generate(
     context: OneShotCallContext,
     stage: ApprovalStage | "storyboard",
+    options?: { briefCoverage?: readonly string[] },
   ): Promise<{ jobId: Identifier }>;
   approve(
     context: OneShotCallContext,
@@ -206,6 +296,27 @@ export interface OneShotStageGateway {
   render(scope: OneShotScope, renderJobId: Identifier): Promise<RenderState>;
   /** Actual spend so far: usage records carrying the run's correlation id. */
   costSoFar(scope: OneShotScope, correlationId: Identifier): Promise<number>;
+  /** ST-107. Scenes and objectives of the working storyboard. */
+  repairContext(scope: OneShotScope): Promise<RepairContext>;
+  /** ST-107. Queues the existing scene-regeneration job for one fix. */
+  requestSceneRepair(
+    context: OneShotCallContext,
+    repair: { sceneId: string; mode: PlannedRepair["mode"]; instruction: string },
+  ): Promise<{ jobId: Identifier }>;
+  sceneRepairStatus(
+    scope: OneShotScope,
+    repair: { sceneId: string; jobId: Identifier },
+  ): Promise<SceneRepairStatus>;
+  applySceneRepair(
+    context: OneShotCallContext,
+    repair: { sceneId: string; candidateId: Identifier },
+  ): Promise<void>;
+  rejectSceneRepair(
+    context: OneShotCallContext,
+    repair: { sceneId: string; candidateId: Identifier },
+  ): Promise<void>;
+  /** ST-107. The inputs of the brief-promise check. */
+  promiseState(scope: OneShotScope): Promise<PromiseState>;
   /** Records an automatic approval, actor `one_shot_run`. */
   auditApproval(
     context: OneShotCallContext,
@@ -215,6 +326,67 @@ export interface OneShotStageGateway {
       revision?: number;
     },
   ): Promise<void>;
+}
+
+/** ST-107. The confirmed brief, as the runner uses it. */
+export type OneShotRunBrief = {
+  revision: number;
+  subject: string;
+  lessonTitle: string;
+  coverage: OneShotBriefCoveragePoint[];
+  stylePackId: CreativeDesignPackId;
+  soundBed: SoundBedChoice;
+  estimate: OneShotEstimate;
+};
+
+const repairItemSchema = z
+  .object({
+    sceneId: z.string().min(1).max(64),
+    order: z.number().int().nonnegative(),
+    code: z.string().min(1).max(64),
+    mode: z.enum(["shorten", "regenerate"]),
+    instruction: z.string().min(1).max(500),
+    state: z.enum(["planned", "queued", "applied", "discarded"]),
+    jobId: z.string().min(1).max(64).optional(),
+  })
+  .strict();
+
+/** ST-107. Bounded self-repair bookkeeping, persisted on the run. */
+export const oneShotRepairStateSchema = z
+  .object({
+    /** Validation repair rounds started (at most `oneShotMaxRepairRounds`). */
+    roundsDone: z.number().int().nonnegative(),
+    /** Repairable findings when the last round started. */
+    countBeforeLastRound: z.number().int().nonnegative().nullable(),
+    coverageRoundUsed: z.boolean(),
+    /** Why repair ended, once it has. It never restarts after that. */
+    stopped: z
+      .enum(["exhausted", "no_progress", "nothing_to_repair", "failed"])
+      .nullable(),
+    active: z
+      .object({
+        round: z.number().int().positive(),
+        kind: z.enum(["validation", "coverage"]),
+        items: z.array(repairItemSchema).max(oneShotMaxRepairScenesPerRound),
+      })
+      .strict()
+      .nullable(),
+  })
+  .strict();
+export type OneShotRepairState = z.infer<typeof oneShotRepairStateSchema>;
+
+export const emptyOneShotRepairState: OneShotRepairState = {
+  roundsDone: 0,
+  countBeforeLastRound: null,
+  coverageRoundUsed: false,
+  stopped: null,
+  active: null,
+};
+
+/** Reads persisted repair state; anything unreadable starts empty. */
+export function readOneShotRepairState(value: unknown): OneShotRepairState {
+  const parsed = oneShotRepairStateSchema.safeParse(value);
+  return parsed.success ? parsed.data : emptyOneShotRepairState;
 }
 
 /** The persisted run state a tick starts from. */
@@ -231,6 +403,11 @@ export type OneShotRunState = {
   resumeCount: number;
   lastProgressAt: Date;
   renderJobId: Identifier | null;
+  /** ST-107. `null` (or absent) for runs from before briefs existed. */
+  brief?: OneShotRunBrief | null;
+  budget?: { reservedUsd: number; capUsd: number } | null;
+  repair?: OneShotRepairState;
+  coverageGaps?: readonly string[];
 };
 
 /** What a tick asks the service to persist. */
@@ -249,6 +426,15 @@ export type OneShotTickResult = {
   actualCostUsd: number;
   /** Schedule another tick. False for every terminal or waiting status. */
   reschedule: boolean;
+  /** ST-107. Decisions to append to the run's log, in order. */
+  decisions: OneShotDecisionDraft[];
+  /** ST-107. Present when the repair state changed this tick. */
+  repair?: OneShotRepairState;
+  /** ST-107. Present when the unmet coverage points changed this tick. */
+  coverageGaps?: string[];
+  /** ST-107. The estimate to accept after ONE_SHOT_BUDGET_CAP; `null`
+   * otherwise. */
+  budgetProposalUsd: number | null;
 };
 
 type Outcome =
@@ -263,6 +449,48 @@ type Outcome =
       jobId?: Identifier;
       terminal?: boolean;
     };
+
+/** Ledger lines still ahead of each pipeline step, for a budget proposal. */
+const ledgerOrder: readonly OneShotLedgerStep[] = [
+  "objectives",
+  "outline",
+  "narration",
+  "storyboard",
+  "illustrations",
+  "grounding",
+  "audio",
+  "repair",
+];
+
+function remainingLedgerSteps(step: OneShotStep): OneShotLedgerStep[] {
+  const from: OneShotLedgerStep | null =
+    step === "objectives" ||
+    step === "outline" ||
+    step === "narration" ||
+    step === "storyboard" ||
+    step === "illustrations" ||
+    step === "grounding" ||
+    step === "audio"
+      ? step
+      : step === "validation"
+        ? "repair"
+        : null;
+  if (from === null) return [...ledgerOrder];
+  return ledgerOrder.slice(ledgerOrder.indexOf(from));
+}
+
+const repairCodeLabels: Readonly<Record<string, string>> = {
+  text_overflow: "on-screen text overflowed its layout",
+  scene_monotony: "too many scenes in a row used the same template",
+  scene_duration_out_of_range: "the scene length did not match its allocation",
+  objective_uncovered: "a learning objective was not covered",
+  brief_coverage: "a confirmed brief point was not covered",
+};
+
+/** "Round 1", "Round 2", or "Coverage fix" for the brief-coverage round. */
+function roundLabel(active: { round: number; kind: "validation" | "coverage" }): string {
+  return active.kind === "coverage" ? "Coverage fix" : `Round ${active.round}`;
+}
 
 const pipelineSteps = [
   "ingestion",
@@ -346,6 +574,19 @@ export async function advanceOneShotRun(input: {
   const timestamp = now.toISOString();
   let progressed = false;
   let focusCoverage: ObjectiveFocusCoverage | null | undefined;
+  const brief = run.brief ?? null;
+  const budget = run.budget ?? null;
+  const decisions: OneShotDecisionDraft[] = [];
+  // Never mutated in place: every change builds new objects (`setRepair`, and
+  // `continueRepair` copies the items it updates).
+  let repair: OneShotRepairState = run.repair ?? emptyOneShotRepairState;
+  let repairChanged = false;
+  let coverageGaps: string[] | undefined;
+  let budgetProposalUsd: number | null = null;
+  const setRepair = (next: OneShotRepairState) => {
+    repair = next;
+    repairChanged = true;
+  };
 
   const context = (step: OneShotStep, suffix = ""): OneShotCallContext => ({
     ...scope,
@@ -401,7 +642,14 @@ export async function advanceOneShotRun(input: {
   const finish = async (
     partial: Omit<
       OneShotTickResult,
-      "steps" | "progressed" | "actualCostUsd" | "focusCoverage"
+      | "steps"
+      | "progressed"
+      | "actualCostUsd"
+      | "focusCoverage"
+      | "decisions"
+      | "repair"
+      | "coverageGaps"
+      | "budgetProposalUsd"
     >,
   ): Promise<OneShotTickResult> => {
     const actualCostUsd = await gateway.costSoFar(scope, run.correlationId);
@@ -413,8 +661,43 @@ export async function advanceOneShotRun(input: {
       steps: ordered,
       progressed,
       actualCostUsd,
+      decisions,
+      budgetProposalUsd,
       ...(focusCoverage === undefined ? {} : { focusCoverage }),
+      ...(repairChanged ? { repair } : {}),
+      ...(coverageGaps === undefined ? {} : { coverageGaps }),
     };
+  };
+
+  /**
+   * ST-107. Stops before a paid action that would take actual spend past the
+   * cap. Runs without a brief have no reservation and are never stopped here.
+   */
+  const guard = async (
+    step: OneShotStep,
+    action: OneShotPaidAction,
+  ): Promise<Outcome | null> => {
+    if (brief === null || budget === null) return null;
+    const next = paidActionEstimateUsd(brief.estimate, action);
+    const actualUsd = await gateway.costSoFar(scope, run.correlationId);
+    if (!wouldExceedCap({ actualUsd, nextCallEstimateUsd: next, capUsd: budget.capUsd }))
+      return null;
+    budgetProposalUsd = proposedBudgetUsd({
+      actualUsd,
+      estimate: brief.estimate,
+      remainingSteps: remainingLedgerSteps(step),
+      blockedCallEstimateUsd: next,
+    });
+    return {
+      kind: "attention",
+      stage: step === "validation" ? "preview" : step,
+      errorCode: "ONE_SHOT_BUDGET_CAP",
+      message: `The next step would take this video past its budget cap of $${budget.capUsd.toFixed(2)} ($${actualUsd.toFixed(2)} spent so far). Accept the new estimate of $${budgetProposalUsd.toFixed(2)} to continue.`,
+    };
+  };
+
+  const autoApproval = (summary: string, relatedIds: Identifier[]) => {
+    decisions.push({ kind: "auto_approval", summary, relatedIds });
   };
 
   const timedOut = () =>
@@ -453,10 +736,53 @@ export async function advanceOneShotRun(input: {
         jobId: run.renderJobId,
         detail: { progress: 1 },
       });
+      const warnings =
+        render.review?.findings.filter((finding) => finding.severity === "warning") ??
+        [];
+      if (warnings.length > 0)
+        decisions.push({
+          kind: "render_review",
+          summary: `The finished video passed its review with ${warnings.length} warning${warnings.length === 1 ? "" : "s"}: ${warnings.map((finding) => finding.code).join(", ")}.`.slice(0, 500),
+          reason: warnings.map((finding) => finding.detail).join(" ").slice(0, 500),
+          relatedIds: [run.renderJobId],
+        });
       return finish({
         status: "completed",
         currentStep: null,
         needsAttention: null,
+        reschedule: false,
+      });
+    }
+    if (
+      (render.status === "failed" || render.status === "cancelled") &&
+      render.review?.outcome === "failed"
+    ) {
+      // ST-103 review found an error: the render goes back to the user with
+      // the findings; resuming leads to a new render approval.
+      const errors = render.review.findings.filter(
+        (finding) => finding.severity === "error",
+      );
+      record("render", "needs_attention", { jobId: run.renderJobId });
+      decisions.push({
+        kind: "render_review",
+        summary: `The finished video failed its review: ${errors.map((finding) => finding.code).join(", ")}.`.slice(0, 500),
+        reason: errors.map((finding) => finding.detail).join(" ").slice(0, 500),
+        relatedIds: [run.renderJobId],
+      });
+      return finish({
+        status: "needs_attention",
+        currentStep: "render",
+        needsAttention: {
+          stage: "render",
+          errorCode: "RENDER_REVIEW_FAILED",
+          // The review is deterministic and render identity is content-
+          // addressed: the same lesson renders to the same result, so the
+          // lesson must change before a retry can succeed. That instruction
+          // leads, so trimming long findings never cuts it.
+          message: `The finished video failed its quality review. Fix these in the editor, then retry the render: ${errors
+            .map((finding) => `${finding.code}: ${finding.detail}`)
+            .join("; ")}`.slice(0, 500),
+        },
         reschedule: false,
       });
     }
@@ -490,6 +816,13 @@ export async function advanceOneShotRun(input: {
 
   // ---- The pipeline, re-evaluated from the first step every tick. --------
   for (const step of pipelineSteps) {
+    // A repair round changes scenes one at a time; grounding and audio wait
+    // for the whole round, then re-run once for every touched scene.
+    if (
+      repair.active !== null &&
+      (step === "illustrations" || step === "grounding" || step === "audio")
+    )
+      continue;
     let outcome: Outcome;
     try {
       outcome = await evaluateStep(step);
@@ -602,6 +935,9 @@ export async function advanceOneShotRun(input: {
       step: "source_snapshot",
       target: { type: "source_snapshot", id: approved.snapshotId },
     });
+    autoApproval("Approved the source review automatically.", [
+      approved.snapshotId,
+    ]);
     return { kind: "acted" };
   }
 
@@ -621,16 +957,24 @@ export async function advanceOneShotRun(input: {
       configuration.focusPrompt === run.focusPrompt &&
       configuration.ageBand === run.audience.ageBand &&
       configuration.difficulty === run.audience.difficulty &&
-      configuration.targetDurationSeconds === run.targetDurationSeconds;
+      configuration.targetDurationSeconds === run.targetDurationSeconds &&
+      (brief === null ||
+        (configuration.creativeStylePack === brief.stylePackId &&
+          configuration.soundBed === brief.soundBed));
     const configured =
       configuration !== null &&
       configuration.focusPrompt !== null &&
       (ownConfiguration || matchesRequest);
     if (!configured) {
-      const intent = await gateway.inferIntent(
-        context("configuration", ":intent"),
-        run.focusPrompt,
-      );
+      // ST-107: the confirmed brief already names the subject and title, so
+      // a run with a brief makes no lesson-intent call.
+      const intent =
+        brief === null
+          ? await gateway.inferIntent(
+              context("configuration", ":intent"),
+              run.focusPrompt,
+            )
+          : { subject: brief.subject, lessonTitle: brief.lessonTitle };
       const saved = await gateway.saveConfiguration(context("configuration"), {
         expectedVersion: configuration?.version ?? 0,
         subject: intent.subject,
@@ -638,6 +982,9 @@ export async function advanceOneShotRun(input: {
         focusPrompt: run.focusPrompt,
         audience: run.audience,
         targetDurationSeconds: run.targetDurationSeconds,
+        ...(brief === null
+          ? {}
+          : { creativeStylePack: brief.stylePackId, soundBed: brief.soundBed }),
       });
       return { kind: "acted", detail: { configurationVersion: saved.version } };
     }
@@ -699,11 +1046,23 @@ export async function advanceOneShotRun(input: {
         target: { type: approvalTarget[stage], id: approved.approvedId },
         revision: approved.revision,
       });
+      autoApproval(
+        `Approved the ${stage} automatically (revision ${approved.revision}).`,
+        [approved.approvedId],
+      );
       return { kind: "acted" };
     }
 
     // Idle, failed without a set, or stale: (re)generate.
-    const queued = await gateway.generate(context(stage), stage);
+    const stop = await guard(stage, "model_call");
+    if (stop !== null) return stop;
+    const queued = await gateway.generate(
+      context(stage),
+      stage,
+      stage === "objectives" && brief !== null
+        ? { briefCoverage: brief.coverage.map((entry) => entry.point) }
+        : undefined,
+    );
     return { kind: "acted", jobId: queued.jobId };
   }
 
@@ -730,6 +1089,8 @@ export async function advanceOneShotRun(input: {
         kind: "done",
         detail: { lessonSpecId: current.lessonSpecId },
       };
+    const stop = await guard("storyboard", "model_call");
+    if (stop !== null) return stop;
     const queued = await gateway.generate(context("storyboard"), "storyboard");
     return { kind: "acted", jobId: queued.jobId };
   }
@@ -743,6 +1104,8 @@ export async function advanceOneShotRun(input: {
     // pay for the same slot again.
     const requestedFor = previous?.detail?.requestedFor;
     if (requestedFor !== storyboard.lessonSpecId) {
+      const stop = await guard("illustrations", "illustrations");
+      if (stop !== null) return stop;
       const requested = await gateway.requestIllustrations(
         context("illustrations", `:${storyboard.lessonSpecId}`),
       );
@@ -766,6 +1129,10 @@ export async function advanceOneShotRun(input: {
         target: { type: "illustration_candidate", id: next.candidateId },
         revision: next.sceneRevision,
       });
+      autoApproval(
+        `Accepted a generated illustration for a decorative "${next.slot}" slot.`,
+        [next.candidateId, next.sceneId],
+      );
       return { kind: "acted" };
     }
     // Slots without an acceptable candidate stay empty for validation to
@@ -795,6 +1162,8 @@ export async function advanceOneShotRun(input: {
       current.latestJob.id === ownJob
     )
       return stageFailure("grounding", current.latestJob);
+    const stop = await guard("grounding", "model_call");
+    if (stop !== null) return stop;
     const queued = await gateway.requestGrounding(
       context("grounding", `:${spec.lessonSpecId}:${spec.revision}`),
       spec,
@@ -826,25 +1195,308 @@ export async function advanceOneShotRun(input: {
         errorCode: "STAGE_JOB_FAILED",
         message: `Narration audio failed for ${audio.failed} scene${audio.failed === 1 ? "" : "s"}. Retry it in the wizard, then resume the run.`,
       };
-    await gateway.requestAudio(context("audio"));
+    const stop = await guard("audio", "audio");
+    if (stop !== null) return stop;
+    // After a repair round only the touched scenes are missing audio, so this
+    // re-voices exactly those; the key changes with the round.
+    await gateway.requestAudio(
+      context("audio", repair.roundsDone > 0 || repair.coverageRoundUsed ? `:repair:${repairRoundCount()}` : ""),
+    );
     return { kind: "acted", detail };
   }
 
+  /** Repair rounds started so far, validation and coverage together. */
+  function repairRoundCount(): number {
+    return repair.roundsDone + (repair.coverageRoundUsed ? 1 : 0);
+  }
+
   async function evaluateValidation(): Promise<Outcome> {
+    // ST-107: a repair round in progress finishes before anything is
+    // validated again.
+    if (brief !== null && repair.active !== null) return continueRepair();
     const result = await gateway.validate(scope);
-    const detail = {
+    const detail: OneShotStepDetail = {
       validationRunId: result.runId,
       errors: result.errors,
       warnings: result.warnings,
+      ...(brief === null ? {} : { repairRounds: repairRoundCount() }),
     };
-    if (result.status === "passed") return { kind: "done", detail };
-    // Warnings are recorded, never acknowledged; errors always block.
-    return {
+    const blocking = (errors: number): Outcome => ({
       kind: "attention",
       stage: "preview",
       errorCode: "VALIDATION_BLOCKING",
-      message: `Validation found ${result.errors} blocking issue${result.errors === 1 ? "" : "s"}. Fix ${result.errors === 1 ? "it" : "them"} from the preview, then resume the run.`,
-    };
+      message: `Validation found ${errors} blocking issue${errors === 1 ? "" : "s"}. Fix ${errors === 1 ? "it" : "them"} from the preview, then resume the run.`,
+    });
+    if (brief === null) {
+      if (result.status === "passed") return { kind: "done", detail };
+      // Warnings are recorded, never acknowledged; errors always block.
+      return blocking(result.errors);
+    }
+
+    const { repairable, blockingUnrepairable } = classifyFindings(
+      result.findings ?? [],
+    );
+    // Anything outside the repair map goes straight to the user. Grounding
+    // findings in particular are never repaired or acknowledged here.
+    if (blockingUnrepairable.length > 0) {
+      const grounding = blockingUnrepairable.some((finding) =>
+        finding.code.startsWith("grounding") ||
+        finding.code === "generated_addition_unlabelled",
+      );
+      return {
+        kind: "attention",
+        stage: "preview",
+        errorCode: "VALIDATION_BLOCKING",
+        message: `Validation found ${blockingUnrepairable.length} issue${blockingUnrepairable.length === 1 ? "" : "s"} that cannot be fixed automatically${grounding ? ", including source-grounding findings, which always need your review" : ""}. Fix ${blockingUnrepairable.length === 1 ? "it" : "them"} from the preview, then resume the run.`.slice(0, 500),
+      };
+    }
+
+    if (repairable.length > 0 && repair.stopped === null) {
+      const next = nextRepairRound({
+        roundsDone: repair.roundsDone,
+        maxRounds: oneShotMaxRepairRounds,
+        countBeforeLastRound: repair.countBeforeLastRound,
+        countNow: repairable.length,
+      });
+      if (next.action === "start") {
+        const repairContext = await gateway.repairContext(scope);
+        const planned = planRepairRound({
+          findings: repairable,
+          scenes: repairContext.scenes,
+          objectives: repairContext.objectives,
+          maxScenes: oneShotMaxRepairScenesPerRound,
+        });
+        if (planned.length > 0) {
+          setRepair({
+            ...repair,
+            roundsDone: next.round,
+            countBeforeLastRound: repairable.length,
+            active: {
+              round: next.round,
+              kind: "validation",
+              items: planned.map((entry) => ({
+                ...entry,
+                order:
+                  repairContext.scenes.find((scene) => scene.sceneId === entry.sceneId)
+                    ?.order ?? 0,
+                state: "planned" as const,
+              })),
+            },
+          });
+          return continueRepair();
+        }
+        stopRepair("nothing_to_repair", repairable.length);
+      } else stopRepair(next.reason, repairable.length);
+    }
+
+    // Repair is over or was never needed: what remains decides. Warnings are
+    // listed, never acknowledged; an error the repairs did not fix blocks.
+    const errorsLeft = Math.max(
+      repairable.filter((finding) => finding.severity === "error").length,
+      result.errors,
+    );
+    if (errorsLeft > 0 || result.status !== "passed")
+      return {
+        kind: "attention",
+        stage: "preview",
+        errorCode: "VALIDATION_BLOCKING",
+        message: `Automatic fixes did not resolve ${errorsLeft} blocking issue${errorsLeft === 1 ? "" : "s"}. Fix ${errorsLeft === 1 ? "it" : "them"} from the preview, then resume the run.`,
+      };
+    return checkPromises(detail);
+  }
+
+  function stopRepair(
+    reason: NonNullable<OneShotRepairState["stopped"]>,
+    remaining: number,
+  ) {
+    setRepair({ ...repair, stopped: reason, active: null });
+    if (reason === "nothing_to_repair" && remaining === 0) return;
+    decisions.push({
+      kind: "repair",
+      summary:
+        reason === "exhausted"
+          ? `Stopped automatic fixes after ${repair.roundsDone} rounds with ${remaining} finding${remaining === 1 ? "" : "s"} left.`
+          : reason === "no_progress"
+            ? `Stopped automatic fixes: the last round did not reduce the findings (${remaining} left).`
+            : reason === "failed"
+              ? "Stopped automatic fixes: a fix did not finish."
+              : `Stopped automatic fixes: no scene could be regenerated for the ${remaining} remaining finding${remaining === 1 ? "" : "s"}.`,
+      reason: "Repair is bounded to two rounds of at most four scenes, and a round must reduce the findings to continue.",
+    });
+  }
+
+  /**
+   * One repair action per tick: queue the next planned fix, else wait for or
+   * apply the next queued one. When every fix of the round is settled, the
+   * round ends; the next ticks re-run grounding and audio for the touched
+   * scenes, then validation decides whether the round helped.
+   */
+  async function continueRepair(): Promise<Outcome> {
+    const active = repair.active;
+    if (active === null) return { kind: "wait" };
+    const items = active.items.map((item) => ({ ...item }));
+    const save = () => setRepair({ ...repair, active: { ...active, items } });
+    const planned = items.find((item) => item.state === "planned");
+    if (planned !== undefined) {
+      const stop = await guard("validation", "repair_scene");
+      if (stop !== null) return stop;
+      const queued = await gateway.requestSceneRepair(
+        {
+          ...scope,
+          correlationId: run.correlationId,
+          oneShotRunId: run.id,
+          requestKey: `oneshot:${run.id}:repair:${active.round}:${planned.sceneId}`,
+        },
+        planned,
+      );
+      planned.state = "queued";
+      planned.jobId = queued.jobId;
+      save();
+      decisions.push({
+        kind: "repair",
+        summary: `${roundLabel(active)}: regenerating scene ${planned.order} because ${repairCodeLabels[planned.code] ?? planned.code}.`,
+        reason: planned.instruction,
+        model: currentSceneRegenerationCompatibility.model,
+        promptVersion: `${currentSceneRegenerationCompatibility.promptId}/${currentSceneRegenerationCompatibility.promptVersion}`,
+        relatedIds: [queued.jobId],
+      });
+      return { kind: "acted", jobId: queued.jobId };
+    }
+    for (const item of items) {
+      if (item.state !== "queued" || item.jobId === undefined) continue;
+      const status = await gateway.sceneRepairStatus(scope, {
+        sceneId: item.sceneId,
+        jobId: item.jobId as Identifier,
+      });
+      if (isActive(status.job)) return { kind: "wait" };
+      if (status.candidate === null) {
+        stopRepair("failed", 0);
+        return {
+          kind: "attention",
+          stage: "preview",
+          errorCode: "VALIDATION_BLOCKING",
+          message: `An automatic fix for scene ${item.order} did not finish${status.job?.errorCode ? ` (${status.job.errorCode})` : ""}. Fix the scene from the preview, then resume the run.`,
+        };
+      }
+      const repairContext = context("validation", `:repair:${active.round}:${item.sceneId}`);
+      if (status.candidate.status !== "pending") {
+        item.state = status.candidate.status === "accepted" ? "applied" : "discarded";
+        save();
+        continue;
+      }
+      if (!status.candidate.keepsSourceRefs) {
+        // Repairs must never remove source references: discard the fix.
+        await gateway.rejectSceneRepair(repairContext, {
+          sceneId: item.sceneId,
+          candidateId: status.candidate.id,
+        });
+        item.state = "discarded";
+        save();
+        decisions.push({
+          kind: "repair",
+          summary: `${roundLabel(active)}: discarded the fix for scene ${item.order} because it dropped source references.`,
+          model: currentSceneRegenerationCompatibility.model,
+          costUsd: status.candidate.costUsd,
+          relatedIds: [status.candidate.id, status.candidate.modelCallId],
+        });
+        return { kind: "acted" };
+      }
+      await gateway.applySceneRepair(repairContext, {
+        sceneId: item.sceneId,
+        candidateId: status.candidate.id,
+      });
+      item.state = "applied";
+      save();
+      decisions.push({
+        kind: "repair",
+        summary: `${roundLabel(active)}: applied the regenerated scene ${item.order}.`,
+        reason: repairCodeLabels[item.code] ?? item.code,
+        model: currentSceneRegenerationCompatibility.model,
+        promptVersion: `${currentSceneRegenerationCompatibility.promptId}/${currentSceneRegenerationCompatibility.promptVersion}`,
+        costUsd: status.candidate.costUsd,
+        relatedIds: [status.candidate.id, status.candidate.modelCallId],
+      });
+      return { kind: "acted" };
+    }
+    // Every fix of the round is settled.
+    setRepair({ ...repair, active: null });
+    return { kind: "acted" };
+  }
+
+  /**
+   * ST-107 brief-promise check, deterministic. An unmet coverage point gets
+   * one repair round; if it is still unmet, the preview lists it and the user
+   * decides. A duration or pinning mismatch is an error for the user.
+   */
+  async function checkPromises(detail: OneShotStepDetail): Promise<Outcome> {
+    if (brief === null) return { kind: "done", detail };
+    const state = await gateway.promiseState(scope);
+    const checked = checkBriefPromises({
+      coverage: brief.coverage,
+      sceneSections: state.sceneSections,
+      measuredDurationSeconds: state.measuredDurationSeconds,
+      targetDurationSeconds: run.targetDurationSeconds,
+      toleranceSeconds: state.toleranceSeconds,
+      confirmed: { stylePackId: brief.stylePackId, soundBed: brief.soundBed },
+      pinned: state.pinned,
+    });
+    if (checked.unmetCoverage.length > 0 && !repair.coverageRoundUsed) {
+      const planned = planCoverageRepair({
+        unmet: checked.unmetCoverage,
+        sceneSections: state.sceneSections,
+        sectionOrder: state.sectionOrder,
+        maxScenes: oneShotMaxRepairScenesPerRound,
+      });
+      setRepair({
+        ...repair,
+        coverageRoundUsed: true,
+        active:
+          planned.length === 0
+            ? null
+            : {
+                round: oneShotMaxRepairRounds + 1,
+                kind: "coverage",
+                items: planned.map((entry) => ({
+                  ...entry,
+                  order:
+                    state.sceneSections.find((scene) => scene.sceneId === entry.sceneId)
+                      ?.order ?? 0,
+                  state: "planned" as const,
+                })),
+              },
+      });
+      if (planned.length > 0) return continueRepair();
+    }
+    if (!checked.durationWithinBand)
+      return {
+        kind: "attention",
+        stage: "preview",
+        errorCode: "BRIEF_PROMISE_UNMET",
+        message: `The video runs ${Math.round(state.measuredDurationSeconds)} s, outside the ${state.toleranceSeconds} s band around the ${run.targetDurationSeconds} s the brief promised. Adjust the scenes from the preview, then resume the run.`,
+      };
+    if (!checked.stylePackPinned || !checked.soundBedPinned)
+      return {
+        kind: "attention",
+        stage: "configuration",
+        errorCode: "BRIEF_PROMISE_UNMET",
+        message: `The lesson setup no longer uses the ${!checked.stylePackPinned ? "style pack" : "sound bed"} confirmed in the brief. Restore it in the setup, then resume the run.`,
+      };
+    const gaps = checked.unmetCoverage.map((entry) => entry.point);
+    const previous = run.coverageGaps ?? [];
+    if (
+      gaps.length !== previous.length ||
+      gaps.some((point, index) => point !== previous[index])
+    ) {
+      coverageGaps = gaps;
+      for (const point of gaps.filter((entry) => !previous.includes(entry)))
+        decisions.push({
+          kind: "coverage_gap",
+          summary: `Not covered: ${point}`.slice(0, 500),
+          reason:
+            "No scene cites the document sections behind this brief point, even after one repair attempt. You decide whether to render.",
+        });
+    }
+    return { kind: "done", detail };
   }
 }
 

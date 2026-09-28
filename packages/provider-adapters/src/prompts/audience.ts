@@ -54,14 +54,39 @@ export function describePromptFocus(params: { focusPrompt?: unknown }): string {
     : "none";
 }
 
-/** Both focus-aware variables, derived from a job's generation params. */
+/**
+ * ST-107. The `{{briefCoverage}}` slot: the confirmed brief's coverage points
+ * (one per line in the job params) as a numbered list, or the literal `none`
+ * when the job has no brief.
+ */
+export function describeBriefCoverage(params: {
+  briefCoverage?: unknown;
+}): string {
+  const lines =
+    typeof params.briefCoverage === "string"
+      ? params.briefCoverage.split("\n")
+      : Array.isArray(params.briefCoverage)
+        ? params.briefCoverage
+        : [];
+  const points = lines.filter(
+    (point): point is string =>
+      typeof point === "string" && point.trim().length > 0,
+  );
+  return points.length === 0
+    ? "none"
+    : points.map((point, index) => `${index + 1}. ${point.trim()}`).join("\n");
+}
+
+/** The focus-aware variables, derived from a job's generation params. */
 export function focusAudienceVariables(params: {
   ageBand?: unknown;
   difficulty?: unknown;
   focusPrompt?: unknown;
+  briefCoverage?: unknown;
 }): PromptRenderVariables {
   return {
     focus: describePromptFocus(params),
     audience: describePromptAudience(params),
+    briefCoverage: describeBriefCoverage(params),
   };
 }

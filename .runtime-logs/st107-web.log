@@ -1,0 +1,42 @@
+
+> @avlp/web@0.0.0 dev D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web
+> next dev
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.193:3000
+
+ ✓ Starting...
+ ✓ Ready in 26.5s
+ ○ Compiling / ...
+ ✓ Compiled / in 9.3s (10487 modules)
+ GET / 200 in 10636ms
+ GET / 200 in 10655ms
+ ○ Compiling /sign-in ...
+ ✓ Compiled /sign-in in 3.5s (10533 modules)
+ GET /sign-in 200 in 4359ms
+ GET /sign-in 200 in 4354ms
+ GET /sign-in 200 in 4367ms
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 1324ms (158 modules)
+ ○ Compiling /workspace ...
+ ✓ Compiled /workspace in 5.6s (10839 modules)
+ GET /workspace 200 in 7656ms
+ GET /workspace 200 in 7660ms
+ GET /workspace 200 in 7665ms
+ ○ Compiling /api/projects ...
+ ✓ Compiled /api/projects in 10.2s (10856 modules)
+ POST /api/projects 303 in 10974ms
+ POST /api/projects 303 in 10985ms
+ POST /api/projects 303 in 10980ms
+ ○ Compiling /workspace/[projectId]/one-shot ...
+ ✓ Compiled /workspace/[projectId]/one-shot in 10.5s (14026 modules)
+ GET /workspace/01a0e4ea-dd16-7128-b447-9cb1f7e1be39/one-shot 200 in 30760ms
+ GET /workspace/01a0e4ea-dd17-7650-930b-27f60525a6e1/one-shot 200 in 30765ms
+ GET /workspace/01a0e4ea-dd16-7c7d-971f-48bc3a93155e/one-shot 200 in 30765ms
+ GET /workspace/01a0e4ea-dd16-7c7d-971f-48bc3a93155e/one-shot 200 in 628ms
+ GET /workspace/01a0e4ea-dd16-7128-b447-9cb1f7e1be39/one-shot 200 in 638ms
+ GET /workspace/01a0e4ea-dd17-7650-930b-27f60525a6e1/one-shot 200 in 500ms
+D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @avlp/web@0.0.0 dev: `next dev`
+Exit status 4294967295

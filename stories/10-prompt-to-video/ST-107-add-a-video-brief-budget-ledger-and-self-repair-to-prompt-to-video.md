@@ -2,7 +2,7 @@
 story_id: ST-107
 title: "Add a Video Brief, Run Budget Ledger, Bounded Self-Repair, and Decision Log to Prompt-to-Video"
 phase: "10 — Prompt to Video"
-status: Ready
+status: Done
 priority: should-have
 epics: ["E10", "E16", "E17", "E19", "E21"]
 prd_user_stories: ["E10-US1", "E10-US2", "E16-US1", "E16-US2", "E21-US1", "E21-US2"]
@@ -286,14 +286,344 @@ ST-088 (Done), ST-103, ST-104, ST-105 and ST-106. Do not start until all of them
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:**
-- **Commands/tests:**
-- **Screenshots/output:**
-- **Decisions/assumptions:**
-- **Deviations:**
-- **Known risks/follow-up:**
+- **Agent:** Claude Code (Opus 5.5).
+- **Started:** 2026-09-27.
+- **Completed:** 2026-09-28. Handed off as In Review.
+- **Branch/PR:** `feat/st-107-video-brief-budget-self-repair`, branched from
+  `feat/st-106-prompt-to-video-screens`. Nothing is committed or pushed yet,
+  and there is no PR.
+
+### Files changed
+
+**Contracts:**
+
+- `packages/schemas/src/one-shot.ts` adds:
+  - statuses `brief_pending` and `brief_ready`;
+  - error codes `ONE_SHOT_BUDGET_CAP`, `BRIEF_PROMISE_UNMET` and
+    `RENDER_REVIEW_FAILED`;
+  - `createOneShotBriefOutputSchema`, a closed schema built at call time over
+    the document's section IDs, the registered style packs and the active
+    sound-bed tracks;
+  - `oneShotBriefSchema` (revisioned), `oneShotBriefInputSchema` and
+    `oneShotBriefResponseSchema`;
+  - `oneShotLedgerEntrySchema`, `oneShotBudgetSchema` and
+    `oneShotBudgetAcceptInputSchema`;
+  - `oneShotDecisionSchema` and `oneShotDecisionDraftSchema` (closed kinds),
+    and `oneShotDecisionsResponseSchema`;
+  - a new `oneShotCreateInputSchema`:
+    `{ briefRevision, acceptedEstimateUsd, stylePackId?, soundBed? }`;
+  - on the run view: `briefRevision`, `budget`, `coverageGaps`, `stylePackId`
+    and `soundBed`.
+- `packages/schemas/src/index.ts` adds the `ai.one-shot-brief` operation, the
+  `briefCoverage` objectives param, `briefObjectiveGenerationCompatibility`
+  (objectives v4) and `currentOneShotBriefCompatibility`.
+
+**Config:** `packages/config/src/index.ts` and `.env.example` add
+`ONE_SHOT_BUDGET_TOLERANCE` (default 1.25) and `ONE_SHOT_MAX_BRIEF_REVISIONS`
+(default 3).
+
+**Database:**
+
+- `packages/database/src/schema.ts` adds the three new tables, the new run
+  columns, the enum values and the audit event types.
+- `drizzle/0070_one_shot_brief_budget_decisions.sql` and its
+  `.compatibility.md`, plus a `_journal.json` entry.
+
+**Prompts and mock:**
+
+- `provider-adapters/src/prompts/one-shot-brief/v1.ts` (new) and
+  `prompts/objectives/v4.ts` (new, with `{{briefCoverage}}`).
+- `prompts/index.ts`, `prompts.ts` (the `one-shot-brief` kind),
+  `prompts/audience.ts` (`describeBriefCoverage`), `job-envelope.ts`, and the
+  deterministic brief in `dynamic-mock-provider.ts`.
+
+**API:**
+
+- `one-shot-brief.ts` (new): `ProviderOneShotBriefService`, a quota-checked,
+  metered and recorded model call with bounded structured-output repair.
+- `one-shot-budget.ts` (new): the deterministic estimate, the ledger step
+  mapping and the cap arithmetic.
+- `one-shot-repair.ts` (new): the repair map, round planning, round
+  termination and the brief-promise check.
+- `one-shot-runner.ts` adds:
+  - the budget guard before each paid action;
+  - brief-driven configuration (no lesson-intent call);
+  - `briefCoverage` passed to objectives;
+  - bounded repair, one action per tick;
+  - the brief-promise check with one coverage repair round;
+  - decision drafts;
+  - handling of the ST-103 render review.
+- `one-shot.ts` adds:
+  - `brief`, `currentBrief`, the new confirming `create`, `acceptBudget` and
+    `decisions`;
+  - brief-aware tick hosting with ledger reconciliation and decision appends;
+  - the removal of `estimate` (replaced by the brief).
+- `one-shot-gateway.ts` adds the repair methods, the promise state, the
+  review mapping and the style/sound save.
+- `objectives.ts` accepts `briefCoverage` and selects v4.
+- `storyboard.ts` attributes `regenerateScene`, `applySceneCandidate` and
+  their audit events to the run through `oneShotRunId`.
+- `app.ts` adds the routes `POST/GET one-shot/brief`,
+  `POST one-shot/budget/accept` and `GET one-shot/decisions`. `runtime.ts`
+  does the wiring.
+
+**Web:**
+
+- `lib/one-shot.ts` adds the brief, confirm, budget and decisions clients,
+  the view mapping, the sound-bed options and the decision-log export.
+- `one-shot-workspace.tsx` adds the request → brief → confirm flow, the
+  budget view, the decisions panel and Retry render.
+- `one-shot-views.tsx` adds `BriefCard`, `BudgetCapCard`, `DecisionPanel`,
+  `CoverageGapNotice` and the budget readout. `one-shot.module.css` has the
+  matching styles.
+
+**Tests (new):**
+
+- `apps/api/src`: `one-shot-budget.test.ts`, `one-shot-repair.test.ts`,
+  `one-shot-runner-st107.test.ts`, `one-shot-st107.integration.test.ts`, and
+  the test support `one-shot-test-brief.ts`.
+- `packages/schemas/src/one-shot.test.ts`.
+- `packages/provider-adapters/src/one-shot-brief-prompt.test.ts`.
+
+**Tests (updated):**
+
+- API: `one-shot.test.ts`, `one-shot-gateway.test.ts`,
+  `one-shot.integration.test.ts`, `focus-intent.integration.test.ts` and
+  `one-shot-test-pipeline.ts`.
+- Web: `lib/one-shot.test.ts`, `lib/one-shot-fixtures.ts`,
+  `one-shot-views.test.tsx` and `one-shot.playwright.test.tsx`.
+- E2E: `e2e/one-shot.spec.ts` and `e2e/one-shot-mock.mjs`.
+- Provider adapters: `prompts.test.ts`.
+
+**Docs:**
+
+- `docs/prompt-to-video-pilot.md` covers the endpoints, screens, ledger,
+  repair and decision log.
+- `docs/adr/ADR-013-prompt-to-video-pilot.md` gains §7, an amendment
+  recording that the brief is now the authorisation.
+
+### Migrations
+
+`0070_one_shot_brief_budget_decisions` is additive:
+
+- **Enum values:** `usage_operation_type` gains `ai.one-shot-brief`.
+  `audit_event_type` gains `one_shot.brief_prepared` and
+  `one_shot.budget_accepted`. `one_shot_run_status` gains `brief_pending` and
+  `brief_ready`.
+- **New `one_shot_runs` columns:** brief attempts, confirmed revision,
+  style/sound, reserved/cap/proposal USD, reservation revision, repair state,
+  coverage gaps and decision sequence.
+- **Active-run index:** recreated as `status not in ('completed', 'cancelled')`.
+  This form never uses the new enum values in the transaction that adds them,
+  and stays IMMUTABLE.
+- **New tables:** `one_shot_run_briefs`, `one_shot_run_ledger_entries`
+  (unique `(run_id, step)`) and `one_shot_run_decisions` (unique
+  `(run_id, seq)`; a trigger rejects UPDATE).
+
+The migration was applied to the local dev database and to every test
+database.
+
+### Public contract changes
+
+- **`POST one-shot`** now takes
+  `{ briefRevision, acceptedEstimateUsd, stylePackId?, soundBed? }` instead of
+  `{ focusPrompt, audience, targetDurationSeconds, acceptedEstimateUsd }`.
+- **`POST one-shot/estimate`** is removed. The estimate now comes from the
+  brief.
+- **New endpoints:** `POST one-shot/brief` (Idempotency-Key),
+  `GET one-shot/brief`, `POST one-shot/budget/accept` and
+  `GET one-shot/decisions`.
+- **Run view:** gains `briefRevision`, `budget`, `coverageGaps`, `stylePackId`
+  and `soundBed`. There are new run statuses and error codes.
+- **Prompts:** `one-shot-brief/v1` and `objectives/v4` are new. The wizard
+  keeps objectives v3.
+
+### Commands/tests
+
+**Typecheck:** `tsc --noEmit` is clean for `packages/schemas`,
+`packages/provider-adapters`, `apps/api`, `apps/pipeline-worker` and
+`apps/web`. `pnpm turbo build --filter='./packages/*'` passes (12/12).
+
+**Lint:** `eslint` is clean on every changed file in `apps/api`, `apps/web`,
+`packages/schemas` and `packages/provider-adapters`.
+
+**Package tests:** `packages/schemas` 390/390; `packages/provider-adapters`
+84/84.
+
+**API tests (with Postgres, `TEST_DATABASE_URL`, `--hookTimeout 180000`):**
+
+| Suite | Result |
+| --- | --- |
+| Unit: `one-shot-budget` | 8 |
+| Unit: `one-shot-repair` | 9 |
+| Unit: `one-shot-runner` (ST-105) | 14 |
+| Unit: `one-shot-runner-st107` | 12 |
+| Unit: `one-shot-gateway` | 12 |
+| Unit: `one-shot` (routes) | 8 |
+| Integration: `one-shot.integration` | 14/14 |
+| Integration: `one-shot-st107.integration` | 8/8 |
+| Integration: `focus-intent.integration`, including the new `objectives/v4` job-payload test | passed |
+
+Together these are 96/96. The full `apps/api` result is below the table.
+
+**Full `apps/api` suite** (74 files, 714 tests): 704 passed in the full parallel run. The other 10 were each the first route test of a suite, and each hit vitest's 5 s timeout while the Nest app booted under full-suite load. Rerun on their own, all 10 files pass (124 tests), so all 714 API tests pass.
+
+**Web:** `one-shot-views.test.tsx` 31/31 and `lib/one-shot.test.ts` 19/19.
+`one-shot.playwright.test.tsx` (axe) is 11/11, and covers the brief view, the
+budget cap, the render-review failure, and the brief, decision log and
+coverage gap at 390 px. The full `apps/web` suite is 58 files, 341/341.
+
+**Hydrated E2E:** `npx playwright test e2e/one-shot.spec.ts` passed 7/7 on
+the real Next app against the stateful mock. It covers:
+
+- **Golden path:** brief with source chips, prompt edit to revision 2, style
+  change, a double-click confirm that creates one run, the cap readout,
+  the Not-covered notice, the decision log, the ledger, JSON export, reload
+  and download.
+- **Budget cap:** stop, reload, and a double-click accept that continues.
+- **Existing ST-106 flows:** reload, cancel, attention with resume, and not
+  covered with Edit prompt.
+
+**Live end-to-end (`run-app`):** the full local stack, with mock providers
+and the real Together key blanked, ran the driver
+`node .runtime-logs/st107-drive.mjs` on three PDFs in parallel. Evidence is
+in `.runtime-logs/st107-*.png` and `.runtime-logs/st107-results.json`.
+
+| Subject | Briefs | Repairs (queued / applied) | Coverage gaps | Estimate (reserved) | Actual, ledger = usage records | Outcome |
+| --- | --- | --- | --- | --- | --- | --- |
+| Cell biology | 1 | 3 / 3, then one "no progress" stop | 2 | $22.80 | $0.099 = $0.099 | Rendered and downloaded |
+| Roman Republic (Students 11–13, Editorial) | 2 (prompt edited) | 4 / 4, then one stop | 3 | $22.80 | $0.1155 = $0.1155 | Rendered |
+| Compound interest (Professional) | 1 | 4 / 4, then one stop | 3 | $22.80 | $0.099 = $0.099 | Rendered |
+
+Across the three runs:
+
+- **Before confirmation:** nothing was paid except the brief. Each run had no
+  ledger rows and only `brief` decisions.
+- **Ingestion wait:** "Prepare brief" answered 409 "still being read" while
+  ingestion ran, and each subject retried until the brief was ready.
+- **Style and sound:** the confirmed style pack and sound bed were pinned. For
+  the Roman Republic run that was Editorial, a change from the suggestion.
+- **Render review:** its warnings (`LOUDNESS_OUT_OF_RANGE`) appear in the
+  decision log.
+- **Layout:** the brief view has no horizontal scroll at phone width (0 px
+  overflow).
+
+Brief accuracy is judged on the mock provider:
+
+- Every chip is a real section of the PDF.
+- With four sections offered, the mock cites the finance and Roman Republic
+  sections that match their focus.
+- For biology, the matching section headings are generic ("2. Parts of a
+  cell"), so the heading regex in the driver did not match. The chips are
+  still the right sections.
+
+The mock judges by keyword overlap, not meaning, so it is not a measure of
+real-model accuracy.
+
+### Screenshots/output
+
+- `.runtime-logs/st107-<subject>-<n>-<state>.png` show the request, brief,
+  brief revision 2, brief at phone width, progress after reload, approval
+  (budget readout, Not covered, "How this video was made" with ledger) and
+  delivery.
+- `.runtime-logs/st107-results.json` holds the per-subject brief, decision
+  kinds, ledger and repair counts.
+
+### Decisions/assumptions
+
+- **The run starts at the brief.** The first "Prepare brief" creates the run
+  in `brief_pending`. Revisions revise the same run. Confirmation is a
+  conditional `brief_ready → queued` update, pinned to the latest revision and
+  the attempt count. So a stale revision is rejected, two racing confirms
+  produce one run, and a replay returns that run. The run's correlation id
+  therefore covers the brief calls too, and the ledger includes them.
+- **Brief limit.** `ONE_SHOT_MAX_BRIEF_REVISIONS` counts brief calls per run,
+  the first included, and each call is counted before the model is called. A
+  document that is still being read is checked before anything is counted
+  (`assertReady`).
+- **Estimate.** v2 is computed from `plannedSceneCount` and the configured
+  prices. It includes a full repair allowance: 3 rounds × 4 scene
+  regenerations, 3 grounding re-checks and 12 re-voiced scenes. That makes
+  the upper bound conservative ($22.80 for 3 minutes at the $1.08 bounded
+  model-call price).
+- **Budget guard.** It runs in the tick before each paid action (generate,
+  illustrations, grounding, audio, repair). The proposal is actual spend plus
+  the estimate for the remaining steps, and never less than actual plus the
+  blocked call.
+- **Repair progress.** The count is repairable findings, errors plus mapped
+  warnings, because `scene_monotony` is a warning and the acceptance criteria
+  require it to be repaired. A round that does not reduce that count ends
+  repair. Errors still left escalate; warnings still left are listed and
+  never acknowledged.
+- **Grounding and re-voicing after repair.** Grounding re-runs as one
+  lesson-scope check for the new storyboard revision, which covers the touched
+  scenes. Audio re-voices the scenes whose audio went stale. A repair round
+  holds grounding and audio until the whole round is applied.
+- **Brief sections.** Sections are validated against the project's parsed
+  document, because no snapshot exists before the run approves it. Sections
+  without content are not offered, since no scene could ever cite them.
+- **Pinning check.** Style and sound are compared with the lesson
+  configuration, which is what the lesson version saved at render pins.
+- **Decision-log export.** It sits in the "How this video was made" panel on
+  the preview and delivery views. The one-shot page has no storyboard export
+  button to place it beside.
+
+### Deviations
+
+- **Duration repair.** `scene_duration_out_of_range` is repaired with scene
+  regeneration, not `narration.transform`. By validation time the run's
+  narration set is approved, and `narration.transform` only works on a draft
+  set. Reopening narration would regenerate the whole storyboard.
+- **Ledger check placement.** The check happens in the tick, immediately
+  before the service's own transactional-outbox enqueue, rather than inside
+  the same transaction. The tick lease serialises every paid enqueue of a
+  run, so no other enqueue of the same run can race it. The services'
+  transactions were left unchanged.
+- **ADR number.** The story names ADR-012, but ADR-013 is the
+  prompt-to-video ADR (see its numbering note). It is amended in §7.
+
+### Known risks/follow-up
+
+- **Large estimate.** The repair allowance makes the upper bound large next to
+  typical spend. A pricing review could lower the bounded model-call price or
+  the allowance.
+- **Mock accuracy.** The mock brief and focus coverage use keyword overlap.
+  Brief accuracy against the real model still needs a pilot run with the real
+  provider.
+- **Non-refusal errors.** A service error that is not a `PublicError` (for
+  example a programming error) is still retried as transient until the
+  20-minute step timeout, as in ST-105. The live run exposed one such bug
+  (below); the error surfaced only as a timeout.
+- **Bugs found and fixed during the live run:**
+  - An ingestion-wait 409 used up brief calls. `assertReady` now runs first,
+    and a regression test covers it.
+  - `briefCoverage` was sent as an array, which job params reject (scalars
+    only). It is now one line per point, with a real-service Postgres test.
+  - Brief points on sections with no content could never be covered. Those
+    sections are no longer offered.
+- **Filename.** The render download filename is the lesson-title slug from
+  ST-105/106. With the mock, that title echoes the focus.
+- **Licensing:** clean-room. No OpenMontage code, prompts or schemas were
+  used. Only the practices named in the story were re-implemented on AVLP
+  contracts.
+
+### Story code review fixes (2026-09-28)
+
+- **Medium: the render-review retry.** A failed ST-103 review is terminal, and
+  render identity is content-addressed. So for an unchanged lesson the
+  one-shot "Retry render" could only return the same failed render.
+  - The stop message now leads with "Fix these in the editor, then retry the
+    render", followed by the findings.
+  - The delivery view adds **Fix it in the editor**, a link to the
+    storyboard, and explains that the same lesson renders to the same video.
+  - Covered by the updated runner and view tests.
+- **Low: racing brief revisions.** Two revisions racing on one run used to
+  surface a raw error. They now answer 409 and leave the run in
+  `brief_ready`. A new Postgres test covers it.
+- **Lint:** `one-shot-runner.ts` no longer uses `structuredClone` (not a
+  global in the ESLint environment). Repair state is never mutated in place.
+- **After the fixes:**
+  - API one-shot suites (with Postgres): 86/86. Runner, repair and budget
+    unit tests: 43/43.
+  - Web one-shot views: 31/31.
+  - `eslint` and `tsc --noEmit` are clean on every changed file.

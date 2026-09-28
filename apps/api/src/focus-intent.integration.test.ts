@@ -118,6 +118,28 @@ describeWithPostgres("ST-104 focus and lesson intent (Postgres)", () => {
     return job!;
   }
 
+  it("ST-107: queues objectives/v4 with the confirmed brief coverage as a valid job payload", async () => {
+    await setFocus("How do gusset plates transfer load?");
+    const { jobId } = await objectivesService().generate({
+      ownerUserId,
+      projectId,
+      idempotencyKey: "brief-request-1",
+      correlationId,
+      briefCoverage: ["How gusset plates spread load", "Why  joints   stay rigid"],
+    });
+    const [job] = await database!.client.select().from(jobs).where(eq(jobs.id, jobId));
+    const payload = job!.payload as { promptVersion: string; params: Record<string, unknown> };
+    expect(payload.promptVersion).toBe("v4");
+    // Job params hold scalars only: one point per line, whitespace folded.
+    expect(payload.params.briefCoverage).toBe(
+      "How gusset plates spread load\nWhy joints stay rigid",
+    );
+    // Without a brief the wizard's v3 job is unchanged.
+    const plain = await generate("plain-request-1");
+    expect((plain.payload as { promptVersion: string }).promptVersion).toBe("v3");
+    expect((plain.payload as { params: Record<string, unknown> }).params).not.toHaveProperty("briefCoverage");
+  });
+
   it("carries the focus into the objectives params hash and idempotency key", async () => {
     const unfocused = await generate("request-1");
     const unfocusedParams = (unfocused.payload as { params: Record<string, unknown> })

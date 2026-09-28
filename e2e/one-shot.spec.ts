@@ -7,6 +7,9 @@
  *   take about as long as the client's 2 s poll interval allows.
  * - `/__one-shot/state` reports how many runs and renders the server really
  *   created, which is what the double-click checks assert on.
+ * - ST-107: a request prepares a brief; confirming it starts the run. The
+ *   `budget` scenario stops once at the storyboard until the new estimate is
+ *   accepted.
  */
 import { expect, test, type Page } from "@playwright/test";
 
@@ -24,7 +27,7 @@ async function seed(
   page: Page,
   input: {
     documentUploaded: boolean;
-    scenario?: "golden" | "attention" | "not_covered" | "partial";
+    scenario?: "golden" | "attention" | "not_covered" | "partial" | "budget";
   },
 ): Promise<string> {
   const projectId = projectIdFor(
@@ -43,6 +46,11 @@ async function serverState(page: Page, projectId: string) {
   );
   return (await response.json()) as {
     runs: number;
+    briefCalls: number;
+    briefRevisions: number;
+    confirmCalls: number;
+    budgetAccepts: number;
+    confirmedStylePack: string | null;
     createCalls: number;
     renderCalls: number;
     rendersStarted: number;
@@ -79,14 +87,20 @@ async function fillRequest(page: Page, prompt = focusPrompt) {
   await page.getByLabel("What should the video explain?").fill(prompt);
   await page.getByRole("radio", { name: /Myself \(adult learner\)/ }).check();
   await page.getByRole("radio", { name: "3 minutes" }).check();
-  await expect(page.getByTestId("one-shot-estimate-total")).toBeVisible();
+}
+
+/** ST-107: prepare the brief, then confirm it. */
+async function prepareAndConfirm(page: Page) {
+  await page.getByTestId("one-shot-prepare-brief").click();
+  await expect(page.getByTestId("one-shot-brief")).toBeVisible({ timeout: 30_000 });
+  await page.getByTestId("one-shot-confirm").click();
+  await expect(page.getByTestId("one-shot-progress")).toBeVisible();
 }
 
 async function startRun(page: Page, projectId: string) {
   await page.goto(`/workspace/${projectId}/one-shot`);
   await fillRequest(page);
-  await page.getByTestId("one-shot-create").click();
-  await expect(page.getByTestId("one-shot-progress")).toBeVisible();
+  await prepareAndConfirm(page);
 }
 
 async function expectNoHorizontalScroll(page: Page) {
@@ -114,7 +128,7 @@ test("the workspace entry is shown only to the pilot cohort, and the route is un
   const projectId = await seed(page, { documentUploaded: true });
   await page.goto(`/workspace/${projectId}/one-shot`);
   await expect(page.getByTestId("one-shot-unavailable")).toBeVisible();
-  await expect(page.getByTestId("one-shot-create")).toHaveCount(0);
+  await expect(page.getByTestId("one-shot-prepare-brief")).toHaveCount(0);
 
   await page.context().clearCookies();
   await signIn(page, "pilot-session");
@@ -133,7 +147,7 @@ test("the workspace entry is shown only to the pilot cohort, and the route is un
   ).toBeVisible();
 });
 
-test("golden path: upload, prompt, estimate, create, progress, preview, render and download without the wizard", async ({
+test("golden path: upload, prompt, brief, confirm, progress, preview, render and download without the wizard", async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -161,22 +175,51 @@ test("golden path: upload, prompt, estimate, create, progress, preview, render a
   });
 
   // Inline validation before anything is sent.
-  await page.getByTestId("one-shot-create").click();
+  await page.getByTestId("one-shot-prepare-brief").click();
   await expect(
     page.getByText("Describe what the video should explain."),
   ).toBeVisible();
   await expect(page.getByText("Choose who the video is for.")).toBeVisible();
-  expect((await serverState(page, projectId)).createCalls).toBe(0);
+  expect((await serverState(page, projectId)).briefCalls).toBe(0);
 
   await fillRequest(page);
   await expect(page.getByTestId("one-shot-focus-count")).toHaveText(
     `${focusPrompt.length} / 1,000 characters`,
   );
-  await expect(page.getByTestId("one-shot-estimate-item")).toHaveCount(3);
+  // No cost before the brief: it is computed from the brief's plan.
+  await expect(page.getByTestId("one-shot-estimate")).toHaveCount(0);
 
-  // A double click creates one run.
-  await page.getByTestId("one-shot-create").dblclick();
+  // A double click prepares one brief.
+  await page.getByTestId("one-shot-prepare-brief").dblclick();
+  const brief = page.getByTestId("one-shot-brief");
+  await expect(brief).toBeVisible({ timeout: 30_000 });
+  expect((await serverState(page, projectId)).briefRevisions).toBe(1);
+  await expect(page.getByTestId("one-shot-brief-point")).toHaveCount(3);
+  await expect(page.getByTestId("one-shot-source-chip").first()).toHaveText("Evaporation");
+  await expect(page.getByTestId("one-shot-brief-not-covered")).toContainText("Ocean currents");
+  await expect(page.getByTestId("one-shot-estimate-item")).toHaveCount(4);
+  await expect(page.getByTestId("one-shot-style")).toHaveValue("field-notes");
+  await expect(page.getByTestId("one-shot-sound")).toHaveValue("morning-pad");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expectNoHorizontalScroll(page);
+  await page.setViewportSize({ width: 1280, height: 900 });
+
+  // Edit the request and prepare the brief again: a new revision.
+  await page.getByTestId("one-shot-edit-brief").click();
+  const field = page.getByLabel("What should the video explain?");
+  await expect(field).toHaveValue(focusPrompt);
+  await expect(page.getByTestId("one-shot-brief-revisions")).toContainText("Brief 1 of 3 prepared");
+  await field.fill(`${focusPrompt} Keep it practical.`);
+  await page.getByTestId("one-shot-prepare-brief").click();
+  await expect(brief).toHaveAttribute("data-revision", "2", { timeout: 30_000 });
+  await expect(page.getByTestId("one-shot-brief-revisions")).toContainText("Brief 2 of 3 prepared");
+
+  // Change the style from the closed list, then a double click confirms once.
+  await page.getByTestId("one-shot-style").selectOption("systems");
+  await expect(page.getByText("Your choice. The brief suggested Field Notes.")).toBeVisible();
+  await page.getByTestId("one-shot-confirm").dblclick();
   await expect(page.getByTestId("one-shot-progress")).toBeVisible();
+  await expect(page.getByTestId("one-shot-cap")).toBeVisible();
   await expect(page.getByTestId("one-shot-live")).toContainText(
     "Building your video",
   );
@@ -201,6 +244,21 @@ test("golden path: upload, prompt, estimate, create, progress, preview, render a
     "href",
     `/workspace/${projectId}/storyboard`,
   );
+  // ST-107: the unmet brief point, the budget readout and the decision log.
+  await expect(page.getByTestId("one-shot-coverage-gap")).toContainText(
+    "Not covered: Why clouds form over mountains",
+  );
+  const decisions = page.getByTestId("one-shot-decisions");
+  await expect(decisions).toContainText("How this video was made");
+  await expect(decisions).toContainText("Style pack: systems.");
+  await expect(decisions).toContainText("Round 1: applied the regenerated scene 3.");
+  await expect(page.getByTestId("one-shot-ledger-row")).toHaveCount(3);
+  const exported = page.waitForEvent("download");
+  await page.getByTestId("one-shot-decisions-export").click();
+  expect((await exported).suggestedFilename()).toBe("how-this-video-was-made.json");
+  // The log survives a reload.
+  await page.reload();
+  await expect(page.getByTestId("one-shot-decisions")).toContainText("Style pack: systems.");
   await page.setViewportSize({ width: 390, height: 844 });
   await expectNoHorizontalScroll(page);
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -226,6 +284,8 @@ test("golden path: upload, prompt, estimate, create, progress, preview, render a
 
   const state = await serverState(page, projectId);
   expect(state.runs).toBe(1);
+  expect(state.briefRevisions).toBe(2);
+  expect(state.confirmedStylePack).toBe("systems");
   expect(state.rendersStarted).toBe(1);
   expect(state.statuses).toEqual(["completed"]);
 
@@ -364,8 +424,7 @@ test("not covered shows the reason and Edit prompt starts a new run", async ({
     timeout: 30_000,
   });
   await fillRequest(page);
-  await page.getByTestId("one-shot-create").click();
-  await expect(page.getByTestId("one-shot-progress")).toBeVisible();
+  await prepareAndConfirm(page);
 
   const card = page.getByTestId("one-shot-not-covered");
   await expect(card).toBeVisible({ timeout: 60_000 });
@@ -378,9 +437,7 @@ test("not covered shows the reason and Edit prompt starts a new run", async ({
   await expect(field).toHaveValue(focusPrompt);
   await expect(page.getByTestId("one-shot-document-ready")).toBeVisible();
   await field.fill("Explain the stages of the water cycle in order.");
-  await expect(page.getByTestId("one-shot-estimate-total")).toBeVisible();
-  await page.getByTestId("one-shot-create").click();
-  await expect(page.getByTestId("one-shot-progress")).toBeVisible();
+  await prepareAndConfirm(page);
   await expect(page.getByTestId("one-shot-approval")).toBeVisible({
     timeout: 90_000,
   });
@@ -388,4 +445,37 @@ test("not covered shows the reason and Edit prompt starts a new run", async ({
   const state = await serverState(page, projectId);
   expect(state.runs).toBe(2);
   expect(state.statuses).toEqual(["cancelled", "awaiting_render_approval"]);
+});
+
+test("a run that reaches its budget stops before the next paid step and continues once the new estimate is accepted", async ({
+  page,
+}) => {
+  test.setTimeout(180_000);
+  await signIn(page, "pilot-session");
+  const projectId = await seed(page, {
+    documentUploaded: true,
+    scenario: "budget",
+  });
+  await startRun(page, projectId);
+
+  const card = page.getByTestId("one-shot-budget-cap");
+  await expect(card).toBeVisible({ timeout: 60_000 });
+  await expect(card).toContainText("past its budget cap of $2.30");
+  await expect(page.getByTestId("one-shot-live")).toContainText("reached its budget");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expectNoHorizontalScroll(page);
+  await page.setViewportSize({ width: 1280, height: 900 });
+
+  // Reloading keeps the stop and the proposal.
+  await page.reload();
+  const accept = page.getByTestId("one-shot-accept-budget");
+  await expect(accept).toHaveText(/Accept \$3\.25 and continue/);
+  await accept.dblclick();
+  await expect(page.getByTestId("one-shot-progress")).toBeVisible();
+  await expect(page.getByTestId("one-shot-approval")).toBeVisible({
+    timeout: 90_000,
+  });
+  const state = await serverState(page, projectId);
+  expect(state.budgetAccepts).toBe(1);
+  expect(state.runs).toBe(1);
 });

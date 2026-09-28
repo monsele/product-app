@@ -2984,18 +2984,59 @@ class OneShotController {
     );
   }
 
-  @Post(":projectId/one-shot/estimate")
+  /** ST-107. Prepares or revises the video brief: one small, metered call. */
+  @Post(":projectId/one-shot/brief")
   @HttpCode(200)
-  public async estimate(
+  public async brief(
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+    @Headers("idempotency-key") idempotencyKey: string | undefined,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.oneShot.brief({
+      ...assertAuthorizedProject(request, projectId),
+      body,
+      idempotencyKey,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Get(":projectId/one-shot/brief")
+  public async currentBrief(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    return this.oneShot.currentBrief(
+      assertAuthorizedProject(request, projectId),
+    );
+  }
+
+  /** ST-107. Accepts a raised estimate after ONE_SHOT_BUDGET_CAP. */
+  @Post(":projectId/one-shot/budget/accept")
+  @HttpCode(202)
+  public async acceptBudget(
     @Param("projectId") projectId: string,
     @Body() body: unknown,
     @Req() request: RequestWithAuth & AuthorizedProjectRequest,
   ): Promise<unknown> {
     assertTrustedOrigin(request, this.trustedOrigin);
-    return this.oneShot.estimate({
+    return this.oneShot.acceptBudget({
       ...assertAuthorizedProject(request, projectId),
       body,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
     });
+  }
+
+  /** ST-107. The "How this video was made" log, the ledger and the budget. */
+  @Get(":projectId/one-shot/decisions")
+  public async decisions(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    return this.oneShot.decisions(assertAuthorizedProject(request, projectId));
   }
 
   @Post(":projectId/one-shot")
@@ -4530,7 +4571,11 @@ const unavailableOneShotService: OneShotService = {
   eligibility: () => Promise.resolve(closedOneShotEligibility),
   current: () =>
     Promise.resolve({ eligibility: closedOneShotEligibility, run: null }),
-  estimate: oneShotUnavailable,
+  brief: oneShotUnavailable,
+  currentBrief: oneShotUnavailable,
+  acceptBudget: oneShotUnavailable,
+  decisions: () =>
+    Promise.resolve({ runId: null, decisions: [], ledger: [], budget: null }),
   create: oneShotUnavailable,
   render: oneShotUnavailable,
   resume: oneShotUnavailable,

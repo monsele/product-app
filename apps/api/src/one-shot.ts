@@ -2,9 +2,14 @@
  * ST-105 — the prompt-to-video ("one-shot") pilot's API and runner host
  * (ADR-013).
  *
- * - **One authorisation.** `POST one-shot` is the single explicit, idempotent
- *   authorisation for every paid call in the run. It is refused when the
- *   accepted estimate is below the current one.
+ * - **Brief first (ST-107).** `POST one-shot/brief` prepares (or revises, a
+ *   bounded number of times) a video brief with one small, metered model
+ *   call. The run exists from that moment, in `brief_pending`/`brief_ready`.
+ * - **One authorisation.** `POST one-shot` confirms one brief revision and
+ *   its deterministic estimate. That is the single explicit authorisation for
+ *   every paid call after the brief. It reserves the estimate, sets the cap
+ *   (reserved × tolerance), and is refused for a stale revision or an accepted
+ *   estimate below the brief's.
  * - **One human gate.** The run stops at `awaiting_render_approval`; nothing
  *   is versioned for render or rendered until `POST one-shot/render`.
  * - **The server decides.** Cohort membership is checked on every read and
@@ -27,8 +32,12 @@ import {
 } from "@avlp/config";
 import {
   jobs,
+  oneShotRunBriefs,
+  oneShotRunDecisions,
+  oneShotRunLedgerEntries,
   oneShotRuns,
   outboxEvents,
+  soundBedTracks,
   sourceDocuments,
   usageRecords,
   type DatabaseClient,
@@ -42,8 +51,10 @@ import {
 } from "@avlp/jobs";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
-  narrationWordCountRange,
+  creativeDesignPackIdSchema,
   objectiveFocusCoverageSchema,
+  soundBedChoiceSchema,
+  soundBedNone,
   type ObjectiveFocusCoverage,
 } from "@avlp/schemas";
 import {
@@ -52,31 +63,61 @@ import {
   oneShotAdvancePayloadSchema,
   oneShotAttentionStageSchema,
   oneShotAudienceSchema,
+  oneShotBriefCoveragePointSchema,
+  oneShotBriefInputSchema,
+  oneShotBriefResponseSchema,
+  oneShotBriefSchema,
+  oneShotBudgetAcceptInputSchema,
   oneShotCreateInputSchema,
+  oneShotDecisionDraftSchema,
+  oneShotDecisionsResponseSchema,
   oneShotEligibilitySchema,
   oneShotErrorCodeSchema,
-  oneShotEstimateInputSchema,
   oneShotEstimateSchema,
+  oneShotLedgerStepValues,
   oneShotResponseSchema,
   oneShotStepSchema,
   oneShotStepsSchema,
+  oneShotStylePackIds,
   oneShotTickingStatusValues,
+  type OneShotBrief,
+  type OneShotBriefResponse,
+  type OneShotDecisionDraft,
+  type OneShotDecisionsResponse,
   type OneShotEligibility,
   type OneShotEstimate,
+  type OneShotLedgerStep,
   type OneShotResponse,
   type OneShotRunStatus,
   type OneShotRunView,
 } from "@avlp/schemas/one-shot";
-import { and, desc, eq, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull, lt, max, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { maximumModelCallCostUsd } from "./model-call-approval.js";
+import type { OneShotBriefGenerator } from "./one-shot-brief.js";
+import {
+  budgetCapUsd,
+  estimateOneShotBrief,
+  ledgerEstimates,
+  ledgerStepForOperation,
+  roundUsd,
+  type OneShotPricing,
+} from "./one-shot-budget.js";
 import {
   advanceOneShotRun,
+  readOneShotRepairState,
   resumedStatus,
+  type OneShotRunBrief,
   type OneShotRunState,
   type OneShotStageGateway,
   type OneShotTickResult,
 } from "./one-shot-runner.js";
+
+export {
+  estimateOneShotBrief,
+  oneShotPricingVersion,
+  type OneShotPricing,
+} from "./one-shot-budget.js";
 
 type Scope = { ownerUserId: Identifier; projectId: Identifier };
 type RunRow = typeof oneShotRuns.$inferSelect;
@@ -126,94 +167,6 @@ export const closedOneShotPilotCohort: OneShotPilotCohort = {
 // ---------------------------------------------------------------------------
 // Estimate
 // ---------------------------------------------------------------------------
-
-export type OneShotPricing = {
-  /** Upper-bound cost of one structured model call. */
-  modelCallCostUsd: number;
-  imageCostUsd: number;
-  ttsCostUsdPerMillionCharacters: number;
-  alignmentCostUsdPerAudioMinute: number;
-};
-
-export const oneShotPricingVersion = "one-shot-estimate-v1";
-/** Planning assumption: one scene per 30 seconds of target duration. */
-const secondsPerScene = 30;
-/** Planning assumption: characters per narrated word, including spacing. */
-const charactersPerWord = 6;
-
-function roundUsd(value: number): number {
-  return Math.round(value * 1_000_000) / 1_000_000;
-}
-
-/**
- * An itemised upper bound for the whole chain: the six model calls at their
- * bounded per-call estimate, one illustration per scene, and narration audio
- * at the top of the word budget.
- */
-export function estimateOneShotRun(input: {
-  targetDurationSeconds: 180 | 300 | 420;
-  pricing: OneShotPricing;
-}): OneShotEstimate {
-  const { pricing } = input;
-  const estimatedScenes = Math.ceil(
-    input.targetDurationSeconds / secondsPerScene,
-  );
-  const words = narrationWordCountRange(input.targetDurationSeconds).max;
-  const characters = words * charactersPerWord;
-  const modelCalls: { key: string; label: string }[] = [
-    { key: "ai.lesson-intent", label: "Lesson subject and title" },
-    { key: "ai.objectives", label: "Learning objectives" },
-    { key: "ai.outline", label: "Lesson outline" },
-    { key: "ai.narration", label: "Narration script" },
-    { key: "ai.storyboard", label: "Storyboard" },
-    { key: "ai.grounding", label: "Grounding check" },
-  ];
-  const items = [
-    ...modelCalls.map((call) => ({
-      ...call,
-      quantity: 1,
-      unitCostUsd: roundUsd(pricing.modelCallCostUsd),
-      costUsd: roundUsd(pricing.modelCallCostUsd),
-    })),
-    {
-      key: "image.generation",
-      label: "Scene illustrations",
-      quantity: estimatedScenes,
-      unitCostUsd: roundUsd(pricing.imageCostUsd),
-      costUsd: roundUsd(pricing.imageCostUsd * estimatedScenes),
-    },
-    {
-      key: "tts.generation",
-      label: "Narration audio",
-      quantity: estimatedScenes,
-      unitCostUsd: roundUsd(
-        (characters / estimatedScenes / 1_000_000) *
-          pricing.ttsCostUsdPerMillionCharacters,
-      ),
-      costUsd: roundUsd(
-        (characters / 1_000_000) * pricing.ttsCostUsdPerMillionCharacters,
-      ),
-    },
-    {
-      key: "tts.alignment",
-      label: "Caption alignment",
-      quantity: Math.ceil(input.targetDurationSeconds / 60),
-      unitCostUsd: roundUsd(pricing.alignmentCostUsdPerAudioMinute),
-      costUsd: roundUsd(
-        Math.ceil(input.targetDurationSeconds / 60) *
-          pricing.alignmentCostUsdPerAudioMinute,
-      ),
-    },
-  ];
-  return oneShotEstimateSchema.parse({
-    pricingVersion: oneShotPricingVersion,
-    currency: "USD",
-    targetDurationSeconds: input.targetDurationSeconds,
-    estimatedScenes,
-    items,
-    totalUsd: roundUsd(items.reduce((sum, item) => sum + item.costUsd, 0)),
-  });
-}
 
 /** Default pricing from the configured model and Together media prices. */
 export function oneShotPricingFromEnvironment(environment: {
@@ -343,7 +296,20 @@ export interface OneShotRenderGate {
 
 export interface OneShotService {
   eligibility(input: Scope): Promise<OneShotEligibility>;
-  estimate(input: Scope & { body: unknown }): Promise<OneShotEstimate>;
+  /** ST-107. Prepares or revises the run's video brief (one paid call). */
+  brief(
+    input: Scope & {
+      body: unknown;
+      idempotencyKey: string | undefined;
+      correlationId: Identifier;
+    },
+  ): Promise<OneShotBriefResponse>;
+  currentBrief(input: Scope): Promise<OneShotBriefResponse>;
+  /** ST-107. Accepts a raised estimate after ONE_SHOT_BUDGET_CAP. */
+  acceptBudget(
+    input: Scope & { body: unknown; correlationId: Identifier },
+  ): Promise<OneShotResponse>;
+  decisions(input: Scope): Promise<OneShotDecisionsResponse>;
   create(
     input: Scope & {
       body: unknown;
@@ -363,7 +329,7 @@ export interface OneShotService {
   ): Promise<OneShotResponse>;
 }
 
-function parseBody<T>(schema: z.ZodType<T>, body: unknown): T {
+function parseBody<S extends z.ZodTypeAny>(schema: S, body: unknown): z.output<S> {
   const result = schema.safeParse(body);
   if (result.success) return result.data;
   throw new PublicError(
@@ -416,6 +382,11 @@ export class PostgresOneShotService implements OneShotService {
     private readonly options: {
       pricing: OneShotPricing;
       maxRunsPerHour: number;
+      briefs: OneShotBriefGenerator;
+      /** Cap = reserved × tolerance (ONE_SHOT_BUDGET_TOLERANCE). */
+      budgetTolerance: number;
+      /** Brief calls per run (ONE_SHOT_MAX_BRIEF_REVISIONS). */
+      maxBriefRevisions: number;
     },
     private readonly now: () => Date = () => new Date(),
   ) {}
@@ -452,49 +423,38 @@ export class PostgresOneShotService implements OneShotService {
     });
   }
 
-  public async estimate(
-    input: Scope & { body: unknown },
-  ): Promise<OneShotEstimate> {
-    this.assertCanStart(input.ownerUserId);
-    const body = parseBody(oneShotEstimateInputSchema, input.body);
-    return estimateOneShotRun({
-      targetDurationSeconds: body.targetDurationSeconds,
-      pricing: this.options.pricing,
-    });
-  }
-
-  public async create(
+  /**
+   * ST-107. Prepares the first brief, or a revision of it, for the project's
+   * run. The first call creates the run in `brief_pending`; each call counts
+   * against ONE_SHOT_MAX_BRIEF_REVISIONS before the model is called, so the
+   * paid calls per run are bounded even when a call fails. Replaying an
+   * idempotency key returns the brief it prepared.
+   */
+  public async brief(
     input: Scope & {
       body: unknown;
       idempotencyKey: string | undefined;
       correlationId: Identifier;
     },
-  ): Promise<OneShotResponse> {
+  ): Promise<OneShotBriefResponse> {
     this.assertCanStart(input.ownerUserId);
-    const key = input.idempotencyKey?.trim();
-    if (key === undefined || key.length === 0 || key.length > 200)
-      throw new PublicError(
-        "validation_failed",
-        "An idempotency key is required to start a prompt-to-video run.",
-        400,
-        false,
-        { "idempotency-key": "Provide a non-empty key up to 200 characters." },
-      );
-    const body = parseBody(oneShotCreateInputSchema, input.body);
+    const key = requireIdempotencyKey(
+      input.idempotencyKey,
+      "An idempotency key is required to prepare a video brief.",
+    );
+    const body = parseBody(oneShotBriefInputSchema, input.body);
     const hash = requestHash(body);
 
-    // Replay: the same key returns the same run, whatever its status now.
-    const replay = await this.findByKey(input, key);
+    const replay = await this.findBriefByKey(input, key);
     if (replay !== undefined) {
       if (replay.requestHash !== hash)
         throw conflict(
-          "This idempotency key was already used for a different prompt-to-video request.",
+          "This idempotency key was already used for a different brief request.",
         );
-      return this.respond(input, replay);
+      return this.briefResponse(input, replay.runId as Identifier);
     }
 
-    // A run needs a document to read. Without one it could only wait at
-    // ingestion until it timed out, blocking the project meanwhile.
+    // A brief reads the document. Without one there is nothing to plan.
     const [source] = await this.database
       .select({ id: sourceDocuments.id })
       .from(sourceDocuments)
@@ -512,105 +472,563 @@ export class PostgresOneShotService implements OneShotService {
       .limit(1);
     if (source === undefined)
       throw conflict(
-        "Upload a source document to this project before starting a prompt-to-video run.",
+        "Upload a source document to this project before preparing a video brief.",
       );
+    // Before any run or brief call is counted: a document still being read
+    // answers 409 without using up one of the run's brief calls.
+    await this.options.briefs.assertReady(input);
 
-    const estimate = estimateOneShotRun({
-      targetDurationSeconds: body.targetDurationSeconds,
-      pricing: this.options.pricing,
-    });
-    if (body.acceptedEstimateUsd + 1e-9 < estimate.totalUsd)
-      throw new PublicError(
-        "bad_request",
-        "The accepted estimate is below the current estimate. Review the new estimate and accept it to start.",
-        409,
-        false,
-        {
-          acceptedEstimateUsd: `The current estimate is ${estimate.totalUsd} USD.`,
-        },
-      );
-
+    const run = await this.briefRun(input, key, hash, body);
     const timestamp = this.now();
-    const [recent] = await this.database
-      .select({ count: sql<number>`count(*)::int` })
-      .from(oneShotRuns)
+    // Count the call before making it: a failed or interrupted call still
+    // costs, so it still uses one of the run's brief calls.
+    const [claimed] = await this.database
+      .update(oneShotRuns)
+      .set({
+        briefAttempts: sql`${oneShotRuns.briefAttempts} + 1`,
+        status: "brief_pending",
+        focusPrompt: body.focusPrompt,
+        audience: body.audience,
+        targetDurationSeconds: body.targetDurationSeconds,
+        updatedAt: timestamp,
+      })
       .where(
         and(
+          eq(oneShotRuns.id, run.id),
           eq(oneShotRuns.ownerUserId, input.ownerUserId),
-          gte(oneShotRuns.createdAt, new Date(timestamp.getTime() - 3_600_000)),
+          eq(oneShotRuns.projectId, input.projectId),
+          inArray(oneShotRuns.status, ["brief_pending", "brief_ready"]),
+          lt(oneShotRuns.briefAttempts, this.options.maxBriefRevisions),
         ),
+      )
+      .returning();
+    if (claimed === undefined) {
+      const [current] = await this.database
+        .select({ status: oneShotRuns.status })
+        .from(oneShotRuns)
+        .where(eq(oneShotRuns.id, run.id))
+        .limit(1);
+      if (current !== undefined && !briefStatuses.includes(current.status))
+        throw conflict(
+          "This video has already been confirmed. Cancel it to prepare a new brief.",
+        );
+      throw conflict(
+        `The brief can be prepared at most ${this.options.maxBriefRevisions} times for one video. Confirm the current brief, or cancel and start again.`,
       );
-    if ((recent?.count ?? 0) >= this.options.maxRunsPerHour)
-      throw new PublicError(
-        "rate_limited",
-        "You have reached the hourly limit for prompt-to-video runs. Try again later.",
-        429,
-      );
+    }
 
-    const runId = createId(timestamp);
-    let created: RunRow | undefined;
+    let prepared: Awaited<ReturnType<OneShotBriefGenerator["prepare"]>>;
     try {
-      created = await this.database.transaction(async (transaction) => {
-        const [row] = await transaction
-          .insert(oneShotRuns)
-          .values({
-            id: runId,
-            ownerUserId: input.ownerUserId,
-            projectId: input.projectId,
-            idempotencyKey: key,
-            requestHash: hash,
-            focusPrompt: body.focusPrompt,
-            audience: body.audience,
-            targetDurationSeconds: body.targetDurationSeconds,
-            acceptedEstimateUsd: body.acceptedEstimateUsd.toFixed(6),
-            status: "queued",
-            correlationId: input.correlationId,
-            lastProgressAt: timestamp,
-            createdAt: timestamp,
-            updatedAt: timestamp,
+      prepared = await this.options.briefs.prepare({
+        ownerUserId: input.ownerUserId,
+        projectId: input.projectId,
+        runId: claimed.id as Identifier,
+        correlationId: claimed.correlationId as Identifier,
+        idempotencyKey: `oneshot:${claimed.id}:brief:${claimed.briefAttempts}`,
+        focusPrompt: body.focusPrompt,
+        audience: body.audience,
+        targetDurationSeconds: body.targetDurationSeconds,
+      });
+    } catch (error) {
+      // An earlier brief stays confirmable after a failed revision.
+      const [latest] = await this.database
+        .select({ revision: oneShotRunBriefs.revision })
+        .from(oneShotRunBriefs)
+        .where(eq(oneShotRunBriefs.runId, claimed.id))
+        .limit(1);
+      if (latest !== undefined)
+        await this.database
+          .update(oneShotRuns)
+          .set({ status: "brief_ready", updatedAt: this.now() })
+          .where(
+            and(
+              eq(oneShotRuns.id, claimed.id),
+              eq(oneShotRuns.status, "brief_pending"),
+            ),
+          );
+      throw error;
+    }
+
+    const estimate = estimateOneShotBrief({
+      targetDurationSeconds: body.targetDurationSeconds,
+      plannedSceneCount: prepared.output.plannedSceneCount,
+      pricing: this.options.pricing,
+    });
+    const savedAt = this.now();
+    try {
+      await this.database.transaction(async (transaction) => {
+        const [previous] = await transaction
+          .select({ revision: max(oneShotRunBriefs.revision) })
+          .from(oneShotRunBriefs)
+          .where(eq(oneShotRunBriefs.runId, claimed.id));
+        const revision = (previous?.revision ?? 0) + 1;
+        await transaction.insert(oneShotRunBriefs).values({
+          id: createId(savedAt),
+          ownerUserId: input.ownerUserId,
+          projectId: input.projectId,
+          runId: claimed.id,
+          revision,
+          idempotencyKey: key,
+          requestHash: hash,
+          focusPrompt: body.focusPrompt,
+          audience: body.audience,
+          targetDurationSeconds: body.targetDurationSeconds,
+          brief: {
+            subject: prepared.output.subject,
+            lessonTitle: prepared.output.lessonTitle,
+            coverage: prepared.output.coverage,
+            notCovered: prepared.output.notCovered,
+            sections: prepared.sections,
+            plannedSceneCount: prepared.output.plannedSceneCount,
+            stylePackId: prepared.output.stylePackId,
+            stylePackReason: prepared.output.stylePackReason,
+            soundBed: prepared.output.soundBed,
+            soundBedReason: prepared.output.soundBedReason,
+            model: prepared.model,
+            promptVersion: prepared.promptVersion,
+          },
+          estimate,
+          modelCallId: prepared.modelCallId,
+          createdAt: savedAt,
+          updatedAt: savedAt,
+        });
+        const [ready] = await transaction
+          .update(oneShotRuns)
+          .set({
+            status: "brief_ready",
+            decisionSequence: sql`${oneShotRuns.decisionSequence} + 1`,
+            updatedAt: savedAt,
           })
+          .where(
+            and(
+              eq(oneShotRuns.id, claimed.id),
+              eq(oneShotRuns.ownerUserId, input.ownerUserId),
+              eq(oneShotRuns.projectId, input.projectId),
+              inArray(oneShotRuns.status, ["brief_pending", "brief_ready"]),
+            ),
+          )
           .returning();
-        if (row === undefined) throw new Error("The run was not created.");
+        if (ready === undefined)
+          throw conflict("The run changed while the brief was prepared.");
+        await insertDecisions(
+          transaction,
+          ready,
+          [
+            {
+              kind: "brief",
+              summary: `Prepared brief revision ${revision}: ${prepared.output.coverage.length} coverage points, ${prepared.output.plannedSceneCount} scenes planned, estimate $${estimate.totalUsd.toFixed(2)}.`,
+              model: prepared.model,
+              promptVersion: prepared.promptVersion,
+              costUsd: prepared.costUsd,
+              relatedIds: [prepared.modelCallId],
+            },
+          ],
+          savedAt,
+        );
         await new PostgresAuditWriter(transaction).write({
           ownerUserId: input.ownerUserId,
           projectId: input.projectId,
           actor: { type: "user", userId: input.ownerUserId },
-          eventType: "one_shot.run_started",
-          target: { type: "one_shot_run", id: runId },
+          eventType: "one_shot.brief_prepared",
+          target: { type: "one_shot_run", id: claimed.id },
           correlationId: input.correlationId,
-          // Never the focus prompt: it is user content.
+          // Never the focus prompt or the brief text: both are user content.
           metadata: {
-            audience: body.audience,
-            targetDurationSeconds: body.targetDurationSeconds,
-            acceptedEstimateUsd: body.acceptedEstimateUsd,
+            revision,
+            modelCallId: prepared.modelCallId,
             estimateUsd: estimate.totalUsd,
             pricingVersion: estimate.pricingVersion,
+            plannedSceneCount: prepared.output.plannedSceneCount,
           },
-          occurredAt: timestamp,
+          occurredAt: savedAt,
         });
-        await this.scheduler.schedule(
-          { run: row, key: `oneshot:${row.id}:start`, delayMs: 0 },
-          transaction,
-        );
-        return row;
       });
     } catch (error) {
-      // A concurrent replay of the same key won the insert.
-      if (isUniqueViolation(error, "one_shot_runs_request_unique")) {
-        const raced = await this.findByKey(input, key);
+      // A concurrent replay of the same key stored the brief first.
+      if (isUniqueViolation(error, "one_shot_run_briefs_request_unique")) {
+        const raced = await this.findBriefByKey(input, key);
         if (raced !== undefined && raced.requestHash === hash)
-          return this.respond(input, raced);
+          return this.briefResponse(input, raced.runId as Identifier);
       }
-      if (
-        isUniqueViolation(error, "one_shot_runs_one_active_per_project") ||
-        isUniqueViolation(error, "one_shot_runs_request_unique")
-      )
+      // Two different revisions raced: the other one took this revision
+      // number. Both calls were made and metered; show the stored brief.
+      if (isUniqueViolation(error, "one_shot_run_briefs_run_revision_unique"))
         throw conflict(
-          "This project already has a prompt-to-video run in progress. Finish or cancel it before starting another.",
+          "Another brief for this video was prepared at the same time. Review it before preparing another.",
         );
       throw error;
     }
-    return this.respond(input, created);
+    return this.briefResponse(input, claimed.id as Identifier);
+  }
+
+  public async currentBrief(input: Scope): Promise<OneShotBriefResponse> {
+    const eligibility = await this.eligibility(input);
+    if (!eligibility.visible)
+      throw new PublicError(
+        "not_found",
+        "Prompt-to-video is not enabled for this account.",
+        404,
+      );
+    const run = await this.latest(input);
+    if (run === undefined)
+      return oneShotBriefResponseSchema.parse({
+        brief: null,
+        revisionsUsed: 0,
+        maxRevisions: this.options.maxBriefRevisions,
+        stylePackIds: oneShotStylePackIds,
+      });
+    return this.briefResponse(input, run.id as Identifier);
+  }
+
+  /**
+   * ST-107. Confirms one brief revision: the single explicit authorisation
+   * for the paid chain. Only the latest revision of a `brief_ready` run can be
+   * confirmed. Confirmation is a conditional status change, so two racing
+   * confirms produce one run, and a replay returns it.
+   */
+  public async create(
+    input: Scope & {
+      body: unknown;
+      idempotencyKey: string | undefined;
+      correlationId: Identifier;
+    },
+  ): Promise<OneShotResponse> {
+    this.assertCanStart(input.ownerUserId);
+    const body = parseBody(oneShotCreateInputSchema, input.body);
+    const run = await this.latest(input);
+    if (run === undefined)
+      throw conflict("Prepare a video brief before creating the video.");
+    const brief = await this.briefRow(input, run.id as Identifier, body.briefRevision);
+    if (brief === undefined)
+      throw conflict(
+        "That brief revision does not exist. Review the current brief and confirm it.",
+      );
+    if (!briefStatuses.includes(run.status)) {
+      // A replay, or the loser of a race, sees the run it confirmed.
+      if (run.confirmedBriefRevision === body.briefRevision)
+        return this.respond(input, run);
+      throw conflict("This video has already been started.");
+    }
+    if (run.status === "brief_pending")
+      throw conflict(
+        "The brief is being revised. Wait for the new brief, then confirm it.",
+      );
+    const [latest] = await this.database
+      .select({ revision: max(oneShotRunBriefs.revision) })
+      .from(oneShotRunBriefs)
+      .where(eq(oneShotRunBriefs.runId, run.id));
+    if (latest?.revision !== body.briefRevision)
+      throw conflict(
+        "A newer brief has been prepared. Review it, then confirm it.",
+      );
+    const view = toBriefView(brief);
+    if (body.acceptedEstimateUsd + 1e-9 < view.estimate.totalUsd)
+      throw new PublicError(
+        "bad_request",
+        "The accepted estimate is below the brief's estimate. Review the estimate and accept it to start.",
+        409,
+        false,
+        {
+          acceptedEstimateUsd: `The brief's estimate is ${view.estimate.totalUsd} USD.`,
+        },
+      );
+    const stylePackId = body.stylePackId ?? view.stylePackId;
+    const soundBed = body.soundBed ?? view.soundBed;
+    if (soundBed !== soundBedNone) {
+      const [track] = await this.database
+        .select({ trackId: soundBedTracks.trackId })
+        .from(soundBedTracks)
+        .where(
+          and(
+            eq(soundBedTracks.trackId, soundBed),
+            eq(soundBedTracks.status, "active"),
+          ),
+        )
+        .limit(1);
+      if (track === undefined)
+        throw new PublicError(
+          "validation_failed",
+          "Choose a sound bed from the catalog, or none.",
+          400,
+          false,
+          { soundBed: "This track is not available." },
+        );
+    }
+
+    const reservedUsd = roundUsd(body.acceptedEstimateUsd);
+    const capUsd = budgetCapUsd(reservedUsd, this.options.budgetTolerance);
+    const timestamp = this.now();
+    const decisions: OneShotDecisionDraft[] = [
+      {
+        kind: "style_pack",
+        summary: `Style pack: ${stylePackId}.`,
+        reason:
+          stylePackId === view.stylePackId
+            ? view.stylePackReason
+            : `Chosen by you in the brief (the brief suggested ${view.stylePackId}).`,
+        ...(stylePackId === view.stylePackId
+          ? { model: view.model, promptVersion: view.promptVersion }
+          : {}),
+      },
+      {
+        kind: "sound_bed",
+        summary:
+          soundBed === soundBedNone
+            ? "Sound bed: none."
+            : `Sound bed: ${soundBed}.`,
+        reason:
+          soundBed === view.soundBed
+            ? view.soundBedReason
+            : `Chosen by you in the brief (the brief suggested ${view.soundBed}).`,
+        ...(soundBed === view.soundBed
+          ? { model: view.model, promptVersion: view.promptVersion }
+          : {}),
+      },
+      {
+        kind: "budget_reservation",
+        summary: `Reserved $${reservedUsd.toFixed(2)} for brief revision ${body.briefRevision}; the run stops before any step that would pass $${capUsd.toFixed(2)}.`,
+        reason: `The cap is the accepted estimate times ${this.options.budgetTolerance}.`,
+      },
+    ];
+    const confirmed = await this.database.transaction(async (transaction) => {
+      const [updated] = await transaction
+        .update(oneShotRuns)
+        .set({
+          status: "queued",
+          confirmedBriefRevision: body.briefRevision,
+          focusPrompt: brief.focusPrompt,
+          audience: brief.audience,
+          targetDurationSeconds: brief.targetDurationSeconds,
+          acceptedEstimateUsd: reservedUsd.toFixed(6),
+          reservedUsd: reservedUsd.toFixed(6),
+          capUsd: capUsd.toFixed(6),
+          reservationRevision: 1,
+          stylePackId,
+          soundBed,
+          decisionSequence: sql`${oneShotRuns.decisionSequence} + ${decisions.length}`,
+          lastProgressAt: timestamp,
+          updatedAt: timestamp,
+        })
+        .where(
+          and(
+            eq(oneShotRuns.id, run.id),
+            eq(oneShotRuns.ownerUserId, input.ownerUserId),
+            eq(oneShotRuns.projectId, input.projectId),
+            eq(oneShotRuns.status, "brief_ready"),
+            eq(oneShotRuns.briefAttempts, run.briefAttempts),
+          ),
+        )
+        .returning();
+      if (updated === undefined) return undefined;
+      await insertDecisions(transaction, updated, decisions, timestamp);
+      await new PostgresAuditWriter(transaction).write({
+        ownerUserId: input.ownerUserId,
+        projectId: input.projectId,
+        actor: { type: "user", userId: input.ownerUserId },
+        eventType: "one_shot.run_started",
+        target: { type: "one_shot_run", id: run.id },
+        correlationId: input.correlationId,
+        // Never the focus prompt: it is user content.
+        metadata: {
+          audience: brief.audience,
+          targetDurationSeconds: brief.targetDurationSeconds,
+          acceptedEstimateUsd: reservedUsd,
+          estimateUsd: view.estimate.totalUsd,
+          pricingVersion: view.estimate.pricingVersion,
+          briefRevision: body.briefRevision,
+          capUsd,
+        },
+        occurredAt: timestamp,
+      });
+      await this.scheduler.schedule(
+        { run: updated, key: `oneshot:${run.id}:start`, delayMs: 0 },
+        transaction,
+      );
+      return updated;
+    });
+    if (confirmed !== undefined) return this.respond(input, confirmed);
+    // Lost a race: the winner may have confirmed this same revision.
+    const [current] = await this.database
+      .select()
+      .from(oneShotRuns)
+      .where(
+        and(
+          eq(oneShotRuns.id, run.id),
+          eq(oneShotRuns.ownerUserId, input.ownerUserId),
+          eq(oneShotRuns.projectId, input.projectId),
+        ),
+      )
+      .limit(1);
+    if (
+      current !== undefined &&
+      current.confirmedBriefRevision === body.briefRevision
+    )
+      return this.respond(input, current);
+    throw conflict("The brief changed while it was being confirmed. Review it and try again.");
+  }
+
+  /** ST-107. Accepts the raised estimate a budget-capped run proposes. */
+  public async acceptBudget(
+    input: Scope & { body: unknown; correlationId: Identifier },
+  ): Promise<OneShotResponse> {
+    this.assertCohort(input.ownerUserId);
+    const body = parseBody(oneShotBudgetAcceptInputSchema, input.body);
+    const run = await this.requireLatest(input);
+    if (run.status !== "needs_attention" || run.errorCode !== "ONE_SHOT_BUDGET_CAP")
+      throw conflict("This run is not waiting for a new budget.");
+    if (run.reservationRevision !== body.reservationRevision)
+      throw conflict("The budget changed. Refresh and review the new estimate.");
+    const proposal = Number(run.budgetProposalUsd ?? 0);
+    if (body.acceptedEstimateUsd + 1e-9 < proposal)
+      throw new PublicError(
+        "bad_request",
+        "The accepted estimate is below the new estimate. Review it and accept it to continue.",
+        409,
+        false,
+        { acceptedEstimateUsd: `The new estimate is ${proposal} USD.` },
+      );
+    const reservedUsd = roundUsd(body.acceptedEstimateUsd);
+    const capUsd = budgetCapUsd(reservedUsd, this.options.budgetTolerance);
+    const timestamp = this.now();
+    const steps = oneShotStepsSchema
+      .parse(run.steps)
+      .map((entry) =>
+        entry.state === "needs_attention" || entry.state === "failed"
+          ? { step: entry.step, state: "pending" as const, startedAt: entry.startedAt }
+          : entry,
+      );
+    const decisions: OneShotDecisionDraft[] = [
+      {
+        kind: "budget_reservation",
+        summary: `Raised the reservation to $${reservedUsd.toFixed(2)} (revision ${run.reservationRevision + 1}); the run stops before any step that would pass $${capUsd.toFixed(2)}.`,
+        reason: "You accepted a new estimate after the run reached its budget cap.",
+      },
+    ];
+    const updated = await this.database.transaction(async (transaction) => {
+      const [updated] = await transaction
+        .update(oneShotRuns)
+        .set({
+          status: "running",
+          steps,
+          needsAttentionStage: null,
+          errorCode: null,
+          errorMessage: null,
+          reservedUsd: reservedUsd.toFixed(6),
+          capUsd: capUsd.toFixed(6),
+          acceptedEstimateUsd: reservedUsd.toFixed(6),
+          reservationRevision: sql`${oneShotRuns.reservationRevision} + 1`,
+          budgetProposalUsd: null,
+          decisionSequence: sql`${oneShotRuns.decisionSequence} + ${decisions.length}`,
+          lastProgressAt: timestamp,
+          tickLeaseExpiresAt: null,
+          updatedAt: timestamp,
+        })
+        .where(
+          and(
+            eq(oneShotRuns.id, run.id),
+            eq(oneShotRuns.ownerUserId, input.ownerUserId),
+            eq(oneShotRuns.projectId, input.projectId),
+            eq(oneShotRuns.status, "needs_attention"),
+            eq(oneShotRuns.reservationRevision, body.reservationRevision),
+          ),
+        )
+        .returning();
+      if (updated === undefined)
+        throw conflict("The run changed. Refresh and try again.");
+      await insertDecisions(transaction, updated, decisions, timestamp);
+      await new PostgresAuditWriter(transaction).write({
+        ownerUserId: input.ownerUserId,
+        projectId: input.projectId,
+        actor: { type: "user", userId: input.ownerUserId },
+        eventType: "one_shot.budget_accepted",
+        target: { type: "one_shot_run", id: run.id },
+        correlationId: input.correlationId,
+        metadata: {
+          reservationRevision: updated.reservationRevision,
+          acceptedEstimateUsd: reservedUsd,
+          capUsd,
+          proposedEstimateUsd: proposal,
+        },
+        occurredAt: timestamp,
+      });
+      await this.scheduler.schedule(
+        {
+          run: updated,
+          key: `oneshot:${run.id}:budget:${updated.reservationRevision}`,
+          delayMs: 0,
+        },
+        transaction,
+      );
+      return updated;
+    });
+    return this.respond(input, updated);
+  }
+
+  /** ST-107. The latest run's decision log, ledger and budget. */
+  public async decisions(input: Scope): Promise<OneShotDecisionsResponse> {
+    const eligibility = await this.eligibility(input);
+    const empty = oneShotDecisionsResponseSchema.parse({
+      runId: null,
+      decisions: [],
+      ledger: [],
+      budget: null,
+    });
+    if (!eligibility.visible) return empty;
+    const run = await this.latest(input);
+    if (run === undefined) return empty;
+    const [decisionRows, ledgerRows] = await Promise.all([
+      this.database
+        .select()
+        .from(oneShotRunDecisions)
+        .where(
+          and(
+            eq(oneShotRunDecisions.runId, run.id),
+            eq(oneShotRunDecisions.ownerUserId, input.ownerUserId),
+            eq(oneShotRunDecisions.projectId, input.projectId),
+          ),
+        )
+        .orderBy(asc(oneShotRunDecisions.seq)),
+      this.database
+        .select()
+        .from(oneShotRunLedgerEntries)
+        .where(
+          and(
+            eq(oneShotRunLedgerEntries.runId, run.id),
+            eq(oneShotRunLedgerEntries.ownerUserId, input.ownerUserId),
+            eq(oneShotRunLedgerEntries.projectId, input.projectId),
+          ),
+        ),
+    ]);
+    const order = new Map<string, number>(
+      oneShotLedgerStepValues.map((step, index) => [step, index]),
+    );
+    return oneShotDecisionsResponseSchema.parse({
+      runId: run.id,
+      decisions: decisionRows.map((row) => ({
+        runId: row.runId,
+        seq: row.seq,
+        kind: row.kind,
+        summary: row.summary,
+        reason: row.reason,
+        model: row.model,
+        promptVersion: row.promptVersion,
+        costUsd: row.costUsd === null ? null : Number(row.costUsd),
+        relatedIds: row.relatedIds,
+        createdAt: serializeUtcTimestamp(row.createdAt),
+      })),
+      ledger: ledgerRows
+        .map((row) => ({
+          step: row.step,
+          estimateUsd: Number(row.estimateUsd),
+          actualUsd: Number(row.actualUsd),
+          usageRecordIds: row.usageRecordIds,
+        }))
+        .sort(
+          (left, right) =>
+            (order.get(left.step) ?? 99) - (order.get(right.step) ?? 99),
+        ),
+      budget: toView(run).budget,
+    });
   }
 
   public async current(input: Scope): Promise<OneShotResponse> {
@@ -722,6 +1140,7 @@ export class PostgresOneShotService implements OneShotService {
           needsAttentionStage: null,
           errorCode: null,
           errorMessage: null,
+          budgetProposalUsd: null,
           resumeCount: sql`${oneShotRuns.resumeCount} + 1`,
           lastProgressAt: timestamp,
           tickLeaseExpiresAt: null,
@@ -825,24 +1244,6 @@ export class PostgresOneShotService implements OneShotService {
     });
   }
 
-  private async findByKey(
-    input: Scope,
-    key: string,
-  ): Promise<RunRow | undefined> {
-    const [row] = await this.database
-      .select()
-      .from(oneShotRuns)
-      .where(
-        and(
-          eq(oneShotRuns.ownerUserId, input.ownerUserId),
-          eq(oneShotRuns.projectId, input.projectId),
-          eq(oneShotRuns.idempotencyKey, key),
-        ),
-      )
-      .limit(1);
-    return row;
-  }
-
   private async latest(input: Scope): Promise<RunRow | undefined> {
     const [row] = await this.database
       .select()
@@ -867,6 +1268,146 @@ export class PostgresOneShotService implements OneShotService {
         404,
       );
     return run;
+  }
+
+  /**
+   * The run a brief call belongs to: the project's `brief_*` run, or a new
+   * one. A project with any other active run cannot start a brief.
+   */
+  private async briefRun(
+    input: Scope & { correlationId: Identifier },
+    key: string,
+    hash: string,
+    body: z.infer<typeof oneShotBriefInputSchema>,
+  ): Promise<RunRow> {
+    const latest = await this.latest(input);
+    if (latest !== undefined && briefStatuses.includes(latest.status))
+      return latest;
+    if (
+      latest !== undefined &&
+      (activeStatuses as string[]).includes(latest.status)
+    )
+      throw conflict(
+        "This project already has a prompt-to-video run in progress. Finish or cancel it before starting another.",
+      );
+    const timestamp = this.now();
+    const [recent] = await this.database
+      .select({ count: sql<number>`count(*)::int` })
+      .from(oneShotRuns)
+      .where(
+        and(
+          eq(oneShotRuns.ownerUserId, input.ownerUserId),
+          gte(oneShotRuns.createdAt, new Date(timestamp.getTime() - 3_600_000)),
+        ),
+      );
+    if ((recent?.count ?? 0) >= this.options.maxRunsPerHour)
+      throw new PublicError(
+        "rate_limited",
+        "You have reached the hourly limit for prompt-to-video runs. Try again later.",
+        429,
+      );
+    try {
+      const [created] = await this.database
+        .insert(oneShotRuns)
+        .values({
+          id: createId(timestamp),
+          ownerUserId: input.ownerUserId,
+          projectId: input.projectId,
+          idempotencyKey: key,
+          requestHash: hash,
+          focusPrompt: body.focusPrompt,
+          audience: body.audience,
+          targetDurationSeconds: body.targetDurationSeconds,
+          acceptedEstimateUsd: "0",
+          status: "brief_pending",
+          correlationId: input.correlationId,
+          lastProgressAt: timestamp,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        })
+        .returning();
+      if (created === undefined) throw new Error("The run was not created.");
+      return created;
+    } catch (error) {
+      // A concurrent first brief on the same project created the run.
+      if (
+        isUniqueViolation(error, "one_shot_runs_one_active_per_project") ||
+        isUniqueViolation(error, "one_shot_runs_request_unique")
+      ) {
+        const raced = await this.latest(input);
+        if (raced !== undefined && briefStatuses.includes(raced.status))
+          return raced;
+        throw conflict(
+          "This project already has a prompt-to-video run in progress. Finish or cancel it before starting another.",
+        );
+      }
+      throw error;
+    }
+  }
+
+  private async findBriefByKey(
+    input: Scope,
+    key: string,
+  ): Promise<BriefRow | undefined> {
+    const [row] = await this.database
+      .select()
+      .from(oneShotRunBriefs)
+      .where(
+        and(
+          eq(oneShotRunBriefs.ownerUserId, input.ownerUserId),
+          eq(oneShotRunBriefs.projectId, input.projectId),
+          eq(oneShotRunBriefs.idempotencyKey, key),
+        ),
+      )
+      .limit(1);
+    return row;
+  }
+
+  private async briefRow(
+    input: Scope,
+    runId: Identifier,
+    revision?: number,
+  ): Promise<BriefRow | undefined> {
+    const [row] = await this.database
+      .select()
+      .from(oneShotRunBriefs)
+      .where(
+        and(
+          eq(oneShotRunBriefs.runId, runId),
+          eq(oneShotRunBriefs.ownerUserId, input.ownerUserId),
+          eq(oneShotRunBriefs.projectId, input.projectId),
+          ...(revision === undefined
+            ? []
+            : [eq(oneShotRunBriefs.revision, revision)]),
+        ),
+      )
+      .orderBy(desc(oneShotRunBriefs.revision))
+      .limit(1);
+    return row;
+  }
+
+  private async briefResponse(
+    input: Scope,
+    runId: Identifier,
+  ): Promise<OneShotBriefResponse> {
+    const [run] = await this.database
+      .select({ briefAttempts: oneShotRuns.briefAttempts })
+      .from(oneShotRuns)
+      .where(
+        and(
+          eq(oneShotRuns.id, runId),
+          eq(oneShotRuns.ownerUserId, input.ownerUserId),
+          eq(oneShotRuns.projectId, input.projectId),
+        ),
+      )
+      .limit(1);
+    const row = await this.briefRow(input, runId);
+    return oneShotBriefResponseSchema.parse({
+      brief: row === undefined ? null : toBriefView(row),
+      revisionsUsed: run?.briefAttempts ?? 0,
+      maxRevisions: this.options.maxBriefRevisions,
+      stylePackIds: oneShotStylePackIds,
+    });
   }
 }
 
@@ -937,18 +1478,28 @@ export class OneShotRunnerHost {
     }
 
     // No transaction is open here: the tick calls services and providers.
+    const brief = await loadConfirmedBrief(this.database, claimed);
     const result = await advanceOneShotRun({
-      run: toRunState(claimed),
+      run: toRunState(claimed, brief),
       gateway: this.gateway,
       now: this.now(),
     });
+    // ST-107. Reconciled from the usage records before the save; written in
+    // the save transaction only if the save wins.
+    const ledger =
+      brief === null
+        ? null
+        : await reconcileLedger(this.database, claimed, brief.estimate);
     const savedAt = this.now();
     // The save and the next tick's job commit together, so a saved ticking
     // run always has the job that advances it.
     return this.database.transaction(async (transaction) => {
       const [saved] = await transaction
         .update(oneShotRuns)
-        .set(tickPatch(result, savedAt))
+        .set({
+          ...tickPatch(result, savedAt),
+          decisionSequence: sql`${oneShotRuns.decisionSequence} + ${result.decisions.length}`,
+        })
         .where(
           and(
             eq(oneShotRuns.id, claimed.id),
@@ -961,6 +1512,9 @@ export class OneShotRunnerHost {
         )
         .returning();
       if (saved === undefined) return "cancelled_mid_tick" as const;
+      await insertDecisions(transaction, saved, result.decisions, savedAt);
+      if (ledger !== null)
+        await writeLedger(transaction, saved, ledger, savedAt);
       if (!result.reschedule) return "stopped" as const;
       await this.scheduler.schedule(
         {
@@ -990,6 +1544,14 @@ function tickPatch(result: OneShotTickResult, now: Date): Partial<RunRow> {
     ...(result.focusCoverage === undefined
       ? {}
       : { focusCoverage: result.focusCoverage }),
+    budgetProposalUsd:
+      result.budgetProposalUsd === null
+        ? null
+        : result.budgetProposalUsd.toFixed(6),
+    ...(result.repair === undefined ? {} : { repairState: result.repair }),
+    ...(result.coverageGaps === undefined
+      ? {}
+      : { coverageGaps: result.coverageGaps }),
   };
 }
 
@@ -1026,7 +1588,7 @@ export function createOneShotAdvanceJobHandler(
 // Row mapping
 // ---------------------------------------------------------------------------
 
-function toRunState(row: RunRow): OneShotRunState {
+function toRunState(row: RunRow, brief: OneShotRunBrief | null): OneShotRunState {
   return {
     id: identifierSchema.parse(row.id),
     ownerUserId: identifierSchema.parse(row.ownerUserId),
@@ -1041,7 +1603,19 @@ function toRunState(row: RunRow): OneShotRunState {
     lastProgressAt: row.lastProgressAt,
     renderJobId:
       row.renderJobId === null ? null : identifierSchema.parse(row.renderJobId),
+    brief,
+    budget:
+      brief === null || row.reservedUsd === null || row.capUsd === null
+        ? null
+        : { reservedUsd: Number(row.reservedUsd), capUsd: Number(row.capUsd) },
+    repair: readOneShotRepairState(row.repairState),
+    coverageGaps: readCoverageGaps(row.coverageGaps),
   };
+}
+
+function readCoverageGaps(value: unknown): string[] {
+  const parsed = z.array(z.string().min(1).max(300)).max(10).safeParse(value);
+  return parsed.success ? parsed.data : [];
 }
 
 function toView(row: RunRow): OneShotRunView {
@@ -1076,6 +1650,23 @@ function toView(row: RunRow): OneShotRunView {
     needsAttention,
     lessonVersionId: row.lessonVersionId as Identifier | null,
     renderJobId: row.renderJobId as Identifier | null,
+    briefRevision: row.confirmedBriefRevision,
+    budget:
+      row.reservedUsd === null || row.capUsd === null
+        ? null
+        : {
+            reservedUsd: Number(row.reservedUsd),
+            capUsd: Number(row.capUsd),
+            actualUsd: Number(row.actualCostUsd),
+            reservationRevision: row.reservationRevision,
+            proposedEstimateUsd:
+              row.budgetProposalUsd === null
+                ? null
+                : Number(row.budgetProposalUsd),
+          },
+    coverageGaps: readCoverageGaps(row.coverageGaps),
+    stylePackId: creativeDesignPackIdSchema.safeParse(row.stylePackId).data ?? null,
+    soundBed: soundBedChoiceSchema.safeParse(row.soundBed).data ?? null,
     correlationId: row.correlationId as Identifier,
     createdAt: serializeUtcTimestamp(row.createdAt),
     updatedAt: serializeUtcTimestamp(row.updatedAt),
@@ -1101,4 +1692,225 @@ export async function oneShotCostSoFar(
       ),
     );
   return Number(row?.total ?? 0);
+}
+
+// ---------------------------------------------------------------------------
+// ST-107: briefs, the ledger and the decision log
+// ---------------------------------------------------------------------------
+
+type BriefRow = typeof oneShotRunBriefs.$inferSelect;
+
+const briefStatuses: readonly OneShotRunStatus[] = ["brief_pending", "brief_ready"];
+
+function requireIdempotencyKey(value: string | undefined, message: string): string {
+  const key = value?.trim();
+  if (key === undefined || key.length === 0 || key.length > 200)
+    throw new PublicError("validation_failed", message, 400, false, {
+      "idempotency-key": "Provide a non-empty key up to 200 characters.",
+    });
+  return key;
+}
+
+const storedBriefSchema = z
+  .object({
+    subject: z.string(),
+    lessonTitle: z.string(),
+    coverage: z.array(oneShotBriefCoveragePointSchema),
+    notCovered: z.array(z.string()),
+    sections: z.array(z.object({ sectionId: z.string(), heading: z.string() })),
+    plannedSceneCount: z.number(),
+    stylePackId: z.string(),
+    stylePackReason: z.string(),
+    soundBed: z.string(),
+    soundBedReason: z.string(),
+    model: z.string(),
+    promptVersion: z.string(),
+  })
+  .passthrough();
+
+/** A stored brief revision as its owner sees it. */
+function toBriefView(row: BriefRow): OneShotBrief {
+  const stored = storedBriefSchema.parse(row.brief);
+  return oneShotBriefSchema.parse({
+    runId: row.runId,
+    revision: row.revision,
+    focusPrompt: row.focusPrompt,
+    audience: oneShotAudienceSchema.parse(row.audience),
+    targetDurationSeconds: row.targetDurationSeconds,
+    subject: stored.subject,
+    lessonTitle: stored.lessonTitle,
+    coverage: stored.coverage,
+    notCovered: stored.notCovered,
+    sections: stored.sections,
+    plannedSceneCount: stored.plannedSceneCount,
+    stylePackId: stored.stylePackId,
+    stylePackReason: stored.stylePackReason,
+    soundBed: stored.soundBed,
+    soundBedReason: stored.soundBedReason,
+    estimate: oneShotEstimateSchema.parse(row.estimate),
+    model: stored.model,
+    promptVersion: stored.promptVersion,
+    modelCallId: row.modelCallId,
+    createdAt: serializeUtcTimestamp(row.createdAt),
+  });
+}
+
+/** The confirmed brief a run's ticks work from; `null` before ST-107. The
+ * run's own confirmed style pack and sound bed override the brief's
+ * suggestions. */
+async function loadConfirmedBrief(
+  database: DatabaseClient,
+  run: RunRow,
+): Promise<OneShotRunBrief | null> {
+  if (run.confirmedBriefRevision === null) return null;
+  const [row] = await database
+    .select()
+    .from(oneShotRunBriefs)
+    .where(
+      and(
+        eq(oneShotRunBriefs.runId, run.id),
+        eq(oneShotRunBriefs.ownerUserId, run.ownerUserId),
+        eq(oneShotRunBriefs.projectId, run.projectId),
+        eq(oneShotRunBriefs.revision, run.confirmedBriefRevision),
+      ),
+    )
+    .limit(1);
+  if (row === undefined) return null;
+  const view = toBriefView(row);
+  return {
+    revision: view.revision,
+    subject: view.subject,
+    lessonTitle: view.lessonTitle,
+    coverage: view.coverage,
+    stylePackId:
+      creativeDesignPackIdSchema.safeParse(run.stylePackId).data ??
+      view.stylePackId,
+    soundBed: soundBedChoiceSchema.safeParse(run.soundBed).data ?? view.soundBed,
+    estimate: view.estimate,
+  };
+}
+
+type LedgerLine = {
+  step: OneShotLedgerStep;
+  estimateUsd: number;
+  actualUsd: number;
+  usageRecordIds: string[];
+};
+
+/**
+ * Every usage record the run's correlation id produced, by ledger line, next
+ * to that line's accepted estimate. Tenant-scoped on owner and project.
+ */
+export async function reconcileLedger(
+  database: DatabaseClient,
+  run: Pick<RunRow, "ownerUserId" | "projectId" | "correlationId">,
+  estimate: OneShotEstimate,
+): Promise<LedgerLine[]> {
+  const records = await database
+    .select({
+      id: usageRecords.id,
+      operationType: usageRecords.operationType,
+      costUsd: usageRecords.estimatedCostUsd,
+    })
+    .from(usageRecords)
+    .where(
+      and(
+        eq(usageRecords.ownerUserId, run.ownerUserId),
+        eq(usageRecords.projectId, run.projectId),
+        eq(usageRecords.correlationId, run.correlationId),
+      ),
+    )
+    .orderBy(asc(usageRecords.occurredAt), asc(usageRecords.id));
+  const estimates = ledgerEstimates(estimate);
+  const lines = new Map<OneShotLedgerStep, LedgerLine>();
+  const line = (step: OneShotLedgerStep) => {
+    let entry = lines.get(step);
+    if (entry === undefined) {
+      entry = {
+        step,
+        estimateUsd: estimates[step] ?? 0,
+        actualUsd: 0,
+        usageRecordIds: [],
+      };
+      lines.set(step, entry);
+    }
+    return entry;
+  };
+  for (const step of Object.keys(estimates) as OneShotLedgerStep[]) line(step);
+  for (const record of records) {
+    const entry = line(ledgerStepForOperation(record.operationType));
+    entry.actualUsd = roundUsd(entry.actualUsd + Number(record.costUsd));
+    entry.usageRecordIds.push(record.id);
+  }
+  return [...lines.values()];
+}
+
+/** One row per `(run, step)`, updated in place as spend is reconciled. */
+async function writeLedger(
+  executor: DatabaseExecutor,
+  run: Pick<RunRow, "id" | "ownerUserId" | "projectId">,
+  lines: readonly LedgerLine[],
+  now: Date,
+): Promise<void> {
+  if (lines.length === 0) return;
+  await executor
+    .insert(oneShotRunLedgerEntries)
+    .values(
+      lines.map((entry) => ({
+        id: createId(now),
+        ownerUserId: run.ownerUserId,
+        projectId: run.projectId,
+        runId: run.id,
+        step: entry.step,
+        estimateUsd: entry.estimateUsd.toFixed(6),
+        actualUsd: entry.actualUsd.toFixed(6),
+        usageRecordIds: entry.usageRecordIds,
+        createdAt: now,
+        updatedAt: now,
+      })),
+    )
+    .onConflictDoUpdate({
+      target: [oneShotRunLedgerEntries.runId, oneShotRunLedgerEntries.step],
+      set: {
+        estimateUsd: sql`excluded.estimate_usd`,
+        actualUsd: sql`excluded.actual_usd`,
+        usageRecordIds: sql`excluded.usage_record_ids`,
+        updatedAt: now,
+      },
+    });
+}
+
+/**
+ * Appends decisions after the caller bumped `decision_sequence` by their
+ * count in the same transaction; `run` is the row that update returned, so
+ * the row lock orders every writer and `seq` never collides.
+ */
+export async function insertDecisions(
+  executor: DatabaseExecutor,
+  run: Pick<RunRow, "id" | "ownerUserId" | "projectId" | "decisionSequence">,
+  drafts: readonly OneShotDecisionDraft[],
+  now: Date,
+): Promise<void> {
+  if (drafts.length === 0) return;
+  const first = run.decisionSequence - drafts.length + 1;
+  await executor.insert(oneShotRunDecisions).values(
+    drafts.map((draft, index) => {
+      const decision = oneShotDecisionDraftSchema.parse(draft);
+      return {
+        id: createId(now),
+        ownerUserId: run.ownerUserId,
+        projectId: run.projectId,
+        runId: run.id,
+        seq: first + index,
+        kind: decision.kind,
+        summary: decision.summary,
+        reason: decision.reason ?? null,
+        model: decision.model ?? null,
+        promptVersion: decision.promptVersion ?? null,
+        costUsd: decision.costUsd === undefined ? null : decision.costUsd.toFixed(6),
+        relatedIds: decision.relatedIds,
+        createdAt: now,
+      };
+    }),
+  );
 }

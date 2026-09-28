@@ -153,13 +153,29 @@ describe("ST-105 one-shot gateway", () => {
       status: "failed",
       issues: [{ severity: "error" }, { severity: "warning" }, { severity: "warning" }],
     });
-    await expect(gateway({ validation: { run } }).validate(scope)).resolves.toEqual({
+    await expect(gateway({ validation: { run } }).validate(scope)).resolves.toMatchObject({
       runId: "run-1",
       status: "failed",
       errors: 1,
       warnings: 2,
     });
     expect(run).toHaveBeenCalledWith({ ...scope, body: {} });
+  });
+
+  it("ST-107: hands the repair map every unacknowledged finding, never an acknowledged one", async () => {
+    const sceneId = "019ffc30-9999-7000-8000-000000000105";
+    const run = vi.fn().mockResolvedValue({
+      id: "run-1",
+      status: "failed",
+      issues: [
+        { severity: "error", code: "text_overflow", sceneId, scopeId: sceneId, details: { a: 1 }, acknowledgedAt: null },
+        { severity: "warning", code: "scene_monotony", sceneId, scopeId: sceneId, details: {}, acknowledgedAt: "2026-09-27T10:00:00.000Z" },
+      ],
+    });
+    const result = await gateway({ validation: { run } }).validate(scope);
+    expect(result.findings).toEqual([
+      { code: "text_overflow", severity: "error", sceneId, scopeId: sceneId, details: { a: 1 } },
+    ]);
   });
 
   it("saves a before-render version and retries a failed render of the same content", async () => {
@@ -183,5 +199,88 @@ describe("ST-105 one-shot gateway", () => {
       expect.objectContaining({ idempotencyKey: "oneshot:run:render:r0", body: { lessonVersionId: "version-1" } }),
     );
     expect(retry).toHaveBeenCalledOnce();
+  });
+
+  it("ST-107: repairs through the existing scene-regeneration job with the run's key and authorisation", async () => {
+    const regenerateScene = vi.fn().mockResolvedValue({ jobId: "job-9", status: "queued" });
+    const current = vi.fn().mockResolvedValue({ storyboard: { revision: 7 } });
+    const subject = gateway({ storyboard: { current, regenerateScene } });
+    const repairContext = { ...context, requestKey: "oneshot:run:repair:1:scene-1" };
+    await expect(
+      subject.requestSceneRepair(repairContext, {
+        sceneId: "scene-1",
+        mode: "shorten",
+        instruction: "Shorten the on-screen text so it fits its layout.",
+      }),
+    ).resolves.toEqual({ jobId: "job-9" });
+    expect(regenerateScene).toHaveBeenCalledWith({
+      ...scope,
+      sceneId: "scene-1",
+      body: {
+        mode: "shorten",
+        instruction: "Shorten the on-screen text so it fits its layout.",
+        expectedRevision: 7,
+      },
+      idempotencyKey: "oneshot:run:repair:1:scene-1",
+      correlationId: context.correlationId,
+      oneShotRunId: context.oneShotRunId,
+    });
+  });
+
+  it("ST-107: applies a repair against the current revisions, as the run", async () => {
+    const applySceneCandidate = vi.fn().mockResolvedValue({});
+    const subject = gateway({
+      storyboard: {
+        current: vi.fn().mockResolvedValue({ storyboard: { revision: 8 } }),
+        sceneDetail: vi.fn().mockResolvedValue({ sceneRevision: 3 }),
+        applySceneCandidate,
+      },
+    });
+    await subject.applySceneRepair(context, { sceneId: "scene-1", candidateId: "cand-1" as Identifier });
+    expect(applySceneCandidate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sceneId: "scene-1",
+        candidateId: "cand-1",
+        body: { expectedRevision: 8, expectedSceneRevision: 3 },
+        oneShotRunId: context.oneShotRunId,
+      }),
+    );
+  });
+
+  it("ST-107: saves the confirmed style pack and sound bed with the configuration", async () => {
+    const save = vi.fn().mockResolvedValue({ configuration: { version: 2 } });
+    const subject = gateway({
+      lessonConfiguration: { get: vi.fn().mockResolvedValue({ configuration: null }), save },
+    });
+    await subject.saveConfiguration(context, {
+      expectedVersion: 1,
+      subject: "Engineering",
+      lessonTitle: "Trusses",
+      focusPrompt: "How do trusses carry load?",
+      audience: { ageBand: "adult-professional", difficulty: "advanced", tone: "academic" },
+      targetDurationSeconds: 180,
+      creativeStylePack: "systems",
+      soundBed: "morning-pad",
+    });
+    expect(save.mock.calls[0]![0].body).toMatchObject({ creativeStylePack: "systems", soundBed: "morning-pad" });
+  });
+
+  it("ST-107: reads the render review as codes and details only", async () => {
+    const detail = vi.fn().mockResolvedValue({
+      status: "failed",
+      progress: 1,
+      errorCode: "RENDER_REVIEW_FAILED",
+      review: {
+        outcome: "failed",
+        findings: [{ code: "BLACK_SEGMENT", severity: "error", detail: "Black from 0:10 to 0:14.", correction: "Check scene 3." }],
+        contactSheet: [{ position: 0.5, atMs: 1000, url: "https://signed.example/frame" }],
+      },
+    });
+    const state = await gateway({ renders: { detail } }).render(scope, "render-1" as Identifier);
+    expect(state.review).toEqual({
+      outcome: "failed",
+      findings: [{ code: "BLACK_SEGMENT", severity: "error", detail: "Black from 0:10 to 0:14." }],
+    });
+    expect(JSON.stringify(state)).not.toContain("signed.example");
   });
 });

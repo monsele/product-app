@@ -1,6 +1,7 @@
 /**
  * ST-105 — prompt-to-video routes: tenant isolation, cohort gating, flag
  * drain semantics, the estimate, and the closed default of an unwired server.
+ * ST-107 adds the brief, budget-accept and decisions routes to every check.
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -16,7 +17,7 @@ import {
 import { createApp, sessionCookieName } from "./app.js";
 import {
   createEnvironmentOneShotCohort,
-  estimateOneShotRun,
+  estimateOneShotBrief,
   PostgresOneShotService,
   type OneShotPricing,
   type OneShotService,
@@ -56,7 +57,10 @@ function serviceStub() {
   };
   return {
     eligibility: vi.fn().mockResolvedValue(response.eligibility),
-    estimate: vi.fn().mockResolvedValue({ totalUsd: 1 }),
+    brief: vi.fn().mockResolvedValue({ brief: null }),
+    currentBrief: vi.fn().mockResolvedValue({ brief: null }),
+    acceptBudget: vi.fn().mockResolvedValue(response),
+    decisions: vi.fn().mockResolvedValue({ decisions: [] }),
     create: vi.fn().mockResolvedValue(response),
     current: vi.fn().mockResolvedValue(response),
     render: vi.fn().mockResolvedValue(response),
@@ -68,7 +72,10 @@ function serviceStub() {
 const routes = (projectId: string) =>
   [
     { method: "GET", url: `/projects/${projectId}/one-shot/eligibility`, call: "eligibility" },
-    { method: "POST", url: `/projects/${projectId}/one-shot/estimate`, call: "estimate" },
+    { method: "POST", url: `/projects/${projectId}/one-shot/brief`, call: "brief" },
+    { method: "GET", url: `/projects/${projectId}/one-shot/brief`, call: "currentBrief" },
+    { method: "POST", url: `/projects/${projectId}/one-shot/budget/accept`, call: "acceptBudget" },
+    { method: "GET", url: `/projects/${projectId}/one-shot/decisions`, call: "decisions" },
     { method: "POST", url: `/projects/${projectId}/one-shot`, call: "create" },
     { method: "GET", url: `/projects/${projectId}/one-shot`, call: "current" },
     { method: "POST", url: `/projects/${projectId}/one-shot/render`, call: "render" },
@@ -95,7 +102,13 @@ function realService(cohort: { enabled: boolean; members: string }) {
     }),
     { schedule: vi.fn() },
     { saveLessonVersion: vi.fn(), startRender: vi.fn() },
-    { pricing, maxRunsPerHour: 3 },
+    {
+      pricing,
+      maxRunsPerHour: 3,
+      briefs: { prepare: vi.fn(), assertReady: vi.fn() },
+      budgetTolerance: 1.25,
+      maxBriefRevisions: 3,
+    },
   );
 }
 
@@ -162,6 +175,9 @@ describe("ST-105 prompt-to-video routes", () => {
     expect(stub.create).toHaveBeenCalledWith(
       expect.objectContaining({ idempotencyKey: "k-1", correlationId: expect.any(String) }),
     );
+    expect(stub.brief).toHaveBeenCalledWith(
+      expect.objectContaining({ idempotencyKey: "k-1", correlationId: expect.any(String) }),
+    );
   }, 30_000);
 
   it("refuses writes from an untrusted origin", async () => {
@@ -197,6 +213,19 @@ describe("ST-105 prompt-to-video routes", () => {
       },
       run: null,
     });
+    // Reads outside the cohort reveal nothing about the feature.
+    const brief = await server.inject({
+      cookies: { [sessionCookieName]: "owner" },
+      method: "GET",
+      url: `/projects/${fixture.projectId}/one-shot/brief`,
+    });
+    expect(brief.statusCode).toBe(404);
+    const decisions = await server.inject({
+      cookies: { [sessionCookieName]: "owner" },
+      method: "GET",
+      url: `/projects/${fixture.projectId}/one-shot/decisions`,
+    });
+    expect(decisions.json()).toEqual({ runId: null, decisions: [], ledger: [], budget: null });
     for (const route of routes(fixture.projectId).filter((entry) => entry.method === "POST")) {
       const response = await server.inject({
         cookies: { [sessionCookieName]: "owner" },
@@ -225,7 +254,7 @@ describe("ST-105 prompt-to-video routes", () => {
       canStart: false,
       reasons: [expect.objectContaining({ code: "pilot_disabled" })],
     });
-    for (const url of [`/projects/${fixture.projectId}/one-shot`, `/projects/${fixture.projectId}/one-shot/estimate`]) {
+    for (const url of [`/projects/${fixture.projectId}/one-shot`, `/projects/${fixture.projectId}/one-shot/brief`]) {
       const response = await server.inject({
         cookies: { [sessionCookieName]: "owner" },
         headers: { origin, "idempotency-key": "k-1" },
@@ -256,12 +285,12 @@ describe("ST-105 prompt-to-video routes", () => {
   });
 });
 
-describe("ST-105 prompt-to-video estimate", () => {
-  it("itemises the whole chain and scales with the lesson length", () => {
-    const short = estimateOneShotRun({ targetDurationSeconds: 180, pricing });
-    const long = estimateOneShotRun({ targetDurationSeconds: 420, pricing });
+describe("ST-107 prompt-to-video brief estimate", () => {
+  it("itemises the whole chain from the brief's scene plan, including the repair allowance", () => {
+    const short = estimateOneShotBrief({ targetDurationSeconds: 180, plannedSceneCount: 6, pricing });
+    const more = estimateOneShotBrief({ targetDurationSeconds: 180, plannedSceneCount: 9, pricing });
     expect(short.items.map((item) => item.key)).toEqual([
-      "ai.lesson-intent",
+      "ai.one-shot-brief",
       "ai.objectives",
       "ai.outline",
       "ai.narration",
@@ -270,14 +299,30 @@ describe("ST-105 prompt-to-video estimate", () => {
       "image.generation",
       "tts.generation",
       "tts.alignment",
+      "repair.scene_regeneration",
+      "repair.grounding",
+      "repair.audio",
     ]);
+    expect(short.pricingVersion).toBe("one-shot-estimate-v2");
     expect(short.estimatedScenes).toBe(6);
     expect(short.totalUsd).toBeCloseTo(
       short.items.reduce((sum, item) => sum + item.costUsd, 0),
       6,
     );
-    expect(long.totalUsd).toBeGreaterThan(short.totalUsd);
-    // Six bounded model calls dominate the estimate.
-    expect(short.totalUsd).toBeGreaterThanOrEqual(6 * 1.08);
+    // More planned scenes means more illustrations; narration is bounded by
+    // the word budget, not the scene count.
+    const cost = (estimate: typeof short, key: string) =>
+      estimate.items.find((item) => item.key === key)?.costUsd ?? 0;
+    expect(cost(more, "image.generation")).toBeGreaterThan(cost(short, "image.generation"));
+    expect(cost(more, "tts.generation")).toBeCloseTo(cost(short, "tts.generation"), 6);
+    expect(more.items.find((item) => item.key === "image.generation")?.quantity).toBe(9);
+    // The repair allowance: three rounds of at most four scenes.
+    expect(short.items.find((item) => item.key === "repair.scene_regeneration")?.quantity).toBe(12);
+  });
+
+  it("is deterministic: the same inputs always give the same estimate", () => {
+    const first = estimateOneShotBrief({ targetDurationSeconds: 300, plannedSceneCount: 8, pricing });
+    const second = estimateOneShotBrief({ targetDurationSeconds: 300, plannedSceneCount: 8, pricing });
+    expect(second).toEqual(first);
   });
 });

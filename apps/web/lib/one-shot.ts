@@ -7,21 +7,30 @@
  *
  * The focus prompt is user content: it only ever travels in a request body.
  * It never goes into a URL, a query string, a log line or analytics.
+ *
+ * ST-107: the request prepares a video brief first; confirming the brief is
+ * the single authorisation for the paid chain.
  */
 
 import {
   lessonFocusPromptMaxLength,
+  soundBedCatalogResponseSchema,
+  type CreativeDesignPackId,
   type LessonAgeBand,
+  type SoundBedChoice,
   type TargetDurationSeconds,
 } from "@avlp/schemas";
 import {
+  oneShotBriefResponseSchema,
+  oneShotDecisionsResponseSchema,
   oneShotEligibilitySchema,
-  oneShotEstimateSchema,
   oneShotResponseSchema,
   type OneShotAttentionStage,
   type OneShotAudience,
+  type OneShotBriefResponse,
+  type OneShotDecisionsResponse,
   type OneShotEligibility,
-  type OneShotEstimate,
+  type OneShotLedgerStep,
   type OneShotResponse,
   type OneShotRunStatus,
   type OneShotRunView,
@@ -137,6 +146,8 @@ export function currentDisplayStep(
 
 export type RunView =
   | "request"
+  | "brief"
+  | "budget"
   | "progress"
   | "not_covered"
   | "attention"
@@ -148,6 +159,9 @@ export type RunView =
 export function viewForRun(run: OneShotRunView | null): RunView {
   if (run === null) return "request";
   switch (run.status) {
+    case "brief_pending":
+    case "brief_ready":
+      return "brief";
     case "queued":
     case "running":
       return "progress";
@@ -162,7 +176,13 @@ export function viewForRun(run: OneShotRunView | null): RunView {
     case "failed":
       if (run.needsAttention?.errorCode === "FOCUS_NOT_COVERED")
         return "not_covered";
-      if (run.needsAttention?.errorCode === "RENDER_FAILED") return "delivery";
+      if (
+        run.needsAttention?.errorCode === "RENDER_FAILED" ||
+        run.needsAttention?.errorCode === "RENDER_REVIEW_FAILED"
+      )
+        return "delivery";
+      if (run.needsAttention?.errorCode === "ONE_SHOT_BUDGET_CAP")
+        return "budget";
       return "attention";
   }
 }
@@ -193,6 +213,7 @@ export function runFingerprint(run: OneShotRunView | null): string {
     run.currentStep ?? "-",
     run.updatedAt,
     run.actualCostUsd,
+    run.budget?.reservationRevision ?? "-",
     ...run.steps.map((entry) => `${entry.step}:${entry.state}`),
   ].join("|");
 }
@@ -362,12 +383,12 @@ export interface RequestFormValues {
 }
 
 export type RequestFormErrors = Partial<
-  Record<"document" | "focusPrompt" | "audience" | "estimate", string>
+  Record<"document" | "focusPrompt" | "audience", string>
 >;
 
 export function validateRequestForm(
   values: RequestFormValues,
-  context: { documentReady: boolean; estimate: OneShotEstimate | null },
+  context: { documentReady: boolean },
 ): RequestFormErrors {
   const errors: RequestFormErrors = {};
   if (!context.documentReady)
@@ -379,28 +400,103 @@ export function validateRequestForm(
     errors.focusPrompt = `Keep the description to ${focusPromptMaxLength.toLocaleString("en-US")} characters.`;
   if (values.audienceKind === null)
     errors.audience = "Choose who the video is for.";
-  if (
-    context.estimate === null ||
-    context.estimate.targetDurationSeconds !== values.targetDurationSeconds
-  )
-    errors.estimate = "Wait for the cost estimate before creating the video.";
   return errors;
 }
 
-/** The key that makes Create video idempotent: stable while the request is
- * unchanged (so a double click or a retry replays the same run), new when any
- * input changes (the server rejects a reused key with a different body). */
-export function requestSignature(
-  values: RequestFormValues,
-  estimateUsd: number,
-): string {
+/** The key that makes Prepare brief idempotent: stable while the request is
+ * unchanged (so a double click or a retry replays the same brief), new when
+ * any input changes (the server rejects a reused key with a different body). */
+export function requestSignature(values: RequestFormValues): string {
   return JSON.stringify([
     values.focusPrompt.trim(),
     values.audienceKind,
     values.studentAgeBand,
     values.targetDurationSeconds,
-    estimateUsd,
   ]);
+}
+
+// ---------------------------------------------------------------------------
+// ST-107 — brief choices and the decision log
+// ---------------------------------------------------------------------------
+
+/** Plain names for the registered style packs, in the order offered. */
+export const stylePackLabels: Record<CreativeDesignPackId, string> = {
+  essential: "Essential",
+  editorial: "Editorial",
+  everyday: "Everyday",
+  systems: "Systems",
+  "field-notes": "Field Notes",
+  prism: "Prism",
+};
+
+export type SoundBedOption = { value: SoundBedChoice; label: string };
+
+/** The sound-bed choices: none, then the catalog. The brief's own choice is
+ * always offered, even if the catalog could not be loaded. */
+export function soundBedOptions(
+  tracks: readonly { trackId: string; title: string }[],
+  current: SoundBedChoice,
+): SoundBedOption[] {
+  const options: SoundBedOption[] = [
+    { value: "none", label: "No background sound" },
+    ...tracks.map((track) => ({ value: track.trackId, label: track.title })),
+  ];
+  if (!options.some((option) => option.value === current))
+    options.push({ value: current, label: current });
+  return options;
+}
+
+export const ledgerStepLabels: Record<OneShotLedgerStep, string> = {
+  brief: "Video brief",
+  objectives: "Learning objectives",
+  outline: "Outline",
+  narration: "Narration script",
+  storyboard: "Storyboard",
+  illustrations: "Illustrations",
+  grounding: "Grounding checks",
+  audio: "Narration audio",
+  repair: "Automatic fixes",
+  render: "Render",
+  other: "Other",
+};
+
+export const decisionKindLabels: Record<
+  OneShotDecisionsResponse["decisions"][number]["kind"],
+  string
+> = {
+  brief: "Brief",
+  style_pack: "Style",
+  sound_bed: "Sound",
+  auto_approval: "Approval",
+  repair: "Fix",
+  budget_reservation: "Budget",
+  coverage_gap: "Coverage",
+  render_review: "Render review",
+};
+
+/** The JSON export of "How this video was made". Holds only what the page
+ * already shows: no URLs, tokens or source text. */
+export function decisionLogExport(
+  log: OneShotDecisionsResponse,
+  exportedAt: string,
+): string {
+  return JSON.stringify(
+    {
+      schemaVersion: "one-shot-decisions-v1",
+      runId: log.runId,
+      exportedAt,
+      budget: log.budget,
+      ledger: log.ledger.map((line) => ({
+        step: line.step,
+        estimateUsd: line.estimateUsd,
+        actualUsd: line.actualUsd,
+        usageRecordCount: line.usageRecordIds.length,
+      })),
+      decisions: log.decisions,
+    },
+    null,
+    2,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -489,32 +585,55 @@ export async function fetchEligibility(
   );
 }
 
-export async function requestEstimate(
-  projectId: string,
-  targetDurationSeconds: TargetDurationSeconds,
-  signal?: AbortSignal,
-): Promise<OneShotEstimate> {
-  const response = await fetch(apiUrl(projectPath(projectId, "/estimate")), {
-    method: "POST",
-    credentials: "include",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ targetDurationSeconds }),
-    ...(signal === undefined ? {} : { signal }),
-  });
-  return parsed(
-    response,
-    oneShotEstimateSchema,
-    "The cost estimate could not be loaded.",
-  );
-}
-
-export async function startOneShotRun(
+/** ST-107. Prepares (or revises) the brief: one small, metered AI call. */
+export async function prepareBrief(
   projectId: string,
   input: {
     focusPrompt: string;
     audience: OneShotAudience;
     targetDurationSeconds: TargetDurationSeconds;
+  },
+  idempotencyKey: string,
+): Promise<OneShotBriefResponse> {
+  const response = await fetch(apiUrl(projectPath(projectId, "/brief")), {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "content-type": "application/json",
+      "idempotency-key": idempotencyKey,
+    },
+    body: JSON.stringify(input),
+  });
+  return parsed(
+    response,
+    oneShotBriefResponseSchema,
+    "The brief could not be prepared.",
+  );
+}
+
+export async function fetchBrief(
+  projectId: string,
+): Promise<OneShotBriefResponse> {
+  const response = await fetch(apiUrl(projectPath(projectId, "/brief")), {
+    credentials: "include",
+    cache: "no-store",
+  });
+  return parsed(
+    response,
+    oneShotBriefResponseSchema,
+    "The brief could not be loaded.",
+  );
+}
+
+/** ST-107. Confirms one brief revision: the single authorisation for the
+ * paid chain. */
+export async function confirmBrief(
+  projectId: string,
+  input: {
+    briefRevision: number;
     acceptedEstimateUsd: number;
+    stylePackId: CreativeDesignPackId;
+    soundBed: SoundBedChoice;
   },
   idempotencyKey: string,
 ): Promise<OneShotResponse> {
@@ -532,6 +651,60 @@ export async function startOneShotRun(
     oneShotResponseSchema,
     "The video could not be started.",
   );
+}
+
+/** ST-107. Accepts the raised estimate after the run reached its cap. */
+export async function acceptBudget(
+  projectId: string,
+  input: { reservationRevision: number; acceptedEstimateUsd: number },
+): Promise<OneShotResponse> {
+  const response = await fetch(
+    apiUrl(projectPath(projectId, "/budget/accept")),
+    {
+      method: "POST",
+      credentials: "include",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(input),
+    },
+  );
+  return parsed(
+    response,
+    oneShotResponseSchema,
+    "The new estimate could not be accepted.",
+  );
+}
+
+export async function fetchDecisions(
+  projectId: string,
+): Promise<OneShotDecisionsResponse> {
+  const response = await fetch(apiUrl(projectPath(projectId, "/decisions")), {
+    credentials: "include",
+    cache: "no-store",
+  });
+  return parsed(
+    response,
+    oneShotDecisionsResponseSchema,
+    "How this video was made could not be loaded.",
+  );
+}
+
+/** The sound-bed catalog titles; audition URLs are not used here. */
+export async function fetchSoundBedTitles(): Promise<
+  { trackId: string; title: string }[]
+> {
+  const response = await fetch(apiUrl("/sound-beds"), {
+    credentials: "include",
+    cache: "no-store",
+  });
+  const catalog = await parsed(
+    response,
+    soundBedCatalogResponseSchema,
+    "The sound-bed catalog could not be loaded.",
+  );
+  return catalog.tracks.map((track) => ({
+    trackId: track.trackId,
+    title: track.title,
+  }));
 }
 
 export async function postRunAction(

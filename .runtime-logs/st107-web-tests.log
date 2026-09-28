@@ -1,0 +1,144 @@
+
+ RUN  v3.2.7 D:/Eronmonsele/Documents/SoundMinds/product-app/apps/web
+
+ ✓ app/workspace/[projectId]/storyboard/source-visual-picker.playwright.test.tsx (9 tests) 7590ms
+   ✓ SourceVisualPicker > exposes labelled tabs, search, and a live loading status at desktop (1280px)  3311ms
+   ✓ SourceVisualPicker screenshots — loaded, table selected > renders the loaded picker with a bound table at desktop (1280px)  1944ms
+   ✓ SourceVisualPicker screenshots — loaded, table selected > renders the loaded picker with a bound table at tablet (768px)  319ms
+   ✓ SourceVisualPicker screenshots — loaded, table selected > renders the loaded picker with a bound table at mobile (375px)  389ms
+   ✓ SourceVisualPicker screenshots — loaded, table selected > renders the loaded picker with a bound table at 200% zoom emulation (640px)  511ms
+ ✓ app/workspace/[projectId]/storyboard/version-browser.playwright.test.tsx (8 tests) 3373ms
+   ✓ VersionBrowser > shows metadata and permits restoration only for historic versions  1341ms
+   ✓ VersionBrowser > names a blocked save's exact prerequisite and links directly to its recovery stage  364ms
+   ✓ VersionBrowser > meets the minimum touch/click target size for the recovery link and save button  303ms
+   ✓ VersionBrowser > keeps the primary recovery link keyboard-reachable  303ms
+ ✓ app/workspace/[projectId]/storyboard/storyboard.playwright.test.tsx (4 tests) 2602ms
+   ✓ StoryboardPanel (Playwright) > renders Focus Studio storyboard editor at desktop (1280px)  1598ms
+   ✓ StoryboardPanel (Playwright) > renders properly on tablet viewports (768px)  319ms
+   ✓ StoryboardPanel (Playwright) > renders properly on mobile viewports (375px)  333ms
+   ✓ StoryboardPanel (Playwright) > renders properly under 200% zoom emulation (640px)  350ms
+ ✓ app/workspace/[projectId]/configuration/video-approach-selector.playwright.test.tsx (5 tests) 4102ms
+   ✓ VideoApproachSelector (Playwright) > is an accessible radio group with the standard option selected by default  2712ms
+   ✓ VideoApproachSelector (Playwright) > does not render the experimental option at all when the server has not offered it  337ms
+   ✓ VideoApproachSelector (Playwright) > disables the experimental option and explains why, with a way forward  388ms
+   ✓ VideoApproachSelector (Playwright) > shows the experimental option as chosen when it is the saved value  374ms
+ ✓ app/cross-screen-quality.playwright.test.tsx (17 tests) 5813ms
+   ✓ Cross-Screen Quality & Accessibility Matrix (Playwright) > 1. Automated WCAG AA Accessibility Audits > verifies Auth SignIn and Register forms  427ms
+   ✓ Cross-Screen Quality & Accessibility Matrix (Playwright) > 1. Automated WCAG AA Accessibility Audits > verifies Teacher Project Board  310ms
+   ✓ Cross-Screen Quality & Accessibility Matrix (Playwright) > 1. Automated WCAG AA Accessibility Audits > verifies Focus Studio Lesson Preview player  362ms
+   ✓ Cross-Screen Quality & Accessibility Matrix (Playwright) > 1. Automated WCAG AA Accessibility Audits > verifies Render Delivery board and share manager  317ms
+   ✓ Cross-Screen Quality & Accessibility Matrix (Playwright) > 2. Viewport Responsiveness: Desktop (1440px), Tablet (1024px), Mobile (390px) > renders project board cleanly at 1440px, 1024px, and 390px  331ms
+   ✓ Cross-Screen Quality & Accessibility Matrix (Playwright) > 2. Viewport Responsiveness: Desktop (1440px), Tablet (1024px), Mobile (390px) > renders delivery board cleanly across all viewports  397ms
+ ✓ app/workspace/[projectId]/storyboard/candidates/illustration-contact-sheet.playwright.test.tsx (4 tests) 2631ms
+   ✓ IllustrationContactSheet accessibility and keyboard operation > blocks a failed candidate from selection by pointer and by keyboard  1120ms
+   ✓ IllustrationContactSheet accessibility and keyboard operation > keeps selection enabled on scenes that carry an advisory  347ms
+   ✓ IllustrationContactSheet accessibility and keyboard operation > exposes an editable alt text field for a reviewable candidate  424ms
+   ✓ IllustrationContactSheet accessibility and keyboard operation > has no serious or critical axe violations  738ms
+ ✓ app/workspace/[projectId]/preview/preview.playwright.test.tsx (5 tests) 1282ms
+ ✓ app/workspace/[projectId]/configuration/creative-style-pack-selector.playwright.test.tsx (3 tests) 1147ms
+   ✓ CreativeStylePackSelector (Playwright) > is an accessible radio group with all seven options, the default selected  423ms
+   ✓ CreativeStylePackSelector (Playwright) > shows a chosen pack as selected  333ms
+   ✓ CreativeStylePackSelector (Playwright) > disables every option while a save is in flight  388ms
+ ✓ app/workspace/[projectId]/preview/preview-player.e2e.test.ts (2 tests) 1638ms
+   ✓ full lesson preview route > renders seek and scene navigation against the preview player  786ms
+   ✓ full lesson preview route > surfaces a stale scene banner and a deep link back to the scene when a bound source table drops out of the manifest  363ms
+ ✓ app/share/[token]/page.playwright.test.tsx (2 tests) 3607ms
+   ✓ SharedLessonPage > renders only a title, optional thumbnail, and view-only video playback  2324ms
+   ✓ SharedLessonPage > ST-103: shows the credits a licensed sound bed requires, and nothing otherwise  1281ms
+ ✓ app/science-fixture-workflow.playwright.test.tsx (5 tests) 3298ms
+   ✓ Science Fixture Complete End-to-End Workflow (Playwright) > Stage 4 & 5: Objectives and Outline grounded in science document  352ms
+   ✓ Science Fixture Complete End-to-End Workflow (Playwright) > Stage 6 & 7: Narration and Focus Studio Storyboard for science lesson  384ms
+   ✓ Science Fixture Complete End-to-End Workflow (Playwright) > Stage 8, 9 & Public Delivery: Preview and Render Delivery  719ms
+ ✓ app/workspace/[projectId]/objectives/objectives.playwright.test.tsx (4 tests) 4888ms
+   ✓ ObjectivesPanel (Playwright) > renders Studio Daylight learning objectives editor at desktop (1280px)  1620ms
+   ✓ ObjectivesPanel (Playwright) > renders properly on tablet viewports (768px)  1313ms
+   ✓ ObjectivesPanel (Playwright) > renders properly on mobile viewports (375px)  978ms
+   ✓ ObjectivesPanel (Playwright) > renders properly under 200% zoom emulation (640px)  973ms
+ ✓ app/workspace/[projectId]/configuration/configuration.playwright.test.tsx (4 tests) 5356ms
+   ✓ ConfigurationWorkspace (Playwright) > renders the Studio Daylight layout with structured choice sections and sticky summary rail at desktop (1280px)  1693ms
+   ✓ ConfigurationWorkspace (Playwright) > renders responsive layout at tablet (768px)  1151ms
+   ✓ ConfigurationWorkspace (Playwright) > renders correctly on mobile viewports (375px) without reducing form width below usable bounds  1715ms
+   ✓ ConfigurationWorkspace (Playwright) > renders properly under 200% zoom emulation (640px)  793ms
+ ✓ app/workspace/[projectId]/outline/outline.playwright.test.tsx (4 tests) 5438ms
+   ✓ OutlinePanel (Playwright) > renders Studio Daylight outline editor at desktop (1280px)  1859ms
+   ✓ OutlinePanel (Playwright) > renders properly on tablet viewports (768px)  1162ms
+   ✓ OutlinePanel (Playwright) > renders properly on mobile viewports (375px)  1323ms
+   ✓ OutlinePanel (Playwright) > renders properly under 200% zoom emulation (640px)  1089ms
+ ✓ app/workspace/[projectId]/narration/narration.playwright.test.tsx (4 tests) 5605ms
+   ✓ NarrationPanel (Playwright) > renders Studio Daylight narration editor at desktop (1280px)  1870ms
+   ✓ NarrationPanel (Playwright) > renders properly on tablet viewports (768px)  1163ms
+   ✓ NarrationPanel (Playwright) > renders properly on mobile viewports (375px)  1121ms
+   ✓ NarrationPanel (Playwright) > renders properly under 200% zoom emulation (640px)  1447ms
+ ✓ app/workspace/[projectId]/preview/preview-player.playwright.test.tsx (1 test) 1310ms
+   ✓ FullLessonPreview > exposes seek, scene navigation, stale state, and edit navigation  1308ms
+ ✓ app/workspace/[projectId]/storyboard/approved-asset-picker.playwright.test.tsx (1 test) 671ms
+   ✓ ApprovedAssetPicker > renders a browser-accessible compatible selection with licence provenance  669ms
+ ✓ app/workspace/[projectId]/storyboard/storyboard-scene-query.test.ts (19 tests) 59ms
+ ✓ lib/one-shot.test.ts (19 tests) 81ms
+ ✓ app/workspace/[projectId]/render/render-delivery.playwright.test.tsx (7 tests) 7210ms
+   ✓ RenderDelivery (Playwright) > ST-103: shows a passing review's contact sheet, loudness and advisory notes beside the delivered video  1787ms
+   ✓ RenderDelivery (Playwright) > renders Studio Daylight delivery board with dominant completed render at desktop (1280px)  1283ms
+   ✓ RenderDelivery (Playwright) > renders in-progress render state with actual progress percentage  965ms
+   ✓ RenderDelivery (Playwright) > renders retryable failed render state with retry action  820ms
+   ✓ RenderDelivery (Playwright) > renders properly on tablet viewports (768px)  835ms
+   ✓ RenderDelivery (Playwright) > renders properly on mobile viewports (375px)  804ms
+   ✓ RenderDelivery (Playwright) > renders properly under 200% zoom emulation (640px)  710ms
+ ✓ app/workspace/project-stage-utils.test.ts (3 tests) 46ms
+ ✓ app/workspace/[projectId]/storyboard/source-visual-picker.test.tsx (2 tests) 24ms
+ ✓ app/workspace/[projectId]/one-shot/one-shot.playwright.test.tsx (11 tests) 7675ms
+   ✓ ST-106 prompt-to-video accessibility (Playwright + axe) > has no serious violations in the request view  966ms
+   ✓ ST-106 prompt-to-video accessibility (Playwright + axe) > has no serious violations in the progress view  759ms
+   ✓ ST-106 prompt-to-video accessibility (Playwright + axe) > has no serious violations in the needs attention view  727ms
+   ✓ ST-106 prompt-to-video accessibility (Playwright + axe) > has no serious violations in the not covered view  596ms
+   ✓ ST-106 prompt-to-video accessibility (Playwright + axe) > has no serious violations in the awaiting approval view  635ms
+   ✓ ST-106 prompt-to-video accessibility (Playwright + axe) > has no serious violations in the rendering view  608ms
+   ✓ ST-106 prompt-to-video accessibility (Playwright + axe) > has no serious violations in the brief view  582ms
+   ✓ ST-106 prompt-to-video accessibility (Playwright + axe) > has no serious violations in the budget cap view  641ms
+   ✓ ST-106 prompt-to-video accessibility (Playwright + axe) > has no serious violations in the render review failed view  568ms
+   ✓ ST-106 prompt-to-video accessibility (Playwright + axe) > has no serious violations in the video brief, the decision log and the coverage gap, at phone width  621ms
+   ✓ ST-106 prompt-to-video accessibility (Playwright + axe) > has no serious violations in the unavailable state  454ms
+ ✓ app/workspace/[projectId]/storyboard/scene-preview-input.test.ts (6 tests) 16ms
+ ✓ app/workspace/[projectId]/configuration/lesson-configuration-input.test.ts (11 tests) 18ms
+ ✓ app/workspace/[projectId]/storyboard/storyboard-input.test.ts (14 tests) 15ms
+ ✓ components/ui/toast.test.ts (8 tests) 10ms
+ ✓ app/workspace/[projectId]/storyboard/scene-list.test.ts (12 tests) 9ms
+ ✓ app/workspace/[projectId]/storyboard/scene-editor-form.test.ts (9 tests) 63ms
+ ✓ app/workspace/[projectId]/storyboard/candidates/illustration-contact-sheet.test.tsx (7 tests) 34ms
+ ✓ app/workspace/[projectId]/storyboard/illustration-candidate-panel.test.tsx (7 tests) 81ms
+ ✓ app/workspace/[projectId]/storyboard/storyboard-panel.test.ts (11 tests) 20ms
+ ✓ app/workspace/[projectId]/storyboard/teacher-asset-picker.test.tsx (1 test) 17ms
+ ✓ app/workspace/[projectId]/narration/narration-input.test.ts (8 tests) 12ms
+ ✓ app/workspace/[projectId]/upload/source-upload-checksum.test.ts (1 test) 10ms
+ ✓ app/workspace/[projectId]/storyboard/citation-input.test.ts (3 tests) 9ms
+ ✓ app/workspace/[projectId]/configuration/voice-configuration-input.test.ts (4 tests) 9ms
+ ✓ app/workspace/[projectId]/objectives/objectives-input.test.ts (7 tests) 11ms
+ ✓ app/workspace/[projectId]/outline/outline-input.test.ts (8 tests) 11ms
+ ✓ app/workspace/[projectId]/review/source-section-controls.test.ts (5 tests) 8ms
+ ✓ app/workspace/[projectId]/storyboard/grounding-input.test.ts (1 test) 6ms
+ ✓ app/workspace/[projectId]/review/source-figure-controls.test.ts (3 tests) 7ms
+ ✓ app/workspace/[projectId]/storyboard/validation-panel.test.ts (1 test) 7ms
+ ✓ app/workspace/[projectId]/upload/ingestion-status-panel.test.ts (5 tests) 13ms
+ ✓ app/workspace/[projectId]/compare/comparison-style.test.ts (1 test) 5ms
+ ✓ app/workspace/[projectId]/storyboard/creative-design-panel.test.ts (3 tests) 5ms
+ ✓ app/workspace/[projectId]/review/source-block-controls.test.ts (6 tests) 9ms
+ ✓ lib/project-pipeline.test.ts (6 tests) 11ms
+ ✓ app/workspace/[projectId]/one-shot/one-shot-views.test.tsx (31 tests) 426ms
+ ✓ app/workspace/[projectId]/storyboard/creative-design-colors.test.ts (2 tests) 5ms
+ ✓ app/workspace/[projectId]/review/ingestion-review.playwright.test.tsx (2 tests) 1805ms
+   ✓ IngestionReviewViewer (Playwright) > renders 3-region workspace layout and semantic structure for document review  1348ms
+   ✓ IngestionReviewViewer (Playwright) > supports mobile tab structure and responsive layout attributes  454ms
+ ✓ app/workspace/[projectId]/storyboard/scene-audio-panel.playwright.test.tsx (1 test) 2112ms
+   ✓ keeps the styled audio action visible, keyboard accessible and within narrow screens  2110ms
+ ✓ app/workspace/[projectId]/preview/preview-sound-bed.test.ts (2 tests) 7ms
+ ✓ middleware.test.ts (2 tests) 9ms
+ ✓ lib/use-task-notification.test.ts (4 tests) 4ms
+ ✓ app/workspace/[projectId]/storyboard/scene-detail-panel.test.ts (1 test) 3ms
+ ✓ app/workspace/[projectId]/upload/source-upload-form.test.ts (2 tests) 3ms
+ ✓ app/workspace/[projectId]/storyboard/scene-audio-panel.test.ts (3 tests) 3ms
+
+ Test Files  58 passed (58)
+      Tests  341 passed (341)
+   Start at  08:05:27
+   Duration  361.55s (transform 61.19s, setup 0ms, collect 3756.65s, tests 80.24s, environment 19ms, prepare 42.47s)
+
+exit=0  

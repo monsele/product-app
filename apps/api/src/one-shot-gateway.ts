@@ -12,18 +12,25 @@
 
 import { PublicError, type Identifier } from "@avlp/config";
 import {
+  contentBlocks,
   jobs,
   lessonSpecs,
+  modelCalls,
+  parsedSections,
+  sceneCandidates,
   scenes,
   type DatabaseClient,
 } from "@avlp/database";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
+  lessonStoryboardSceneSchema,
+  reconciledLessonDurationToleranceSeconds,
   sceneSpecSchema,
+  type LessonStoryboardScene,
   type LessonValidationRun,
   type RenderStatusResponse,
 } from "@avlp/schemas";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import type { GroundingService } from "./grounding.js";
 import type { IllustrationGenerationService } from "./illustration-generation.js";
@@ -44,9 +51,13 @@ import type {
   OneShotJobStatus,
   OneShotScope,
   OneShotStageGateway,
+  PromiseState,
   RenderState,
+  RepairContext,
+  SceneRepairStatus,
 } from "./one-shot-runner.js";
 import type { OutlineService } from "./outline.js";
+import { findLatestProjectParsedDocument } from "./project-parsed-document.js";
 import type { RenderService } from "./renders.js";
 import type { SceneAudioService } from "./scene-audio.js";
 import type { SourceSnapshotService } from "./source-snapshot.js";
@@ -65,7 +76,13 @@ export type OneShotGatewayServices = {
   narration: Pick<NarrationService, "current" | "generate" | "approve">;
   storyboard: Pick<
     StoryboardService,
-    "current" | "generate" | "acceptIllustrationCandidate"
+    | "current"
+    | "generate"
+    | "acceptIllustrationCandidate"
+    | "regenerateScene"
+    | "applySceneCandidate"
+    | "rejectSceneCandidate"
+    | "sceneDetail"
   >;
   illustrations: Pick<
     IllustrationGenerationService,
@@ -189,6 +206,8 @@ export class ServiceOneShotGateway
           ageBand: response.configuration.ageBand,
           difficulty: response.configuration.difficulty,
           targetDurationSeconds: response.configuration.targetDurationSeconds,
+          creativeStylePack: response.configuration.creativeStylePack,
+          soundBed: response.configuration.soundBed,
         };
   }
 
@@ -246,6 +265,11 @@ export class ServiceOneShotGateway
         focusPrompt: input.focusPrompt,
         includeRecallQuestions:
           existing.configuration?.includeRecallQuestions ?? false,
+        // ST-107: the confirmed brief's choices; omitted keeps the stored ones.
+        ...(input.creativeStylePack === undefined
+          ? {}
+          : { creativeStylePack: input.creativeStylePack }),
+        ...(input.soundBed === undefined ? {} : { soundBed: input.soundBed }),
       },
     });
     if (saved.configuration === null)
@@ -331,6 +355,7 @@ export class ServiceOneShotGateway
   public async generate(
     context: OneShotCallContext,
     stage: ApprovalStage | "storyboard",
+    options?: { briefCoverage?: readonly string[] },
   ) {
     const input = {
       ownerUserId: context.ownerUserId,
@@ -341,7 +366,12 @@ export class ServiceOneShotGateway
     };
     const response =
       stage === "objectives"
-        ? await this.services.objectives.generate(input)
+        ? await this.services.objectives.generate({
+            ...input,
+            ...(options?.briefCoverage === undefined
+              ? {}
+              : { briefCoverage: options.briefCoverage }),
+          })
         : stage === "outline"
           ? await this.services.outline.generate(input)
           : stage === "narration"
@@ -537,6 +567,17 @@ export class ServiceOneShotGateway
       errors: run.issues.filter((issue) => issue.severity === "error").length,
       warnings: run.issues.filter((issue) => issue.severity === "warning")
         .length,
+      // ST-107. Acknowledged warnings were accepted by the user; they are not
+      // findings for the repair map.
+      findings: run.issues
+        .filter((issue) => issue.acknowledgedAt === null)
+        .map((issue) => ({
+          code: issue.code,
+          severity: issue.severity,
+          sceneId: issue.sceneId,
+          scopeId: issue.scopeId,
+          details: issue.details,
+        })),
     };
   }
 
@@ -594,6 +635,230 @@ export class ServiceOneShotGateway
       status: render.status === "rendering" ? "running" : render.status,
       progress: render.progress,
       errorCode: render.errorCode,
+      // ST-107. Codes, severities and measured details only; the contact
+      // sheet's signed URLs are never read here.
+      review:
+        render.review === null
+          ? null
+          : {
+              outcome: render.review.outcome,
+              findings: render.review.findings.map((finding) => ({
+                code: finding.code,
+                severity: finding.severity,
+                detail: finding.detail,
+              })),
+            },
+    };
+  }
+
+  // ---- ST-107: bounded self-repair and the brief-promise check -------------
+
+  public async repairContext(scope: OneShotScope): Promise<RepairContext> {
+    const [storyboard, objectives] = await Promise.all([
+      this.services.storyboard.current(scope),
+      this.services.objectives.current(scope),
+    ]);
+    const working = storyboard.storyboard?.scenes ?? [];
+    const sections = await this.blockSections(
+      scope,
+      working.flatMap((scene) => sceneBlockIds(scene)),
+    );
+    return {
+      scenes: working.map((scene) => ({
+        sceneId: scene.stableSceneId,
+        order: scene.order,
+        template: scene.scene.template,
+        blockIds: sceneBlockIds(scene),
+        sectionIds: [
+          ...new Set(
+            sceneBlockIds(scene)
+              .map((id) => sections.get(id))
+              .filter((id): id is string => id !== undefined),
+          ),
+        ],
+      })),
+      objectives: (objectives.approved?.objectives ?? []).map((objective) => ({
+        objectiveId: objective.id,
+        statement: objective.statement,
+        blockIds: objective.sourceRefs.flatMap((ref) => ref.blockIds),
+      })),
+    };
+  }
+
+  public async requestSceneRepair(
+    context: OneShotCallContext,
+    repair: Parameters<OneShotStageGateway["requestSceneRepair"]>[1],
+  ) {
+    const current = await this.services.storyboard.current(context);
+    if (current.storyboard === null)
+      throw new PublicError(
+        "bad_request",
+        "The storyboard is missing, so the scene cannot be fixed automatically.",
+        409,
+      );
+    const response = await this.services.storyboard.regenerateScene({
+      ownerUserId: context.ownerUserId,
+      projectId: context.projectId,
+      sceneId: repair.sceneId as Identifier,
+      body: {
+        mode: repair.mode,
+        instruction: repair.instruction,
+        expectedRevision: current.storyboard.revision,
+      },
+      idempotencyKey: context.requestKey,
+      correlationId: context.correlationId,
+      oneShotRunId: context.oneShotRunId,
+    });
+    return { jobId: response.jobId as Identifier };
+  }
+
+  public async sceneRepairStatus(
+    scope: OneShotScope,
+    repair: { sceneId: string; jobId: Identifier },
+  ): Promise<SceneRepairStatus> {
+    const [job] = await this.services.database
+      .select({
+        id: jobs.id,
+        state: jobs.state,
+        idempotencyKey: jobs.idempotencyKey,
+        errorMetadata: jobs.errorMetadata,
+      })
+      .from(jobs)
+      .where(
+        and(
+          eq(jobs.id, repair.jobId),
+          eq(jobs.ownerUserId, scope.ownerUserId),
+          eq(jobs.projectId, scope.projectId),
+        ),
+      )
+      .limit(1);
+    if (job === undefined) return { job: null, candidate: null };
+    const code = (job.errorMetadata as { code?: unknown } | null)?.code;
+    const status: OneShotJobStatus = {
+      id: job.id as Identifier,
+      state: job.state,
+      errorCode: typeof code === "string" ? code : null,
+    };
+    if (job.state !== "succeeded") return { job: status, candidate: null };
+    // The worker stores the candidate under the job's own idempotency key.
+    const [candidate] = await this.services.database
+      .select({
+        id: sceneCandidates.id,
+        status: sceneCandidates.status,
+        beforeScene: sceneCandidates.beforeScene,
+        afterScene: sceneCandidates.afterScene,
+        modelCallId: sceneCandidates.modelCallId,
+        costUsd: modelCalls.estimatedCostUsd,
+      })
+      .from(sceneCandidates)
+      .innerJoin(
+        modelCalls,
+        and(
+          eq(modelCalls.id, sceneCandidates.modelCallId),
+          eq(modelCalls.ownerUserId, scope.ownerUserId),
+          eq(modelCalls.projectId, scope.projectId),
+        ),
+      )
+      .where(
+        and(
+          eq(sceneCandidates.ownerUserId, scope.ownerUserId),
+          eq(sceneCandidates.projectId, scope.projectId),
+          eq(sceneCandidates.idempotencyKey, job.idempotencyKey),
+        ),
+      )
+      .orderBy(desc(sceneCandidates.createdAt))
+      .limit(1);
+    if (candidate === undefined) return { job: status, candidate: null };
+    const before = lessonStoryboardSceneSchema.safeParse(candidate.beforeScene);
+    const after = lessonStoryboardSceneSchema.safeParse(candidate.afterScene);
+    const kept =
+      before.success &&
+      after.success &&
+      sceneBlockIds(before.data).every((id) =>
+        sceneBlockIds(after.data).includes(id),
+      );
+    return {
+      job: status,
+      candidate: {
+        id: candidate.id as Identifier,
+        status:
+          candidate.status === "accepted" || candidate.status === "rejected"
+            ? candidate.status
+            : "pending",
+        keepsSourceRefs: kept,
+        costUsd: Number(candidate.costUsd),
+        modelCallId: candidate.modelCallId as Identifier,
+      },
+    };
+  }
+
+  public async applySceneRepair(
+    context: OneShotCallContext,
+    repair: { sceneId: string; candidateId: Identifier },
+  ) {
+    const body = await this.candidateDecisionBody(context, repair.sceneId);
+    await this.services.storyboard.applySceneCandidate({
+      ownerUserId: context.ownerUserId,
+      projectId: context.projectId,
+      sceneId: repair.sceneId as Identifier,
+      candidateId: repair.candidateId,
+      body,
+      correlationId: context.correlationId,
+      oneShotRunId: context.oneShotRunId,
+    });
+  }
+
+  public async rejectSceneRepair(
+    context: OneShotCallContext,
+    repair: { sceneId: string; candidateId: Identifier },
+  ) {
+    const body = await this.candidateDecisionBody(context, repair.sceneId);
+    await this.services.storyboard.rejectSceneCandidate({
+      ownerUserId: context.ownerUserId,
+      projectId: context.projectId,
+      sceneId: repair.sceneId as Identifier,
+      candidateId: repair.candidateId,
+      body,
+      correlationId: context.correlationId,
+    });
+  }
+
+  public async promiseState(scope: OneShotScope): Promise<PromiseState> {
+    const [storyboard, configuration] = await Promise.all([
+      this.services.storyboard.current(scope),
+      this.services.lessonConfiguration.get(scope.ownerUserId, scope.projectId),
+    ]);
+    const working = storyboard.storyboard;
+    const scenesList = working?.scenes ?? [];
+    const [sections, sectionOrder] = await Promise.all([
+      this.blockSections(
+        scope,
+        scenesList.flatMap((scene) => sceneBlockIds(scene)),
+      ),
+      this.sectionOrder(scope),
+    ]);
+    return {
+      sceneSections: scenesList.map((scene) => ({
+        sceneId: scene.stableSceneId,
+        order: scene.order,
+        sectionIds: [
+          ...new Set(
+            sceneBlockIds(scene)
+              .map((id) => sections.get(id))
+              .filter((id): id is string => id !== undefined),
+          ),
+        ],
+      })),
+      sectionOrder,
+      measuredDurationSeconds: working?.totalDurationSeconds ?? 0,
+      toleranceSeconds: reconciledLessonDurationToleranceSeconds(
+        working?.targetDurationSeconds ?? 0,
+        scenesList.length,
+      ),
+      pinned: {
+        stylePackId: configuration.configuration?.creativeStylePack ?? null,
+        soundBed: configuration.configuration?.soundBed ?? null,
+      },
     };
   }
 
@@ -611,6 +876,69 @@ export class ServiceOneShotGateway
   }
 
   // ---- Tenant-scoped reads -----------------------------------------------
+
+  /** The expected revisions a candidate decision is checked against. */
+  private async candidateDecisionBody(scope: OneShotScope, sceneId: string) {
+    const [current, detail] = await Promise.all([
+      this.services.storyboard.current(scope),
+      this.services.storyboard.sceneDetail({
+        ...scope,
+        sceneId: sceneId as Identifier,
+      }),
+    ]);
+    if (current.storyboard === null)
+      throw new PublicError(
+        "bad_request",
+        "The storyboard is missing, so the fix cannot be applied.",
+        409,
+      );
+    return {
+      expectedRevision: current.storyboard.revision,
+      expectedSceneRevision: detail.sceneRevision,
+    };
+  }
+
+  /**
+   * Source section of each block, through the project's latest parsed
+   * document only, so a block ID from another tenant resolves to nothing.
+   */
+  private async blockSections(
+    scope: OneShotScope,
+    blockIds: readonly string[],
+  ): Promise<Map<string, string>> {
+    const unique = [...new Set(blockIds)];
+    if (unique.length === 0) return new Map();
+    const document = await findLatestProjectParsedDocument(
+      this.services.database,
+      scope,
+    );
+    if (document === undefined) return new Map();
+    const rows = await this.services.database
+      .select({ id: contentBlocks.id, sectionId: contentBlocks.sectionId })
+      .from(contentBlocks)
+      .where(
+        and(
+          eq(contentBlocks.parsedDocumentId, document.id),
+          inArray(contentBlocks.id, unique),
+        ),
+      );
+    return new Map(rows.map((row) => [row.id, row.sectionId]));
+  }
+
+  /** Document order of every section of the project's latest parse. */
+  private async sectionOrder(scope: OneShotScope): Promise<Map<string, number>> {
+    const document = await findLatestProjectParsedDocument(
+      this.services.database,
+      scope,
+    );
+    if (document === undefined) return new Map();
+    const rows = await this.services.database
+      .select({ id: parsedSections.id })
+      .from(parsedSections)
+      .where(eq(parsedSections.parsedDocumentId, document.id))
+      .orderBy(asc(parsedSections.pageStart), asc(parsedSections.order));
+    return new Map(rows.map((row, index) => [row.id, index]));
+  }
 
   private async latestJob(
     scope: OneShotScope,
@@ -709,4 +1037,9 @@ export class ServiceOneShotGateway
     }
     return { required, bound };
   }
+}
+
+/** Every source block a storyboard scene cites. */
+function sceneBlockIds(scene: LessonStoryboardScene): string[] {
+  return scene.scene.sourceRefs.flatMap((ref) => ref.blockIds);
 }

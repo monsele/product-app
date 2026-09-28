@@ -1,15 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { at, estimate, projectId, runView } from "./one-shot-fixtures";
+import { at, briefView, decisionLog, projectId, runView } from "./one-shot-fixtures";
 import {
+  acceptBudget,
   audienceFor,
   audienceKindFrom,
+  confirmBrief,
   currentDisplayStep,
+  decisionLogExport,
   newIdempotencyKey,
   nextPollDelay,
   pollInitialMs,
   pollMaxMs,
+  prepareBrief,
   requestSignature,
-  startOneShotRun,
+  soundBedOptions,
   toDisplaySteps,
   validateRequestForm,
   viewForRun,
@@ -100,6 +104,25 @@ describe("viewForRun", () => {
     expect(viewForRun(runView({ status: "rendering" }))).toBe("delivery");
     expect(viewForRun(runView({ status: "completed" }))).toBe("delivery");
     expect(viewForRun(runView({ status: "cancelled" }))).toBe("request");
+    // ST-107: the brief, the budget cap and a failed render review.
+    expect(viewForRun(runView({ status: "brief_pending" }))).toBe("brief");
+    expect(viewForRun(runView({ status: "brief_ready" }))).toBe("brief");
+    expect(
+      viewForRun(
+        runView({
+          status: "needs_attention",
+          needsAttention: { stage: "storyboard", errorCode: "ONE_SHOT_BUDGET_CAP", message: "Cap." },
+        }),
+      ),
+    ).toBe("budget");
+    expect(
+      viewForRun(
+        runView({
+          status: "needs_attention",
+          needsAttention: { stage: "render", errorCode: "RENDER_REVIEW_FAILED", message: "Review." },
+        }),
+      ),
+    ).toBe("delivery");
     expect(
       viewForRun(
         runView({
@@ -203,50 +226,64 @@ describe("audience presets", () => {
 });
 
 describe("validateRequestForm", () => {
-  it("accepts a complete request with a matching estimate", () => {
-    expect(
-      validateRequestForm(values, { documentReady: true, estimate }),
-    ).toEqual({});
+  it("accepts a complete request", () => {
+    expect(validateRequestForm(values, { documentReady: true })).toEqual({});
   });
 
   it("reports each missing input inline", () => {
     const errors = validateRequestForm(
       { ...values, focusPrompt: "   ", audienceKind: null },
-      { documentReady: false, estimate: null },
+      { documentReady: false },
     );
     expect(Object.keys(errors).sort()).toEqual([
       "audience",
       "document",
-      "estimate",
       "focusPrompt",
     ]);
   });
 
-  it("rejects a prompt over 1,000 characters and a stale estimate", () => {
+  it("rejects a prompt over 1,000 characters", () => {
     const errors = validateRequestForm(
-      { ...values, focusPrompt: "a".repeat(1_001), targetDurationSeconds: 420 },
-      { documentReady: true, estimate },
+      { ...values, focusPrompt: "a".repeat(1_001) },
+      { documentReady: true },
     );
     expect(errors.focusPrompt).toMatch(/1,000 characters/);
-    expect(errors.estimate).toBeDefined();
   });
 });
 
 describe("idempotency", () => {
   it("keeps the same signature for the same request and changes it for another", () => {
-    expect(requestSignature(values, 1.84)).toBe(
-      requestSignature({ ...values }, 1.84),
+    expect(requestSignature(values)).toBe(requestSignature({ ...values }));
+    expect(requestSignature(values)).not.toBe(
+      requestSignature({ ...values, focusPrompt: "Explain condensation." }),
     );
-    expect(requestSignature(values, 1.84)).not.toBe(
-      requestSignature(
-        { ...values, focusPrompt: "Explain condensation." },
-        1.84,
-      ),
-    );
-    expect(requestSignature(values, 1.84)).not.toBe(
-      requestSignature(values, 2),
+    expect(requestSignature(values)).not.toBe(
+      requestSignature({ ...values, targetDurationSeconds: 420 }),
     );
     expect(newIdempotencyKey()).not.toBe(newIdempotencyKey());
+  });
+});
+
+describe("ST-107 brief choices and the decision log", () => {
+  it("offers none, the catalog, and always the brief's own sound bed", () => {
+    expect(soundBedOptions([{ trackId: "morning-pad", title: "Morning Pad" }], "morning-pad")).toEqual([
+      { value: "none", label: "No background sound" },
+      { value: "morning-pad", label: "Morning Pad" },
+    ]);
+    // The catalog failed to load: the brief's choice is still selectable.
+    expect(soundBedOptions([], "quiet-pulse").map((option) => option.value)).toEqual(["none", "quiet-pulse"]);
+  });
+
+  it("exports the log without usage-record ids, URLs or tokens", () => {
+    const exported = JSON.parse(decisionLogExport(decisionLog, at));
+    expect(exported).toMatchObject({
+      schemaVersion: "one-shot-decisions-v1",
+      runId: decisionLog.runId,
+      exportedAt: at,
+      decisions: decisionLog.decisions,
+    });
+    expect(exported.ledger[0]).toEqual({ step: "brief", estimateUsd: 0.1, actualUsd: 0.02, usageRecordCount: 1 });
+    expect(JSON.stringify(exported)).not.toContain("00000000000b");
   });
 });
 
@@ -260,74 +297,86 @@ describe("nextPollDelay", () => {
   });
 });
 
-describe("startOneShotRun", () => {
+describe("ST-107 brief client", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("sends the focus prompt only in the body and the key as a header", async () => {
-    const fetchMock = vi.fn(
+  function respond(body: unknown, status = 200) {
+    return vi.fn(
       async () =>
-        new Response(
-          JSON.stringify({
-            eligibility: { visible: true, canStart: true, reasons: [] },
-            run: runView({ status: "queued", currentStep: null, steps: [] }),
-          }),
-          { status: 202, headers: { "content-type": "application/json" } },
-        ),
+        new Response(JSON.stringify(body), {
+          status,
+          headers: { "content-type": "application/json" },
+        }),
     );
+  }
+
+  it("prepares the brief with the focus prompt only in the body and the key as a header", async () => {
+    const fetchMock = respond({
+      brief: briefView(),
+      revisionsUsed: 1,
+      maxRevisions: 3,
+      stylePackIds: ["essential"],
+    });
     vi.stubGlobal("fetch", fetchMock);
     const focusPrompt = "Explain evaporation with one worked example.";
-    await startOneShotRun(
+    await prepareBrief(
       projectId,
-      {
-        focusPrompt,
-        audience: audienceFor("self", "11-13"),
-        targetDurationSeconds: 300,
-        acceptedEstimateUsd: 1.84,
-      },
+      { focusPrompt, audience: audienceFor("self", "11-13"), targetDurationSeconds: 300 },
       "key-1",
     );
-    const [url, init] = fetchMock.mock.calls[0] as unknown as [
-      string,
-      RequestInit,
-    ];
-    expect(url).toMatch(new RegExp(`/projects/${projectId}/one-shot$`));
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toMatch(new RegExp(`/projects/${projectId}/one-shot/brief$`));
     expect(url).not.toContain("evaporation");
-    expect((init.headers as Record<string, string>)["idempotency-key"]).toBe(
-      "key-1",
-    );
+    expect((init.headers as Record<string, string>)["idempotency-key"]).toBe("key-1");
     expect(JSON.parse(String(init.body))).toMatchObject({ focusPrompt });
+  });
+
+  it("confirms one brief revision with the accepted estimate and the chosen style and sound", async () => {
+    const fetchMock = respond(
+      {
+        eligibility: { visible: true, canStart: true, reasons: [] },
+        run: runView({ status: "queued", currentStep: null, steps: [] }),
+      },
+      202,
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await confirmBrief(
+      projectId,
+      { briefRevision: 2, acceptedEstimateUsd: 1.84, stylePackId: "systems", soundBed: "none" },
+      "key-2",
+    );
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toMatch(new RegExp(`/projects/${projectId}/one-shot$`));
+    expect(JSON.parse(String(init.body))).toEqual({
+      briefRevision: 2,
+      acceptedEstimateUsd: 1.84,
+      stylePackId: "systems",
+      soundBed: "none",
+    });
+  });
+
+  it("accepts a raised budget against the reservation it saw", async () => {
+    const fetchMock = respond(
+      {
+        eligibility: { visible: true, canStart: true, reasons: [] },
+        run: runView(),
+      },
+      202,
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await acceptBudget(projectId, { reservationRevision: 1, acceptedEstimateUsd: 3.5 });
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toMatch(/\/one-shot\/budget\/accept$/);
+    expect(JSON.parse(String(init.body))).toEqual({ reservationRevision: 1, acceptedEstimateUsd: 3.5 });
   });
 
   it("surfaces the API's own message on a refusal", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(
-        async () =>
-          new Response(
-            JSON.stringify({
-              error: {
-                code: "bad_request",
-                message: "Upload a source document first.",
-              },
-            }),
-            { status: 409 },
-          ),
-      ),
+      respond({ error: { code: "bad_request", message: "A newer brief has been prepared." } }, 409),
     );
     await expect(
-      startOneShotRun(
-        projectId,
-        {
-          focusPrompt: "x",
-          audience: audienceFor("self", "11-13"),
-          targetDurationSeconds: 300,
-          acceptedEstimateUsd: 1,
-        },
-        "key-2",
-      ),
-    ).rejects.toMatchObject({
-      status: 409,
-      message: "Upload a source document first.",
-    });
+      confirmBrief(projectId, { briefRevision: 1, acceptedEstimateUsd: 1, stylePackId: "systems", soundBed: "none" }, "k"),
+    ).rejects.toMatchObject({ status: 409, message: "A newer brief has been prepared." });
   });
 });
