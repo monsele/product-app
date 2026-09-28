@@ -45,7 +45,9 @@ import {
   type LessonStoryboard,
   type ModelCallParams,
   type ModelCallRecord,
+  type GeneratedAddition,
   type SourcePackage,
+  type SourceRef,
   type StoryboardGenerationParams,
   type StoryboardOutputV1,
 } from "@avlp/schemas";
@@ -104,6 +106,9 @@ export type StoryboardOperationContext = {
       text: string;
       estimatedWords: number;
       targetSeconds: number;
+      /** The block's own citations and labelled additions, from narration. */
+      sourceRefs: readonly SourceRef[];
+      generatedAdditions: readonly GeneratedAddition[];
     }[];
   };
   outlineSet: {
@@ -173,6 +178,8 @@ export async function loadStoryboardOperationContext(input: {
     text: block.text,
     estimatedWords: block.estimatedWords,
     targetSeconds: block.targetSeconds,
+    sourceRefs: block.sourceRefs as SourceRef[],
+    generatedAdditions: block.generatedAdditions as GeneratedAddition[],
   }));
   const contentHash = computeNarrationSetContentHash(
     blockRows.map((block) => ({
@@ -487,6 +494,68 @@ export function assertStoryboardDeterministicChecks(
 }
 
 /**
+ * Grounding claims cite at most this many source references (one per source
+ * section), so a scene never carries more.
+ */
+const sceneSourceRefSectionLimit = 20;
+
+/**
+ * A scene's citations: the storyboard model's own, then every block its
+ * narration cited. Grounding checks each narration sentence against the
+ * scene's citations, so dropping the narration's citations here made true
+ * sentences look unsupported. Only blocks in the bounded package count, and
+ * whole sections are dropped past the grounding limit, the model's own first.
+ */
+export function sceneSourceBlockIds(
+  storyboardBlockIds: readonly string[],
+  narrationBlocks: readonly { sourceRefs: readonly SourceRef[] }[],
+  sourcePackage: SourcePackage,
+): string[] {
+  const sectionByBlock = new Map<string, string>();
+  for (const section of sourcePackage.sections)
+    for (const block of section.blocks)
+      sectionByBlock.set(block.blockId, section.sectionId);
+  const narrationBlockIds = narrationBlocks.flatMap((block) =>
+    block.sourceRefs.flatMap((ref) => ref.blockIds),
+  );
+  const sections = new Set<string>();
+  const kept: string[] = [];
+  for (const blockId of new Set([...storyboardBlockIds, ...narrationBlockIds])) {
+    const sectionId = sectionByBlock.get(blockId);
+    if (sectionId === undefined) continue;
+    if (!sections.has(sectionId)) {
+      if (sections.size >= sceneSourceRefSectionLimit) continue;
+      sections.add(sectionId);
+    }
+    kept.push(blockId);
+  }
+  return kept;
+}
+
+/**
+ * A scene's labelled additions: the storyboard model's own plus the ones its
+ * narration labelled (hooks, analogies, examples). Without the narration's
+ * labels, grounding treats a labelled hook as a cited claim and fails it.
+ */
+export function sceneGeneratedAdditions(
+  storyboardAdditions: readonly GeneratedAddition[],
+  narrationBlocks: readonly { generatedAdditions: readonly GeneratedAddition[] }[],
+): GeneratedAddition[] {
+  const seen = new Set<string>();
+  const merged: GeneratedAddition[] = [];
+  for (const addition of [
+    ...storyboardAdditions,
+    ...narrationBlocks.flatMap((block) => block.generatedAdditions),
+  ]) {
+    const key = addition.content.trim().toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(addition);
+  }
+  return merged.slice(0, 20);
+}
+
+/**
  * Idempotent storyboard persistence: one lesson spec per (owner, project, job
  * idempotency key). A retried job returns the already-created draft instead of
  * duplicating the result. The canonical payload and the normalized scene rows
@@ -558,9 +627,17 @@ async function persistLessonStoryboardDraft(input: {
       .map((blockId) => blockById.get(blockId)?.text ?? "")
       .filter((text) => text.length > 0)
       .join(" ");
+    const sceneBlocks = scene.narrationBlockIds.flatMap((blockId) => {
+      const block = blockById.get(blockId);
+      return block === undefined ? [] : [block];
+    });
     const sourceRefs = resolveSourceRefs(
       input.sourcePackage,
-      scene.sourceBlockIds,
+      sceneSourceBlockIds(scene.sourceBlockIds, sceneBlocks, input.sourcePackage),
+    );
+    const generatedAdditions = sceneGeneratedAdditions(
+      scene.generatedAdditions,
+      sceneBlocks,
     );
     const sceneSpec = sceneSpecSchema.parse({
       id: createId(timestamp),
@@ -572,7 +649,7 @@ async function persistLessonStoryboardDraft(input: {
       transition: scene.transition,
       assetBindings: [],
       sourceRefs,
-      generatedAdditions: scene.generatedAdditions,
+      generatedAdditions,
       template: scene.template,
       visual: scene.visual,
     });

@@ -45,6 +45,8 @@ import {
   createStoryboardGenerationJobHandler,
   loadStoryboardOperationContext,
   persistLessonStoryboard,
+  sceneGeneratedAdditions,
+  sceneSourceBlockIds,
   StoryboardDeterministicCheckError,
   type StoryboardOperationContext,
 } from "./storyboard-job.js";
@@ -337,6 +339,8 @@ function operationContext(
         text: block.text,
         estimatedWords: block.estimatedWords,
         targetSeconds: block.targetSeconds,
+        sourceRefs: block.sourceRefs,
+        generatedAdditions: block.generatedAdditions,
       })),
     },
     outlineSet: {
@@ -1017,5 +1021,44 @@ describe("createStoryboardGenerationJobHandler", () => {
       "The model output failed deterministic checks",
     );
     expect(error).toMatchObject({ code: "MODEL_OUTPUT_DETERMINISTIC_FAILURE" });
+  });
+});
+
+describe("scene provenance carried from narration", () => {
+  const pkg = buildSourcePackage(sampleSnapshot());
+  const rows = narrationBlockRows();
+  const refs = (blockId: string) => [
+    { ...rows[0]!.sourceRefs[0]!, blockIds: [blockId] },
+  ];
+
+  it("keeps the storyboard's citations and adds every block the narration cited", () => {
+    expect(
+      sceneSourceBlockIds([blockA], [{ sourceRefs: refs(blockB) }], pkg),
+    ).toEqual([blockA, blockB]);
+  });
+
+  it("ignores blocks outside the bounded package and duplicates", () => {
+    expect(
+      sceneSourceBlockIds(
+        [blockA],
+        [{ sourceRefs: refs(blockA) }, { sourceRefs: refs(createId()) }],
+        pkg,
+      ),
+    ).toEqual([blockA]);
+  });
+
+  it("adds the narration's labelled additions, once each", () => {
+    const hook = {
+      kind: "illustration" as const,
+      content: "Have you ever watched a puddle vanish on a hot day?",
+      rationale: "Opening hook.",
+    };
+    const own = { ...hook, content: "Picture a kettle.", kind: "example" as const };
+    expect(
+      sceneGeneratedAdditions(
+        [own],
+        [{ generatedAdditions: [hook] }, { generatedAdditions: [{ ...hook, content: ` ${hook.content.toUpperCase()}` }] }],
+      ),
+    ).toEqual([own, hook]);
   });
 });

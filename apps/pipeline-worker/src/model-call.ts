@@ -148,9 +148,14 @@ export type ModelCallHandlerOptions<T> = {
   /**
    * Pure, deterministic post-processing applied to every schema-valid output
    * before deterministic checks, for values code computes more reliably than
-   * the model (such as rescaling duration estimates to an exact total).
+   * the model (such as rescaling duration estimates to an exact total, or
+   * clamping character offsets to the text they index).
    */
-  normalizeOutput?: (value: T, operationContext: unknown) => T;
+  normalizeOutput?: (
+    value: T,
+    operationContext: unknown,
+    sourcePackage: SourcePackage,
+  ) => T;
   /**
    * Throws to reject the generation outright; may instead return warnings for
    * rules the draft may violate while remaining usable, which are reported on
@@ -163,8 +168,10 @@ export type ModelCallHandlerOptions<T> = {
   ) => readonly DeterministicWarning[] | void;
   /**
    * Returns one operation-specific instruction for correcting a deterministic
-   * failure, or undefined when the rule is not safe to repair automatically.
-   * The lifecycle allows exactly one such provider call and validates it again.
+   * failure, or undefined to fall back to the generic instruction built from
+   * the failed rule's message. Each corrective round is one provider call,
+   * checked again by the same rules, so a correction can never let a
+   * violation through; see `maxDeterministicRepairs`.
    */
   deterministicRepairInstruction?: (input: {
     error: unknown;
@@ -172,6 +179,22 @@ export type ModelCallHandlerOptions<T> = {
     sourcePackage: SourcePackage;
     operationContext: unknown;
   }) => string | undefined;
+  /**
+   * Optional instruction for one improvement round when a draft passed every
+   * check but returned warnings worth fixing; undefined skips the round. The
+   * improvement is kept only if it passes every check.
+   */
+  warningRepairInstruction?: (input: {
+    warnings: readonly DeterministicWarning[];
+    value: T;
+    operationContext: unknown;
+  }) => string | undefined;
+  /**
+   * Corrective rounds allowed after a deterministic failure. Each round is one
+   * provider call, checked again. Default `defaultMaxDeterministicRepairs`;
+   * 0 disables correction.
+   */
+  maxDeterministicRepairs?: number;
   renderVariables?: (input: {
     sourcePackage: SourcePackage;
     params: ModelCallParams;
@@ -366,6 +389,7 @@ export function createModelCallGenerationHandler<T>(
               value: options.normalizeOutput(
                 result.value,
                 operationContext?.context,
+                sourcePackage,
               ),
             };
       let structured = await generateStructuredOutput<T>({
@@ -399,17 +423,26 @@ export function createModelCallGenerationHandler<T>(
             sourcePackage,
             operationContext?.context,
           ) ?? [];
-      } catch (error) {
-        const repairInstruction = options.deterministicRepairInstruction?.({
-          error,
-          value: structured.value,
-          sourcePackage,
-          operationContext: operationContext?.context,
-        });
+      } catch (initialError) {
+        // Each round sends the latest response back with the instruction for
+        // its violations, then re-checks. Bounded: a failure that survives
+        // every round remains a clear failure rather than an unbounded loop.
+        let error: unknown = initialError;
         let repairedSuccessfully = false;
-        if (repairInstruction !== undefined) {
+        const maxRounds =
+          options.maxDeterministicRepairs ?? defaultMaxDeterministicRepairs;
+        for (let round = 0; round < maxRounds; round += 1) {
+          const repairInstruction =
+            options.deterministicRepairInstruction?.({
+              error,
+              value: structured.value,
+              sourcePackage,
+              operationContext: operationContext?.context,
+            }) ?? genericDeterministicRepairInstruction(error);
+          if (repairInstruction === undefined) break;
+          let repaired: Awaited<ReturnType<typeof generateStructuredOutput<T>>>;
           try {
-            const repaired = await generateStructuredOutput<T>({
+            repaired = await generateStructuredOutput<T>({
               provider: resolvedProvider.adapter,
               request: {
                 ...generationRequest,
@@ -419,38 +452,42 @@ export function createModelCallGenerationHandler<T>(
                     role: "user",
                     content:
                       "Correct the previous JSON response. " +
-                      `${repairInstruction} Preserve every other valid field and return JSON only.\n` +
-                      `Previous JSON response:\n${structured.rawText.slice(0, 20_000)}`,
+                      `${repairInstruction} Preserve every other valid field and return JSON only.
+` +
+                      `Previous JSON response:
+${structured.rawText.slice(0, 20_000)}`,
                   },
                 ],
               },
               schema: options.outputSchema,
-              // One corrective completion only: a failed repair remains a
-              // clear teacher-facing failure rather than an unbounded loop.
+              // One corrective completion per round; schema repair of the
+              // correction itself is not attempted.
               maxRepairs: 0,
             });
-            const repairedExecuted = repaired.responses.at(-1);
-            if (
-              repairedExecuted === undefined ||
-              repairedExecuted.providerId !==
-                resolvedProvider.adapter.providerId ||
-              repairedExecuted.model !== payload.model
-            )
-              throw new ApprovedProviderUnavailableError({
-                approvedProvider: resolvedProvider.adapter.providerId,
-                approvedModel: payload.model,
-                foundProvider: repairedExecuted?.providerId ?? "unknown",
-                ...(repairedExecuted?.model === undefined
-                  ? {}
-                  : { foundModel: repairedExecuted.model }),
-              });
-            structured = normalize({
-              value: repaired.value,
-              rawText: repaired.rawText,
-              repairAttempts:
-                structured.repairAttempts + repaired.repairAttempts + 1,
-              responses: [...structured.responses, ...repaired.responses],
-            });
+          } catch (repairError) {
+            if (repairError instanceof StructuredOutputError)
+              structured = {
+                ...structured,
+                responses: [...structured.responses, ...repairError.responses],
+              };
+            break;
+          }
+          const repairedExecuted = repaired.responses.at(-1);
+          if (
+            repairedExecuted === undefined ||
+            repairedExecuted.providerId !==
+              resolvedProvider.adapter.providerId ||
+            repairedExecuted.model !== payload.model
+          )
+            break;
+          structured = normalize({
+            value: repaired.value,
+            rawText: repaired.rawText,
+            repairAttempts:
+              structured.repairAttempts + repaired.repairAttempts + 1,
+            responses: [...structured.responses, ...repaired.responses],
+          });
+          try {
             warnings =
               options.deterministicChecks?.(
                 structured.value,
@@ -458,13 +495,9 @@ export function createModelCallGenerationHandler<T>(
                 operationContext?.context,
               ) ?? [];
             repairedSuccessfully = true;
-          } catch (repairError) {
-            const failedRepair = repairError;
-            if (failedRepair instanceof StructuredOutputError)
-              structured = {
-                ...structured,
-                responses: [...structured.responses, ...failedRepair.responses],
-              };
+            break;
+          } catch (recheckError) {
+            error = recheckError;
           }
         }
         if (!repairedSuccessfully) {
@@ -491,6 +524,86 @@ export function createModelCallGenerationHandler<T>(
             "The model output failed deterministic checks.",
             deterministicFailureDetails(error),
           );
+        }
+      }
+      // One optional improvement round for a draft that passed every check
+      // but carries a warning the job can ask the model to fix (a script well
+      // under its word budget). The improvement is kept only if it passes
+      // every check too; otherwise the checked draft stands, so this round can
+      // never fail a job. Its provider calls are metered either way.
+      const improvement =
+        warnings.length === 0
+          ? undefined
+          : options.warningRepairInstruction?.({
+              warnings,
+              value: structured.value,
+              operationContext: operationContext?.context,
+            });
+      if (improvement !== undefined) {
+        let improved:
+          | Awaited<ReturnType<typeof generateStructuredOutput<T>>>
+          | undefined;
+        try {
+          improved = await generateStructuredOutput<T>({
+            provider: resolvedProvider.adapter,
+            request: {
+              ...generationRequest,
+              messages: [
+                ...generationRequest.messages,
+                {
+                  role: "user",
+                  content:
+                    "Improve the previous JSON response. " +
+                    `${improvement} Preserve every other valid field and return JSON only.
+` +
+                    `Previous JSON response:
+${structured.rawText.slice(0, 20_000)}`,
+                },
+              ],
+            },
+            schema: options.outputSchema,
+            maxRepairs: 0,
+          });
+        } catch (improvementError) {
+          if (improvementError instanceof StructuredOutputError)
+            structured = {
+              ...structured,
+              responses: [
+                ...structured.responses,
+                ...improvementError.responses,
+              ],
+            };
+        }
+        if (improved !== undefined) {
+          const responses = [...structured.responses, ...improved.responses];
+          const executedImprovement = improved.responses.at(-1);
+          let accepted = false;
+          if (
+            executedImprovement?.providerId ===
+              resolvedProvider.adapter.providerId &&
+            executedImprovement.model === payload.model
+          ) {
+            const candidate = normalize({
+              value: improved.value,
+              rawText: improved.rawText,
+              repairAttempts:
+                structured.repairAttempts + improved.repairAttempts + 1,
+              responses,
+            });
+            try {
+              warnings =
+                options.deterministicChecks?.(
+                  candidate.value,
+                  sourcePackage,
+                  operationContext?.context,
+                ) ?? [];
+              structured = candidate;
+              accepted = true;
+            } catch {
+              // The improvement broke a rule: keep the checked draft.
+            }
+          }
+          if (!accepted) structured = { ...structured, responses };
         }
       }
       const record = buildSucceededRecord({
@@ -676,6 +789,27 @@ export function createModelCallGenerationHandler<T>(
  * offending block. Both are authored by this repository's checks, never by the
  * provider, so neither can leak model or source text into job metadata.
  */
+/**
+ * Corrective rounds a deterministic failure gets unless a job says otherwise.
+ * A model slip (an offset past the end of a sentence, a copied phrase, a
+ * duration off by a few seconds) is usually fixed by one pointed correction,
+ * and stopping the user's video for it costs far more than a second call.
+ */
+export const defaultMaxDeterministicRepairs = 2;
+
+/**
+ * The fallback correction: the failed rule's own message. Deterministic check
+ * messages are written by our code from IDs, indexes and counts, never from
+ * source or provider text, so nothing new is sent to the provider.
+ */
+export function genericDeterministicRepairInstruction(
+  error: unknown,
+): string | undefined {
+  if (!(error instanceof Error) || error.message.trim().length === 0)
+    return undefined;
+  return `It failed this automatic check: ${error.message.slice(0, 1_000)} Fix only what the check names.`;
+}
+
 function deterministicFailureDetails(error: unknown): JobMetadata | undefined {
   if (!(error instanceof Error)) return undefined;
   const reason = (error as { code?: unknown }).code;

@@ -215,8 +215,8 @@ function validOutput(
     block: {
       outlineItemId: itemA,
       sentences: [
-        { text: words(28), sourceBlockIds: [blockA] },
-        { text: words(28), sourceBlockIds: [blockA] },
+        { text: words(36), sourceBlockIds: [blockA] },
+        { text: words(36), sourceBlockIds: [blockA] },
       ],
     },
   });
@@ -290,23 +290,23 @@ describe("assertNarrationBlockTransformChecks", () => {
   it("rejects a shorten block that is not shorter", () => {
     const output = validOutput("shorten");
     output.block.sentences = [
-      { text: words(30), sourceBlockIds: [blockA] },
-      { text: words(30), sourceBlockIds: [blockA] },
+      { text: words(38), sourceBlockIds: [blockA] },
+      { text: words(38), sourceBlockIds: [blockA] },
     ];
-    const shorterContext = operationContext({ currentWords: 55 });
+    const shorterContext = operationContext({ currentWords: 74 });
     expect(() =>
       assertNarrationBlockTransformChecks(output, pkg, shorterContext),
     ).toThrow(NarrationTransformDeterministicCheckError);
     expect(() =>
       assertNarrationBlockTransformChecks(output, pkg, shorterContext),
-    ).toThrow(/not fewer than the current 55/);
+    ).toThrow(/not fewer than the current 74/);
   });
 
   it("rejects an expand block that is not longer", () => {
     const output = validOutput("expand");
     output.block.sentences = [
-      { text: words(28), sourceBlockIds: [blockA] },
-      { text: words(28), sourceBlockIds: [blockA] },
+      { text: words(36), sourceBlockIds: [blockA] },
+      { text: words(36), sourceBlockIds: [blockA] },
     ];
     const expandContext = operationContext({
       params: transformParams({ mode: "expand" }),
@@ -319,8 +319,8 @@ describe("assertNarrationBlockTransformChecks", () => {
   it("accepts an expand block that is longer and within budget", () => {
     const longer = validOutput("expand");
     longer.block.sentences = [
-      { text: words(30), sourceBlockIds: [blockA] },
-      { text: words(30), sourceBlockIds: [blockA] },
+      { text: words(38), sourceBlockIds: [blockA] },
+      { text: words(38), sourceBlockIds: [blockA] },
     ];
     expect(() =>
       assertNarrationBlockTransformChecks(
@@ -344,7 +344,7 @@ describe("assertNarrationBlockTransformChecks", () => {
 
   it("rejects an over-long sentence", () => {
     const output = validOutput();
-    output.block.sentences = [{ text: words(60), sourceBlockIds: [blockA] }];
+    output.block.sentences = [{ text: words(72), sourceBlockIds: [blockA] }];
     expect(() =>
       assertNarrationBlockTransformChecks(output, pkg, context),
     ).toThrow(/maximum is 40/);

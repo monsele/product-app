@@ -284,3 +284,94 @@ describe("ST-105 one-shot gateway", () => {
     expect(JSON.stringify(state)).not.toContain("signed.example");
   });
 });
+
+describe("removing sentences grounding could not verify", () => {
+  const scene = (id: string, narration: string) => ({
+    id,
+    stableSceneId: id,
+    scene: { id, narration },
+  });
+  const claim = (id: string, sceneId: string, text: string) => ({
+    id,
+    text,
+    location: { type: "narration", sceneId, sentenceIndex: 0 },
+  });
+
+  it("takes each unsupported sentence out of its scene, chaining storyboard revisions", async () => {
+    const updateScene = vi
+      .fn()
+      .mockResolvedValueOnce({ revision: 8 })
+      .mockResolvedValueOnce({ revision: 9 });
+    const subject = gateway({
+      grounding: {
+        current: vi.fn().mockResolvedValue({
+          check: {
+            lessonSpecRevision: 7,
+            claims: [
+              claim("c1", "s1", "A hook we cannot verify."),
+              claim("c2", "s1", "A supported fact."),
+              claim("c3", "s2", "Another unverified line."),
+            ],
+            results: [
+              { claimId: "c1", status: "unsupported" },
+              { claimId: "c2", status: "supported" },
+              { claimId: "c3", status: "unsupported" },
+            ],
+          },
+        }),
+      },
+      storyboard: {
+        current: vi.fn().mockResolvedValue({
+          storyboard: {
+            revision: 7,
+            scenes: [
+              scene("s1", "A hook we cannot verify. A supported fact."),
+              scene("s2", "Another unverified line. More content here."),
+            ],
+          },
+        }),
+        updateScene,
+      },
+    });
+
+    const result = await subject.removeUnverifiedSentences(context);
+
+    expect(result).toEqual({
+      removed: [
+        { sceneId: "s1", text: "A hook we cannot verify." },
+        { sceneId: "s2", text: "Another unverified line." },
+      ],
+      kept: 0,
+    });
+    expect(updateScene.mock.calls.map(([input]) => input.body)).toEqual([
+      { expectedRevision: 7, scene: { id: "s1", narration: "A supported fact." } },
+      { expectedRevision: 8, scene: { id: "s2", narration: "More content here." } },
+    ]);
+  });
+
+  it("does nothing when the grounding check is for an older storyboard", async () => {
+    const updateScene = vi.fn();
+    const subject = gateway({
+      grounding: {
+        current: vi.fn().mockResolvedValue({
+          check: {
+            lessonSpecRevision: 6,
+            claims: [claim("c1", "s1", "Old.")],
+            results: [{ claimId: "c1", status: "unsupported" }],
+          },
+        }),
+      },
+      storyboard: {
+        current: vi.fn().mockResolvedValue({
+          storyboard: { revision: 7, scenes: [scene("s1", "Old. New.")] },
+        }),
+        updateScene,
+      },
+    });
+    await expect(subject.removeUnverifiedSentences(context)).resolves.toEqual({
+      removed: [],
+      kept: 0,
+    });
+    expect(updateScene).not.toHaveBeenCalled();
+  });
+});

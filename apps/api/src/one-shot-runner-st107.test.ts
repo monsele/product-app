@@ -152,6 +152,42 @@ describe("ST-107 runner with a confirmed brief", () => {
     expect(last.status).toBe("awaiting_render_approval");
   });
 
+  it("removes sentences grounding could not verify instead of stopping, and logs each one", async () => {
+    const fake = pipeline();
+    fake.findingsDriveValidation = true;
+    fake.findings = [
+      { code: "grounding_missing", severity: "error", sceneId: null, scopeId: null, details: {} },
+    ];
+    fake.unverified = [
+      { sceneId: "s1", text: "Many experience sudden provision, but few know how to keep it." },
+    ];
+    const { last, decisions } = await drive(fake, briefRun());
+
+    expect(last.status).toBe("awaiting_render_approval");
+    expect(fake.calls.filter((call) => call === "removeUnverifiedSentences")).toHaveLength(1);
+    // Grounding and the edited scene's audio were redone before validation passed.
+    expect(fake.calls.filter((call) => call === "requestGrounding").length).toBeGreaterThanOrEqual(2);
+    expect(
+      decisions.filter((entry) => entry.kind === "repair").map((entry) => entry.summary),
+    ).toContain(
+      `Removed a sentence we couldn't verify against your document: "Many experience sudden provision, but few know how to keep it."`,
+    );
+  });
+
+  it("stops in plain words when an unverified claim cannot be removed", async () => {
+    const fake = pipeline();
+    fake.findingsDriveValidation = true;
+    fake.findings = [
+      { code: "grounding_missing", severity: "error", sceneId: null, scopeId: null, details: {} },
+    ];
+    const { last } = await drive(fake, briefRun());
+
+    expect(last.status).toBe("needs_attention");
+    expect(last.needsAttention).toMatchObject({ stage: "preview", errorCode: "VALIDATION_BLOCKING" });
+    expect(last.needsAttention?.message).toContain("need");
+    expect(last.needsAttention?.message).not.toMatch(/grounding|validation/i);
+  });
+
   it("repairs a text overflow and a monotonous run within two rounds, and logs every repair", async () => {
     const fake = pipeline();
     fake.findingsDriveValidation = true;
@@ -208,7 +244,7 @@ describe("ST-107 runner with a confirmed brief", () => {
     expect(fake.keys).toContain(`oneshot:${runId}:audio:r0:repair:1`);
   });
 
-  it("never repairs or acknowledges a grounding finding: it goes to the user", async () => {
+  it("never rewrites or acknowledges a grounding finding it cannot remove: it goes to the user", async () => {
     const fake = pipeline();
     fake.findingsDriveValidation = true;
     fake.findings = [
@@ -219,8 +255,10 @@ describe("ST-107 runner with a confirmed brief", () => {
 
     expect(last.status).toBe("needs_attention");
     expect(last.needsAttention).toMatchObject({ stage: "preview", errorCode: "VALIDATION_BLOCKING" });
-    expect(last.needsAttention?.message).toContain("source-grounding");
+    expect(last.needsAttention?.message).toContain("need");
     expect(fake.repairJobs).toEqual([]);
+    // Removal was tried, but no sentence could be taken out.
+    expect(fake.calls).toContain("removeUnverifiedSentences");
   });
 
   it("ends repair and escalates when a round does not reduce the findings", async () => {

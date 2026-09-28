@@ -110,6 +110,8 @@ function handlerOptions(
     maxRepairs?: number;
     deterministicChecks?: ModelCallHandlerOptions<ObjectivesOutput>["deterministicChecks"];
     deterministicRepairInstruction?: ModelCallHandlerOptions<ObjectivesOutput>["deterministicRepairInstruction"];
+    maxDeterministicRepairs?: number;
+    warningRepairInstruction?: ModelCallHandlerOptions<ObjectivesOutput>["warningRepairInstruction"];
     persistCandidate?: ModelCallHandlerOptions<{
       objectives: { statement: string; sourceBlockIds: string[] }[];
     }>["persistCandidate"];
@@ -205,6 +207,12 @@ function handlerOptions(
           deterministicRepairInstruction:
             overrides.deterministicRepairInstruction,
         }),
+    ...(overrides.maxDeterministicRepairs === undefined
+      ? {}
+      : { maxDeterministicRepairs: overrides.maxDeterministicRepairs }),
+    ...(overrides.warningRepairInstruction === undefined
+      ? {}
+      : { warningRepairInstruction: overrides.warningRepairInstruction }),
     ...(overrides.persistCandidate === undefined
       ? {}
       : { persistCandidate: overrides.persistCandidate }),
@@ -483,6 +491,175 @@ describe("model-call lifecycle", () => {
     expect(recorded[0]).toMatchObject({
       status: "succeeded",
       validationStatus: "repaired",
+    });
+  });
+
+  describe("bounded deterministic repair rounds", () => {
+    const statement = (text: string) =>
+      JSON.stringify({
+        objectives: [{ statement: text, sourceBlockIds: [blockId] }],
+      });
+    // Each rejected draft names what the next correction must fix.
+    const deterministicChecks = (value: ObjectivesOutput): void => {
+      const text = value.objectives[0]?.statement ?? "";
+      if (text.startsWith("Copied"))
+        throw Object.assign(new Error(`Rejected: ${text}`), {
+          code: "LONG_COPIED_PASSAGE",
+        });
+    };
+    const deterministicRepairInstruction: ModelCallHandlerOptions<ObjectivesOutput>["deterministicRepairInstruction"] =
+      ({ error }) => `Fix: ${(error as Error).message}`;
+
+    it("re-checks each correction and succeeds on a later round", async () => {
+      const provider = new MockLanguageModelProvider({
+        model: "mock-model-1",
+        completion: sequenceCompletion([
+          statement("Copied first."),
+          statement("Copied second."),
+          statement("Explain evaporation."),
+        ]),
+      });
+      const { handler, recorded } = handlerOptions({
+        provider,
+        deterministicChecks,
+        deterministicRepairInstruction,
+        maxDeterministicRepairs: 2,
+      });
+      const result = await execute(handler, payload());
+      expect(result.outcome).toBe("succeeded");
+      expect(provider.requests).toHaveLength(3);
+      // The second round is built from the second draft's violation.
+      expect(provider.requests[2]?.messages.at(-1)?.content).toContain(
+        "Fix: Rejected: Copied second.",
+      );
+      expect(recorded[0]).toMatchObject({ status: "succeeded", retryCount: 2 });
+    });
+
+    it("stops after the allowed rounds and reports the latest violation", async () => {
+      const provider = new MockLanguageModelProvider({
+        model: "mock-model-1",
+        completion: sequenceCompletion([
+          statement("Copied first."),
+          statement("Copied second."),
+          statement("Copied third."),
+          statement("Explain evaporation."),
+        ]),
+      });
+      const { handler, recorded } = handlerOptions({
+        provider,
+        deterministicChecks,
+        deterministicRepairInstruction,
+        maxDeterministicRepairs: 2,
+      });
+      const result = await execute(handler, payload());
+      expect(result.outcome).toBe("failed");
+      expect(provider.requests).toHaveLength(3);
+      expect(result.error).toMatchObject({
+        code: "MODEL_OUTPUT_DETERMINISTIC_FAILURE",
+        details: expect.objectContaining({
+          message: "Rejected: Copied third.",
+        }),
+      });
+      expect(recorded[0]).toMatchObject({
+        status: "failed",
+        errorCode: "DETERMINISTIC_CHECK_FAILED",
+      });
+    });
+
+    it("allows two corrective rounds by default", async () => {
+      const provider = new MockLanguageModelProvider({
+        model: "mock-model-1",
+        completion: sequenceCompletion([
+          statement("Copied first."),
+          statement("Copied second."),
+          statement("Explain evaporation."),
+        ]),
+      });
+      const { handler } = handlerOptions({
+        provider,
+        deterministicChecks,
+        deterministicRepairInstruction,
+      });
+      const result = await execute(handler, payload());
+      expect(result.outcome).toBe("succeeded");
+      expect(provider.requests).toHaveLength(3);
+    });
+
+    it("corrects a job without its own instruction using the failed rule's message", async () => {
+      const provider = new MockLanguageModelProvider({
+        model: "mock-model-1",
+        completion: sequenceCompletion([
+          statement("Copied first."),
+          statement("Explain evaporation."),
+        ]),
+      });
+      const { handler, recorded } = handlerOptions({
+        provider,
+        deterministicChecks,
+      });
+      const result = await execute(handler, payload());
+      expect(result.outcome).toBe("succeeded");
+      expect(provider.requests).toHaveLength(2);
+      expect(provider.requests[1]?.messages.at(-1)?.content).toContain(
+        "It failed this automatic check: Rejected: Copied first.",
+      );
+      expect(recorded[0]).toMatchObject({ validationStatus: "repaired" });
+    });
+  });
+
+  describe("one improvement round for a checked draft with warnings", () => {
+    const statement = (text: string) =>
+      JSON.stringify({
+        objectives: [{ statement: text, sourceBlockIds: [blockId] }],
+      });
+    const deterministicChecks = (value: ObjectivesOutput) => {
+      const text = value.objectives[0]?.statement ?? "";
+      if (text.startsWith("Broken")) throw new Error("Broken draft.");
+      return text.startsWith("Short")
+        ? [{ code: "WORD_COUNT_OUT_OF_BUDGET", message: "Too short." }]
+        : [];
+    };
+    const warningRepairInstruction = () => "Make it longer.";
+
+    it("keeps an improvement that passes every check", async () => {
+      const provider = new MockLanguageModelProvider({
+        model: "mock-model-1",
+        completion: sequenceCompletion([statement("Short draft."), statement("Explain evaporation fully.")]),
+      });
+      const { handler, recorded } = handlerOptions({ provider, deterministicChecks, warningRepairInstruction });
+      const result = await execute(handler, payload());
+      expect(result.outcome).toBe("succeeded");
+      expect(provider.requests).toHaveLength(2);
+      expect(provider.requests[1]?.messages.at(-1)?.content).toContain("Make it longer.");
+      expect(recorded[0]).toMatchObject({ status: "succeeded", retryCount: 1 });
+    });
+
+    it("keeps the checked draft when the improvement breaks a rule, and meters both calls", async () => {
+      const provider = new MockLanguageModelProvider({
+        model: "mock-model-1",
+        completion: sequenceCompletion([statement("Short draft."), statement("Broken draft.")]),
+      });
+      const persistCandidate = vi.fn<PersistCandidateInput>(async () => ({ id: createId() }));
+      const { handler, recorded } = handlerOptions({
+        provider,
+        deterministicChecks,
+        warningRepairInstruction,
+        persistCandidate,
+      });
+      const result = await execute(handler, payload());
+      expect(result.outcome).toBe("succeeded");
+      expect(persistCandidate.mock.calls[0]?.[0].value.objectives[0]?.statement).toBe("Short draft.");
+      expect(recorded[0]).toMatchObject({ status: "succeeded", retryCount: 1 });
+    });
+
+    it("asks nothing when the draft has no warnings", async () => {
+      const provider = new MockLanguageModelProvider({
+        model: "mock-model-1",
+        completion: sequenceCompletion([statement("Explain evaporation.")]),
+      });
+      const { handler } = handlerOptions({ provider, deterministicChecks, warningRepairInstruction });
+      await execute(handler, payload());
+      expect(provider.requests).toHaveLength(1);
     });
   });
 

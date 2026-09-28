@@ -13,6 +13,7 @@
  * particular always go to the user.
  */
 
+import { narrationWordsPerMinute } from "@avlp/schemas";
 import type { OneShotBriefCoveragePoint } from "@avlp/schemas/one-shot";
 
 /** The only validation codes a run may repair on its own. */
@@ -154,7 +155,10 @@ export function repairForFinding(
       const allocated = numberDetail(finding.details, "storyboardDurationSeconds");
       const actual = numberDetail(finding.details, "sceneDurationSeconds");
       if (allocated === null) return null;
-      const words = Math.max(10, Math.round(allocated * 2.3));
+      const words = Math.max(
+        10,
+        Math.round((allocated * narrationWordsPerMinute) / 60),
+      );
       return {
         sceneId: finding.sceneId,
         code: "scene_duration_out_of_range",
@@ -329,4 +333,38 @@ export function planCoverageRepair(input: {
     });
   }
   return planned;
+}
+
+// ---------------------------------------------------------------------------
+// Unverifiable sentences
+// ---------------------------------------------------------------------------
+
+/**
+ * The last automatic answer to a sentence grounding could not verify: take it
+ * out of the scene's narration, so the video never states it. Deterministic
+ * and exact: a sentence is removed only when its text appears verbatim, and a
+ * scene always keeps at least one sentence (the rest is `missing`, which the
+ * caller leaves for the user).
+ */
+export function withoutSentences(
+  narration: string,
+  sentences: readonly string[],
+): { narration: string; removed: string[]; missing: number } {
+  let next = narration;
+  const removed: string[] = [];
+  let missing = 0;
+  for (const sentence of sentences) {
+    const text = sentence.trim();
+    const at = text.length === 0 ? -1 : next.indexOf(text);
+    const remaining = `${next.slice(0, Math.max(at, 0))} ${next.slice(at + text.length)}`
+      .replace(/\s+/g, " ")
+      .trim();
+    if (at === -1 || remaining.length === 0) {
+      missing += 1;
+      continue;
+    }
+    next = remaining;
+    removed.push(text);
+  }
+  return { narration: next, removed, missing };
 }

@@ -8,6 +8,7 @@ import { narrationPromptV1 } from "./narration/v1.js";
 import { narrationPromptV2 } from "./narration/v2.js";
 import { narrationPromptV3 } from "./narration/v3.js";
 import { narrationPromptV4 } from "./narration/v4.js";
+import { narrationPromptV5 } from "./narration/v5.js";
 import { objectivesPromptV1 } from "./objectives/v1.js";
 import { objectivesPromptV2 } from "./objectives/v2.js";
 import { objectivesPromptV3 } from "./objectives/v3.js";
@@ -39,6 +40,7 @@ export const repositoryPrompts: readonly PromptDefinition[] = [
   narrationPromptV2,
   narrationPromptV3,
   narrationPromptV4,
+  narrationPromptV5,
   narrationBlockPromptV1,
   storyboardPromptV1,
   storyboardPromptV2,

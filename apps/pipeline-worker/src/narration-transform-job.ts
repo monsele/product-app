@@ -18,6 +18,7 @@ import {
 import {
   narrationBlockTransformOutputSchema,
   narrationCopiedPassageMinimumRun,
+  narrationQuotationMaxPerBlock,
   narrationSentenceMaximumWords,
   narrationTransformParamsSchema,
   narrationWordCountRange,
@@ -34,6 +35,10 @@ import {
   createModelCallGenerationHandler,
   type ModelCallHandlerOptions,
 } from "./model-call.js";
+import {
+  longestCopiedWordRun,
+  quotationAppearsInSource,
+} from "./narration-copy-checks.js";
 import { computeOutlineSetContentHash } from "./narration-job.js";
 import { resolveObjectiveSourceRefs as resolveSourceRefs } from "./objectives-job.js";
 
@@ -51,7 +56,9 @@ export class NarrationTransformDeterministicCheckError extends Error {
     | "MODE_DIRECTION_VIOLATED"
     | "SENTENCE_TOO_LONG"
     | "UNSUPPORTED_SOURCE_BLOCK"
-    | "LONG_COPIED_PASSAGE";
+    | "LONG_COPIED_PASSAGE"
+    | "QUOTATION_NOT_IN_SOURCE"
+    | "TOO_MANY_QUOTATIONS";
 
   public constructor(
     code: NarrationTransformDeterministicCheckError["code"],
@@ -285,56 +292,14 @@ function countWords(text: string): number {
     .filter((word) => word.length > 0).length;
 }
 
-function longestCopiedWordRun(sentence: string, sourceText: string): number {
-  const sentenceWords = sentence
-    .trim()
-    .split(/\s+/)
-    .filter((word) => word.length > 0);
-  const sourceWords = sourceText
-    .trim()
-    .split(/\s+/)
-    .filter((word) => word.length > 0);
-  if (sentenceWords.length === 0 || sourceWords.length === 0) return 0;
-  const sourceNGrams = new Set<string>();
-  for (
-    let index = 0;
-    index + narrationCopiedPassageMinimumRun <= sourceWords.length;
-    index += 1
-  )
-    sourceNGrams.add(
-      sourceWords
-        .slice(index, index + narrationCopiedPassageMinimumRun)
-        .join(" "),
-    );
-  let longest = 0;
-  for (
-    let index = 0;
-    index + narrationCopiedPassageMinimumRun <= sentenceWords.length;
-    index += 1
-  ) {
-    const run = sentenceWords.slice(
-      index,
-      index + narrationCopiedPassageMinimumRun,
-    );
-    if (!sourceNGrams.has(run.join(" "))) continue;
-    let end = index + narrationCopiedPassageMinimumRun;
-    while (
-      end < sentenceWords.length &&
-      sourceWords.includes(sentenceWords[end]!)
-    )
-      end += 1;
-    longest = Math.max(longest, end - index);
-  }
-  return longest;
-}
-
 /**
  * Deterministic rules for one rewritten block: the mode and outline item must
  * match the request, the word count must fit the outline item's budget (and
  * move in the requested direction), every sentence must stay within the
  * sentence-length ceiling, every citation must resolve to the bounded source
- * package, and no sentence may copy a long passage from any package block.
- * Throws on the first violation.
+ * package, and no sentence may copy a long passage from its cited block unless
+ * it is a marked quotation that quotes that block exactly. Throws on the first
+ * violation.
  */
 export function assertNarrationBlockTransformChecks(
   output: NarrationBlockTransformOutput,
@@ -381,6 +346,7 @@ export function assertNarrationBlockTransformChecks(
       "MODE_DIRECTION_VIOLATED",
       `The "expand" block has ${words} words, not more than the current ${operationContext.currentWords}.`,
     );
+  let quotations = 0;
   for (const [sentenceIndex, sentence] of output.block.sentences.entries()) {
     const sentenceWords = countWords(sentence.text);
     if (sentenceWords > narrationSentenceMaximumWords)
@@ -388,12 +354,33 @@ export function assertNarrationBlockTransformChecks(
         "SENTENCE_TOO_LONG",
         `sentences[${sentenceIndex}] has ${sentenceWords} words; the maximum is ${narrationSentenceMaximumWords}.`,
       );
-    for (const blockId of sentence.sourceBlockIds) {
+    for (const blockId of sentence.sourceBlockIds)
       if (!valid.has(blockId))
         throw new NarrationTransformDeterministicCheckError(
           "UNSUPPORTED_SOURCE_BLOCK",
           `sentences[${sentenceIndex}] cites unsupported source block ${blockId}.`,
         );
+    if (sentence.quotation === true) {
+      quotations += 1;
+      const blockId = sentence.sourceBlockIds[0]!;
+      if (quotations > narrationQuotationMaxPerBlock)
+        throw new NarrationTransformDeterministicCheckError(
+          "TOO_MANY_QUOTATIONS",
+          `sentences[${sentenceIndex}] is a quotation beyond the limit of ${narrationQuotationMaxPerBlock} per block.`,
+        );
+      if (
+        !quotationAppearsInSource(
+          sentence.text,
+          sourceTextById.get(blockId) ?? "",
+        )
+      )
+        throw new NarrationTransformDeterministicCheckError(
+          "QUOTATION_NOT_IN_SOURCE",
+          `sentences[${sentenceIndex}] is marked as a quotation but does not quote source block ${blockId} exactly.`,
+        );
+      continue;
+    }
+    for (const blockId of sentence.sourceBlockIds) {
       const longest = longestCopiedWordRun(
         sentence.text,
         sourceTextById.get(blockId) ?? "",

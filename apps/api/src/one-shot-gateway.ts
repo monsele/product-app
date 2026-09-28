@@ -57,6 +57,7 @@ import type {
   SceneRepairStatus,
 } from "./one-shot-runner.js";
 import type { OutlineService } from "./outline.js";
+import { withoutSentences } from "./one-shot-repair.js";
 import { findLatestProjectParsedDocument } from "./project-parsed-document.js";
 import type { RenderService } from "./renders.js";
 import type { SceneAudioService } from "./scene-audio.js";
@@ -83,6 +84,7 @@ export type OneShotGatewayServices = {
     | "applySceneCandidate"
     | "rejectSceneCandidate"
     | "sceneDetail"
+    | "updateScene"
   >;
   illustrations: Pick<
     IllustrationGenerationService,
@@ -821,6 +823,72 @@ export class ServiceOneShotGateway
       body,
       correlationId: context.correlationId,
     });
+  }
+
+  public async removeUnverifiedSentences(context: OneShotCallContext) {
+    const [grounding, current] = await Promise.all([
+      this.services.grounding.current(context),
+      this.services.storyboard.current(context),
+    ]);
+    const storyboard = current.storyboard;
+    const check = grounding.check;
+    const removed: { sceneId: string; text: string }[] = [];
+    let kept = 0;
+    if (
+      storyboard === null ||
+      check === null ||
+      check.lessonSpecRevision !== storyboard.revision
+    )
+      return { removed, kept };
+    const unsupported = new Set(
+      check.results
+        .filter((result) => result.status === "unsupported")
+        .map((result) => result.claimId),
+    );
+    const sentencesByScene = new Map<string, string[]>();
+    for (const claim of check.claims) {
+      if (!unsupported.has(claim.id)) continue;
+      const sceneId = claim.location.sceneId;
+      if (claim.location.type !== "narration" || sceneId === undefined) {
+        kept += 1;
+        continue;
+      }
+      sentencesByScene.set(sceneId, [
+        ...(sentencesByScene.get(sceneId) ?? []),
+        claim.text,
+      ]);
+    }
+    let revision = storyboard.revision;
+    for (const [sceneId, sentences] of sentencesByScene) {
+      const entry = storyboard.scenes.find(
+        (scene) =>
+          scene.stableSceneId === sceneId ||
+          scene.id === sceneId ||
+          scene.scene.id === sceneId,
+      );
+      if (entry === undefined) {
+        kept += sentences.length;
+        continue;
+      }
+      const edit = withoutSentences(entry.scene.narration, sentences);
+      kept += edit.missing;
+      if (edit.removed.length === 0) continue;
+      const response = await this.services.storyboard.updateScene({
+        ownerUserId: context.ownerUserId,
+        projectId: context.projectId,
+        sceneId: entry.stableSceneId as Identifier,
+        correlationId: context.correlationId,
+        body: {
+          expectedRevision: revision,
+          scene: { ...entry.scene, narration: edit.narration },
+        },
+      });
+      revision = response.revision;
+      removed.push(
+        ...edit.removed.map((text) => ({ sceneId: entry.stableSceneId, text })),
+      );
+    }
+    return { removed, kept };
   }
 
   public async promiseState(scope: OneShotScope): Promise<PromiseState> {

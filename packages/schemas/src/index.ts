@@ -2746,9 +2746,17 @@ export const durationMinutesToSeconds = (minutes: 3 | 5 | 7): number =>
  * Documented narration-budget constants. `targetWords = durationMinutes ×
  * wordsPerMinute × (1 − pauseReservation)`; the range buffers the target so
  * scripts may land slightly above or below the deterministic midpoint.
+ *
+ * Calibrated to the production voice (Together Kokoro, `english-aria`,
+ * speaking rate 1.0), measured at 151.5 words per minute of finished audio,
+ * natural pauses included, consistently across different documents. The
+ * earlier 140 × (1 − 0.2) = 112 effective rate was only ever met by the
+ * fixture voice (which synthesizes from these constants), so real lessons
+ * ran about a quarter short of the length the teacher chose. The measured
+ * rate already contains the pauses, so none is reserved on top.
  */
-export const narrationWordsPerMinute = 140 as const;
-export const narrationPauseReservation = 0.2 as const;
+export const narrationWordsPerMinute = 150 as const;
+export const narrationPauseReservation = 0 as const;
 export const narrationRangeLower = 0.9 as const;
 export const narrationRangeUpper = 1.15 as const;
 
@@ -5093,6 +5101,15 @@ export const narrationSentenceMaximumWords = 40 as const;
 export const narrationCopiedPassageMinimumRun = 8 as const;
 
 /**
+ * Direct quotations a narration may carry. Scripture, statutes, definitions
+ * and poems sometimes have to be spoken word for word; a sentence marked as a
+ * quotation is exempt from the copied-passage rule but must quote its single
+ * cited block exactly. The caps keep a lesson an explanation, not a reading.
+ */
+export const narrationQuotationMaxPerBlock = 1 as const;
+export const narrationQuotationMaxPerNarration = 4 as const;
+
+/**
  * One model-proposed spoken sentence (or claim group). A sentence either cites
  * at least one source block ID or is labelled as an AI-generated addition;
  * never both. Application code resolves block IDs into SourceRefs.
@@ -5108,9 +5125,17 @@ export const narrationSentenceOutputSchema = z
       })
       .strict()
       .optional(),
+    /** The sentence quotes its one cited block verbatim, inside quotation marks. */
+    quotation: z.literal(true).optional(),
   })
   .strict()
   .superRefine((value, context) => {
+    if (value.quotation === true && value.sourceBlockIds.length !== 1)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["sourceBlockIds"],
+        message: "A quotation must cite exactly one source block.",
+      });
     if (
       value.sourceBlockIds.length === 0 &&
       value.generatedAddition === undefined
@@ -5276,7 +5301,7 @@ export type NarrationGenerationCompatibility = z.infer<
 export const currentNarrationGenerationCompatibility =
   narrationGenerationCompatibilitySchema.parse({
     promptId: "narration",
-    promptVersion: "v4",
+    promptVersion: "v5",
     model: togetherModelDefaults.llm,
   });
 

@@ -275,6 +275,23 @@ describe("run status views", () => {
     expect(html).toContain('data-testid="one-shot-resume"');
   });
 
+  it("a stop on our side names the step list's step and offers Try again", () => {
+    const html = page(
+      runView({
+        status: "needs_attention",
+        needsAttention: {
+          stage: "grounding",
+          errorCode: "STAGE_JOB_FAILED",
+          message: "The Visuals step couldn't finish on our side.",
+        },
+      }),
+    );
+    expect(html).toContain("Stopped at Visuals");
+    expect(html).not.toContain("Stopped at Storyboard");
+    expect(html).toContain("Something went wrong on our side");
+    expect(html).toContain("Try again");
+  });
+
   it("not_covered shows the reason and Edit prompt", () => {
     const html = page(
       runView({

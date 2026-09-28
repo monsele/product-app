@@ -48,6 +48,8 @@ import {
   studentAgeBandLabels,
   studentAgeBands,
   toDisplaySteps,
+  displayStepLabelForStage,
+  isOurSideStop,
   wizardLinkForStage,
   type AudienceKind,
   type DisplayStepState,
@@ -573,6 +575,7 @@ export function AttentionCard({
   const link =
     attention === null ? null : wizardLinkForStage(projectId, attention.stage);
   const failed = run.status === "failed";
+  const ourSide = isOurSideStop(attention?.errorCode);
   return (
     <section
       aria-labelledby="one-shot-attention-heading"
@@ -585,13 +588,16 @@ export function AttentionCard({
           {failed ? "A step failed" : "Your video needs attention"}
         </h2>
         <p className={styles.cardLead}>
-          Nothing has been lost. Fix the step in the editor, then resume to
-          continue from where the run stopped.
+          {ourSide
+            ? "Something went wrong on our side. Nothing has been lost, and trying again continues from where the video stopped."
+            : "Nothing has been lost. Fix the step in the editor, then resume to continue from where the run stopped."}
         </p>
       </div>
       <Notice
         type={failed ? "error" : "warning"}
-        {...(link === null ? {} : { title: `Stopped at ${link.label}` })}
+        {...(attention === null
+          ? {}
+          : { title: `Stopped at ${displayStepLabelForStage(attention.stage)}` })}
         message={
           attention?.message ??
           "The run stopped. Open the editor to check the lesson, then resume."
@@ -617,7 +623,7 @@ export function AttentionCard({
           leftIcon={<ArrowClockwise weight="bold" />}
           data-testid="one-shot-resume"
         >
-          {busy ? "Resuming…" : "Resume"}
+          {busy ? "Resuming…" : ourSide ? "Try again" : "Resume"}
         </Button>
         <Button
           type="button"

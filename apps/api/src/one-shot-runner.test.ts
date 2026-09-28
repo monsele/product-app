@@ -218,6 +218,69 @@ describe("ST-105 prompt-to-video runner", () => {
     expect(fake.calls.filter((call) => call === "generate:outline")).toHaveLength(1);
   });
 
+  it.each(["objectives", "outline", "narration", "storyboard", "grounding"])(
+    "recovers the %s step from one rejected draft without stopping",
+    async (stage) => {
+      const fake = new FakePipeline();
+      fake.failWith.set(stage, { errorCode: "MODEL_OUTPUT_DETERMINISTIC_FAILURE", times: 1 });
+      const { last } = await drive(fake, initialRun());
+      expect(last.status).toBe("awaiting_render_approval");
+      expect(fake.keys.filter((key) => key.includes(`:${stage}:r0`) && key.endsWith(":auto1"))).toHaveLength(1);
+    },
+  );
+
+  it("names the step the user sees, never the internal stage, when grounding stops", async () => {
+    const fake = new FakePipeline();
+    fake.failWith.set("grounding", { errorCode: "MODEL_OUTPUT_DETERMINISTIC_FAILURE", times: 2 });
+    const { last } = await drive(fake, initialRun());
+    expect(last.needsAttention).toMatchObject({ stage: "grounding", errorCode: "STAGE_JOB_FAILED" });
+    expect(last.needsAttention?.message).toContain("The Visuals step");
+    expect(last.needsAttention?.message).not.toMatch(/grounding/i);
+  });
+
+  it("regenerates once when the checks reject a draft, then carries on", async () => {
+    const fake = new FakePipeline();
+    fake.failWith.set("narration", { errorCode: "MODEL_OUTPUT_DETERMINISTIC_FAILURE", times: 1 });
+    const { last } = await drive(fake, initialRun());
+    expect(last.status).toBe("awaiting_render_approval");
+    expect(fake.calls.filter((call) => call === "generate:narration")).toHaveLength(2);
+    expect(fake.keys.filter((key) => key.endsWith(":narration:r0:auto1"))).toHaveLength(1);
+  });
+
+  it("stops in plain language when the regenerated draft is rejected too", async () => {
+    const fake = new FakePipeline();
+    fake.failWith.set("narration", { errorCode: "MODEL_OUTPUT_DETERMINISTIC_FAILURE", times: 2 });
+    const { run, last } = await drive(fake, initialRun());
+    expect(last.status).toBe("needs_attention");
+    expect(last.needsAttention).toMatchObject({ stage: "narration", errorCode: "STAGE_JOB_FAILED" });
+    expect(last.needsAttention?.message).toContain("even after we tried again automatically");
+    expect(last.needsAttention?.message).not.toMatch(/[A-Z]{3,}_[A-Z_]+/);
+    expect(fake.calls.filter((call) => call === "generate:narration")).toHaveLength(2);
+
+    // A resume earns one more automatic attempt before asking again.
+    fake.failWith.set("narration", { errorCode: "MODEL_OUTPUT_DETERMINISTIC_FAILURE", times: 1 });
+    // As `OneShotService.resume` does: the stopped step forgets its job and detail.
+    const steps = run.steps.map((entry) =>
+      entry.state === "needs_attention"
+        ? { step: entry.step, state: "pending" as const, startedAt: entry.startedAt }
+        : entry,
+    );
+    const resumed = await drive(fake, { ...run, steps, status: "running", resumeCount: 1 });
+    expect(resumed.last.status).toBe("awaiting_render_approval");
+    expect(fake.calls.filter((call) => call === "generate:narration")).toHaveLength(4);
+    expect(fake.keys.filter((key) => key.endsWith(":narration:r1:auto1"))).toHaveLength(1);
+  });
+
+  it("does not regenerate a job that failed for another reason", async () => {
+    const fake = new FakePipeline();
+    fake.failWith.set("narration", { errorCode: "SOURCE_SNAPSHOT_STALE", times: 1 });
+    const { last } = await drive(fake, initialRun());
+    expect(last.needsAttention).toMatchObject({ stage: "narration", errorCode: "STAGE_JOB_FAILED" });
+    expect(last.needsAttention?.message).toContain("couldn't finish on our side");
+    expect(last.needsAttention?.message).not.toContain("SOURCE_SNAPSHOT_STALE");
+    expect(fake.calls.filter((call) => call === "generate:narration")).toHaveLength(1);
+  });
+
   it("fails a step with no progress for 20 minutes, and the run can be resumed", async () => {
     const fake = new FakePipeline();
     fake.snapshot = { approved: true, stale: false };

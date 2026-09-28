@@ -94,7 +94,7 @@ describe("ST-104 focus-aware prompt versions", () => {
   it("are the current generation versions and older versions stay registered", () => {
     expect(currentObjectiveGenerationCompatibility.promptVersion).toBe("v3");
     expect(currentOutlineGenerationCompatibility.promptVersion).toBe("v3");
-    expect(currentNarrationGenerationCompatibility.promptVersion).toBe("v4");
+    expect(currentNarrationGenerationCompatibility.promptVersion).toBe("v5");
     expect(currentStoryboardGenerationCompatibility.promptVersion).toBe("v3");
     for (const [promptId, version] of [
       ["objectives", "v2"],

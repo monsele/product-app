@@ -41,6 +41,7 @@ import {
   fetchDecisions,
   fetchOneShot,
   fetchSoundBedTitles,
+  isOurSideStop,
   isPollingStatus,
   newIdempotencyKey,
   nextPollDelay,
@@ -464,7 +465,9 @@ export function OneShotWorkspace({
                       ? "Resuming…"
                       : run.needsAttention.errorCode === "RENDER_REVIEW_FAILED"
                         ? "Retry render"
-                        : "Resume"}
+                        : isOurSideStop(run.needsAttention.errorCode)
+                          ? "Try again"
+                          : "Resume"}
                   </Button>
                   <p className={styles.helper}>
                     {run.needsAttention.errorCode === "RENDER_REVIEW_FAILED"

@@ -34,6 +34,8 @@ import {
   createNarrationGenerationJobHandler,
   loadApprovedOutlineSet,
   NarrationDeterministicCheckError,
+  narrationLengthImprovement,
+  narrationRepairInstruction,
   persistNarrationSet,
 } from "./narration-job.js";
 
@@ -148,11 +150,11 @@ function validOutput(): NarrationOutputV1 {
         outlineItemId: itemA,
         sentences: [
           {
-            text: words(20),
+            text: words(26),
             sourceBlockIds: [blockA],
           },
           {
-            text: words(18),
+            text: words(24),
             sourceBlockIds: [blockA],
           },
         ],
@@ -161,11 +163,11 @@ function validOutput(): NarrationOutputV1 {
         outlineItemId: itemB,
         sentences: [
           {
-            text: words(28),
+            text: words(38),
             sourceBlockIds: [blockB],
           },
           {
-            text: words(27),
+            text: words(37),
             sourceBlockIds: [blockB],
           },
         ],
@@ -429,6 +431,112 @@ describe("assertNarrationDeterministicChecks", () => {
     expect(() =>
       assertNarrationDeterministicChecks(output, pkg, context),
     ).toThrow(/copies a/);
+  });
+
+  function checkError(output: NarrationOutputV1) {
+    try {
+      assertNarrationDeterministicChecks(output, pkg, context);
+    } catch (error) {
+      if (error instanceof NarrationDeterministicCheckError) return error;
+      throw error;
+    }
+    throw new Error("Expected the narration checks to fail.");
+  }
+
+  it("reports every copied sentence at once, with its location", () => {
+    const output = validOutput();
+    output.blocks[0]!.sentences[1] = {
+      text: "Water evaporates when heated and rises as water vapour " + words(8),
+      sourceBlockIds: [blockA],
+    };
+    output.blocks[1]!.sentences[0] = {
+      text:
+        "Condensation forms clouds when water vapour cools and becomes liquid " +
+        words(8),
+      sourceBlockIds: [blockB],
+    };
+    const error = checkError(output);
+    expect(error.code).toBe("LONG_COPIED_PASSAGE");
+    expect(error.violations).toEqual([
+      expect.objectContaining({ blockIndex: 0, sentenceIndex: 1 }),
+      expect.objectContaining({ blockIndex: 1, sentenceIndex: 0 }),
+    ]);
+    expect(error.message).toContain("1 more sentence to fix");
+    const instruction = narrationRepairInstruction(error)!;
+    expect(instruction).toContain("blocks[0].sentences[1]");
+    expect(instruction).toContain("blocks[1].sentences[0]");
+    // Locations and rules only; the source wording is never repeated.
+    expect(instruction).not.toContain("evaporates");
+  });
+
+  it("reports the copied run's true length, not later words found elsewhere", () => {
+    const output = validOutput();
+    // Eight copied words, then words that occur in the block out of order.
+    output.blocks[0]!.sentences[1] = {
+      text: "Water evaporates when heated and rises as water into the " + words(6),
+      sourceBlockIds: [blockA],
+    };
+    expect(checkError(output).message).toContain("copies a 8-word passage");
+  });
+
+  it("accepts a marked quotation that quotes its block exactly", () => {
+    const output = validOutput();
+    output.blocks[0]!.sentences[1] = {
+      text: `As the source puts it, “water evaporates when heated and rises as water vapour into the sky”.`,
+      sourceBlockIds: [blockA],
+      quotation: true,
+    };
+    expect(() =>
+      assertNarrationDeterministicChecks(output, pkg, context),
+    ).not.toThrow();
+  });
+
+  it("rejects a marked quotation whose words are not in its block", () => {
+    const output = validOutput();
+    output.blocks[0]!.sentences[1] = {
+      text: `As the source puts it, "water boils when heated and rises into the sky".`,
+      sourceBlockIds: [blockA],
+      quotation: true,
+    };
+    const error = checkError(output);
+    expect(error.code).toBe("QUOTATION_NOT_IN_SOURCE");
+    expect(narrationRepairInstruction(error)).toContain("blocks[0].sentences[1]");
+  });
+
+  it("rejects a second quotation in one block", () => {
+    const output = validOutput();
+    const quote = {
+      text: `"Water evaporates when heated."`,
+      sourceBlockIds: [blockA],
+      quotation: true as const,
+    };
+    output.blocks[0]!.sentences = [quote, quote, { text: words(10), sourceBlockIds: [blockA] }];
+    const error = checkError(output);
+    expect(error.code).toBe("TOO_MANY_QUOTATIONS");
+    expect(error.violations).toEqual([
+      expect.objectContaining({ blockIndex: 0, sentenceIndex: 1 }),
+    ]);
+  });
+
+  it("offers no repair for structural failures", () => {
+    const output = validOutput();
+    output.blocks[0]!.sentences[0]!.sourceBlockIds = [unknownBlock];
+    expect(narrationRepairInstruction(checkError(output))).toBeUndefined();
+  });
+});
+
+describe("narrationLengthImprovement", () => {
+  it("asks nothing of a script that fills the lesson", () => {
+    expect(narrationLengthImprovement(validOutput(), operationContext())).toBeUndefined();
+  });
+
+  it("names each short block and the words the lesson still needs", () => {
+    const output = validOutput();
+    output.blocks[1]!.sentences = [{ text: words(30), sourceBlockIds: [blockB] }];
+    const instruction = narrationLengthImprovement(output, operationContext())!;
+    expect(instruction).toContain("has 80 words and needs 113-144");
+    expect(instruction).toContain("blocks[1] needs about 45 more words");
+    expect(instruction).not.toContain("blocks[0]");
   });
 });
 

@@ -165,6 +165,25 @@ describe("narration structured output schema", () => {
     ).toThrow();
   });
 
+  it("accepts a quotation that cites exactly one source block", () => {
+    expect(sentence({ quotation: true }).quotation).toBe(true);
+    expect(sentence().quotation).toBeUndefined();
+  });
+
+  it("rejects a quotation citing no block or several blocks", () => {
+    expect(() =>
+      sentence({ quotation: true, sourceBlockIds: [blockId, blockId] }),
+    ).toThrow(/exactly one source block/);
+    expect(() =>
+      sentence({
+        quotation: true,
+        sourceBlockIds: [],
+        generatedAddition: { kind: "example", rationale: "An example." },
+      }),
+    ).toThrow(/exactly one source block/);
+    expect(() => sentence({ quotation: false })).toThrow();
+  });
+
   it("accepts a sentence labelled as a generated addition", () => {
     expect(() =>
       sentence({
@@ -360,10 +379,10 @@ describe("narration response schema", () => {
 });
 
 describe("narration generation compatibility", () => {
-  it("targets the narration v4 prompt with the Together model", () => {
+  it("targets the narration v5 prompt with the Together model", () => {
     expect(currentNarrationGenerationCompatibility).toMatchObject({
       promptId: "narration",
-      promptVersion: "v4",
+      promptVersion: "v5",
       model: "moonshotai/Kimi-K3",
     });
   });

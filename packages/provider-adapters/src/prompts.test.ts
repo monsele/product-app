@@ -49,15 +49,19 @@ describe("prompt registry", () => {
     expect(v2.evaluationCases).toContain("objectives-v1-age-appropriateness");
   });
 
-  it("keeps the copied-passage guard in narration v3 and the latest v4", () => {
+  it("keeps the copied-passage guard in narration v3, v4 and the latest v5", () => {
     const registry = new StaticPromptRegistry(repositoryPrompts);
     const definition = registry.latest("narration");
-    expect(definition.version).toBe("v4");
-    for (const version of ["v3", "v4"]) {
+    expect(definition.version).toBe("v5");
+    for (const version of ["v3", "v4", "v5"]) {
       const pinned = registry.get("narration", version);
       expect(pinned.system).toContain("eight or more consecutive words");
       expect(pinned.system).toContain("check each cited sentence");
     }
+    // v5 adds marked, exact quotations; the schema field is named in both parts.
+    expect(definition.system).toContain('"quotation": true');
+    expect(definition.userTemplate).toContain('"quotation": true');
+    expect(registry.get("narration", "v4").system).not.toContain("quotation");
   });
 
   it("registers the narration-block v1 prompt with every mode rendered", () => {

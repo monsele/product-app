@@ -83,6 +83,8 @@ export class FakePipeline implements OneShotStageGateway {
   };
   /** The next job queued for this stage fails instead of succeeding. */
   public failNext = new Set<string>();
+  /** The next `times` jobs queued for a stage fail with this error code. */
+  public failWith = new Map<string, { errorCode: string; times: number }>();
   public coverageOnGenerate: ApprovalStageState["focusCoverage"] = {
     status: "covered",
   };
@@ -351,6 +353,27 @@ export class FakePipeline implements OneShotStageGateway {
   public async promiseState() {
     return { ...this.promise };
   }
+  /** Unsupported narration sentences the current grounding check reports. */
+  public unverified: { sceneId: string; text: string }[] = [];
+  public async removeUnverifiedSentences(context: OneShotCallContext) {
+    this.calls.push("removeUnverifiedSentences");
+    this.keys.push(context.requestKey);
+    const removed = this.unverified;
+    this.unverified = [];
+    if (removed.length > 0) {
+      // As a real scene edit: grounding and that scene's audio are redone.
+      this.findings = this.findings.filter((entry) => !entry.code.startsWith("grounding"));
+      this.storyboardFake.revision = (this.storyboardFake.revision ?? 0) + 1;
+      this.groundingCurrent = false;
+      this.groundingJob = null;
+      this.audioFake = {
+        ...this.audioFake,
+        ready: Math.max(0, this.audioFake.ready - 1),
+        missing: this.audioFake.missing + 1,
+      };
+    }
+    return { removed, kept: 0 };
+  }
   public async auditApproval(
     _context: OneShotCallContext,
     input: { step: string; target: { type: string; id: string } },
@@ -358,13 +381,22 @@ export class FakePipeline implements OneShotStageGateway {
     this.audits.push({ step: input.step, targetType: input.target.type });
   }
 
+  /** Consumes one configured failure for a stage, returning its error code. */
+  private takeFailure(stage: string): string | null {
+    const failure = this.failWith.get(stage);
+    if (failure === undefined || failure.times <= 0) return null;
+    failure.times -= 1;
+    return failure.errorCode;
+  }
+
   /** What the pipeline worker does between two ticks. */
   public completeJobs() {
     for (const stage of ["objectives", "outline", "narration"] as const) {
       const fake = this.stages[stage];
       if (fake.latestJob?.state === "queued") {
-        if (this.failNext.delete(stage)) {
-          fake.latestJob = { ...fake.latestJob, state: "failed", errorCode: "MODEL_OUTPUT_INVALID" };
+        const failedWith = this.takeFailure(stage);
+        if (this.failNext.delete(stage) || failedWith !== null) {
+          fake.latestJob = { ...fake.latestJob, state: "failed", errorCode: failedWith ?? "MODEL_OUTPUT_INVALID" };
           fake.state = fake.revision === null ? "failed" : "draft";
           continue;
         }
@@ -378,8 +410,9 @@ export class FakePipeline implements OneShotStageGateway {
     }
     const board = this.storyboardFake;
     if (board.latestJob?.state === "queued") {
-      if (this.failNext.delete("storyboard")) {
-        board.latestJob = { ...board.latestJob, state: "failed", errorCode: "X" };
+      const failedWith = this.takeFailure("storyboard");
+      if (this.failNext.delete("storyboard") || failedWith !== null) {
+        board.latestJob = { ...board.latestJob, state: "failed", errorCode: failedWith ?? "X" };
         board.state = "failed";
       } else {
         board.latestJob = { ...board.latestJob, state: "succeeded" };
@@ -402,8 +435,13 @@ export class FakePipeline implements OneShotStageGateway {
       ];
     }
     if (this.groundingJob?.state === "queued") {
-      this.groundingJob = { ...this.groundingJob, state: "succeeded" };
-      this.groundingCurrent = true;
+      const failedWith = this.takeFailure("grounding");
+      if (failedWith !== null)
+        this.groundingJob = { ...this.groundingJob, state: "failed", errorCode: failedWith };
+      else {
+        this.groundingJob = { ...this.groundingJob, state: "succeeded" };
+        this.groundingCurrent = true;
+      }
     }
     if (this.audioFake.pending > 0)
       this.audioFake = {

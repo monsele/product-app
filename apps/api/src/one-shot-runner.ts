@@ -317,6 +317,15 @@ export interface OneShotStageGateway {
   ): Promise<void>;
   /** ST-107. The inputs of the brief-promise check. */
   promiseState(scope: OneShotScope): Promise<PromiseState>;
+  /**
+   * Removes every narration sentence the current grounding check marked
+   * unsupported from its scene, through the ordinary scene edit (so the
+   * scene's audio and the grounding check go stale and are redone). A
+   * sentence that is a scene's only sentence is kept. Returns what changed.
+   */
+  removeUnverifiedSentences(
+    context: OneShotCallContext,
+  ): Promise<{ removed: { sceneId: string; text: string }[]; kept: number }>;
   /** Records an automatic approval, actor `one_shot_run`. */
   auditApproval(
     context: OneShotCallContext,
@@ -529,21 +538,70 @@ function recordedJobId(
     | undefined;
 }
 
+/**
+ * Job failures that mean "this draft was rejected by the automatic checks",
+ * not "something is wrong with the inputs": a fresh generation usually
+ * passes, so the run regenerates once before asking for help.
+ */
+const regenerableJobErrorCodes: ReadonlySet<string> = new Set([
+  "MODEL_OUTPUT_DETERMINISTIC_FAILURE",
+  "STRUCTURED_OUTPUT_INVALID",
+]);
+
+/**
+ * Rounds of removing sentences grounding could not verify, per resume. One
+ * round normally clears them; a second covers a re-check that flags a
+ * sentence the first check did not reach.
+ */
+export const oneShotMaxSentenceRemovalRounds = 2;
+const sentenceRemovalResumeKey = "sentenceRemovalResume";
+const sentenceRemovalRoundsKey = "sentenceRemovalRounds";
+
+/** Step-detail key holding the resume generation whose automatic retry was used. */
+const autoRetryDetailKey = "autoRetriedAtResume";
+
+/**
+ * The step names the run page shows (its seven display steps), so a message
+ * never names an internal stage the user did not see.
+ */
+const userStepName: Record<OneShotAttentionStage, string> = {
+  ingestion: "Reading document",
+  source_snapshot: "Reading document",
+  configuration: "Planning",
+  objectives: "Planning",
+  outline: "Outline",
+  narration: "Narration",
+  storyboard: "Visuals",
+  illustrations: "Visuals",
+  grounding: "Visuals",
+  audio: "Audio",
+  validation: "Checks",
+  preview: "Checks",
+  render: "Render",
+};
+
+/**
+ * A stop after automatic recovery ran out. The job's error code stays in the
+ * step record and job row; the user only reads what happened and what to do.
+ * A draft rejected by the checks only reaches here after the automatic
+ * regeneration (see `failedStage`), so "tried again" is always true.
+ */
 function stageFailure(
   stage: OneShotAttentionStage,
   job: OneShotJobStatus,
 ): Outcome {
+  const name = userStepName[stage];
+  const message =
+    job.errorCode !== null && regenerableJobErrorCodes.has(job.errorCode)
+      ? `The ${name} step didn't pass our quality checks, even after we tried again automatically. Select Try again for a fresh attempt. Nothing has been lost.`
+      : `The ${name} step couldn't finish on our side. Select Try again. Nothing has been lost. If it keeps happening, open the editor to check this step.`;
   return {
     kind: "attention",
     stage,
     errorCode: "STAGE_JOB_FAILED",
-    message: `The ${stageLabel(stage)} job did not finish${job.errorCode === null ? "" : ` (${job.errorCode})`}. Fix it in the wizard, then resume the run.`,
+    message,
     jobId: job.id,
   };
-}
-
-function stageLabel(stage: OneShotAttentionStage): string {
-  return stage.replace("_", " ");
 }
 
 /** Maps a service refusal to a stop the user can act on. Conflicts from a
@@ -696,6 +754,48 @@ export async function advanceOneShotRun(input: {
     };
   };
 
+  /**
+   * The run's own job for a stage failed. When the model's draft was merely
+   * rejected by the automatic checks, regenerate once per resume (budget
+   * permitting, and logged) before stopping for the user.
+   */
+  const failedStage = async (
+    stage: ApprovalStage | "storyboard" | "grounding",
+    failed: OneShotJobStatus,
+    regenerate: (suffix: string) => Promise<{ jobId: Identifier }> = (
+      suffix,
+    ) =>
+      gateway.generate(
+        context(stage, suffix),
+        stage as ApprovalStage | "storyboard",
+        stage === "objectives" && brief !== null
+          ? { briefCoverage: brief.coverage.map((entry) => entry.point) }
+          : undefined,
+      ),
+  ): Promise<Outcome> => {
+    const detail = steps.find((entry) => entry.step === stage)?.detail;
+    if (
+      failed.errorCode === null ||
+      !regenerableJobErrorCodes.has(failed.errorCode) ||
+      detail?.[autoRetryDetailKey] === run.resumeCount
+    )
+      return stageFailure(stage, failed);
+    const stop = await guard(stage, "model_call");
+    if (stop !== null) return stop;
+    const queued = await regenerate(":auto1");
+    decisions.push({
+      kind: "repair",
+      summary: `Regenerated the ${userStepName[stage]} step automatically after its first draft failed the quality checks.`,
+      reason: failed.errorCode,
+      relatedIds: [failed.id, queued.jobId],
+    });
+    return {
+      kind: "acted",
+      jobId: queued.jobId,
+      detail: { ...detail, [autoRetryDetailKey]: run.resumeCount },
+    };
+  };
+
   const autoApproval = (summary: string, relatedIds: Identifier[]) => {
     decisions.push({ kind: "auto_approval", summary, relatedIds });
   };
@@ -794,7 +894,8 @@ export async function advanceOneShotRun(input: {
         needsAttention: {
           stage: "render",
           errorCode: "RENDER_FAILED",
-          message: `The render did not finish${render.errorCode === null ? "" : ` (${render.errorCode})`}. Resume the run to approve a new render.`,
+          message:
+            "The render couldn't finish on our side. Select Try again to approve a new render. Nothing has been lost.",
         },
         reschedule: false,
       });
@@ -920,7 +1021,8 @@ export async function advanceOneShotRun(input: {
         kind: "attention",
         stage: "ingestion",
         errorCode: "INGESTION_FAILED",
-        message: `The document could not be ingested (${ingestion.errorCode}). Fix or replace the source, then resume the run.`,
+        message:
+          "We couldn't read this document. Replace it with a clearer copy (a PDF with selectable text works best), then select Resume.",
       };
     return { kind: "wait" };
   }
@@ -1011,7 +1113,7 @@ export async function advanceOneShotRun(input: {
       jobFailed(current.latestJob) &&
       current.latestJob.id === ownJob
     )
-      return stageFailure(stage, current.latestJob);
+      return failedStage(stage, current.latestJob);
 
     if (current.state === "approved" && !current.stale) return { kind: "done" };
 
@@ -1079,7 +1181,7 @@ export async function advanceOneShotRun(input: {
       jobFailed(current.latestJob) &&
       current.latestJob.id === ownJob
     )
-      return stageFailure("storyboard", current.latestJob);
+      return failedStage("storyboard", current.latestJob);
     if (
       (current.state === "draft" || current.state === "approved") &&
       !current.stale &&
@@ -1161,7 +1263,12 @@ export async function advanceOneShotRun(input: {
       jobFailed(current.latestJob) &&
       current.latestJob.id === ownJob
     )
-      return stageFailure("grounding", current.latestJob);
+      return failedStage("grounding", current.latestJob, (suffix) =>
+        gateway.requestGrounding(
+          context("grounding", `:${spec.lessonSpecId}:${spec.revision}${suffix}`),
+          spec,
+        ),
+      );
     const stop = await guard("grounding", "model_call");
     if (stop !== null) return stop;
     const queued = await gateway.requestGrounding(
@@ -1236,20 +1343,43 @@ export async function advanceOneShotRun(input: {
     const { repairable, blockingUnrepairable } = classifyFindings(
       result.findings ?? [],
     );
-    // Anything outside the repair map goes straight to the user. Grounding
-    // findings in particular are never repaired or acknowledged here.
-    if (blockingUnrepairable.length > 0) {
-      const grounding = blockingUnrepairable.some((finding) =>
-        finding.code.startsWith("grounding") ||
-        finding.code === "generated_addition_unlabelled",
+    // Sentences grounding could not verify are never acknowledged or
+    // rewritten here: they are taken out of the narration, so the video never
+    // states them. Bounded per resume; each removal is logged.
+    const previous = steps.find((entry) => entry.step === "validation")?.detail;
+    const removalRounds =
+      previous?.[sentenceRemovalResumeKey] === run.resumeCount &&
+      typeof previous[sentenceRemovalRoundsKey] === "number"
+        ? previous[sentenceRemovalRoundsKey]
+        : 0;
+    detail[sentenceRemovalResumeKey] = run.resumeCount;
+    detail[sentenceRemovalRoundsKey] = removalRounds;
+    const onlyUnsupportedClaims =
+      blockingUnrepairable.length > 0 &&
+      blockingUnrepairable.every((finding) => finding.code === "grounding_missing");
+    if (onlyUnsupportedClaims && removalRounds < oneShotMaxSentenceRemovalRounds) {
+      const outcome = await gateway.removeUnverifiedSentences(
+        context("validation", `:unverified:${removalRounds + 1}`),
       );
+      if (outcome.removed.length > 0) {
+        detail[sentenceRemovalRoundsKey] = removalRounds + 1;
+        for (const sentence of outcome.removed)
+          decisions.push({
+            kind: "repair",
+            summary: `Removed a sentence we couldn't verify against your document: "${sentence.text}"`.slice(0, 500),
+            reason: "grounding_unsupported",
+          });
+        return { kind: "acted", detail };
+      }
+    }
+    // Anything else outside the repair map goes to the user.
+    if (blockingUnrepairable.length > 0)
       return {
         kind: "attention",
         stage: "preview",
         errorCode: "VALIDATION_BLOCKING",
-        message: `Validation found ${blockingUnrepairable.length} issue${blockingUnrepairable.length === 1 ? "" : "s"} that cannot be fixed automatically${grounding ? ", including source-grounding findings, which always need your review" : ""}. Fix ${blockingUnrepairable.length === 1 ? "it" : "them"} from the preview, then resume the run.`.slice(0, 500),
+        message: `${blockingUnrepairable.length === 1 ? "One issue" : `${blockingUnrepairable.length} issues`} in the finished lesson need${blockingUnrepairable.length === 1 ? "s" : ""} your decision before it can be previewed. Open the preview to see ${blockingUnrepairable.length === 1 ? "it" : "them"}, then select Resume.`,
       };
-    }
 
     if (repairable.length > 0 && repair.stopped === null) {
       const next = nextRepairRound({
@@ -1375,7 +1505,7 @@ export async function advanceOneShotRun(input: {
           kind: "attention",
           stage: "preview",
           errorCode: "VALIDATION_BLOCKING",
-          message: `An automatic fix for scene ${item.order} did not finish${status.job?.errorCode ? ` (${status.job.errorCode})` : ""}. Fix the scene from the preview, then resume the run.`,
+          message: `An automatic fix for scene ${item.order} couldn't finish on our side. Select Try again, or fix the scene from the preview.`,
         };
       }
       const repairContext = context("validation", `:repair:${active.round}:${item.sceneId}`);

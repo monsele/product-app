@@ -33,6 +33,7 @@ import {
   type OneShotLedgerStep,
   type OneShotResponse,
   type OneShotRunStatus,
+  type OneShotErrorCode,
   type OneShotRunView,
   type OneShotStep,
   type OneShotStepState,
@@ -249,6 +250,33 @@ const wizardLabelByRoute: Record<string, string> = {
   preview: "Preview",
   render: "Deliver",
 };
+
+/**
+ * The step-list label a stop belongs to, so the attention title names the
+ * same step the list marks ("Visuals"), never an internal stage or a wizard
+ * page ("grounding", "Storyboard").
+ */
+export function displayStepLabelForStage(stage: OneShotAttentionStage): string {
+  const step = displaySteps.find((entry) =>
+    (entry.steps as readonly string[]).includes(stage),
+  );
+  if (step !== undefined) return step.label;
+  return stage === "render" ? "Render" : "Checks";
+}
+
+/**
+ * Stops caused on our side (a job that could not finish even after automatic
+ * recovery), where retrying is the fix and the user has nothing to correct.
+ */
+const ourSideStopCodes: ReadonlySet<OneShotErrorCode> = new Set([
+  "STAGE_JOB_FAILED",
+  "ONE_SHOT_STEP_TIMEOUT",
+  "RENDER_FAILED",
+]);
+
+export function isOurSideStop(errorCode: OneShotErrorCode | undefined): boolean {
+  return errorCode !== undefined && ourSideStopCodes.has(errorCode);
+}
 
 /** The wizard page a stopped run asks the user to open. */
 export function wizardLinkForStage(

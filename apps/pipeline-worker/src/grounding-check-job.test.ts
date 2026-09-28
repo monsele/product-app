@@ -32,6 +32,7 @@ import {
   createGroundingCheckJobHandler,
   GroundingCheckDeterministicError,
   loadGroundingCheckContext,
+  normalizeGroundingOutput,
   persistGroundingCheck,
   segmentClaims,
   segmentOnScreenTextClaims,
@@ -947,7 +948,7 @@ describe("createGroundingCheckJobHandler", () => {
     expect(result.metadata.candidateId).toMatch(/^[0-9a-f-]{36}$/);
   });
 
-  it("fails deterministically when the model misclassifies a cited claim as generated", async () => {
+  it("keeps the check when the model misclassifies a cited claim as generated, marking it for review", async () => {
     const database = fakeDatabase();
     const context = await loadGroundingCheckContext({
       executor: database as unknown as DatabaseExecutor,
@@ -997,11 +998,105 @@ describe("createGroundingCheckJobHandler", () => {
       now: () => now,
     });
     const result = await execute(handler, jobPayload());
-    expect(result.outcome).toBe("failed");
-    const error = result.error as Error & { code?: string };
-    expect(error.message).toContain(
-      "The model output failed deterministic checks",
+    // Cleaned up in code (cited claim -> needs_review): no failure and no
+    // corrective call.
+    expect(result.outcome).toBe("succeeded");
+    expect(provider.requests).toHaveLength(1);
+    const normalized = normalizeGroundingOutput(
+      output,
+      context.context,
+      buildSourcePackage(sampleSnapshot(), { blockIds: [blockA] }),
     );
-    expect(error).toMatchObject({ code: "MODEL_OUTPUT_DETERMINISTIC_FAILURE" });
+    expect(normalized.results[0]?.status).toBe("needs_review");
+  });
+});
+
+describe("normalizeGroundingOutput", () => {
+  const loaded = async () => operationContext();
+  const supported = (claimId: string, end: number, sourceBlockId = blockA) => ({
+    schemaVersion: "grounding-claim-v1" as const,
+    claimId,
+    status: "supported" as const,
+    supportedSpans: [{ start: 0, end, sourceBlockId }],
+    unsupportedSpans: [],
+  });
+
+  it("clamps spans past the end of the claim (the run-stopping case) so the checks pass", async () => {
+    const context = await loaded();
+    const [first, ...rest] = context.claims;
+    const output = groundingOutputSchema.parse({
+      schemaVersion: "grounding-v1",
+      results: [
+        {
+          ...supported(first!.id, first!.text.length + 40),
+          unsupportedSpans: [
+            { start: 2, end: first!.text.length + 99, reason: "Not in the source." },
+          ],
+        },
+        ...rest.map((claim) => supported(claim.id, 1)),
+      ],
+    });
+    const pkg = buildSourcePackage(sampleSnapshot(), { blockIds: [blockA] });
+    expect(() => assertGroundingChecks(output, pkg, context)).toThrow(
+      /exceeds the claim text/,
+    );
+    const normalized = normalizeGroundingOutput(output, context, pkg);
+    expect(normalized.results[0]).toMatchObject({
+      status: "supported",
+      supportedSpans: [{ start: 0, end: first!.text.length }],
+      unsupportedSpans: [{ start: 2, end: first!.text.length }],
+    });
+    expect(() => assertGroundingChecks(normalized, pkg, context)).not.toThrow();
+  });
+
+  it("drops duplicate and unknown results and marks missing claims for review", async () => {
+    const base = await loaded();
+    const first = base.claims[0]!;
+    // A second cited claim the model never answers.
+    const second = { ...first, id: createId() };
+    const context = { ...base, claims: [first, second] };
+    const output = groundingOutputSchema.parse({
+      schemaVersion: "grounding-v1",
+      results: [
+        supported(first!.id, 1),
+        { ...supported(first!.id, 1), status: "unsupported" },
+        supported(createId(), 1),
+      ],
+    });
+    const pkg = buildSourcePackage(sampleSnapshot(), { blockIds: [blockA] });
+    const normalized = normalizeGroundingOutput(output, context, pkg);
+    expect(normalized.results).toHaveLength(context.claims.length);
+    expect(normalized.results[0]).toMatchObject({
+      claimId: first!.id,
+      status: "supported",
+    });
+    expect(
+      normalized.results.find((result) => result.claimId === second!.id),
+    ).toMatchObject({ status: "needs_review", supportedSpans: [] });
+    expect(() => assertGroundingChecks(normalized, pkg, context)).not.toThrow();
+  });
+
+  it("never upgrades a verdict: unusable evidence turns supported into needs_review", async () => {
+    const context = await loaded();
+    const output = groundingOutputSchema.parse({
+      schemaVersion: "grounding-v1",
+      results: context.claims.map((claim, index) =>
+        index === 0
+          ? supported(claim.id, 5, createId())
+          : { ...supported(claim.id, 1), status: "unsupported" },
+      ),
+    });
+    const normalized = normalizeGroundingOutput(
+      output,
+      context,
+      buildSourcePackage(sampleSnapshot(), { blockIds: [blockA] }),
+    );
+    expect(normalized.results[0]).toMatchObject({
+      status: "needs_review",
+      supportedSpans: [],
+    });
+    expect(normalized.results.slice(1).map((result) => result.status)).toEqual(
+      context.claims.slice(1).map(() => "unsupported"),
+    );
   });
 });

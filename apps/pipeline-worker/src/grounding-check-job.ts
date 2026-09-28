@@ -369,6 +369,70 @@ function collectPackageBlockIds(sourcePackage: SourcePackage): Set<string> {
 }
 
 /**
+ * Meaning-preserving clean-up of the model's grounding output, applied before
+ * the checks. Models are unreliable at character offsets and bookkeeping, and
+ * a single slip used to discard the whole check. Every correction here is
+ * either mechanical (clamping a span to the claim it indexes, dropping an
+ * empty span or a duplicate result) or makes the verdict *more* cautious
+ * (`needs_review`). A claim is never upgraded towards `supported`.
+ */
+export function normalizeGroundingOutput(
+  output: GroundingOutput,
+  operationContext: GroundingCheckOperationContext | undefined,
+  sourcePackage: SourcePackage,
+): GroundingOutput {
+  if (operationContext === undefined) return output;
+  const valid = collectPackageBlockIds(sourcePackage);
+  const claimsById = new Map(
+    operationContext.claims.map((claim) => [claim.id, claim]),
+  );
+  const clamp = <S extends { start: number; end: number }>(
+    spans: readonly S[],
+    length: number,
+  ): S[] =>
+    spans.flatMap((span) => {
+      const start = Math.min(Math.max(span.start, 0), length);
+      const end = Math.min(Math.max(span.end, 0), length);
+      return start < end ? [{ ...span, start, end }] : [];
+    });
+  const seen = new Set<string>();
+  const results: GroundingOutput["results"] = [];
+  for (const result of output.results) {
+    const claim = claimsById.get(result.claimId);
+    if (claim === undefined || seen.has(result.claimId)) continue;
+    seen.add(result.claimId);
+    const length = claim.text.length;
+    const citedSpans = result.supportedSpans.filter((span) =>
+      valid.has(span.sourceBlockId),
+    );
+    const supportedSpans = clamp(citedSpans, length);
+    const unsupportedSpans = clamp(result.unsupportedSpans, length);
+    let status = result.status;
+    if (claim.sourceRefs.length === 0) status = "generated_addition";
+    else if (status === "generated_addition") status = "needs_review";
+    else if (
+      status === "supported" &&
+      result.supportedSpans.length > 0 &&
+      supportedSpans.length === 0
+    )
+      // Every piece of evidence the model gave was unusable.
+      status = "needs_review";
+    results.push({ ...result, status, supportedSpans, unsupportedSpans });
+  }
+  for (const claim of operationContext.claims)
+    if (!seen.has(claim.id))
+      results.push({
+        schemaVersion: "grounding-claim-v1",
+        claimId: claim.id,
+        status:
+          claim.sourceRefs.length === 0 ? "generated_addition" : "needs_review",
+        supportedSpans: [],
+        unsupportedSpans: [],
+      });
+  return { ...output, results };
+}
+
+/**
  * Deterministic grounding checks applied to the model output:
  * - every claim in the operation context must have exactly one result
  * - every result must reference a claim that exists in the operation context
@@ -669,6 +733,12 @@ export function createGroundingCheckJobHandler(input: {
         context: operationContext,
       };
     },
+    normalizeOutput: (value, operationContext, sourcePackage) =>
+      normalizeGroundingOutput(
+        value,
+        operationContext as GroundingCheckOperationContext | undefined,
+        sourcePackage,
+      ),
     deterministicChecks: (value, sourcePackage, operationContext) =>
       assertGroundingChecks(
         value,

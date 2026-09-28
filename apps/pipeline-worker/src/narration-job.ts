@@ -24,6 +24,8 @@ import {
   narrationCopiedPassageMinimumRun,
   narrationGenerationParamsSchema,
   narrationOutputV1Schema,
+  narrationQuotationMaxPerBlock,
+  narrationQuotationMaxPerNarration,
   narrationSentenceMaximumWords,
   narrationWordCountRange,
   type GeneratedAddition,
@@ -41,6 +43,10 @@ import {
   createModelCallGenerationHandler,
   type ModelCallHandlerOptions,
 } from "./model-call.js";
+import {
+  longestCopiedWordRun,
+  quotationAppearsInSource,
+} from "./narration-copy-checks.js";
 import { resolveObjectiveSourceRefs as resolveSourceRefs } from "./objectives-job.js";
 
 /**
@@ -53,18 +59,112 @@ export class NarrationDeterministicCheckError extends Error {
   public readonly code:
     | "OUTLINE_ITEM_UNCOVERED"
     | "UNSUPPORTED_SOURCE_BLOCK"
-    | "SENTENCE_TOO_LONG"
-    | "LONG_COPIED_PASSAGE"
+    | NarrationSentenceViolation["code"]
     | "TARGET_DURATION_MISMATCH";
+  /**
+   * Every sentence-level violation found, in order, when the failure is one a
+   * corrective completion can fix. Empty for structural failures.
+   */
+  public readonly violations: readonly NarrationSentenceViolation[];
 
   public constructor(
     code: NarrationDeterministicCheckError["code"],
     message: string,
+    violations: readonly NarrationSentenceViolation[] = [],
   ) {
     super(message);
     this.name = "NarrationDeterministicCheckError";
     this.code = code;
+    this.violations = violations;
   }
+}
+
+/**
+ * A sentence the model can correct in place: reword a copied passage, split an
+ * over-long sentence, or fix a quotation that is not an exact quote or exceeds
+ * the quotation caps. Structural failures are never in this set.
+ */
+export type NarrationSentenceViolation = {
+  code:
+    | "SENTENCE_TOO_LONG"
+    | "LONG_COPIED_PASSAGE"
+    | "QUOTATION_NOT_IN_SOURCE"
+    | "TOO_MANY_QUOTATIONS";
+  blockIndex: number;
+  sentenceIndex: number;
+  message: string;
+};
+
+/**
+ * One improvement request for a script that passed every check but is well
+ * short of the length the teacher chose: the voice reads it in less time than
+ * the lesson needs, and scene timing follows the voice. Names each short block
+ * and how many words to add; returns undefined when the script is long enough.
+ */
+export function narrationLengthImprovement(
+  output: NarrationOutputV1,
+  operationContext: NarrationOperationContext | undefined,
+): string | undefined {
+  if (operationContext === undefined) return undefined;
+  const itemById = new Map(operationContext.items.map((item) => [item.id, item]));
+  let totalWords = 0;
+  let coveredSeconds = 0;
+  const short: string[] = [];
+  for (const [blockIndex, block] of output.blocks.entries()) {
+    const item = itemById.get(block.outlineItemId);
+    const words = block.sentences.reduce(
+      (sum, sentence) => sum + countWords(sentence.text),
+      0,
+    );
+    totalWords += words;
+    if (item === undefined) continue;
+    coveredSeconds += item.estimatedSeconds;
+    const budget = narrationWordCountRange(item.estimatedSeconds);
+    if (words < budget.min)
+      short.push(`blocks[${blockIndex}] needs about ${budget.target - words} more words`);
+  }
+  const total = narrationWordCountRange(coveredSeconds);
+  if (totalWords >= total.min || short.length === 0) return undefined;
+  return (
+    `The narration is too short to fill the lesson: it has ${totalWords} words and needs ${total.min}-${total.max} (about ${total.target}). ` +
+    `Lengthen these blocks by explaining their ideas more fully, with examples and connections the cited sources support: ${short.join("; ")}. ` +
+    "Every added sentence must cite the source blocks that support it, or be labelled as a generated addition. Keep every existing sentence and its citations."
+  ).slice(0, narrationRepairInstructionMaxLength);
+}
+
+/** Upper bound on the corrective instruction sent back to the model. */
+const narrationRepairInstructionMaxLength = 2_000;
+
+/**
+ * One corrective instruction naming every sentence to fix. Locations and
+ * rules only: the previous JSON response travels with the instruction, so no
+ * source text is repeated here.
+ */
+export function narrationRepairInstruction(
+  error: unknown,
+): string | undefined {
+  if (
+    !(error instanceof NarrationDeterministicCheckError) ||
+    error.violations.length === 0
+  )
+    return undefined;
+  const fixes = error.violations.map((violation) => {
+    const location = `blocks[${violation.blockIndex}].sentences[${violation.sentenceIndex}]`;
+    switch (violation.code) {
+      case "LONG_COPIED_PASSAGE":
+        return `${location} reuses ${narrationCopiedPassageMinimumRun}+ consecutive source words: say it in your own words, or, only if it is a verse, definition or legal wording that must stay exact, put the exact words in double quotation marks and set "quotation": true.`;
+      case "SENTENCE_TOO_LONG":
+        return `${location} is longer than ${narrationSentenceMaximumWords} words: split it into shorter sentences with the same sourceBlockIds.`;
+      case "QUOTATION_NOT_IN_SOURCE":
+        return `${location} is marked "quotation" but the quoted words are not exact words from its cited block: quote the block exactly inside double quotation marks, or paraphrase and remove "quotation".`;
+      case "TOO_MANY_QUOTATIONS":
+        return `${location} exceeds the quotation limit (${narrationQuotationMaxPerBlock} per block, ${narrationQuotationMaxPerNarration} in total): paraphrase it and remove "quotation".`;
+    }
+  });
+  return `Fix exactly these sentences and change nothing else: ${fixes.join(" ")}`.slice(
+    0,
+    narrationRepairInstructionMaxLength,
+  );
 }
 
 /**
@@ -225,55 +325,15 @@ function countWords(text: string): number {
   return words.length;
 }
 
-function longestCopiedWordRun(sentence: string, sourceText: string): number {
-  const sentenceWords = sentence
-    .trim()
-    .split(/\s+/)
-    .filter((word) => word.length > 0);
-  const sourceWords = sourceText
-    .trim()
-    .split(/\s+/)
-    .filter((word) => word.length > 0);
-  if (sentenceWords.length === 0 || sourceWords.length === 0) return 0;
-  const sourceNGrams = new Set<string>();
-  for (
-    let index = 0;
-    index + narrationCopiedPassageMinimumRun <= sourceWords.length;
-    index += 1
-  )
-    sourceNGrams.add(
-      sourceWords
-        .slice(index, index + narrationCopiedPassageMinimumRun)
-        .join(" "),
-    );
-  let longest = 0;
-  for (
-    let index = 0;
-    index + narrationCopiedPassageMinimumRun <= sentenceWords.length;
-    index += 1
-  ) {
-    const run = sentenceWords.slice(
-      index,
-      index + narrationCopiedPassageMinimumRun,
-    );
-    if (!sourceNGrams.has(run.join(" "))) continue;
-    let end = index + narrationCopiedPassageMinimumRun;
-    while (
-      end < sentenceWords.length &&
-      sourceWords.includes(sentenceWords[end]!)
-    )
-      end += 1;
-    longest = Math.max(longest, end - index);
-  }
-  return longest;
-}
-
 /**
  * Deterministic narration rules: every approved outline item has exactly one
  * block, every sentence stays within the sentence-length ceiling, no sentence
- * copies a long passage from the source, every citation resolves to a block in
- * the approved source package, and generated additions never cite source blocks
- * (schema-enforced). Throws on the first violation of those.
+ * copies a long passage from the source unless it is a marked quotation that
+ * quotes its cited block exactly (within the quotation caps), every citation
+ * resolves to a block in the approved source package, and generated additions
+ * never cite source blocks (schema-enforced). Structural failures throw at
+ * once; sentence-level violations are collected so one corrective completion
+ * can fix all of them.
  *
  * Word-count budgets are returned as warnings instead. They express pacing
  * preference, not correctness: the review route already surfaces them without
@@ -308,6 +368,8 @@ export function assertNarrationDeterministicChecks(
   for (const section of sourcePackage.sections)
     for (const block of section.blocks)
       sourceTextById.set(block.blockId, block.text);
+  const violations: NarrationSentenceViolation[] = [];
+  let totalQuotations = 0;
   for (const [blockIndex, block] of output.blocks.entries()) {
     const item = itemById.get(block.outlineItemId);
     if (item === undefined)
@@ -331,28 +393,61 @@ export function assertNarrationDeterministicChecks(
         code: "WORD_COUNT_OUT_OF_BUDGET",
         message: `blocks[${blockIndex}] has ${words} words; the ${item.estimatedSeconds}s outline item suggests ${budget.min}-${budget.max}.`,
       });
+    let blockQuotations = 0;
     for (const [sentenceIndex, sentence] of block.sentences.entries()) {
+      const at = `blocks[${blockIndex}].sentences[${sentenceIndex}]`;
+      const violate = (
+        code: NarrationSentenceViolation["code"],
+        message: string,
+      ) => violations.push({ code, blockIndex, sentenceIndex, message });
       const sentenceWords = countWords(sentence.text);
       if (sentenceWords > narrationSentenceMaximumWords)
-        throw new NarrationDeterministicCheckError(
+        violate(
           "SENTENCE_TOO_LONG",
-          `blocks[${blockIndex}].sentences[${sentenceIndex}] has ${sentenceWords} words; the maximum is ${narrationSentenceMaximumWords}.`,
+          `${at} has ${sentenceWords} words; the maximum is ${narrationSentenceMaximumWords}.`,
         );
-      for (const blockId of sentence.sourceBlockIds) {
+      for (const blockId of sentence.sourceBlockIds)
         if (!valid.has(blockId))
           throw new NarrationDeterministicCheckError(
             "UNSUPPORTED_SOURCE_BLOCK",
-            `blocks[${blockIndex}].sentences[${sentenceIndex}] cites unsupported source block ${blockId}.`,
+            `${at} cites unsupported source block ${blockId}.`,
           );
+      if (sentence.quotation === true) {
+        blockQuotations += 1;
+        totalQuotations += 1;
+        const blockId = sentence.sourceBlockIds[0]!;
+        if (
+          blockQuotations > narrationQuotationMaxPerBlock ||
+          totalQuotations > narrationQuotationMaxPerNarration
+        )
+          violate(
+            "TOO_MANY_QUOTATIONS",
+            `${at} is a quotation beyond the limit of ${narrationQuotationMaxPerBlock} per block and ${narrationQuotationMaxPerNarration} per narration.`,
+          );
+        else if (
+          !quotationAppearsInSource(
+            sentence.text,
+            sourceTextById.get(blockId) ?? "",
+          )
+        )
+          violate(
+            "QUOTATION_NOT_IN_SOURCE",
+            `${at} is marked as a quotation but does not quote source block ${blockId} exactly.`,
+          );
+        continue;
+      }
+      for (const blockId of sentence.sourceBlockIds) {
         const longest = longestCopiedWordRun(
           sentence.text,
           sourceTextById.get(blockId) ?? "",
         );
-        if (longest >= narrationCopiedPassageMinimumRun)
-          throw new NarrationDeterministicCheckError(
+        if (longest >= narrationCopiedPassageMinimumRun) {
+          violate(
             "LONG_COPIED_PASSAGE",
-            `blocks[${blockIndex}].sentences[${sentenceIndex}] copies a ${longest}-word passage from source block ${blockId}.`,
+            `${at} copies a ${longest}-word passage from source block ${blockId}.`,
           );
+          break;
+        }
       }
     }
   }
@@ -362,6 +457,15 @@ export function assertNarrationDeterministicChecks(
         "OUTLINE_ITEM_UNCOVERED",
         `Approved outline item ${item.id} has no narration block.`,
       );
+  const [first] = violations;
+  if (first !== undefined)
+    throw new NarrationDeterministicCheckError(
+      first.code,
+      violations.length === 1
+        ? first.message
+        : `${first.message} (${violations.length - 1} more sentence${violations.length === 2 ? "" : "s"} to fix)`,
+      violations,
+    );
   const coveredSeconds = [...coveredIds].reduce(
     (sum, itemId) => sum + (itemById.get(itemId)?.estimatedSeconds ?? 0),
     0,
@@ -658,11 +762,20 @@ export function createNarrationGenerationJobHandler(input: {
         sourcePackage,
         operationContext as NarrationOperationContext | undefined,
       ),
-    deterministicRepairInstruction: ({ error }) =>
-      error instanceof NarrationDeterministicCheckError &&
-      error.code === "LONG_COPIED_PASSAGE"
-        ? "Rewrite only the sentence identified by the copied-passage rule in different words. Keep its sourceBlockIds, meaning, outlineItemId, and all other narration unchanged."
-        : undefined,
+    deterministicRepairInstruction: ({ error }) => {
+      const instruction = narrationRepairInstruction(error);
+      return instruction === undefined
+        ? undefined
+        : `${instruction} Keep each sentence's sourceBlockIds, meaning and outlineItemId.`;
+    },
+    // A second corrective round covers a fix that exposes, or introduces, one
+    // more copied sentence; both are cheap next to failing the whole run.
+    maxDeterministicRepairs: 2,
+    warningRepairInstruction: ({ value, operationContext }) =>
+      narrationLengthImprovement(
+        value,
+        operationContext as NarrationOperationContext | undefined,
+      ),
     persistCandidate: (candidate) =>
       persistNarrationSet({
         executor: input.database,

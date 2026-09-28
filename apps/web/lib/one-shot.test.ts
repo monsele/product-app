@@ -18,6 +18,8 @@ import {
   validateRequestForm,
   viewForRun,
   wizardLinkForStage,
+  displayStepLabelForStage,
+  isOurSideStop,
   wizardProjectIdFromPath,
   type RequestFormValues,
 } from "./one-shot";
@@ -184,6 +186,23 @@ describe("wizard links", () => {
     expect(wizardLinkForStage(projectId, "validation").href).toBe(
       `/workspace/${projectId}/preview`,
     );
+  });
+
+  it("titles a stop with the step-list label, not the internal stage", () => {
+    expect(displayStepLabelForStage("grounding")).toBe("Visuals");
+    expect(displayStepLabelForStage("illustrations")).toBe("Visuals");
+    expect(displayStepLabelForStage("objectives")).toBe("Planning");
+    expect(displayStepLabelForStage("validation")).toBe("Checks");
+    expect(displayStepLabelForStage("preview")).toBe("Checks");
+    expect(displayStepLabelForStage("render")).toBe("Render");
+  });
+
+  it("treats only failures on our side as Try again stops", () => {
+    expect(isOurSideStop("STAGE_JOB_FAILED")).toBe(true);
+    expect(isOurSideStop("RENDER_FAILED")).toBe(true);
+    expect(isOurSideStop("FOCUS_NOT_COVERED")).toBe(false);
+    expect(isOurSideStop("ONE_SHOT_BUDGET_CAP")).toBe(false);
+    expect(isOurSideStop(undefined)).toBe(false);
   });
 
   it("finds the project of a wizard route but not of the run page itself", () => {

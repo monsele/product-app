@@ -1,0 +1,22 @@
+Job execution error: JobExecutionError: The model output failed deterministic checks.
+    at handler (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\pipeline-worker\src\model-call.ts:488:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async executeJobDelivery (D:\Eronmonsele\Documents\SoundMinds\product-app\packages\jobs\src\worker.ts:138:7)
+    at async D:\Eronmonsele\Documents\SoundMinds\product-app\node_modules\.pnpm\bullmq@5.81.3\node_modules\bullmq\dist\cjs\classes\worker.js:612:32 {
+  classification: 'terminal',
+  code: 'MODEL_OUTPUT_DETERMINISTIC_FAILURE',
+  details: {
+    reason: 'LONG_COPIED_PASSAGE',
+    message: 'blocks[3].sentences[4] copies a 17-word passage from source block 7ca0a956-373a-7896-8a32-456f0344144c.'
+  }
+}
+D:\Eronmonsele\Documents\SoundMinds\product-app\apps\pipeline-worker\src\narration-job.ts:27
+  narrationQuotationMaxPerBlock,
+  ^
+SyntaxError: The requested module '@avlp/schemas' does not provide an export named 'narrationQuotationMaxPerBlock'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:319:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:422:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async bootstrap (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\pipeline-worker\src\main.ts:11:35)
+
+Node.js v24.14.0

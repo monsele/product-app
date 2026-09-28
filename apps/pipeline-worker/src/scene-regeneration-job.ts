@@ -42,6 +42,7 @@ import {
 } from "@avlp/schemas";
 import { validateScene } from "@avlp/scene-library";
 import { and, eq } from "drizzle-orm";
+import { sceneGeneratedAdditions, sceneSourceBlockIds } from "./storyboard-job.js";
 import {
   createModelCallGenerationHandler,
   type ModelCallHandlerOptions,
@@ -453,11 +454,20 @@ export async function persistSceneCandidate(input: {
     onScreenText: input.value.scene.onScreenText,
     transition: input.value.scene.transition,
     assetBindings: currentScene.scene.assetBindings,
+    // The narration is unchanged, so its citations and labelled additions
+    // still apply: keep them alongside the regenerated scene's own.
     sourceRefs: resolveSourceRefs(
       input.sourcePackage,
-      input.value.scene.sourceBlockIds,
+      sceneSourceBlockIds(
+        input.value.scene.sourceBlockIds,
+        [currentScene.scene],
+        input.sourcePackage,
+      ),
     ),
-    generatedAdditions: input.value.scene.generatedAdditions,
+    generatedAdditions: sceneGeneratedAdditions(
+      input.value.scene.generatedAdditions,
+      [currentScene.scene],
+    ),
     template: input.value.scene.template,
     visual: input.value.scene.visual,
   });

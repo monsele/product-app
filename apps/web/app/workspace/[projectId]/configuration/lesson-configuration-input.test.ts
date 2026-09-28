@@ -155,10 +155,10 @@ describe("lesson configuration form input", () => {
   it("computes word count ranges for duration targets accurately", () => {
     const target3m = narrationWordCountRange(180);
     expect(target3m.min).toBeLessThan(target3m.max);
-    expect(target3m.target).toBe(336);
+    expect(target3m.target).toBe(450);
 
     const target5m = narrationWordCountRange(300);
-    expect(target5m.target).toBe(560);
+    expect(target5m.target).toBe(750);
   });
 
   it("detects unsaved modifications properly", () => {

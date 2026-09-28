@@ -12,6 +12,7 @@ import {
   planRepairRound,
   repairForFinding,
   repairInstructionMaxLength,
+  withoutSentences,
   type RepairFinding,
   type RepairScene,
 } from "./one-shot-repair.js";
@@ -218,5 +219,33 @@ describe("ST-107 brief-promise check", () => {
         instruction: expect.stringContaining("Famous truss bridges"),
       }),
     ]);
+  });
+});
+
+describe("withoutSentences", () => {
+  const narration =
+    "Have you ever watched a raise slip away? Many experience sudden provision. Budgeting keeps it.";
+
+  it("removes exact sentences and tidies the spacing", () => {
+    expect(
+      withoutSentences(narration, ["Many experience sudden provision."]),
+    ).toEqual({
+      narration: "Have you ever watched a raise slip away? Budgeting keeps it.",
+      removed: ["Many experience sudden provision."],
+      missing: 0,
+    });
+  });
+
+  it("leaves a sentence it cannot find verbatim", () => {
+    expect(withoutSentences(narration, ["A sentence that is not there."])).toEqual({
+      narration,
+      removed: [],
+      missing: 1,
+    });
+  });
+
+  it("never empties a scene", () => {
+    const result = withoutSentences("Only one sentence.", ["Only one sentence."]);
+    expect(result).toEqual({ narration: "Only one sentence.", removed: [], missing: 1 });
   });
 });
