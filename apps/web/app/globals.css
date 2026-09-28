@@ -1,5 +1,3 @@
-@import "@radix-ui/themes/styles.css";
-
 /* Design System Semantic Tokens for Product UI */
 
 :root,
@@ -86,6 +84,11 @@
   --color-info-bg: #F0F5FF;
   --color-info-border: #B8D3FF;
 
+  /* Shape system: cards use --radius-card, primary CTAs and pill-shaped
+     controls use --radius-pill, every other control (secondary/tertiary/
+     destructive buttons, form inputs, rounded icon buttons) uses
+     --radius-control, and icon-only controls default to --radius-circle.
+     See components/ui/button.module.css and icon-button.module.css. */
   --radius-card: 16px;
   --radius-control: 10px;
   --radius-pill: 9999px;

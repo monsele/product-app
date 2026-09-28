@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import React, { useState, type FormEvent } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -10,11 +9,10 @@ import {
   EyeSlash,
   CheckCircle,
   WarningCircle,
-  Sparkle,
   ArrowRight,
-  ShieldCheck,
 } from "@phosphor-icons/react";
 import { toast } from "../components/ui/toast-provider";
+import { AuthAside } from "./auth-aside";
 import styles from "./auth.module.css";
 
 type AuthMode = "register" | "login";
@@ -86,56 +84,13 @@ export function AuthForm({
 
   return (
     <main className={styles.page}>
-      <section className={styles.reassurance} aria-label="Studio Daylight">
-        <div className={styles.brandGroup}>
-          <div className={styles.brandHeader}>
-            <div className={styles.brandIcon}>
-              <Sparkle size={20} weight="fill" />
-            </div>
-            <div className={styles.brand}>Studio Daylight</div>
-          </div>
-          <div className={styles.studioBadge}>
-            <span className={styles.studioBadgeDot} />
-            AI Visual Learning Platform
-          </div>
-        </div>
-
-        <div className={styles.artFrameContainer}>
-          <motion.div
-            className={styles.artFrame}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-          >
-            <Image
-              src="/catalog/plant-cycle.svg"
-              alt="A calm plant life-cycle learning illustration"
-              fill
-              priority
-              sizes="(max-width: 760px) 88vw, 42vw"
-              style={{ pointerEvents: "none" }}
-            />
-          </motion.div>
-        </div>
-
-        <div className={styles.reassuranceFooter}>
-          <p>
-            {mode === "register"
-              ? "Turn raw curriculum documents into editable, teachable visual lessons."
-              : "Your visual lessons are ready to edit and share with your learners."}
-          </p>
-          <div className={styles.pillFeatureRow}>
-            <div className={styles.featurePill}>
-              <ShieldCheck size={14} className={styles.featurePillIcon} weight="bold" />
-              Isolated Workspace
-            </div>
-            <div className={styles.featurePill}>
-              <Sparkle size={14} className={styles.featurePillIcon} weight="fill" />
-              Pedagogical Engine
-            </div>
-          </div>
-        </div>
-      </section>
+      <AuthAside
+        message={
+          mode === "register"
+            ? "Turn raw curriculum documents into editable, teachable visual lessons."
+            : "Your visual lessons are ready to edit and share with your learners."
+        }
+      />
 
       <section className={styles.formPanel}>
         <motion.div
@@ -144,10 +99,6 @@ export function AuthForm({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
         >
-          <div className={styles.eyebrow}>
-            <Sparkle size={14} weight="fill" />
-            {mode === "register" ? "Create account" : "Welcome back"}
-          </div>
           <h1>{title}</h1>
           <p className={styles.intro}>
             {mode === "register"

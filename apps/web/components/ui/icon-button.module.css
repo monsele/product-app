@@ -1,0 +1,127 @@
+/*
+ * Icon-button shape system: icon-only controls are circular by default
+ * (shape="circle"), or rounded-rect (--radius-control) when shape="rounded"
+ * is passed explicitly for a control that sits in a row of rect controls.
+ * See button.module.css for the paired text-button shape rule.
+ */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-quick) var(--motion-easing),
+    border-color var(--motion-quick) var(--motion-easing),
+    color var(--motion-quick) var(--motion-easing),
+    transform var(--motion-instant) var(--motion-easing);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.circle {
+  border-radius: var(--radius-circle);
+}
+
+.rounded {
+  border-radius: var(--radius-control);
+}
+
+.compact {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  min-height: 36px;
+}
+
+.default {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+}
+
+.large {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  min-height: 48px;
+}
+
+.primary {
+  background-color: var(--color-brand);
+  color: var(--color-on-brand);
+  border-color: var(--color-brand);
+}
+
+.primary:hover:not(:disabled) {
+  background-color: var(--color-brand-hover);
+  border-color: var(--color-brand-hover);
+}
+
+.primary:active:not(:disabled) {
+  background-color: var(--color-brand-active);
+  border-color: var(--color-brand-active);
+}
+
+.secondary {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.secondary:hover:not(:disabled) {
+  background-color: var(--color-surface-subtle);
+  border-color: var(--color-text-muted);
+}
+
+.tertiary {
+  background-color: transparent;
+  color: var(--color-text-muted);
+  border-color: transparent;
+}
+
+.tertiary:hover:not(:disabled) {
+  background-color: var(--color-surface-subtle);
+  color: var(--color-text);
+}
+
+.tertiary:active:not(:disabled) {
+  background-color: var(--color-surface-brand);
+  color: var(--color-brand);
+}
+
+.destructive {
+  background-color: var(--color-danger-surface);
+  color: var(--color-danger-text);
+  border-color: var(--color-danger-line);
+}
+
+.destructive:hover:not(:disabled) {
+  border-color: var(--color-danger-text);
+}
+
+.icon {
+  display: inline-flex;
+}
+
+.iconCompact {
+  font-size: 16px;
+}
+
+.iconDefault {
+  font-size: 20px;
+}
+
+.iconLarge {
+  font-size: 24px;
+}

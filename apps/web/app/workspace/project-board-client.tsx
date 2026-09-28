@@ -15,14 +15,18 @@ import {
   PIPELINE_STAGES,
   getProjectStageIndex,
 } from "../../lib/project-pipeline";
+import { CreateLessonArt } from "./create-lesson-art";
 import styles from "./workspace.module.css";
 import {
   Plus,
   ArrowRight,
+  Check,
   Copy,
   Trash,
   WarningOctagon,
   FolderDashed,
+  Lightning,
+  PencilSimpleLine,
 } from "@phosphor-icons/react";
 
 export interface ProjectBoardClientProps {
@@ -226,109 +230,119 @@ export function ProjectBoardClient({
         aria-labelledby="create-lesson-heading"
         className={styles.createCard}
       >
-        <div className={styles.createHeading}>
-          <div className={styles.createIcon}>
-            <Plus size={20} weight="bold" />
+        <div className={styles.createMain}>
+          <div className={styles.createHeading}>
+            <div className={styles.createIcon}>
+              <Plus size={20} weight="bold" />
+            </div>
+            <div>
+              <h2 id="create-lesson-heading" className={styles.createTitle}>
+                Create new lesson
+              </h2>
+              <p className={styles.createHint}>
+                Start by naming your lesson and uploading a teaching document.
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 id="create-lesson-heading" className={styles.createTitle}>
-              Create new lesson
-            </h2>
-            <p className={styles.createHint}>
-              Start by naming your lesson and uploading a teaching document.
-            </p>
-          </div>
+
+          <form
+            action="/api/projects"
+            method="post"
+            className={styles.createForm}
+            onSubmit={handleCreateSubmit}
+          >
+            <div className={styles.createField}>
+              <Field
+                id="project-title"
+                label="Project title"
+                required
+                error={
+                  error === "title" && !projectTitle.trim()
+                    ? "Enter a project title."
+                    : undefined
+                }
+              >
+                <input
+                  ref={titleInputRef}
+                  id="project-title"
+                  name="title"
+                  maxLength={160}
+                  required
+                  value={projectTitle}
+                  onChange={(e) => setProjectTitle(e.target.value)}
+                  placeholder="e.g. Photosynthesis and Plant Cells"
+                  className={styles.textInput}
+                  /* readOnly, not disabled: a disabled field is dropped from the
+                     POST body, which submitted this form with an empty title. */
+                  readOnly={isCreating}
+                />
+              </Field>
+            </div>
+
+            {quickVideoVisible && (
+              <fieldset className={styles.flowChoices}>
+                <legend className={styles.flowLegend}>How do you want to build it?</legend>
+                {(
+                  [
+                    {
+                      value: "editor",
+                      label: "Step by step in the editor",
+                      hint: "Review and approve each stage yourself.",
+                      icon: <PencilSimpleLine size={20} weight="duotone" />,
+                    },
+                    {
+                      value: "one-shot",
+                      label: "Quick video from a PDF",
+                      hint: "Describe what to explain and preview the result before rendering.",
+                      icon: <Lightning size={20} weight="duotone" />,
+                    },
+                  ] as const
+                ).map((option) => (
+                  <label key={option.value} className={styles.flowChoice}>
+                    <span className={styles.flowChoiceIcon} aria-hidden="true">
+                      {option.icon}
+                    </span>
+                    <span className={styles.flowChoiceText}>
+                      <span className={styles.flowChoiceLabel}>{option.label}</span>
+                      <span className={styles.flowChoiceHint}>{option.hint}</span>
+                    </span>
+                    <input
+                      type="radio"
+                      name="flow"
+                      value={option.value}
+                      checked={flow === option.value}
+                      onChange={() => setFlow(option.value)}
+                      className={styles.flowRadio}
+                    />
+                  </label>
+                ))}
+              </fieldset>
+            )}
+
+            <div className={styles.createAction}>
+              <Button
+                type="submit"
+                variant="primary"
+                size="default"
+                isLoading={isCreating}
+                disabled={isCreating || projectTitle.trim().length === 0}
+                leftIcon={<Plus weight="bold" />}
+                className={styles.createButton}
+              >
+                {isCreating ? "Creating lesson…" : "Create lesson"}
+              </Button>
+              <span aria-live="polite" className={styles.createActionHint}>
+                {isCreating
+                  ? "Setting up your workspace…"
+                  : projectTitle.trim().length === 0
+                    ? "Name your lesson to continue."
+                    : ""}
+              </span>
+            </div>
+          </form>
         </div>
 
-        <form
-          action="/api/projects"
-          method="post"
-          className={styles.createForm}
-          onSubmit={handleCreateSubmit}
-        >
-          <div className={styles.createField}>
-            <Field
-              id="project-title"
-              label="Project title"
-              required
-              error={
-                error === "title" && !projectTitle.trim()
-                  ? "Enter a project title."
-                  : undefined
-              }
-            >
-              <input
-                ref={titleInputRef}
-                id="project-title"
-                name="title"
-                maxLength={160}
-                required
-                value={projectTitle}
-                onChange={(e) => setProjectTitle(e.target.value)}
-                placeholder="e.g. Photosynthesis and Plant Cells"
-                className={styles.textInput}
-                /* readOnly, not disabled: a disabled field is dropped from the
-                   POST body, which submitted this form with an empty title. */
-                readOnly={isCreating}
-              />
-            </Field>
-          </div>
-
-          {quickVideoVisible && (
-            <fieldset className={styles.flowChoices}>
-              <legend className={styles.flowLegend}>How do you want to build it?</legend>
-              {(
-                [
-                  {
-                    value: "editor",
-                    label: "Step by step in the editor",
-                    hint: "Review and approve each stage yourself.",
-                  },
-                  {
-                    value: "one-shot",
-                    label: "Quick video from a PDF",
-                    hint: "Describe what to explain and preview the result before rendering.",
-                  },
-                ] as const
-              ).map((option) => (
-                <label key={option.value} className={styles.flowChoice}>
-                  <input
-                    type="radio"
-                    name="flow"
-                    value={option.value}
-                    checked={flow === option.value}
-                    onChange={() => setFlow(option.value)}
-                  />
-                  <span className={styles.flowChoiceText}>
-                    <span className={styles.flowChoiceLabel}>{option.label}</span>
-                    <span className={styles.flowChoiceHint}>{option.hint}</span>
-                  </span>
-                </label>
-              ))}
-            </fieldset>
-          )}
-
-          <div className={styles.createAction}>
-            <Button
-              type="submit"
-              variant="primary"
-              size="default"
-              isLoading={isCreating}
-              disabled={isCreating || projectTitle.trim().length === 0}
-              leftIcon={<Plus weight="bold" />}
-              style={{ height: "42px" }}
-            >
-              {isCreating ? "Creating lesson…" : "Create lesson"}
-            </Button>
-            <span aria-live="polite" className={styles.createActionHint}>
-              {isCreating
-                ? "Setting up your workspace…"
-                : projectTitle.trim().length === 0
-                  ? "Name your lesson to continue."
-                  : ""}
-            </span>
-          </div>
-        </form>
+        <CreateLessonArt />
       </section>
 
       {projects.length === 0 ? (
@@ -465,22 +479,35 @@ export function ProjectBoardClient({
                           · {PIPELINE_STAGES[stepIndex]?.label}
                         </span>
                       </div>
-                      <div className={styles.progressTrack} aria-hidden="true">
+                      {/* Named stages, so the teacher sees what is done and
+                          what is left, not just how far along the bar is. */}
+                      <ol className={styles.stepper} aria-hidden="true">
                         {PIPELINE_STAGES.map((stage, index) => {
                           const state =
                             index < stepIndex
-                              ? styles.progressStepPast
+                              ? styles.stepPast
                               : index === stepIndex
-                                ? styles.progressStepCurrent
+                                ? hasFailure
+                                  ? styles.stepFailed
+                                  : styles.stepCurrent
                                 : "";
                           return (
-                            <span
+                            <li
                               key={stage.id}
-                              className={`${styles.progressStep} ${state}`}
-                            />
+                              className={`${styles.step} ${state}`}
+                              style={{ "--i": index } as React.CSSProperties}
+                            >
+                              <span className={styles.stepBar} />
+                              <span className={styles.stepName}>
+                                {index < stepIndex && (
+                                  <Check size={11} weight="bold" />
+                                )}
+                                {stage.label}
+                              </span>
+                            </li>
                           );
                         })}
-                      </div>
+                      </ol>
                     </div>
                   </div>
                 );
@@ -501,6 +528,7 @@ export function ProjectBoardClient({
                 {remainingProjects.map((project) => {
                   const hasFailure = project.latestFailedOperation !== null;
                   const details = getStageDetails(project.stage, hasFailure);
+                  const stepIndex = getProjectStageIndex(project.stage);
 
                   return (
                     <li key={project.id} className={styles.projectCard}>
@@ -551,6 +579,32 @@ export function ProjectBoardClient({
                       </div>
 
                       <div className={styles.cardFooter}>
+                        <div className={styles.miniProgress}>
+                          <span className={styles.miniProgressText}>
+                            Step{" "}
+                            <span className="tabular-nums">{stepIndex + 1}</span>{" "}
+                            of{" "}
+                            <span className="tabular-nums">
+                              {PIPELINE_STAGES.length}
+                            </span>
+                          </span>
+                          <span className={styles.miniTrack} aria-hidden="true">
+                            {PIPELINE_STAGES.map((stage, index) => (
+                              <span
+                                key={stage.id}
+                                className={
+                                  index < stepIndex
+                                    ? styles.miniPast
+                                    : index === stepIndex
+                                      ? hasFailure
+                                        ? styles.miniFailed
+                                        : styles.miniCurrent
+                                      : undefined
+                                }
+                              />
+                            ))}
+                          </span>
+                        </div>
                         <Link
                           href={details.nextActionPath(project.id)}
                           className={`${styles.actionLinkSecondary} ${styles.actionLinkCompact}`}

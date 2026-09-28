@@ -18,46 +18,8 @@
   padding: clamp(2.5rem, 5vw, 5rem);
   position: relative;
   overflow: hidden;
-  background:
-    radial-gradient(ellipse 80% 60% at 20% 20%, rgba(240, 234, 255, 0.9) 0%, rgba(247, 245, 255, 0.6) 60%, rgba(238, 245, 255, 0.8) 100%),
-    linear-gradient(135deg, #f0eaff 0%, #f7f5ff 50%, #edf3ff 100%);
+  background: var(--color-surface-brand, #f0eaff);
   border-right: 1px solid var(--color-border, #ddd8e5);
-}
-
-.reassurance::before {
-  content: "";
-  position: absolute;
-  top: -20%;
-  right: -20%;
-  width: 28rem;
-  height: 28rem;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(100, 48, 215, 0.08) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.brandGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  pointer-events: auto;
-}
-
-.brandHeader {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.brandIcon {
-  display: grid;
-  place-items: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 8px;
-  background: var(--color-brand, #6430d7);
-  color: #ffffff;
-  box-shadow: 0 4px 12px rgba(100, 48, 215, 0.25);
 }
 
 .brand {
@@ -65,28 +27,6 @@
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--color-brand, #6430d7);
-}
-
-.studioBadge {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.3rem 0.65rem;
-  border-radius: 9999px;
-  background: rgba(100, 48, 215, 0.08);
-  border: 1px solid rgba(100, 48, 215, 0.15);
-  color: var(--color-brand, #6430d7);
-  font-size: 0.75rem;
-  font-weight: 600;
-  width: fit-content;
-}
-
-.studioBadgeDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #176b46;
-  box-shadow: 0 0 0 2px rgba(23, 107, 70, 0.2);
 }
 
 .artFrameContainer {
@@ -125,15 +65,7 @@
   filter: drop-shadow(0 8px 16px rgba(100, 48, 215, 0.08));
 }
 
-.reassuranceFooter {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  pointer-events: auto;
-}
-
-.reassurance > p,
-.reassuranceFooter > p {
+.reassuranceMessage {
   max-width: 34rem;
   margin: 0;
   color: var(--color-text, #2b2138);
@@ -141,29 +73,6 @@
   font-weight: 500;
   line-height: 1.45;
   letter-spacing: -0.01em;
-}
-
-.pillFeatureRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.featurePill {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  padding: 0.35rem 0.75rem;
-  border-radius: 9999px;
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(221, 216, 229, 0.8);
-  color: var(--color-text-muted, #6c6575);
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.featurePillIcon {
-  color: var(--color-brand, #6430d7);
 }
 
 .formPanel {
@@ -175,18 +84,6 @@
 
 .formContent {
   width: min(100%, 28rem);
-}
-
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  margin: 0 0 0.75rem;
-  color: var(--color-brand, #6430d7);
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .formContent h1 {
@@ -461,8 +358,7 @@
     aspect-ratio: 16 / 9;
   }
 
-  .reassurance > p,
-  .reassuranceFooter > p {
+  .reassuranceMessage {
     font-size: 1.05rem;
   }
 

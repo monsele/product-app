@@ -1,33 +1,57 @@
 /*
  * Teacher workspace board.
- * Composition follows docs/design.md 6.2 (70/30 board + rail).
- * Type scale follows docs/design.md 5.2. Motion is dial 4: state feedback only.
+ * Composition follows docs/design.md 6.2 (70/30 board + rail) and 10.3
+ * (asymmetric Create lesson surface). Type scale follows 5.2.
+ * Motion is dial 4: one load-in cascade for hierarchy, one fill of the
+ * pipeline stepper for progress, and state feedback. Nothing loops.
  */
 
+/* ---------- Page ---------- */
+
 .page {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  padding: 8px 0 40px 0;
+  gap: 28px;
+  padding: 8px 0 48px 0;
+}
+
+/* Brand atmosphere (docs/design.md 5.1): low-opacity lilac, sky and peach
+   behind the low-information title area only, never behind working content. */
+.page::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -24px -24px auto -24px;
+  height: 360px;
+  pointer-events: none;
+  background:
+    radial-gradient(38% 70% at 12% 0%, rgba(139, 104, 238, 0.16), transparent 70%),
+    radial-gradient(30% 60% at 46% 0%, rgba(121, 169, 231, 0.12), transparent 70%),
+    radial-gradient(26% 50% at 78% 0%, rgba(255, 190, 160, 0.12), transparent 70%);
+  mask-image: linear-gradient(to bottom, #000 30%, transparent);
 }
 
 .header {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
+  padding-top: 8px;
 }
 
 .pageTitle {
   margin: 0;
   font-size: 36px;
   line-height: 42px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-weight: 700;
+  letter-spacing: -0.025em;
   color: var(--color-text);
 }
 
 .pageLead {
   margin: 0;
+  max-width: 65ch;
   font-size: 16px;
   line-height: 24px;
   color: var(--color-text-muted);
@@ -47,57 +71,103 @@
   }
 }
 
+/* The board is a size container so its surfaces respond to the space they
+   actually get, not the viewport (the rail takes 340px at desktop). */
 .board {
+  container: board / inline-size;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  gap: 36px;
+}
+
+/* ---------- Load-in cascade ---------- */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Establishes reading order on arrival: title, create, recent, rail. */
+@media (prefers-reduced-motion: no-preference) {
+  .header,
+  .board > *,
+  .rail {
+    animation: rise var(--motion-standard) var(--motion-easing) both;
+  }
+
+  .board > :nth-child(1) { animation-delay: 60ms; }
+  .board > :nth-child(2) { animation-delay: 120ms; }
+  .board > :nth-child(3) { animation-delay: 180ms; }
+  .board > :nth-child(n + 4) { animation-delay: 220ms; }
+  .rail { animation-delay: 160ms; }
 }
 
 /* ---------- Create lesson ---------- */
 
 .createCard {
-  background-color: var(--color-surface);
+  background-color: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
-  padding: 24px 28px;
+  padding: 12px;
   box-shadow: var(--shadow-elevation);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+
+@container board (min-width: 860px) {
+  .createCard {
+    grid-template-columns: minmax(0, 1fr) 272px;
+  }
+}
+
+.createMain {
+  min-width: 0;
+  padding: 14px 16px 8px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
 }
 
 .createHeading {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .createIcon {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   flex-shrink: 0;
   border-radius: var(--radius-control);
-  background-color: var(--color-surface-brand);
-  color: var(--color-brand);
+  background-color: var(--color-brand);
+  color: var(--color-on-brand);
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 6px 16px rgba(100, 48, 215, 0.24);
 }
 
 .createTitle {
   margin: 0;
-  font-size: 18px;
-  line-height: 24px;
+  font-size: 20px;
+  line-height: 26px;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
   color: var(--color-text);
 }
 
 .createHint {
   margin: 2px 0 0;
-  font-size: 13px;
-  line-height: 18px;
+  font-size: 14px;
+  line-height: 20px;
   color: var(--color-text-muted);
 }
 
@@ -111,25 +181,87 @@
   padding-bottom: 20px;
 }
 
+.createField {
+  flex: 1 1 320px;
+  min-width: 220px;
+}
+
 .createAction {
   position: relative;
 }
 
+.createButton {
+  height: 48px;
+  padding: 0 22px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
 .createActionHint {
   position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
+  top: calc(100% + 6px);
+  right: 4px;
   font-size: 12px;
   line-height: 16px;
   color: var(--color-text-muted);
-  text-align: center;
+  text-align: right;
   white-space: nowrap;
 }
 
-.createField {
-  flex: 1 1 320px;
-  min-width: 240px;
+/* On a phone the action takes its own full-width row, hint centred under it. */
+@container board (max-width: 559px) {
+  .createAction {
+    flex: 1 1 100%;
+  }
+
+  .createButton {
+    width: 100%;
+  }
+
+  .createActionHint {
+    left: 0;
+    right: 0;
+    text-align: center;
+  }
+}
+
+.textInput {
+  width: 100%;
+  height: 48px;
+  padding: 0 16px;
+  font-size: 15px;
+  line-height: 20px;
+  font-family: inherit;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface-raised);
+  color: var(--color-text);
+  transition:
+    border-color var(--motion-quick) var(--motion-easing),
+    box-shadow var(--motion-quick) var(--motion-easing);
+}
+
+.textInput::placeholder {
+  color: var(--color-text-muted);
+}
+
+.textInput:hover {
+  border-color: var(--color-text-muted);
+}
+
+.textInput:focus {
+  outline: none;
+  border-color: var(--color-brand);
+  box-shadow: 0 0 0 4px var(--color-surface-brand);
+}
+
+.textInput:read-only {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.textInput:read-only:hover {
+  border-color: var(--color-border);
 }
 
 /* ST-106: the optional build-flow choice sits under the title and button row
@@ -137,34 +269,47 @@
 .flowChoices {
   order: 3;
   flex: 1 1 100%;
-  margin: 12px 0 0;
+  /* Clears the absolutely placed Create lesson hint above it. */
+  margin: 20px 0 0;
   padding: 0;
   border: none;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 10px;
   min-width: 0;
 }
 
 .flowLegend {
   padding: 0;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   font-size: 14px;
   font-weight: 600;
   color: var(--color-text);
 }
 
 .flowChoice {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 14px;
   min-height: 44px;
-  box-sizing: border-box;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-control);
   background-color: var(--color-surface-raised);
   cursor: pointer;
+  transition:
+    border-color var(--motion-quick) var(--motion-easing),
+    background-color var(--motion-quick) var(--motion-easing),
+    transform var(--motion-instant) var(--motion-easing);
+}
+
+.flowChoice:hover {
+  border-color: var(--color-brand-line);
+}
+
+.flowChoice:active {
+  transform: scale(0.99);
 }
 
 .flowChoice:has(input:checked) {
@@ -178,10 +323,49 @@
   outline-offset: 2px;
 }
 
-.flowChoice input {
-  margin: 3px 0 0;
-  accent-color: var(--color-brand);
-  flex-shrink: 0;
+.flowChoiceIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface-subtle);
+  color: var(--color-text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background-color var(--motion-quick) var(--motion-easing),
+    color var(--motion-quick) var(--motion-easing);
+}
+
+/* Selection reads through the icon tile and the filled radio, not hue alone. */
+.flowChoice:has(input:checked) .flowChoiceIcon {
+  background-color: var(--color-brand);
+  color: var(--color-on-brand);
+}
+
+.flowRadio {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0;
+  border-radius: var(--radius-circle);
+  border: 1.5px solid var(--color-text-muted);
+  background-color: var(--color-surface-raised);
+  cursor: pointer;
+  transition:
+    border-color var(--motion-quick) var(--motion-easing),
+    box-shadow var(--motion-quick) var(--motion-easing);
+}
+
+.flowRadio:checked {
+  border-color: var(--color-brand);
+  background-color: var(--color-brand);
+  box-shadow: inset 0 0 0 4px var(--color-surface-raised);
+}
+
+.flowRadio:focus-visible {
+  outline: none;
 }
 
 .flowChoiceText {
@@ -193,6 +377,7 @@
 
 .flowChoiceLabel {
   font-size: 14px;
+  line-height: 20px;
   font-weight: 600;
   color: var(--color-text);
 }
@@ -203,37 +388,97 @@
   color: var(--color-text-muted);
 }
 
-.textInput {
-  width: 100%;
-  padding: 10px 14px;
-  font-size: 14px;
-  line-height: 20px;
-  font-family: inherit;
-  border: 1px solid var(--color-border);
+/* ---------- Create lesson art ---------- */
+
+/* Hidden until the board is wide enough to give the form its full row. */
+.createArt {
+  display: none;
+}
+
+@container board (min-width: 860px) {
+  .createArt {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 14px;
+    min-height: 220px;
+    padding: 24px 22px;
+    border-radius: calc(var(--radius-card) - 4px);
+    background: var(--gradient-atmosphere);
+  }
+}
+
+/* A soft highlight so the gradient reads as light, not as a flat fill. */
+.createArt::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 50% at 85% 10%, rgba(255, 255, 255, 0.28), transparent 70%),
+    radial-gradient(50% 40% at 0% 100%, rgba(43, 33, 56, 0.18), transparent 70%);
+}
+
+.artSource {
+  position: relative;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
   border-radius: var(--radius-control);
-  background-color: var(--color-surface-subtle);
-  color: var(--color-text);
-  transition:
-    border-color var(--motion-quick) var(--motion-easing),
-    background-color var(--motion-quick) var(--motion-easing);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  background-color: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
 }
 
-.textInput:hover {
-  border-color: var(--color-text-muted);
+.artArrow {
+  position: relative;
+  align-self: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-circle);
+  background-color: rgba(255, 255, 255, 0.22);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.textInput:focus {
-  background-color: var(--color-surface-raised);
-  border-color: var(--color-focus);
+.artArrow svg {
+  transform: rotate(90deg);
 }
 
-.textInput:read-only {
-  opacity: 0.6;
-  cursor: not-allowed;
+.artFrame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--radius-control);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  background-color: #fff;
+  box-shadow: 0 14px 30px rgba(43, 20, 99, 0.3);
 }
 
-.textInput:read-only:hover {
-  border-color: var(--color-border);
+.artPlay {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-circle);
+  background-color: var(--color-brand);
+  color: var(--color-on-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(100, 48, 215, 0.35);
 }
 
 /* ---------- Empty state ---------- */
@@ -282,15 +527,15 @@
 .section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .sectionTitle {
   margin: 0;
-  font-size: 24px;
-  line-height: 30px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
   color: var(--color-text);
 }
 
@@ -298,7 +543,7 @@
 
 .featuredCard,
 .projectCard {
-  background-color: var(--color-surface);
+  background-color: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   transition:
@@ -307,13 +552,17 @@
     transform var(--motion-quick) var(--motion-easing);
 }
 
+/* The featured lesson carries a faint brand wash in its leading corner so it
+   reads as the selected record without a second accent colour. */
 .featuredCard {
-  border-color: var(--color-surface-brand);
-  padding: 24px;
+  padding: 24px 28px;
+  background:
+    radial-gradient(70% 120% at 100% 0%, var(--color-surface-brand), transparent 60%),
+    var(--color-surface-raised);
   box-shadow: var(--shadow-elevation);
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 22px;
 }
 
 .projectCard {
@@ -321,22 +570,23 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 16px;
+  gap: 18px;
 }
 
 .featuredCard:hover,
+.featuredCard:focus-within {
+  border-color: var(--color-brand-line);
+}
+
 .projectCard:hover,
-.featuredCard:focus-within,
 .projectCard:focus-within {
-  border-color: var(--color-brand);
+  border-color: var(--color-brand-line);
   box-shadow: var(--shadow-elevation);
   transform: translateY(-2px);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .featuredCard:hover,
   .projectCard:hover,
-  .featuredCard:focus-within,
   .projectCard:focus-within {
     transform: none;
   }
@@ -353,7 +603,7 @@
 .cardIdentity {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   flex: 1 1 300px;
   min-width: 0;
 }
@@ -373,19 +623,22 @@
 
 .featuredTitle {
   margin: 0;
-  font-size: 24px;
-  line-height: 30px;
+  font-size: 28px;
+  line-height: 34px;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   color: var(--color-text);
+  overflow-wrap: anywhere;
 }
 
 .projectTitle {
   margin: 0;
-  font-size: 18px;
+  font-size: 17px;
   line-height: 24px;
   font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--color-text);
+  overflow-wrap: anywhere;
 }
 
 .titleLink {
@@ -396,7 +649,8 @@
 
 .titleLink:hover {
   text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration-color: var(--color-brand-line);
+  text-underline-offset: 4px;
 }
 
 .cardActions {
@@ -407,15 +661,19 @@
 
 .cardFooter {
   border-top: 1px solid var(--color-surface-subtle);
-  padding-top: 12px;
+  padding-top: 14px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 /* ---------- Navigation affordances ---------- */
 
 /*
  * These navigate, so they are anchors, not buttons wrapped in anchors.
- * Styled here rather than through the shared Button component, which is
- * inline-styled and therefore cannot express :hover.
+ * Styled here rather than through the shared Button component so the link
+ * semantics stay intact.
  */
 .actionLink {
   display: inline-flex;
@@ -434,20 +692,37 @@
   transition:
     background-color var(--motion-quick) var(--motion-easing),
     border-color var(--motion-quick) var(--motion-easing),
-    color var(--motion-quick) var(--motion-easing);
+    color var(--motion-quick) var(--motion-easing),
+    transform var(--motion-instant) var(--motion-easing);
+}
+
+.actionLink:active {
+  transform: scale(0.98);
 }
 
 .actionLinkPrimary {
   composes: actionLink;
+  padding: 11px 22px;
+  font-weight: 600;
   border-radius: var(--radius-pill);
   background-color: var(--color-brand);
   border-color: var(--color-brand);
   color: var(--color-on-brand);
+  box-shadow: 0 8px 20px rgba(100, 48, 215, 0.22);
+}
+
+.actionLinkPrimary svg {
+  transition: transform var(--motion-quick) var(--motion-easing);
 }
 
 .actionLinkPrimary:hover {
   background-color: var(--color-brand-hover);
   border-color: var(--color-brand-hover);
+}
+
+/* The arrow nudges toward where the link goes. */
+.actionLinkPrimary:hover svg {
+  transform: translateX(3px);
 }
 
 .actionLinkPrimary:active {
@@ -457,15 +732,14 @@
 
 .actionLinkSecondary {
   composes: actionLink;
-  width: 100%;
   border-radius: var(--radius-control);
-  background-color: var(--color-surface);
+  background-color: var(--color-surface-raised);
   border-color: var(--color-border);
   color: var(--color-text);
 }
 
 .actionLinkSecondary:hover {
-  background-color: var(--color-surface-subtle);
+  background-color: var(--color-surface-brand);
   border-color: var(--color-brand);
   color: var(--color-brand);
 }
@@ -518,14 +792,14 @@
   gap: 4px;
 }
 
-/* ---------- Progress ---------- */
+/* ---------- Featured progress ---------- */
 
 .progress {
   border-top: 1px solid var(--color-border);
-  padding-top: 16px;
+  padding-top: 18px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .progressHeader {
@@ -550,32 +824,114 @@
 }
 
 /*
- * A segmented bar rather than nine scrolling chips: the whole pipeline stays
- * visible at any width, and the current step is named once above it.
+ * The whole pipeline stays visible at any width, with each stage named under
+ * its segment once the board has room. The step is also named once above, so
+ * the stepper itself is presentational.
  */
-.progressTrack {
+.stepper {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: grid;
-  grid-auto-flow: column;
-  grid-auto-columns: 1fr;
-  gap: 4px;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 6px;
 }
 
-.progressStep {
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.stepBar {
+  position: relative;
   height: 6px;
+  overflow: hidden;
   border-radius: var(--radius-pill);
   background-color: var(--color-surface-subtle);
-  border: 1px solid var(--color-border);
+  box-shadow: inset 0 0 0 1px var(--color-border);
 }
 
-.progressStepPast {
+.stepBar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
   background-color: var(--color-brand);
-  border-color: var(--color-brand);
+  transform: scaleX(0);
+  transform-origin: left center;
 }
 
-.progressStepCurrent {
-  background-color: var(--color-brand);
-  border-color: var(--color-brand);
+@keyframes stepFill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* Segments fill left to right once, ending on the current stage. */
+.stepPast .stepBar::after,
+.stepCurrent .stepBar::after,
+.stepFailed .stepBar::after {
+  transform: scaleX(1);
+  animation: stepFill var(--motion-standard) var(--motion-easing) both;
+  animation-delay: calc(300ms + var(--i, 0) * 60ms);
+}
+
+.stepFailed .stepBar::after {
+  background-color: var(--color-error-fg);
+}
+
+.stepCurrent .stepBar {
   box-shadow: 0 0 0 3px var(--color-surface-brand);
+}
+
+.stepFailed .stepBar {
+  box-shadow: 0 0 0 3px var(--color-error-bg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stepPast .stepBar::after,
+  .stepCurrent .stepBar::after,
+  .stepFailed .stepBar::after {
+    animation: none;
+  }
+}
+
+.stepName {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.stepPast .stepName {
+  color: var(--color-text);
+}
+
+.stepPast .stepName svg {
+  flex-shrink: 0;
+  color: var(--color-brand);
+}
+
+.stepCurrent .stepName {
+  color: var(--color-brand);
+  font-weight: 600;
+}
+
+.stepFailed .stepName {
+  color: var(--color-error-fg);
+  font-weight: 600;
+}
+
+@container board (max-width: 679px) {
+  .stepName {
+    display: none;
+  }
 }
 
 /* ---------- Project grid ---------- */
@@ -603,6 +959,44 @@
   gap: 8px;
 }
 
+.miniProgress {
+  flex: 1 1 auto;
+  max-width: 170px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.miniProgressText {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--color-text-muted);
+}
+
+.miniTrack {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 3px;
+}
+
+.miniTrack > span {
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface-subtle);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+}
+
+.miniTrack > .miniPast,
+.miniTrack > .miniCurrent {
+  background-color: var(--color-brand);
+  box-shadow: none;
+}
+
+.miniTrack > .miniFailed {
+  background-color: var(--color-error-fg);
+  box-shadow: none;
+}
+
 /* ---------- Pagination ---------- */
 
 .pagination {
@@ -612,11 +1006,23 @@
 }
 
 .paginationEnd {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 0;
   font-size: 13px;
   line-height: 18px;
   color: var(--color-text-muted);
-  padding: 12px 0;
+  padding: 4px 0;
+}
+
+/* Hairlines either side mark the end of the list without a card. */
+.paginationEnd::before,
+.paginationEnd::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background-color: var(--color-border);
 }
 
 /* ---------- Information rail ---------- */
@@ -628,14 +1034,22 @@
   min-width: 0;
 }
 
+/* Guidance stays in view while the teacher scrolls a long board. */
+@media (min-width: 1024px) {
+  .rail {
+    position: sticky;
+    top: 88px;
+  }
+}
+
 .railCard {
-  background-color: var(--color-surface);
+  background-color: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .railCardAttention {
@@ -651,7 +1065,7 @@
 
 .railTitle {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 20px;
   font-weight: 700;
   letter-spacing: -0.01em;
@@ -661,7 +1075,7 @@
 .railBody {
   margin: 0;
   font-size: 13px;
-  line-height: 18px;
+  line-height: 19px;
   color: var(--color-text-muted);
 }
 
@@ -675,14 +1089,33 @@
 }
 
 .railRequirements {
+  list-style: none;
   margin: 0;
-  padding-left: 20px;
+  padding: 0;
   font-size: 13px;
-  line-height: 20px;
-  color: var(--color-text-muted);
+  line-height: 18px;
+  color: var(--color-text);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 10px;
+}
+
+.railRequirements li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.railRequirementIcon {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background-color: var(--color-surface-brand);
+  color: var(--color-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .railItem {
@@ -723,12 +1156,17 @@
   color: var(--color-text-muted);
 }
 
+/* The privacy note is a trust signal (docs/design.md 4.3), so it sits on the
+   success surface rather than trailing the list as more grey text. */
 .railDivider {
-  border-top: 1px solid var(--color-border);
-  padding-top: 16px;
+  margin-top: 2px;
+  padding: 14px;
+  border-radius: var(--radius-control);
+  background-color: var(--color-success-bg);
+  border: 1px solid var(--color-success-border);
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 6px;
 }
 
 .railSubTitle {

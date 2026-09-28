@@ -1,0 +1,136 @@
+/*
+ * Button shape system (see docs/design.md and globals.css radius tokens):
+ *   - primary CTA        -> pill        (--radius-pill)
+ *   - secondary/tertiary/
+ *     destructive         -> rounded-rect (--radius-control)
+ * Every state below (hover/active/focus/disabled) is a real CSS rule, not an
+ * inline style, so buttons give tactile feedback on press instead of sitting
+ * dead until click.
+ */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 500;
+  font-family: inherit;
+  line-height: 20px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-quick) var(--motion-easing),
+    border-color var(--motion-quick) var(--motion-easing),
+    color var(--motion-quick) var(--motion-easing),
+    transform var(--motion-instant) var(--motion-easing),
+    box-shadow var(--motion-quick) var(--motion-easing);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Sizes */
+.compact {
+  padding: 6px 14px;
+  font-size: 13px;
+}
+
+.default {
+  padding: 8px 18px;
+  font-size: 14px;
+}
+
+.large {
+  padding: 12px 24px;
+  font-size: 16px;
+}
+
+/* Variants */
+.primary {
+  border-radius: var(--radius-pill);
+  background-color: var(--color-brand);
+  color: var(--color-on-brand);
+  border-color: var(--color-brand);
+}
+
+.primary:hover:not(:disabled) {
+  background-color: var(--color-brand-hover);
+  border-color: var(--color-brand-hover);
+}
+
+.primary:active:not(:disabled) {
+  background-color: var(--color-brand-active);
+  border-color: var(--color-brand-active);
+}
+
+.secondary {
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.secondary:hover:not(:disabled) {
+  background-color: var(--color-surface-subtle);
+  border-color: var(--color-text-muted);
+}
+
+.secondary:active:not(:disabled) {
+  background-color: var(--color-surface-subtle);
+  border-color: var(--color-text);
+}
+
+.tertiary {
+  border-radius: var(--radius-control);
+  background-color: transparent;
+  color: var(--color-text-muted);
+  border-color: transparent;
+}
+
+.tertiary:hover:not(:disabled) {
+  background-color: var(--color-surface-subtle);
+  color: var(--color-text);
+}
+
+.tertiary:active:not(:disabled) {
+  background-color: var(--color-surface-brand);
+  color: var(--color-brand);
+}
+
+/* Destructive uses the theme-aware danger tokens (not the light-only
+   --color-error-* set) so it stays legible in both Studio Daylight and
+   Focus Studio instead of rendering a near-invisible pale-pink chip on a
+   dark surface. */
+.destructive {
+  border-radius: var(--radius-control);
+  background-color: var(--color-danger-surface);
+  color: var(--color-danger-text);
+  border-color: var(--color-danger-line);
+}
+
+.destructive:hover:not(:disabled) {
+  border-color: var(--color-danger-text);
+}
+
+.destructive:active:not(:disabled) {
+  filter: brightness(0.96);
+}
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+}
+
+.icon {
+  display: inline-flex;
+}

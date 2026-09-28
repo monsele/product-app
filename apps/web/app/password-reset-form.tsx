@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import React, { useState, type FormEvent, type ReactNode } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -10,12 +9,11 @@ import {
   EyeSlash,
   CheckCircle,
   WarningCircle,
-  Sparkle,
   ArrowRight,
   ArrowLeft,
-  ShieldCheck,
 } from "@phosphor-icons/react";
 import { toast } from "../components/ui/toast-provider";
+import { AuthAside } from "./auth-aside";
 import styles from "./auth.module.css";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
@@ -59,7 +57,7 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <AuthRecoveryShell eyebrow="Account recovery">
+    <AuthRecoveryShell>
       <h1>Find your way back to the studio.</h1>
       <p className={styles.intro}>
         Enter the email you use for your teacher account. We will send a secure
@@ -195,7 +193,7 @@ export function ResetPasswordForm({ token }: { token: string | undefined }) {
   }
 
   return (
-    <AuthRecoveryShell eyebrow="Secure your account">
+    <AuthRecoveryShell>
       <h1>Choose a new password.</h1>
       <p className={styles.intro}>
         Use a fresh password that you do not use for another service.
@@ -329,64 +327,10 @@ export function ResetPasswordForm({ token }: { token: string | undefined }) {
   );
 }
 
-function AuthRecoveryShell({
-  children,
-  eyebrow,
-}: {
-  children: ReactNode;
-  eyebrow: string;
-}) {
+function AuthRecoveryShell({ children }: { children: ReactNode }) {
   return (
     <main className={styles.page}>
-      <section className={styles.reassurance} aria-label="Studio Daylight">
-        <div className={styles.brandGroup}>
-          <div className={styles.brandHeader}>
-            <div className={styles.brandIcon}>
-              <Sparkle size={20} weight="fill" />
-            </div>
-            <div className={styles.brand}>Studio Daylight</div>
-          </div>
-          <div className={styles.studioBadge}>
-            <span className={styles.studioBadgeDot} />
-            AI Visual Learning Platform
-          </div>
-        </div>
-
-        <div className={styles.artFrameContainer}>
-          <motion.div
-            className={styles.artFrame}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
-          >
-            <Image
-              src="/catalog/plant-cycle.svg"
-              alt="A calm plant life-cycle learning illustration"
-              fill
-              priority
-              sizes="(max-width: 760px) 88vw, 42vw"
-              style={{ pointerEvents: "none" }}
-            />
-          </motion.div>
-        </div>
-
-        <div className={styles.reassuranceFooter}>
-          <p>
-            Your lesson work stays in place while you recover access to your
-            teaching studio.
-          </p>
-          <div className={styles.pillFeatureRow}>
-            <div className={styles.featurePill}>
-              <ShieldCheck size={14} className={styles.featurePillIcon} weight="bold" />
-              Encrypted Auth
-            </div>
-            <div className={styles.featurePill}>
-              <Sparkle size={14} className={styles.featurePillIcon} weight="fill" />
-              Continuous Session
-            </div>
-          </div>
-        </div>
-      </section>
+      <AuthAside message="Your lesson work stays in place while you recover access to your account." />
 
       <section className={styles.formPanel}>
         <motion.div
@@ -395,10 +339,6 @@ function AuthRecoveryShell({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
         >
-          <div className={styles.eyebrow}>
-            <Sparkle size={14} weight="fill" />
-            {eyebrow}
-          </div>
           {children}
         </motion.div>
       </section>

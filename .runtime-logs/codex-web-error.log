@@ -1,0 +1,63 @@
+ ⨯ Error: ENOENT: no such file or directory, open 'D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\vendor-chunks\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113.js'
+    at <unknown> (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\app\sign-in\page.js:376:47)
+    at Object.<anonymous> (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\app\sign-in\page.js:379:3) {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\Eronmonsele\\Documents\\SoundMinds\\product-app\\apps\\web\\.next\\server\\vendor-chunks\\next@15.5.23_@opentelemetry_f08dc99305b93747e4fd9c0f93e99113.js',
+  page: '/sign-in'
+}
+ ⨯ Error: ENOENT: no such file or directory, open 'D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\vendor-chunks\@phosphor-icons+react@2.1.1_59121c96ae65983fb8c378b5597ec6e8.js'
+    at <unknown> (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\app\sign-in\page.js:376:47)
+    at Object.<anonymous> (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\app\sign-in\page.js:379:3) {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\Eronmonsele\\Documents\\SoundMinds\\product-app\\apps\\web\\.next\\server\\vendor-chunks\\@phosphor-icons+react@2.1.1_59121c96ae65983fb8c378b5597ec6e8.js',
+  page: '/sign-in'
+}
+ ⨯ Error: ENOENT: no such file or directory, open 'D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\vendor-chunks\@phosphor-icons+react@2.1.1_59121c96ae65983fb8c378b5597ec6e8.js'
+    at <unknown> (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\app\sign-in\page.js:376:47)
+    at Object.<anonymous> (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\app\sign-in\page.js:379:3) {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\Eronmonsele\\Documents\\SoundMinds\\product-app\\apps\\web\\.next\\server\\vendor-chunks\\@phosphor-icons+react@2.1.1_59121c96ae65983fb8c378b5597ec6e8.js',
+  page: '/sign-in'
+}
+ ⨯ Error: ENOENT: no such file or directory, open 'D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\vendor-chunks\@phosphor-icons+react@2.1.1_59121c96ae65983fb8c378b5597ec6e8.js'
+    at <unknown> (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\app\sign-in\page.js:376:47)
+    at Object.<anonymous> (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\app\sign-in\page.js:379:3) {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\Eronmonsele\\Documents\\SoundMinds\\product-app\\apps\\web\\.next\\server\\vendor-chunks\\@phosphor-icons+react@2.1.1_59121c96ae65983fb8c378b5597ec6e8.js',
+  page: '/sign-in'
+}
+ ⨯ Error: ENOENT: no such file or directory, open 'D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\vendor-chunks\@phosphor-icons+react@2.1.1_59121c96ae65983fb8c378b5597ec6e8.js'
+    at <unknown> (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\app\sign-in\page.js:376:47)
+    at Object.<anonymous> (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\app\sign-in\page.js:379:3) {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\Eronmonsele\\Documents\\SoundMinds\\product-app\\apps\\web\\.next\\server\\vendor-chunks\\@phosphor-icons+react@2.1.1_59121c96ae65983fb8c378b5597ec6e8.js',
+  page: '/sign-in'
+}
+ ⨯ Error: ENOENT: no such file or directory, open 'D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\vendor-chunks\@phosphor-icons+react@2.1.1_59121c96ae65983fb8c378b5597ec6e8.js'
+    at <unknown> (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\app\sign-in\page.js:376:47)
+    at Object.<anonymous> (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\app\sign-in\page.js:379:3) {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\Eronmonsele\\Documents\\SoundMinds\\product-app\\apps\\web\\.next\\server\\vendor-chunks\\@phosphor-icons+react@2.1.1_59121c96ae65983fb8c378b5597ec6e8.js',
+  page: '/sign-in'
+}
+ ⨯ Error: ENOENT: no such file or directory, open 'D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\vendor-chunks\@phosphor-icons+react@2.1.1_59121c96ae65983fb8c378b5597ec6e8.js'
+    at <unknown> (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\app\sign-in\page.js:376:47)
+    at Object.<anonymous> (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web\.next\server\app\sign-in\page.js:379:3) {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'D:\\Eronmonsele\\Documents\\SoundMinds\\product-app\\apps\\web\\.next\\server\\vendor-chunks\\@phosphor-icons+react@2.1.1_59121c96ae65983fb8c378b5597ec6e8.js',
+  page: '/sign-in'
+}

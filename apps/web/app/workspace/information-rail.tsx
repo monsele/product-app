@@ -2,7 +2,17 @@
 
 import React from "react";
 import type { ProjectSummary } from "@avlp/schemas";
-import { FileText, ShieldCheck, WarningOctagon, Spinner, ArrowRight } from "@phosphor-icons/react";
+import {
+  FileText,
+  ShieldCheck,
+  WarningOctagon,
+  Spinner,
+  ArrowRight,
+  Files,
+  Stack,
+  Translate,
+  ImageSquare,
+} from "@phosphor-icons/react";
 import { getStageDetails, formatRelativeTimestamp } from "./project-stage-utils";
 import styles from "./workspace.module.css";
 
@@ -17,6 +27,13 @@ const PROCESSING_STAGES: ReadonlySet<string> = new Set([
   "audio_generation",
   "rendering",
 ]);
+
+const SOURCE_REQUIREMENTS = [
+  { icon: Files, text: "PDF or Word (.docx) documents" },
+  { icon: Stack, text: "Up to 20 pages and 25 MB per document" },
+  { icon: Translate, text: "English-language teaching material" },
+  { icon: ImageSquare, text: "Original figures and text preserved" },
+] as const;
 
 export interface ContextualInformationRailProps {
   /**
@@ -176,10 +193,14 @@ export function ContextualInformationRail({
           </h3>
         </div>
         <ul className={styles.railRequirements}>
-          <li>PDF or Word (.docx) documents</li>
-          <li>Up to 20 pages and 25 MB per document</li>
-          <li>English-language teaching material</li>
-          <li>Original figures and text preserved</li>
+          {SOURCE_REQUIREMENTS.map(({ icon: Icon, text }) => (
+            <li key={text}>
+              <span className={styles.railRequirementIcon} aria-hidden="true">
+                <Icon size={16} weight="duotone" />
+              </span>
+              {text}
+            </li>
+          ))}
         </ul>
         <div className={styles.railDivider}>
           <div className={styles.railHeading}>

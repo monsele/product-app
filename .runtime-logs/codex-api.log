@@ -1,0 +1,11 @@
+
+> @avlp/api@0.0.0 dev D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api
+> tsx watch --env-file=../../.env src/main.ts
+
+{"level":30,"time":1790582718977,"pid":26568,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1790582718978,"pid":26568,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.193:3001"}
+{"level":30,"time":1790582718978,"pid":26568,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.27.32.1:3001"}
+{"level":30,"time":1790582718978,"pid":26568,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+{"level":30,"time":1790582719427,"pid":26568,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":60483},"msg":"incoming request"}
+{"timestamp":"2026-09-28T08:05:19.431Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0e70c-03c4-778c-b2de-20dd9a68e9ea","method":"GET","route":"/health","service":"api"}}
+{"level":30,"time":1790582719457,"pid":26568,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1","res":{"statusCode":200},"responseTime":29.52690000005532,"msg":"request completed"}
