@@ -1,0 +1,28 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]: AI Visual Learning Platform
+      - generic [ref=e6]:
+        - img "A calm plant life-cycle learning illustration"
+      - paragraph [ref=e7]: Your visual lessons are ready to edit and share with your learners.
+    - generic [ref=e9]:
+      - heading "Sign in" [level=1] [ref=e10]
+      - paragraph [ref=e11]: Sign in to access your teacher workspace and project pipeline.
+      - generic [ref=e12]:
+        - generic [ref=e13]:
+          - generic [ref=e14]: Email
+          - textbox "Email" [ref=e16]:
+            - /placeholder: teacher@school.org
+        - generic [ref=e17]:
+          - generic [ref=e18]: Password
+          - generic [ref=e19]:
+            - textbox "Password Show password" [ref=e20]:
+              - /placeholder: ••••••••••••
+            - button "Show password" [ref=e21] [cursor=pointer]
+        - button "Sign in" [ref=e24] [cursor=pointer]
+      - generic [ref=e28]:
+        - link "Forgot password?" [ref=e29] [cursor=pointer]:
+          - /url: /forgot-password
+        - link "Need an account? Create one here" [ref=e30] [cursor=pointer]:
+          - /url: /register
+  - region "Notifications"

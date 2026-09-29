@@ -510,9 +510,10 @@ export const apiEnvironmentSchema = baseEnvironmentSchema
      * Two separate switches rather than one, because they answer two different
      * questions. `ENABLED` is the feature flag: turning it off stops *new*
      * experimental work while leaving completed comparisons readable to the
-     * testers who produced them. `USER_IDS` is the cohort: who may see and
-     * choose the experimental approach at all. Both default to closed, so an
-     * environment that says nothing runs no pilot.
+     * testers who produced them. While `ENABLED` is true the pilot is open to
+     * every account; `USER_IDS` only decides who keeps read access to earlier
+     * work once it is paused. Both default to closed, so an environment that
+     * says nothing runs no pilot.
      */
     DEMONSTRATION_PILOT_ENABLED: z
       .enum(["true", "false"])
@@ -522,10 +523,10 @@ export const apiEnvironmentSchema = baseEnvironmentSchema
     /**
      * ST-105 - the prompt-to-video pilot's cohort gate (ADR-013).
      *
-     * Same two-switch shape as the demonstration pilot. `ENABLED` gates the
-     * API commands that start new runs; turning it off rejects new runs while
-     * runs already in flight drain to completion. `USER_IDS` is the cohort.
-     * Both default to closed.
+     * Same two-switch shape as the demonstration pilot. `ENABLED` opens the
+     * pilot to every account; turning it off rejects new runs while runs
+     * already in flight drain to completion, and `USER_IDS` then decides who
+     * can still see their runs. Both default to closed.
      */
     ONE_SHOT_PILOT_ENABLED: z
       .enum(["true", "false"])

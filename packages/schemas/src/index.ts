@@ -8246,7 +8246,8 @@ export function reconcileSceneDurations(
  *   teacher re-runs validation.
  */
 // "4": measured narration makes target lesson duration advisory.
-export const lessonValidationRulesetVersion = "4" as const;
+// "5": refresh saved validation reports that predate scene-level grounding findings.
+export const lessonValidationRulesetVersion = "5" as const;
 
 export const validationSeveritySchema = z.enum(["error", "warning", "info"]);
 export type ValidationSeverity = z.infer<typeof validationSeveritySchema>;

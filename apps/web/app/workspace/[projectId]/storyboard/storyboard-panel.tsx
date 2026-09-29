@@ -1554,6 +1554,7 @@ export function StoryboardPanel({
                     lessonSpecId={storyboard.id}
                     lessonSpecRevision={storyboard.revision}
                     sceneCandidates={view.value.sceneCandidates}
+                    scenes={listScenes}
                     generating={generating}
                     onChanged={onStoryboardChanged}
                     onScenePending={markScenePending}

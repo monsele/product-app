@@ -192,15 +192,15 @@
     "semantic_hash": ""
   },
   "apps/api/src/demonstration-pilot.test.ts": {
-    "mtime": 1790670572.1218524,
-    "seen": 1790670674.4391263,
-    "ast_hash": "ae1584c4bc87a7e9443902bbd7942faa",
+    "mtime": 1789786275.1947608,
+    "seen": 1790461247.722535,
+    "ast_hash": "5932a8bd64a666b6e81b38919541928d",
     "semantic_hash": ""
   },
   "apps/api/src/demonstration-pilot.ts": {
-    "mtime": 1790670470.5727322,
-    "seen": 1790670674.4391296,
-    "ast_hash": "7adeaccec601525920a4f1cda6cdcbf0",
+    "mtime": 1789976736.5695965,
+    "seen": 1790461247.7225358,
+    "ast_hash": "5cfdb62e9b16f1d8f9e8b8d35dc24f37",
     "semantic_hash": ""
   },
   "apps/api/src/demonstration-test-lessons.ts": {
@@ -1812,9 +1812,9 @@
     "semantic_hash": ""
   },
   "apps/web/app/workspace/[projectId]/storyboard/scene-detail-panel.tsx": {
-    "mtime": 1790670397.6620393,
-    "seen": 1790670674.5063694,
-    "ast_hash": "bf806d6240c27c628350a4d76f02f305",
+    "mtime": 1790632070.9923549,
+    "seen": 1790632700.393615,
+    "ast_hash": "31304cdf156d9ae12a65250d3f6f9dee",
     "semantic_hash": ""
   },
   "apps/web/app/workspace/[projectId]/storyboard/scene-editor-form.test.ts": {
@@ -1890,9 +1890,9 @@
     "semantic_hash": ""
   },
   "apps/web/app/workspace/[projectId]/storyboard/storyboard-panel.tsx": {
-    "mtime": 1790670367.017795,
-    "seen": 1790670674.509356,
-    "ast_hash": "cb9ca7338456fd53619a88307de09899",
+    "mtime": 1790626650.999598,
+    "seen": 1790627749.3866835,
+    "ast_hash": "f5830419534a55d6943c7d2f155e786c",
     "semantic_hash": ""
   },
   "apps/web/app/workspace/[projectId]/storyboard/storyboard-scene-query.test.ts": {
@@ -1926,15 +1926,15 @@
     "semantic_hash": ""
   },
   "apps/web/app/workspace/[projectId]/storyboard/validation-panel.test.ts": {
-    "mtime": 1790670397.6620393,
-    "seen": 1790670674.5104208,
-    "ast_hash": "d223c303c19e37aed4a1765600637234",
+    "mtime": 1788567956.0,
+    "seen": 1790461247.7228258,
+    "ast_hash": "c5fd39abc95381b0f51a2077cd5f2008",
     "semantic_hash": ""
   },
   "apps/web/app/workspace/[projectId]/storyboard/validation-panel.tsx": {
-    "mtime": 1790670397.660864,
-    "seen": 1790670674.5104227,
-    "ast_hash": "d434f25612fe50abcce8489cef8f11c1",
+    "mtime": 1790632154.13622,
+    "seen": 1790632700.397641,
+    "ast_hash": "8dc2ec7ddb851df53d7dac54d39b0bb8",
     "semantic_hash": ""
   },
   "apps/web/app/workspace/[projectId]/storyboard/version-browser.playwright.test.tsx": {
@@ -2508,9 +2508,9 @@
     "semantic_hash": ""
   },
   "packages/config/src/index.ts": {
-    "mtime": 1790670544.8411248,
-    "seen": 1790670674.5330205,
-    "ast_hash": "ef10da6b5a271ee7ae1120edff489aef",
+    "mtime": 1790540387.0875576,
+    "seen": 1790579890.7011604,
+    "ast_hash": "bf8ea1b473736144f386441e17834724",
     "semantic_hash": ""
   },
   "packages/config/tsconfig.json": {
@@ -4470,9 +4470,9 @@
     "semantic_hash": ""
   },
   "packages/schemas/src/index.ts": {
-    "mtime": 1790670443.1237843,
-    "seen": 1790670674.610674,
-    "ast_hash": "d1f4cc1db5cbffce57302ccd43acd81c",
+    "mtime": 1790631726.2281258,
+    "seen": 1790632700.512637,
+    "ast_hash": "7124d1c674557917e5368b2104feef3d",
     "semantic_hash": ""
   },
   "packages/schemas/src/lesson-configuration.test.ts": {
@@ -6666,15 +6666,15 @@
     "semantic_hash": ""
   },
   "apps/api/src/one-shot.test.ts": {
-    "mtime": 1790670509.2009287,
-    "seen": 1790670674.450685,
-    "ast_hash": "b9a8afcea9ac1b84b5f84eba33715c25",
+    "mtime": 1790544627.9567337,
+    "seen": 1790579890.6245716,
+    "ast_hash": "bfd20ac64fda95e42da29066c62752f0",
     "semantic_hash": ""
   },
   "apps/api/src/one-shot.ts": {
-    "mtime": 1790670470.7384584,
-    "seen": 1790670674.450687,
-    "ast_hash": "6c089bbd721c883e07bd3a9cce3a0e7c",
+    "mtime": 1790580093.350994,
+    "seen": 1790584611.7052338,
+    "ast_hash": "7d3258a99e0761cb4a0f3c6b6c91dc15",
     "semantic_hash": ""
   },
   "apps/web/app/workspace/[projectId]/preview/preview-sound-bed.test.ts": {

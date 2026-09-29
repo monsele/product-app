@@ -1,0 +1,10 @@
+
+> @avlp/pipeline-worker@0.0.0 dev D:\Eronmonsele\Documents\SoundMinds\product-app\apps\pipeline-worker
+> tsx watch --env-file=../../.env src/main.ts
+
+{"timestamp":"2026-09-29T08:04:17.252Z","level":"info","event":"worker.started","fields":{"status":"ok","service":"pipeline-worker"}}
+9:35:34 AM [tsx] change in ./..\..\packages\schemas\dist\sound-bed.js Restarting...
+9:35:38 AM [tsx] change in ./..\..\packages\schemas\dist\index.js Restarting...
+9:35:39 AM [tsx] change in ./..\..\packages\schemas\dist\demonstration-proof.js Restarting...
+{"timestamp":"2026-09-29T08:36:59.986Z","level":"info","event":"worker.started","fields":{"status":"ok","service":"pipeline-worker"}}
+{"timestamp":"2026-09-29T09:17:11.676Z","level":"info","event":"queue.job_dispatched","fields":{"outboxEventId":"01a0ec74-2542-7f1a-9af4-49f6da57469e","jobId":"01a0ec74-2542-7e16-a104-cb44f7c1b579","projectId":"01a0e759-3558-782d-a9ea-3699f8b2d4b6","correlationId":"01a0ec74-24eb-7e07-8ce2-5988de85396b","queueName":"render","service":"pipeline-worker"}}

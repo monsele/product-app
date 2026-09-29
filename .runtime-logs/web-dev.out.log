@@ -1,0 +1,57 @@
+
+> @avlp/web@0.0.0 dev D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web
+> next dev
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.193:3000
+
+ ✓ Starting...
+ ✓ Ready in 43.1s
+ ○ Compiling / ...
+ ✓ Compiled / in 28s (10486 modules)
+ GET / 200 in 14074ms
+ GET / 200 in 230ms
+ ○ Compiling /sign-in ...
+ ✓ Compiled /sign-in in 27.1s (10534 modules)
+ GET /sign-in 200 in 29135ms
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 1907ms (158 modules)
+ ○ Compiling /workspace ...
+ ✓ Compiled /workspace in 8.1s (10844 modules)
+ GET /workspace 200 in 9340ms
+ ○ Compiling /workspace/[projectId]/storyboard ...
+ ✓ Compiled /workspace/[projectId]/storyboard in 7.1s (14038 modules)
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/storyboard 200 in 27662ms
+ ✓ Compiled in 5.6s (14038 modules)
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/storyboard 200 in 3526ms
+ ✓ Compiled in 7s (14038 modules)
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/storyboard 200 in 1592ms
+ ✓ Compiled in 4.7s (14038 modules)
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/storyboard 200 in 1237ms
+ ✓ Compiled in 60.8s (14038 modules)
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/storyboard 200 in 12683ms
+ ○ Compiling /workspace/[projectId]/storyboard/candidates ...
+ ✓ Compiled /workspace/[projectId]/storyboard/candidates in 18s (14048 modules)
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/storyboard/candidates 200 in 19928ms
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/storyboard 200 in 272ms
+ GET /sign-in 200 in 1679ms
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/storyboard 200 in 674ms
+ ✓ Compiled in 19.7s (14048 modules)
+ ✓ Compiled in 1ms (8670 modules)
+ ✓ Compiled in 0ms (8670 modules)
+ ✓ Compiled in 0ms (8670 modules)
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/storyboard 200 in 6157ms
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/storyboard 200 in 6855ms
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/storyboard 200 in 9754ms
+ ✓ Compiled in 1ms (8670 modules)
+ GET /sign-in 200 in 8878ms
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/storyboard 200 in 5216ms
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/storyboard 200 in 928ms
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/storyboard 200 in 390ms
+ ○ Compiling /workspace/[projectId]/preview ...
+ ✓ Compiled /workspace/[projectId]/preview in 15.3s (14056 modules)
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/preview 200 in 18095ms
+ ○ Compiling /workspace/[projectId]/render ...
+ ✓ Compiled /workspace/[projectId]/render in 9.5s (14068 modules)
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/render 200 in 11656ms

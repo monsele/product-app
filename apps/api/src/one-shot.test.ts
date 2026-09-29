@@ -196,7 +196,7 @@ describe("ST-105 prompt-to-video routes", () => {
 
   it("hides the feature from users outside the cohort and refuses every write with 409", async () => {
     const { fixture, server } = await start(() =>
-      realService({ enabled: true, members: "" }),
+      realService({ enabled: false, members: "" }),
     );
 
     const current = await server.inject({

@@ -218,12 +218,21 @@ describe("the pilot cohort", () => {
     expect(cohort.includes(fixture.ownerUserId)).toBe(false);
   });
 
-  it("admits only the listed accounts, case-insensitively", () => {
+  it("admits every account while enabled", () => {
     const cohort = createEnvironmentPilotCohort({
       DEMONSTRATION_PILOT_ENABLED: true,
-      DEMONSTRATION_PILOT_USER_IDS: ` ${fixture.ownerUserId.toUpperCase()} , `,
     });
     expect(cohort.enabled()).toBe(true);
+    expect(cohort.includes(fixture.ownerUserId)).toBe(true);
+    expect(cohort.includes(fixture.otherUserId)).toBe(true);
+  });
+
+  it("admits only the listed accounts, case-insensitively, while paused", () => {
+    const cohort = createEnvironmentPilotCohort({
+      DEMONSTRATION_PILOT_ENABLED: false,
+      DEMONSTRATION_PILOT_USER_IDS: ` ${fixture.ownerUserId.toUpperCase()} , `,
+    });
+    expect(cohort.enabled()).toBe(false);
     expect(cohort.includes(fixture.ownerUserId)).toBe(true);
     expect(cohort.includes(fixture.otherUserId)).toBe(false);
   });
@@ -235,7 +244,7 @@ describe("the pilot cohort", () => {
 
     const outsider = new PostgresDemonstrationPilotService(
       database,
-      createEnvironmentPilotCohort({ DEMONSTRATION_PILOT_ENABLED: true }),
+      createEnvironmentPilotCohort({ DEMONSTRATION_PILOT_ENABLED: false }),
       renders,
       storage,
     );
@@ -289,7 +298,7 @@ describe("the pilot cohort", () => {
     const renders = { retry: vi.fn(), start: vi.fn() };
     const service = new PostgresDemonstrationPilotService(
       database,
-      createEnvironmentPilotCohort({ DEMONSTRATION_PILOT_ENABLED: true }),
+      createEnvironmentPilotCohort({ DEMONSTRATION_PILOT_ENABLED: false }),
       renders,
       { getMetadata: vi.fn() },
     );

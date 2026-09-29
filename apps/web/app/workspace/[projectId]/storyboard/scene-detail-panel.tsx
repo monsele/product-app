@@ -8,6 +8,7 @@ import {
   type SceneRegenerationMode,
   type ProjectAsset,
   type StoryboardSceneDetailResponse,
+  type StoryboardSceneListEntry,
   type SceneAudioStatusResponse,
   type LessonValidationRun,
   type VersionSaveBlocker,
@@ -66,6 +67,7 @@ export function SceneDetailPanel({
   lessonSpecId,
   lessonSpecRevision,
   sceneCandidates,
+  scenes,
   generating,
   onChanged,
   onScenePending,
@@ -90,6 +92,7 @@ export function SceneDetailPanel({
   lessonSpecId: string;
   lessonSpecRevision: number;
   sceneCandidates: readonly SceneCandidate[];
+  scenes: readonly StoryboardSceneListEntry[];
   generating: boolean;
   onChanged: (message?: string) => void;
   onScenePending: (sceneId: string) => void;
@@ -559,9 +562,13 @@ export function SceneDetailPanel({
               <ValidationPanel
                 projectId={projectId}
                 run={validation}
+                scenes={scenes}
                 onRun={onRunValidation}
                 onAcknowledge={onAcknowledgeValidation}
-                onNavigate={onNavigateScene}
+                onNavigate={(targetSceneId) => {
+                  onNavigateScene(targetSceneId);
+                  if (targetSceneId !== null) setActiveTab("content");
+                }}
                 busy={validationBusy}
               />
             )}

@@ -1,0 +1,13 @@
+Job execution error: JobExecutionError: The finished video failed its post-render review.
+    at reviewRender (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\renderer\src\render-worker.ts:727:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async defineJobHandler.leaseDurationMs (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\renderer\src\render-worker.ts:761:11)
+    at async executeJobDelivery (D:\Eronmonsele\Documents\SoundMinds\product-app\packages\jobs\src\worker.ts:138:7)
+    at async D:\Eronmonsele\Documents\SoundMinds\product-app\node_modules\.pnpm\bullmq@5.81.3\node_modules\bullmq\dist\cjs\classes\worker.js:612:32 {
+  classification: 'terminal',
+  code: 'RENDER_REVIEW_FAILED',
+  details: {
+    findingCodes: 'NARRATION_SILENT,LOUDNESS_OUT_OF_RANGE',
+    reviewVersion: 'render-review-v1'
+  }
+}

@@ -1,8 +1,8 @@
 "use client";
 
-import { type JSX } from "react";
+import React, { type JSX } from "react";
 import Link from "next/link";
-import { type LessonValidationRun, type ValidationIssue } from "@avlp/schemas";
+import { type LessonValidationRun, type StoryboardSceneListEntry, type ValidationIssue } from "@avlp/schemas";
 
 const labels: Record<string, string> = {
   lesson: "Lesson",
@@ -25,12 +25,25 @@ export function groupValidationIssues(
   return groups;
 }
 
+export function validationIssueSceneLabel(
+  issue: ValidationIssue,
+  scenes: readonly StoryboardSceneListEntry[],
+): string | null {
+  if (issue.sceneId === null) return null;
+  const scene = scenes.find((item) => item.sceneId === issue.sceneId);
+  if (scene === undefined) return "Affected scene";
+  return scene.title === null
+    ? `Scene ${scene.order}`
+    : `Scene ${scene.order}: ${scene.title}`;
+}
+
 export function ValidationPanel({
   projectId,
   run,
   onRun,
   onAcknowledge,
   onNavigate,
+  scenes,
   busy,
 }: {
   projectId: string;
@@ -38,6 +51,7 @@ export function ValidationPanel({
   onRun: () => void;
   onAcknowledge: (issueId: string, inputHash: string) => void;
   onNavigate: (sceneId: string | null) => void;
+  scenes: readonly StoryboardSceneListEntry[];
   busy: boolean;
 }): JSX.Element {
   if (run === null)
@@ -199,6 +213,11 @@ export function ValidationPanel({
                   gap: "6px",
                 }}
               >
+                {validationIssueSceneLabel(issue, scenes) !== null ? (
+                  <span style={{ color: "var(--color-text-muted, #BDB5C7)", fontSize: "12px", fontWeight: 600 }}>
+                    {validationIssueSceneLabel(issue, scenes)}
+                  </span>
+                ) : null}
                 <div style={{ display: "flex", alignItems: "flex-start", gap: "6px" }}>
                   <strong
                     style={{
@@ -215,7 +234,11 @@ export function ValidationPanel({
                   >
                     {issue.severity === "error" ? "Fix required" : "Warning"}:
                   </strong>
-                  <span style={{ color: "var(--color-text, #F4F1F8)" }}>{issue.message}</span>
+                  <span style={{ color: "var(--color-text, #F4F1F8)" }}>
+                    {issue.code === "grounding_unsupported_claim" && issue.sceneId === null
+                      ? "This saved grounding result does not identify the affected scene. Run checks again to locate the claim before editing."
+                      : issue.message}
+                  </span>
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginTop: "4px" }}>
@@ -233,7 +256,11 @@ export function ValidationPanel({
                         cursor: "pointer",
                       }}
                     >
-                      Open affected scene
+                      Open {validationIssueSceneLabel(issue, scenes) ?? "affected scene"}
+                    </button>
+                  ) : issue.code === "grounding_unsupported_claim" ? (
+                    <button type="button" onClick={onRun} disabled={busy} style={{ padding: "4px 8px", borderRadius: "4px", backgroundColor: "rgba(255, 255, 255, 0.08)", border: "1px solid var(--color-border, #3A3046)", color: "var(--color-brand, #A883FF)", fontSize: "12px", cursor: busy ? "not-allowed" : "pointer" }}>
+                      Run checks again
                     </button>
                   ) : issue.scopeType === "objective" ? (
                     <Link

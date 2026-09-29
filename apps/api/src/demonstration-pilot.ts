@@ -169,7 +169,9 @@ export function createEnvironmentPilotCohort(environment: {
   const enabled = environment.DEMONSTRATION_PILOT_ENABLED === true;
   return {
     enabled: () => enabled,
-    includes: (userId) => members.has(userId.toLowerCase()),
+    // While the pilot is on it is open to every account; the allowlist only
+    // matters once it is paused, keeping earlier work readable to its testers.
+    includes: (userId) => enabled || members.has(userId.toLowerCase()),
   };
 }
 
