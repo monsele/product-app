@@ -138,3 +138,7 @@ ST-080 / ST-084: product-owner requested timing and interface repair on
 `fix/audio-first-storyboard`. See [repair record](docs/audio-first-storyboard-repair.md)
 and [ADR-004](docs/adr/ADR-004-measured-narration-controls-playback-duration.md).
 Original story statuses are unchanged; live end-to-end verification is outstanding.
+
+Maintenance 2026-09-29: ST-103 narration pauses are advisory under ADR-014/render-review-v2. Newly generated PCM narration exposes early storyboard notes; grounding shows scene-specific reasons and stale checks, with contradictory support marked Needs review. See ST-103's maintenance Dev Agent Record for tests and recovery evidence. Story status remains Done.
+
+Maintenance 2026-09-29: ST-048 narration repair now patches only failed sentences, preserves valid content and citations, and sends complete correction context. Regression and real-provider checks recovered the reported prompt-to-video run through Narration into Visuals. See ST-048's maintenance Dev Agent Record for tests, screenshots and remaining bounded-repair limitations. Story status remains Done.

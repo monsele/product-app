@@ -281,7 +281,7 @@ describe("scene audio generation job", () => {
     expect(configured).not.toHaveProperty("oneShotRunId");
   });
 
-  it("persists a ready per-scene audio artifact and records metered usage", async () => {
+  it.each([false, true])("persists ready audio and metered usage with an advisory pause: %s", async (withPause) => {
     const updates: Array<Record<string, unknown>> = [];
     const inserts: Array<Record<string, unknown>> = [];
     const putBytes = vi
@@ -294,7 +294,11 @@ describe("scene audio generation job", () => {
       }: {
         narration: string;
         speakingRate: number;
-      }) => synthesizeFixtureAudio(narration, speakingRate),
+      }) => {
+        const output = synthesizeFixtureAudio(narration, speakingRate);
+        if (withPause) output.bytes.fill(0, 44, 44 + 16_000);
+        return output;
+      },
     );
     const handler = createSceneAudioGenerationJobHandler({
       database: databaseFor(
@@ -331,6 +335,12 @@ describe("scene audio generation job", () => {
     });
 
     await expect(execute(handler)).resolves.toMatchObject({ status: "ready" });
+    expect(synthesize).toHaveBeenCalledTimes(1);
+    if (withPause)
+      expect(updates).toContainEqual(expect.objectContaining({
+        status: "ready",
+        fitWarning: expect.stringContaining("do not block rendering"),
+      }));
     expect(synthesize).toHaveBeenCalledWith({
       narration: "Water enters through roots.",
       speakingRate: "1",

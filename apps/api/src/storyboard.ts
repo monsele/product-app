@@ -73,6 +73,7 @@ import {
   storyboardSceneAssetUnbindingInputSchema,
   type LessonStoryboard,
   type LessonStoryboardScene,
+  type SceneSpec,
   type NarrationBudgetStatus,
   type SceneCandidate,
   type SceneRegenerationResponse,
@@ -3424,12 +3425,9 @@ function parseBoundary<T>(schema: z.ZodType<T>, input: unknown): T {
 
 export type { StoryboardGenerationParams };
 
+/** Full scene specs keyed by stable scene ID, as design manifests are. */
 function designScenes(
   storyboardScenes: readonly LessonStoryboardScene[],
-): { id: string; template: string; durationSeconds: number }[] {
-  return storyboardScenes.map((scene) => ({
-    id: scene.stableSceneId,
-    template: scene.template,
-    durationSeconds: scene.durationSeconds,
-  }));
+): SceneSpec[] {
+  return storyboardScenes.map((scene) => ({ ...scene.scene, id: scene.stableSceneId }));
 }

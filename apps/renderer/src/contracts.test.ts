@@ -199,7 +199,7 @@ describe("render job v1 contracts", () => {
       manifest,
       optionsHash: "0".repeat(64),
       profile: base.profile,
-      rendererVersion: "st-103-remotion-4.0.507-sound-bed-render-review-v1",
+      rendererVersion: "st-103-remotion-4.0.507-sound-bed-render-review-v2",
     });
     const pinnedAsset = {
       checksumSha256: soundBed.checksumSha256,

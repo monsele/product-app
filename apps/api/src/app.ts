@@ -943,6 +943,20 @@ class ProjectsController {
     });
   }
 
+  /** ADR-015: explicitly upgrade the current v1 design draft to v2. */
+  @Post(":projectId/creative-design/upgrade")
+  public async upgradeCreativeDesign(
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.creativeDesign.upgrade({
+      ...assertAuthorizedProject(request, projectId),
+      body,
+    });
+  }
+
   @Get(":projectId/creative-design/scenes/:sceneId/alternatives")
   public async creativeDesignAlternatives(
     @Param("projectId") projectId: string,
@@ -3749,6 +3763,15 @@ const unavailableLessonConfigurationService: LessonConfigurationApiService = {
 
 const unavailableCreativeDesignService: CreativeDesignApiService = {
   getDraft: () => Promise.resolve(null),
+  upgrade: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Creative design is unavailable.",
+        503,
+        true,
+      ),
+    ),
   plan: () =>
     Promise.reject(
       new PublicError(

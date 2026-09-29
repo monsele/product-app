@@ -39,6 +39,7 @@ import {
   type SourceSnapshot,
 } from "@avlp/schemas";
 import { and, eq } from "drizzle-orm";
+import { z } from "zod";
 import {
   createModelCallGenerationHandler,
   type ModelCallHandlerOptions,
@@ -106,7 +107,9 @@ export function narrationLengthImprovement(
   operationContext: NarrationOperationContext | undefined,
 ): string | undefined {
   if (operationContext === undefined) return undefined;
-  const itemById = new Map(operationContext.items.map((item) => [item.id, item]));
+  const itemById = new Map(
+    operationContext.items.map((item) => [item.id, item]),
+  );
   let totalWords = 0;
   let coveredSeconds = 0;
   const short: string[] = [];
@@ -121,7 +124,9 @@ export function narrationLengthImprovement(
     coveredSeconds += item.estimatedSeconds;
     const budget = narrationWordCountRange(item.estimatedSeconds);
     if (words < budget.min)
-      short.push(`blocks[${blockIndex}] needs about ${budget.target - words} more words`);
+      short.push(
+        `blocks[${blockIndex}] needs about ${budget.target - words} more words`,
+      );
   }
   const total = narrationWordCountRange(coveredSeconds);
   if (totalWords >= total.min || short.length === 0) return undefined;
@@ -140,17 +145,23 @@ const narrationRepairInstructionMaxLength = 2_000;
  * rules only: the previous JSON response travels with the instruction, so no
  * source text is repeated here.
  */
-export function narrationRepairInstruction(
-  error: unknown,
-): string | undefined {
+export function narrationRepairInstruction(error: unknown): string | undefined {
   if (
     !(error instanceof NarrationDeterministicCheckError) ||
     error.violations.length === 0
   )
     return undefined;
-  const fixes = error.violations.map((violation) => {
-    const location = `blocks[${violation.blockIndex}].sentences[${violation.sentenceIndex}]`;
-    switch (violation.code) {
+  const grouped = new Map<NarrationSentenceViolation["code"], Set<string>>();
+  for (const violation of error.violations) {
+    const locations = grouped.get(violation.code) ?? new Set<string>();
+    locations.add(
+      `blocks[${violation.blockIndex}].sentences[${violation.sentenceIndex}]`,
+    );
+    grouped.set(violation.code, locations);
+  }
+  const fixes = [...grouped].map(([code, locations]) => {
+    const location = [...locations].join(", ");
+    switch (code) {
       case "LONG_COPIED_PASSAGE":
         return `${location} reuses ${narrationCopiedPassageMinimumRun}+ consecutive source words: say it in your own words, or, only if it is a verse, definition or legal wording that must stay exact, put the exact words in double quotation marks and set "quotation": true.`;
       case "SENTENCE_TOO_LONG":
@@ -161,10 +172,121 @@ export function narrationRepairInstruction(
         return `${location} exceeds the quotation limit (${narrationQuotationMaxPerBlock} per block, ${narrationQuotationMaxPerNarration} in total): paraphrase it and remove "quotation".`;
     }
   });
-  return `Fix exactly these sentences and change nothing else: ${fixes.join(" ")}`.slice(
-    0,
-    narrationRepairInstructionMaxLength,
-  );
+  // The schema bounds the number of sentences. Never truncate locations: doing
+  // so silently left later violations out of every corrective request.
+  return `Fix exactly these sentences and change nothing else: ${fixes.join(" ")}`;
+}
+
+/**
+ * Ask only for replacement sentences, then merge them in code. The model cannot
+ * rewrite valid sentences, move outline blocks, or change their citations.
+ * Split sentences inherit their original citation/generated-addition metadata.
+ */
+export function narrationSentenceRepair(input: {
+  error: unknown;
+  value: NarrationOutputV1;
+}): ReturnType<
+  NonNullable<ModelCallHandlerOptions<NarrationOutputV1>["deterministicRepair"]>
+> {
+  const instruction = narrationRepairInstruction(input.error);
+  if (
+    instruction === undefined ||
+    !(input.error instanceof NarrationDeterministicCheckError)
+  )
+    return undefined;
+  const targets = new Map<
+    string,
+    { blockIndex: number; sentenceIndex: number }
+  >();
+  for (const { blockIndex, sentenceIndex } of input.error.violations)
+    targets.set(`${blockIndex}:${sentenceIndex}`, {
+      blockIndex,
+      sentenceIndex,
+    });
+  const schema = z
+    .object({
+      repairs: z
+        .array(
+          z
+            .object({
+              blockIndex: z.number().int().nonnegative(),
+              sentenceIndex: z.number().int().nonnegative(),
+              sentences: z
+                .array(
+                  z
+                    .object({
+                      text: z.string().trim().min(1).max(2_000),
+                      quotation: z.literal(true).optional(),
+                    })
+                    .strict(),
+                )
+                .min(1)
+                .max(8),
+            })
+            .strict(),
+        )
+        .length(targets.size),
+    })
+    .strict()
+    .superRefine((patch, context) => {
+      const seen = new Set<string>();
+      for (const repair of patch.repairs) {
+        const key = `${repair.blockIndex}:${repair.sentenceIndex}`;
+        if (!targets.has(key) || seen.has(key))
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message:
+              "Repair each requested sentence exactly once; other sentences cannot change.",
+          });
+        seen.add(key);
+      }
+    })
+    .transform((patch) => {
+      const replacements = new Map(
+        patch.repairs.map((repair) => [
+          `${repair.blockIndex}:${repair.sentenceIndex}`,
+          repair.sentences,
+        ]),
+      );
+      return {
+        ...input.value,
+        blocks: input.value.blocks.map((block, blockIndex) => ({
+          ...block,
+          sentences: block.sentences.flatMap((sentence, sentenceIndex) => {
+            const replacement = replacements.get(
+              `${blockIndex}:${sentenceIndex}`,
+            );
+            if (replacement === undefined) return [sentence];
+            const metadata = { ...sentence };
+            delete metadata.quotation;
+            return replacement.map((next) => ({ ...metadata, ...next }));
+          }),
+        })),
+      };
+    })
+    .pipe(narrationOutputV1Schema);
+  return {
+    schema,
+    instruction:
+      "Repair the flagged narration sentences below. For this correction, return ONLY " +
+      '{"repairs":[{"blockIndex":0,"sentenceIndex":0,"sentences":[{"text":"Replacement spoken sentence."}]}]}. ' +
+      "Return exactly one repair per requested location, using its original zero-based indices. " +
+      "Return replacement text only, plus quotation:true only for an exact quotation. " +
+      "Citations and generated-addition labels are preserved by the application. Keep the meaning, " +
+      "facts and level of detail. Prefer paraphrasing copied wording with a different sentence structure; " +
+      "do not merely change punctuation. You may split a long sentence into several sentences. " +
+      instruction +
+      "\nSentences to repair:\n" +
+      JSON.stringify(
+        [...targets.values()].map((target) => ({
+          ...target,
+          sentence:
+            input.value.blocks[target.blockIndex]!.sentences[
+              target.sentenceIndex
+            ],
+        })),
+      ),
+  };
 }
 
 /**
@@ -762,12 +884,7 @@ export function createNarrationGenerationJobHandler(input: {
         sourcePackage,
         operationContext as NarrationOperationContext | undefined,
       ),
-    deterministicRepairInstruction: ({ error }) => {
-      const instruction = narrationRepairInstruction(error);
-      return instruction === undefined
-        ? undefined
-        : `${instruction} Keep each sentence's sourceBlockIds, meaning and outlineItemId.`;
-    },
+    deterministicRepair: narrationSentenceRepair,
     // A second corrective round covers a fix that exposes, or introduces, one
     // more copied sentence; both are cheap next to failing the whole run.
     maxDeterministicRepairs: 2,

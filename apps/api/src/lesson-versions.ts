@@ -26,6 +26,8 @@ import {
   type DatabaseExecutor,
 } from "@avlp/database";
 import {
+  anyCreativeDesignManifestSchema,
+  isCreativeDesignManifestV2,
   lessonSpecSchema,
   lessonSpecVersion,
   readableLessonSpecVersions,
@@ -1123,6 +1125,10 @@ export function buildLessonVersionSnapshot(
   citation: unknown,
 ): unknown {
   ensureReady(state);
+  const parsedDesign = state.creativeDesign
+    ? anyCreativeDesignManifestSchema.safeParse(state.creativeDesign.manifest)
+    : undefined;
+  const designManifest = parsedDesign?.success ? parsedDesign.data : undefined;
   return JSON.parse(
     JSON.stringify({
       schemaVersion: "lesson-version-v1",
@@ -1152,7 +1158,12 @@ export function buildLessonVersionSnapshot(
       versions: {
         lessonSpec: lessonSpecVersion,
         sceneLibrary: "mvp-v1",
-        creativeDesign: state.creativeDesign ? "1.0" : "mvp-default",
+        // ST-108/ADR-015: the stored manifest's own release, so a v2 version
+        // has a distinct identity; v2 also pins its composition release.
+        creativeDesign: designManifest?.manifestVersion ?? "mvp-default",
+        ...(isCreativeDesignManifestV2(designManifest)
+          ? { compositionRelease: designManifest.compositionRelease }
+          : {}),
         prompts: {
           storyboard: state.storyboard.promptVersion,
           narration: state.narration.promptVersion,

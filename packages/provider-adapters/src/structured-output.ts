@@ -102,7 +102,7 @@ function repairRequest(
 export async function generateStructuredOutput<T>(input: {
   provider: LanguageModelProvider;
   request: ProviderCompletionRequest;
-  schema: ZodType<T>;
+  schema: ZodType<T, z.ZodTypeDef, unknown>;
   maxRepairs?: number;
 }): Promise<StructuredOutputResult<T>> {
   const maxRepairs = input.maxRepairs ?? structuredOutputDefaults.maxRepairs;

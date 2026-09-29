@@ -819,6 +819,41 @@ export function RenderPanel({
                         : "Just now"}
                     </div>
                   </div>
+
+                  {latestRender.styleLabel ? (
+                    <div
+                      style={{
+                        backgroundColor: "var(--color-surface)",
+                        padding: "10px 14px",
+                        borderRadius: "6px",
+                        border: "1px solid var(--color-border)",
+                        gridColumn: "1 / -1",
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          color: "var(--color-text-muted)",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.05em",
+                          fontWeight: 600,
+                        }}
+                      >
+                        Visual style
+                      </span>
+                      <div
+                        data-testid="render-style-label"
+                        style={{
+                          fontSize: "14px",
+                          fontWeight: 600,
+                          color: "var(--color-text)",
+                          marginTop: "2px",
+                        }}
+                      >
+                        {latestRender.styleLabel}
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div
@@ -1897,6 +1932,17 @@ export function RenderPanel({
                   >
                     <strong>{render.status}</strong> —{" "}
                     {Math.round(render.progress * 100)}%
+                    {render.styleLabel ? (
+                      <span
+                        style={{
+                          fontSize: "13px",
+                          color: "var(--color-text-muted)",
+                        }}
+                      >
+                        {" "}
+                        {render.styleLabel} style
+                      </span>
+                    ) : null}
                     {render.errorMessage ? (
                       <span
                         style={{

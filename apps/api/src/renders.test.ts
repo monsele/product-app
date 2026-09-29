@@ -1184,6 +1184,7 @@ describe("ST-103 sound bed and review in the render service", () => {
     scope: { ownerUserId: string; projectId: string },
     frameKey: string,
     reportJobId?: string,
+    stylePackId: string | null = null,
   ) {
     const now = new Date("2026-09-26T08:00:00.000Z");
     const renderId = createId(now);
@@ -1207,6 +1208,7 @@ describe("ST-103 sound bed and review in the render service", () => {
             },
             video: null,
             thumbnail: null,
+            stylePackId,
           },
         ],
         [
@@ -1291,6 +1293,22 @@ describe("ST-103 sound bed and review in the render service", () => {
     });
     expect(signed).toEqual([frameKey]);
     expect(JSON.stringify(response.review)).not.toContain("users/");
+    // A version with no creative-design manifest is the only legacy style.
+    expect(response.styleLabel).toBe("Legacy default theme");
+  });
+
+  it("names the rendered version's visual style (ST-108)", async () => {
+    const fixture = createCrossUserProjectFixture();
+    const scope = { ownerUserId: fixture.ownerUserId, projectId: fixture.projectId };
+    const styleOf = async (stylePackId: string) => {
+      const { renderId, rows } = reviewRows(scope, `users/${fixture.ownerUserId}/projects/${fixture.projectId}/renders/x/review/contact-1.png`, undefined, stylePackId);
+      const service = new PostgresRenderService(databaseForRenderCommand({ rows, writes: [] }));
+      return (await service.detail({ ...scope, renderId: renderId as never })).styleLabel;
+    };
+    expect(await styleOf("field-notes")).toBe("Field Notes");
+    expect(await styleOf("prism")).toBe("Prism");
+    // An unrecognised id in a stored snapshot never leaks as a raw label.
+    expect(await styleOf("mvp-default")).toBe("Legacy default theme");
   });
 
   it("does not show a superseded attempt's review on the current job", async () => {

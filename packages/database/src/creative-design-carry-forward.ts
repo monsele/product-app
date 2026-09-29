@@ -1,9 +1,14 @@
 import {
+  anyCreativeDesignManifestSchema,
+  carryForwardCinemaDesign,
+  isCreativeDesignManifestV2,
+  type AnyCreativeDesignManifest,
+  type SceneSpec,
+} from "@avlp/schemas";
+import {
   carryForwardCreativeDesignManifest,
   creativeDesignHash,
-  creativeDesignManifestSchema,
   creativeDesignPackIdSchema,
-  type CreativeDesignManifest,
 } from "@avlp/schemas/creative-design";
 import { and, desc, eq, lt } from "drizzle-orm";
 import type { DatabaseExecutor } from "./client.js";
@@ -23,7 +28,11 @@ import {
  *
  * The design comes from the latest earlier snapshot, or from the configured
  * style pack when the lesson has none yet. See
- * `carryForwardCreativeDesignManifest` for when it is kept or re-planned.
+ * `carryForwardCreativeDesignManifest` for when it is kept or re-planned. A
+ * v2 design (ADR-015) is carried as v2 by `carryForwardCinemaDesign`, which
+ * keeps it, or re-plans with the same pack, seed, pinned illustrations and
+ * eligible locks; it never falls back to the legacy look. Scenes are the full
+ * scene specs keyed by stable scene ID, because v2 eligibility reads content.
  * Returns the pinned manifest, or `undefined` when the lesson stays legacy.
  */
 export async function carryForwardCreativeDesignSnapshot(
@@ -33,15 +42,11 @@ export async function carryForwardCreativeDesignSnapshot(
     projectId: string;
     lessonSpecId: string;
     nextRevision: number;
-    scenes: readonly Readonly<{
-      id: string;
-      template: string;
-      durationSeconds: number;
-    }>[];
+    scenes: readonly SceneSpec[];
     createId: () => string;
     now: Date;
   }>,
-): Promise<CreativeDesignManifest | undefined> {
+): Promise<AnyCreativeDesignManifest | undefined> {
   const scope = and(
     eq(creativeDesignSnapshots.ownerUserId, input.ownerUserId),
     eq(creativeDesignSnapshots.projectId, input.projectId),
@@ -56,7 +61,7 @@ export async function carryForwardCreativeDesignSnapshot(
     .orderBy(desc(creativeDesignSnapshots.createdAt))
     .limit(1);
   if (existing !== undefined)
-    return creativeDesignManifestSchema.parse(existing.manifest);
+    return anyCreativeDesignManifestSchema.parse(existing.manifest);
 
   const [previousRow] = await executor
     .select({
@@ -75,7 +80,7 @@ export async function carryForwardCreativeDesignSnapshot(
   const previousParsed =
     previousRow === undefined
       ? undefined
-      : creativeDesignManifestSchema.safeParse(previousRow.manifest);
+      : anyCreativeDesignManifestSchema.safeParse(previousRow.manifest);
   const previous = previousParsed?.success ? previousParsed.data : undefined;
 
   let packId: ReturnType<typeof creativeDesignPackIdSchema.parse> | undefined;
@@ -96,11 +101,19 @@ export async function carryForwardCreativeDesignSnapshot(
     if (packId === undefined) return undefined;
   }
 
-  const manifest = carryForwardCreativeDesignManifest({
-    previous,
-    packId: packId ?? null,
-    scenes: input.scenes,
-  });
+  const manifest: AnyCreativeDesignManifest | undefined = isCreativeDesignManifestV2(previous)
+    ? (carryForwardCinemaDesign({ previous, scenes: input.scenes }) ??
+      // Content the v2 catalogue cannot present at all keeps its pack in v1.
+      carryForwardCreativeDesignManifest({
+        previous: undefined,
+        packId: previous.pack.id,
+        scenes: input.scenes,
+      }))
+    : carryForwardCreativeDesignManifest({
+        previous,
+        packId: packId ?? null,
+        scenes: input.scenes,
+      });
   if (manifest === undefined) return undefined;
   const manifestHash = creativeDesignHash(manifest);
   await executor

@@ -147,9 +147,8 @@ export async function reconcileLessonSceneDurations(input: {
       lessonSpecId: spec.id,
       nextRevision: next.revision,
       scenes: nextScenes.map((scene) => ({
+        ...scene.scene,
         id: scene.stableSceneId,
-        template: scene.template,
-        durationSeconds: scene.durationSeconds,
       })),
       createId: () => createId(input.now),
       now: input.now,

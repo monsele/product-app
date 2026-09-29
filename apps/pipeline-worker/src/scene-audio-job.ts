@@ -43,6 +43,7 @@ import {
   segmentCaptions,
 } from "./captions.js";
 import { reconcileLessonSceneDurations } from "./duration-reconciliation.js";
+import { narrationPauseNote } from "./narration-pauses.js";
 
 export const sceneAudioGenerationJobType = "tts.generate";
 export type SceneAudioTiming = {
@@ -502,15 +503,13 @@ export function createSceneAudioGenerationJobHandler(input: {
             sceneAudioFitToleranceMs
             ? "Audio is ready. Scene timing will follow the narration when all scene audio is ready."
             : null;
-        const warning =
+        const warning = [
+          fitWarning,
           captionTimingSource === "estimated"
-            ? [
-                fitWarning,
-                "Captions use estimated sentence timing; review recommended.",
-              ]
-                .filter((value): value is string => value !== null)
-                .join(" ")
-            : fitWarning;
+            ? "Captions use estimated sentence timing; review recommended."
+            : null,
+          narrationPauseNote(output.bytes),
+        ].filter((value): value is string => value !== null).join(" ") || null;
         await input.database.transaction(async (tx) => {
           const [completed] = await tx
             .update(sceneAudio)

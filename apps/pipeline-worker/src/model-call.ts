@@ -54,7 +54,7 @@ import {
   type SourceSnapshot,
 } from "@avlp/schemas";
 import { and, desc, eq } from "drizzle-orm";
-import { type ZodType } from "zod";
+import { type ZodType, type ZodTypeDef } from "zod";
 
 function createAuditWriter(executor: DatabaseExecutor) {
   return new PostgresAuditWriter(executor);
@@ -179,6 +179,13 @@ export type ModelCallHandlerOptions<T> = {
     sourcePackage: SourcePackage;
     operationContext: unknown;
   }) => string | undefined;
+  /** A bounded patch response decoded into a complete candidate before rechecking. */
+  deterministicRepair?: (input: { error: unknown; value: T }) =>
+    | {
+        instruction: string;
+        schema: ZodType<T, ZodTypeDef, unknown>;
+      }
+    | undefined;
   /**
    * Optional instruction for one improvement round when a draft passed every
    * check but returned warnings worth fixing; undefined skips the round. The
@@ -432,13 +439,19 @@ export function createModelCallGenerationHandler<T>(
         const maxRounds =
           options.maxDeterministicRepairs ?? defaultMaxDeterministicRepairs;
         for (let round = 0; round < maxRounds; round += 1) {
+          const patchRepair = options.deterministicRepair?.({
+            error,
+            value: structured.value,
+          });
           const repairInstruction =
+            patchRepair?.instruction ??
             options.deterministicRepairInstruction?.({
               error,
               value: structured.value,
               sourcePackage,
               operationContext: operationContext?.context,
-            }) ?? genericDeterministicRepairInstruction(error);
+            }) ??
+            genericDeterministicRepairInstruction(error);
           if (repairInstruction === undefined) break;
           let repaired: Awaited<ReturnType<typeof generateStructuredOutput<T>>>;
           try {
@@ -451,15 +464,16 @@ export function createModelCallGenerationHandler<T>(
                   {
                     role: "user",
                     content:
+                      patchRepair?.instruction ??
                       "Correct the previous JSON response. " +
-                      `${repairInstruction} Preserve every other valid field and return JSON only.
+                        `${repairInstruction} Preserve every other valid field and return JSON only.
 ` +
-                      `Previous JSON response:
-${structured.rawText.slice(0, 20_000)}`,
+                        `Previous JSON response:
+${JSON.stringify(structured.value)}`,
                   },
                 ],
               },
-              schema: options.outputSchema,
+              schema: patchRepair?.schema ?? options.outputSchema,
               // One corrective completion per round; schema repair of the
               // correction itself is not attempted.
               maxRepairs: 0,
@@ -541,8 +555,7 @@ ${structured.rawText.slice(0, 20_000)}`,
             });
       if (improvement !== undefined) {
         let improved:
-          | Awaited<ReturnType<typeof generateStructuredOutput<T>>>
-          | undefined;
+          Awaited<ReturnType<typeof generateStructuredOutput<T>>> | undefined;
         try {
           improved = await generateStructuredOutput<T>({
             provider: resolvedProvider.adapter,
@@ -557,7 +570,7 @@ ${structured.rawText.slice(0, 20_000)}`,
                     `${improvement} Preserve every other valid field and return JSON only.
 ` +
                     `Previous JSON response:
-${structured.rawText.slice(0, 20_000)}`,
+${JSON.stringify(structured.value)}`,
                 },
               ],
             },

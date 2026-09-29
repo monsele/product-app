@@ -1,9 +1,7 @@
 import { togetherModelDefaults } from "@avlp/config";
 import { identifierSchema, type Identifier } from "@avlp/config/identifiers";
-import {
-  creativeDesignManifestSchema,
-  creativeDesignPackIdSchema,
-} from "./creative-design.js";
+import { creativeDesignPackIdSchema } from "./creative-design.js";
+import { anyCreativeDesignManifestSchema } from "./creative-design-v2.js";
 import {
   renderReviewSummarySchema,
   soundBedChoiceSchema,
@@ -12,6 +10,7 @@ import {
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
 export * from "./creative-design.js";
+export * from "./creative-design-v2.js";
 export * from "./sound-bed.js";
 
 export const lessonSpecVersion = "1.9" as const;
@@ -6265,6 +6264,12 @@ export const renderStatusResponseSchema = z
     video: renderedVideoSchema.nullable(),
     /** ST-103. The post-render review, once it has run for this render. */
     review: renderReviewSummarySchema.nullable(),
+    /**
+     * ST-108. The human-readable visual style of the rendered version
+     * (`creativeDesignStyleLabel`); "Legacy default theme" only when the
+     * version has no creative-design manifest.
+     */
+    styleLabel: z.string().min(1).max(80).optional(),
   })
   .strict();
 export type RenderStatusResponse = z.infer<typeof renderStatusResponseSchema>;
@@ -6708,8 +6713,9 @@ export const previewManifestSchema = z
   .object({
     assets: z.record(previewAssetSchema).default({}),
     /** The immutable design selection paired with this storyboard revision.
-     * Omitted for legacy lessons, which retain the mvp-default appearance. */
-    creativeDesign: creativeDesignManifestSchema.optional(),
+     * Omitted for legacy lessons, which retain the mvp-default appearance.
+     * Either release (ADR-015): v1 keeps its treatments, v2 its compositions. */
+    creativeDesign: anyCreativeDesignManifestSchema.optional(),
     /** ST-103. The configured background bed, resolved from the catalog with
      * a short-lived signed URL. Omitted when the lesson has no bed. */
     soundBed: z

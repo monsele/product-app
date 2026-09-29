@@ -14,7 +14,7 @@ import {
   lessonAudioGenerationResponseSchema,
   lessonIllustrationGenerationResponseSchema,
   versionSaveReadinessSchema,
-  type CreativeDesignManifest,
+  type AnyCreativeDesignManifest,
   type LessonValidationRun,
   type PreviewManifest,
   type ProjectAsset,
@@ -204,7 +204,7 @@ export function StoryboardPanel({
 }) {
   const [view, setView] = useState<ViewState>({ kind: "loading" });
   const [previewDesign, setPreviewDesign] =
-    useState<CreativeDesignManifest | null>(null);
+    useState<AnyCreativeDesignManifest | null>(null);
   const [pending, setPending] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);

@@ -412,10 +412,11 @@ export function normalizeGroundingOutput(
     else if (status === "generated_addition") status = "needs_review";
     else if (
       status === "supported" &&
-      result.supportedSpans.length > 0 &&
-      supportedSpans.length === 0
+      (unsupportedSpans.length > 0 ||
+        (result.supportedSpans.length > 0 && supportedSpans.length === 0))
     )
-      // Every piece of evidence the model gave was unusable.
+      // Contradictory partial support, or entirely unusable evidence, cannot
+      // truthfully be presented as a fully supported claim.
       status = "needs_review";
     results.push({ ...result, status, supportedSpans, unsupportedSpans });
   }

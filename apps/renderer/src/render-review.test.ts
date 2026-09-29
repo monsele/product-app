@@ -51,7 +51,7 @@ const codes = (measurements: Partial<RenderMeasurements>, overrides: Partial<Ren
 
 describe("render review thresholds", () => {
   it("are one versioned set of constants", () => {
-    expect(renderReviewVersion).toBe("render-review-v1");
+    expect(renderReviewVersion).toBe("render-review-v2");
     expect(renderReviewThresholds).toMatchObject({
       audio: {
         clippingPeakDbfs: -0.1,
@@ -115,7 +115,7 @@ describe("classifyRenderReview", () => {
     expect(findings[0]!.correction).toMatch(/storyboard/);
   });
 
-  it("3. missing narration: silence of 1.0 s overlapping narration by 1.0 s", () => {
+  it("3. narration pauses are advisory, including the 1.0 s boundary", () => {
     // Long silence entirely outside narration: not an error.
     expect(codes({ silenceSpans: [{ startMs: 0, endMs: 9_000 }] })).toEqual([]);
     // Overlap just under 1.0 s.
@@ -131,13 +131,29 @@ describe("classifyRenderReview", () => {
       expect.objectContaining({
         atMs: 10_000,
         code: "NARRATION_SILENT",
-        severity: "error",
+        severity: "warning",
       }),
     ]);
+    expect(findings[0]!.correction).toContain("No action is required");
     // A silence shorter than the detection minimum never counts.
     expect(
       codes({ silenceSpans: [{ startMs: 12_000, endMs: 12_999 }] }),
     ).toEqual([]);
+  });
+
+  it("delivers the reported lesson's seven short pauses and quiet loudness as notes", () => {
+    const pauses = [[7893, 1080], [11955, 1040], [35680, 1050], [70000, 1220],
+      [115464, 1070], [144901, 1170], [154763, 1110]] as const;
+    const findings = classifyRenderReview({
+      ...clean,
+      durationMs: 207062,
+      integratedLufs: -27.53,
+      silenceSpans: pauses.map(([startMs, duration]) => ({ startMs, endMs: startMs + duration })),
+    }, { ...expectations, expectedDurationMs: 207062, narrationSpans: [{ startMs: 0, endMs: 207062 }] });
+    expect(findings).toHaveLength(8);
+    expect(findings.every((item) => item.severity === "warning")).toBe(true);
+    expect(findings.filter((item) => item.code === "NARRATION_SILENT").map((item) => item.atMs))
+      .toEqual(pauses.map(([startMs]) => startMs));
   });
 
   it("4. audio level: clipping at -0.1 dBFS and loudness outside -20..-12 LUFS warn", () => {

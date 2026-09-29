@@ -743,9 +743,11 @@ describe("persistLessonStoryboard", () => {
   function callPersist(input: {
     executor: DatabaseExecutor;
     idempotencyKey: string;
+    creativeDesignV2?: boolean;
   }) {
     return persistLessonStoryboard({
       executor: input.executor,
+      ...(input.creativeDesignV2 === undefined ? {} : { creativeDesignV2: input.creativeDesignV2 }),
       output: validOutput(),
       sourcePackage: buildSourcePackage(sampleSnapshot()),
       // ST-104: the parsed params type carries an optional `focusPrompt`,
@@ -821,6 +823,30 @@ describe("persistLessonStoryboard", () => {
     expect(snapshotInserts).toHaveLength(1);
     const snapshot = snapshotInserts[0] as { manifest: { pack: { id: string } } };
     expect(creativeDesignPackIds).toContain(snapshot.manifest.pack.id);
+  });
+
+  it("ST-112: creates a v2 design for new storyboards when the flag is on", async () => {
+    for (const creativeStylePack of ["essential", undefined]) {
+      const { executor, inserted, draftInserts, snapshotInserts } = storeCapture(
+        creativeStylePack === undefined ? {} : { creativeStylePack },
+      );
+      await callPersist({ executor, idempotencyKey: `key-v2-${creativeStylePack ?? "suggested"}`, creativeDesignV2: true });
+      const snapshot = snapshotInserts[0] as {
+        manifest: { manifestVersion: string; pack: { id: string }; variationSeed: string; scenes: Record<string, unknown> };
+        manifestHash: string;
+      };
+      expect(snapshot.manifest.manifestVersion).toBe("2.0");
+      expect(snapshot.manifest.pack.id).toBe(creativeStylePack ?? snapshot.manifest.pack.id);
+      expect(snapshot.manifest.variationSeed).toMatch(/^[0-9a-f]{16}$/u);
+      // Keyed by stable scene ID, as carry-forward, preview and render read it.
+      const specRow = inserted.find((row) => (row as { payload?: unknown }).payload !== undefined) as {
+        payload: { scenes: { stableSceneId: string }[] };
+      };
+      expect(Object.keys(snapshot.manifest.scenes).sort()).toEqual(
+        specRow.payload.scenes.map((entry) => entry.stableSceneId).sort(),
+      );
+      expect((draftInserts[0] as { manifestHash: string }).manifestHash).toBe(snapshot.manifestHash);
+    }
   });
 
   it("fails as a terminal job error when the configured style pack cannot be resolved", async () => {

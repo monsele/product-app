@@ -13,6 +13,7 @@ import {
   InMemoryQuotaGuard,
   jsonCompletion,
   MockLanguageModelProvider,
+  sequenceCompletion,
   mockPricing,
   repositoryPrompts,
   StaticPromptRegistry,
@@ -36,6 +37,7 @@ import {
   NarrationDeterministicCheckError,
   narrationLengthImprovement,
   narrationRepairInstruction,
+  narrationSentenceRepair,
   persistNarrationSet,
 } from "./narration-job.js";
 
@@ -446,7 +448,8 @@ describe("assertNarrationDeterministicChecks", () => {
   it("reports every copied sentence at once, with its location", () => {
     const output = validOutput();
     output.blocks[0]!.sentences[1] = {
-      text: "Water evaporates when heated and rises as water vapour " + words(8),
+      text:
+        "Water evaporates when heated and rises as water vapour " + words(8),
       sourceBlockIds: [blockA],
     };
     output.blocks[1]!.sentences[0] = {
@@ -473,7 +476,8 @@ describe("assertNarrationDeterministicChecks", () => {
     const output = validOutput();
     // Eight copied words, then words that occur in the block out of order.
     output.blocks[0]!.sentences[1] = {
-      text: "Water evaporates when heated and rises as water into the " + words(6),
+      text:
+        "Water evaporates when heated and rises as water into the " + words(6),
       sourceBlockIds: [blockA],
     };
     expect(checkError(output).message).toContain("copies a 8-word passage");
@@ -500,7 +504,9 @@ describe("assertNarrationDeterministicChecks", () => {
     };
     const error = checkError(output);
     expect(error.code).toBe("QUOTATION_NOT_IN_SOURCE");
-    expect(narrationRepairInstruction(error)).toContain("blocks[0].sentences[1]");
+    expect(narrationRepairInstruction(error)).toContain(
+      "blocks[0].sentences[1]",
+    );
   });
 
   it("rejects a second quotation in one block", () => {
@@ -510,7 +516,11 @@ describe("assertNarrationDeterministicChecks", () => {
       sourceBlockIds: [blockA],
       quotation: true as const,
     };
-    output.blocks[0]!.sentences = [quote, quote, { text: words(10), sourceBlockIds: [blockA] }];
+    output.blocks[0]!.sentences = [
+      quote,
+      quote,
+      { text: words(10), sourceBlockIds: [blockA] },
+    ];
     const error = checkError(output);
     expect(error.code).toBe("TOO_MANY_QUOTATIONS");
     expect(error.violations).toEqual([
@@ -522,17 +532,131 @@ describe("assertNarrationDeterministicChecks", () => {
     const output = validOutput();
     output.blocks[0]!.sentences[0]!.sourceBlockIds = [unknownBlock];
     expect(narrationRepairInstruction(checkError(output))).toBeUndefined();
+    expect(
+      narrationSentenceRepair({ error: checkError(output), value: output }),
+    ).toBeUndefined();
+  });
+
+  it("includes every repair location even when fifteen sentences copy source wording", () => {
+    const output = validOutput();
+    output.blocks[0]!.sentences = Array.from({ length: 15 }, () => ({
+      text: "Water evaporates when heated and rises as water vapour into the sky.",
+      sourceBlockIds: [blockA],
+    }));
+    const error = checkError(output);
+    const repair = narrationSentenceRepair({ error, value: output })!;
+    for (let index = 0; index < 15; index += 1)
+      expect(repair.instruction).toContain(`blocks[0].sentences[${index}]`);
+    const patches = Array.from({ length: 15 }, (_, sentenceIndex) => ({
+      blockIndex: 0,
+      sentenceIndex,
+      sentences: [
+        { text: "Heating turns liquid water into vapour that moves upwards." },
+      ],
+    }));
+    const next = repair.schema.parse({ repairs: patches });
+    expect(next.blocks[1]).toEqual(output.blocks[1]);
+    expect(() =>
+      assertNarrationDeterministicChecks(next, pkg, context),
+    ).not.toThrow();
+    expect(repair.schema.safeParse({ repairs: patches.slice(1) }).success).toBe(
+      false,
+    );
+    expect(
+      repair.schema.safeParse({ repairs: [...patches.slice(1), patches[1]] })
+        .success,
+    ).toBe(false);
+    expect(
+      repair.schema.safeParse({
+        repairs: [...patches.slice(1), { ...patches[0], blockIndex: 1 }],
+      }).success,
+    ).toBe(false);
+    expect(
+      repair.schema.safeParse({
+        repairs: patches.map((patch) => ({
+          ...patch,
+          sourceBlockIds: [unknownBlock],
+        })),
+      }).success,
+    ).toBe(false);
+  });
+
+  it("splits only the rejected sentence and preserves citations and the input", () => {
+    const output = validOutput();
+    output.blocks[0]!.sentences[1] = {
+      text: words(50),
+      sourceBlockIds: [blockA, blockB],
+    };
+    const original = globalThis.structuredClone(output);
+    const repair = narrationSentenceRepair({
+      error: checkError(output),
+      value: output,
+    })!;
+    const next = repair.schema.parse({
+      repairs: [
+        {
+          blockIndex: 0,
+          sentenceIndex: 1,
+          sentences: [{ text: words(25) }, { text: words(25) }],
+        },
+      ],
+    });
+    expect(output).toEqual(original);
+    expect(next.blocks[0]!.sentences[0]).toEqual(
+      output.blocks[0]!.sentences[0],
+    );
+    expect(next.blocks[1]).toEqual(output.blocks[1]);
+    expect(
+      next.blocks[0]!.sentences.slice(1).map(
+        (sentence) => sentence.sourceBlockIds,
+      ),
+    ).toEqual([
+      [blockA, blockB],
+      [blockA, blockB],
+    ]);
+    expect(() =>
+      assertNarrationDeterministicChecks(next, pkg, context),
+    ).not.toThrow();
+  });
+
+  it("rechecks quotations and copying after applying a patch", () => {
+    const output = validOutput();
+    const text =
+      "Water evaporates when heated and rises as water vapour into the sky.";
+    output.blocks[0]!.sentences[1] = { text, sourceBlockIds: [blockA] };
+    const repair = narrationSentenceRepair({
+      error: checkError(output),
+      value: output,
+    })!;
+    const unchanged = repair.schema.parse({
+      repairs: [{ blockIndex: 0, sentenceIndex: 1, sentences: [{ text }] }],
+    });
+    expect(checkError(unchanged).code).toBe("LONG_COPIED_PASSAGE");
+    const falseQuote = repair.schema.parse({
+      repairs: [
+        {
+          blockIndex: 0,
+          sentenceIndex: 1,
+          sentences: [{ text: '"Water is made of gold."', quotation: true }],
+        },
+      ],
+    });
+    expect(checkError(falseQuote).code).toBe("QUOTATION_NOT_IN_SOURCE");
   });
 });
 
 describe("narrationLengthImprovement", () => {
   it("asks nothing of a script that fills the lesson", () => {
-    expect(narrationLengthImprovement(validOutput(), operationContext())).toBeUndefined();
+    expect(
+      narrationLengthImprovement(validOutput(), operationContext()),
+    ).toBeUndefined();
   });
 
   it("names each short block and the words the lesson still needs", () => {
     const output = validOutput();
-    output.blocks[1]!.sentences = [{ text: words(30), sourceBlockIds: [blockB] }];
+    output.blocks[1]!.sentences = [
+      { text: words(30), sourceBlockIds: [blockB] },
+    ];
     const instruction = narrationLengthImprovement(output, operationContext())!;
     expect(instruction).toContain("has 80 words and needs 113-144");
     expect(instruction).toContain("blocks[1] needs about 45 more words");
@@ -812,6 +936,53 @@ describe("narration generation job", () => {
       validationStatus: "validated",
     });
     expect(result.metadata.candidateId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it("repairs copied sentences through the metered job lifecycle", async () => {
+    const output = validOutput();
+    output.blocks[0]!.sentences[1] = {
+      text: "Water evaporates when heated and rises as water vapour into the sky.",
+      sourceBlockIds: [blockA],
+    };
+    const provider = new MockLanguageModelProvider({
+      model: "mock-model-1",
+      completion: sequenceCompletion([
+        JSON.stringify(output),
+        JSON.stringify({
+          repairs: [
+            {
+              blockIndex: 0,
+              sentenceIndex: 1,
+              sentences: [
+                { text: validOutput().blocks[0]!.sentences[1]!.text },
+              ],
+            },
+          ],
+        }),
+      ]),
+    });
+    const handler = createNarrationGenerationJobHandler({
+      database: fakeDatabase({
+        snapshot: sampleSnapshot(),
+        outlineSetRow: approvedOutlineSetRow(),
+        outlineItemRows: outlineItemRows(),
+      }) as never,
+      provider,
+      promptRegistry: new StaticPromptRegistry(repositoryPrompts),
+      quotaGuard: new InMemoryQuotaGuard([]),
+      pricing: mockPricing,
+    });
+    const result = await execute(handler, jobPayload());
+    expect(result.outcome).toBe("succeeded");
+    if (result.outcome !== "succeeded") throw result.error;
+    expect(result.metadata).toMatchObject({ validationStatus: "repaired" });
+    expect(provider.requests).toHaveLength(2);
+    expect(provider.requests[1]!.messages.at(-1)!.content).toContain(
+      '"repairs"',
+    );
+    expect(provider.requests[1]!.messages.at(-1)!.content).not.toContain(
+      "Previous JSON response:",
+    );
   });
 
   it("rejects deterministic failures without producing a candidate", async () => {

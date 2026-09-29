@@ -50,7 +50,7 @@ import {
 import { hashJobOptions } from "@avlp/jobs";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
-  creativeDesignManifestSchema,
+  anyCreativeDesignManifestSchema,
   lessonSpecSchema,
   readVideoApproach,
   videoApproachSchema,
@@ -119,7 +119,9 @@ function presentationFromBaseline(
     }
   ).creativeDesign?.manifest;
   if (saved === undefined) return { kind: "mvp-default", version: "1.0.0" };
-  const parsed = creativeDesignManifestSchema.safeParse(saved);
+  // Either release (ADR-015): the comparison reads only the pack and its
+  // settings, which v1 and v2 manifests share.
+  const parsed = anyCreativeDesignManifestSchema.safeParse(saved);
   if (!parsed.success)
     throw new PublicError(
       "bad_request",

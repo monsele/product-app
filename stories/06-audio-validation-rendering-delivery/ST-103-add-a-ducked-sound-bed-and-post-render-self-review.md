@@ -11,6 +11,12 @@ depends_on: ["ST-057", "ST-063", "ST-064", "ST-065", "ST-066", "ST-068", "ST-077
 
 # ST-103 — Add a Ducked Background Sound Bed and Post-Render Self-Review
 
+> Maintenance amendment, 2026-09-29: the product owner superseded the original
+> silent-narration blocking criterion. ADR-014 makes detected pauses advisory,
+> adds early narration notes, and clarifies grounding review. The original
+> implementation record below remains historical; see the maintenance record
+> at the end for current behavior and verification.
+
 ## Story
 
 As a teacher, I want an optional background music bed that automatically quiets under
@@ -359,3 +365,75 @@ ST-057, ST-063, ST-064, ST-065, ST-066, ST-068, ST-077, ST-098, ST-102. All are 
   - Renders queued under the previous implementation version fail explicitly as unavailable after deploy (CR-03).
   - Deployment must run `sound-beds:register` before any lesson with a bed renders.
   - A licensing review found no OpenMontage code or derivative; see `LICENSES.md` and ADR-012 §7.
+
+### Maintenance — narration pauses and grounding review (2026-09-29)
+
+- **Request/decision:** the product owner reported a finished 207.062-second
+  video rejected for seven pauses of 1.04–1.22 seconds. ADR-014 supersedes the
+  silence blocker. All pause findings are advisory; no acknowledgement or new
+  narration is required to render an approved version.
+- **Files changed:** renderer classification, thresholds, implementation identity
+  and their unit/real-media/worker tests; API render implementation identity;
+  pipeline `narration-pauses.ts` and tests, `scene-audio-job.ts` and tests,
+  grounding result normalization and tests; storyboard grounding input/panel
+  and tests; ADR-014, this record, and STORY_INDEX.md.
+- **Migrations:** none.
+- **Public contracts:** no shape changes. `NARRATION_SILENT` has warning severity
+  under `render-review-v2`; renderer identity is
+  `st-103-remotion-4.0.507-sound-bed-render-review-v2`. Existing `fitWarning`
+  carries early scene-relative pause notes. Immutable historical reports remain
+  unchanged. New renders of an existing approved version use the new identity.
+- **Earlier detection:** inspect newly generated PCM16 WAV narration at -50 dB
+  for pauses of at least one second, before persisting ready audio. Preserve the
+  bytes, captions, readiness, quota and usage paths. The storyboard Audio panel
+  already displays these notes and provides Listen/Regenerate controls. No
+  additional paid provider calls are introduced.
+- **Grounding audit and fixes:** model unsupported/recheck findings already were
+  warning-only in preflight; missing/invalid source references remain errors.
+  Expose flagged passages and reasons, identify outdated lesson revisions,
+  refresh after revision changes, and count claims for the selected scene.
+  Normalize contradictory `supported` results containing unsupported spans to
+  `needs_review`, including the display of older results. No stored check is
+  rewritten. The live first scene included such a contradictory result and a
+  rhetorical opening question flagged by the model; these remain review notes,
+  not proof of factual error or a reason to reject the rendered MP4.
+- **Tests/commands:** 182 targeted tests passed across renderer classification,
+  contracts, worker upload/retry, real ffmpeg silence with/without a bed,
+  narration inspection/generation, grounding normalization, grounding API/service,
+  validation, render API authorization, and grounding UI helpers/markup.
+  Commands: package-local `pnpm exec vitest run` for the changed suites;
+  real-media suite filtered with `-t 'narration pause|ducked bed fills'`;
+  API suites with `--no-file-parallelism`; grounding API rerun with
+  `--testTimeout 30000`. Four affected apps passed `typecheck`; changed files
+  passed ESLint; `git diff --check` passed.
+- **Test environment notes:** an initial root-level Vitest invocation also
+  discovered unrelated nested `.kilo/worktrees` without installed dependencies;
+  package-local runs avoid that. One API startup test exceeded 5 seconds under
+  concurrent rendering; the isolated 30-second-limit rerun passed. A new markup
+  test exposed a missing React import, which was fixed and rerun successfully.
+- **Screenshots:** `artifacts/narration-grounding-storyboard-details.png` captures
+  the real Sources panel with the corrected Needs review label and source reason.
+- **Known limits:** early waveform inspection currently covers PCM16 WAV (the
+  production TTS format); compressed/unsupported formats retain final-render
+  inspection. Previously generated audio is not silently regenerated or
+  backfilled. Amplitude does not prove missing words, and regeneration cannot
+  promise fewer intentional pauses. No automatic trimming or transcript
+  rewriting was added. Prompt-level handling of rhetorical framing remains a
+  grounding-quality follow-up; no heuristic treats a question as factual proof.
+- **Deviation:** deliberately supersedes the original ST-103 silent-narration
+  failure criterion per explicit product-owner instruction and ADR-014. The
+  related early audio notes and grounding clarification are authorized
+  maintenance, not a new background-music or lesson-generation feature.
+- **Builds:** API, pipeline-worker and renderer production TypeScript builds
+  passed. Web typecheck and hydrated browser verification passed; a full Next
+  production build was not run against the active development server.
+- **Live recovery:** started a new render of the user's existing approved
+  Sermon:Riches version through the authenticated app. A development watcher
+  restart interrupted the first attempt; lease recovery automatically resumed
+  it. The job completed at 11:04 Lagos time with `render-review-v2`, seven
+  narration-pause warnings and one loudness warning, no error findings.
+  The Deliver page shows Completed and Passed with 8 notes. Downloaded
+  `artifacts/sermon-riches.mp4` (13,661,111 bytes); ffprobe confirms 207.062s,
+  1920×1080, 30 fps, H.264/AAC. Screenshot:
+  `artifacts/narration-render-delivered.png`. No narration regeneration or paid
+  provider call was needed for recovery.

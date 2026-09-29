@@ -854,7 +854,7 @@ describe("ST-103 post-render review in the worker", () => {
         }),
       ],
       outcome: "failed",
-      reviewVersion: "render-review-v1",
+      reviewVersion: "render-review-v2",
     });
     expect(lifecycle.reports[0]!.contactSheet).toHaveLength(4);
   });
@@ -1073,18 +1073,45 @@ describe("ST-103 post-render review in the worker", () => {
       return { engine, failure };
     }
 
+    it("uploads and completes a production video with narration pauses, including on retry", async () => {
+      const deliveryContext = context([]);
+      const production = productionPayload(deliveryContext);
+      const { catalog, storage } = stores(production);
+      const lifecycle = reviewLifecycle();
+      const engine = new FakeRenderEngine();
+      const handler = createRenderJobHandler({
+        catalogStorage: catalog,
+        engine,
+        inspector: new PassingInspector({
+          silenceSpans: [{ startMs: 5_000, endMs: 8_000 }],
+          integratedLufs: -27.53,
+        }),
+        downloadArtifact: downloader,
+        lifecycle,
+        storage,
+        uploadArtifact: uploader(storage),
+        usageMeter: new MemoryUsageMeter(),
+      });
+      await handler.handler(production.payload, deliveryContext);
+      await handler.handler(production.payload, deliveryContext);
+      expect(lifecycle.complete).toHaveBeenCalledTimes(2);
+      expect(lifecycle.reports).toHaveLength(2);
+      for (const report of lifecycle.reports) {
+        expect(report.outcome).toBe("passed");
+        expect(report.reviewVersion).toBe("render-review-v2");
+        expect(report.findings).toEqual(expect.arrayContaining([
+          expect.objectContaining({ code: "NARRATION_SILENT", severity: "warning", atMs: 5_000 }),
+        ]));
+        expect(report.findings.some((item) => item.severity === "error")).toBe(false);
+      }
+      expect([...storage.objects.keys()].filter((key) => key.endsWith("lesson.mp4"))).toHaveLength(1);
+    });
+
     it.each([
       {
         name: "a black gap",
         code: "BLACK_SEGMENT",
         overrides: { blackSpans: [{ startMs: 40_000, endMs: 41_500 }] },
-        dropSceneCaptions: false,
-      },
-      {
-        name: "silent narration",
-        code: "NARRATION_SILENT",
-        // Inside the first scene's narration cue.
-        overrides: { silenceSpans: [{ startMs: 5_000, endMs: 8_000 }] },
         dropSceneCaptions: false,
       },
       {

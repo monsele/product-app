@@ -83,7 +83,7 @@ const corrections: Record<RenderReviewFindingCode, string> = {
   BLACK_SEGMENT:
     "Open the scene at this time in the storyboard, check its visual assets are available, then validate and render again.",
   NARRATION_SILENT:
-    "Regenerate the narration audio for the scene at this time, then validate and render again.",
+    "No action is required. Pauses can be intentional. Optional: listen at this time; to change the pacing, open the scene's Audio tab in the storyboard and regenerate its narration.",
   AUDIO_CLIPPING:
     "Optional: regenerate the narration for louder scenes, or choose a quieter sound bed.",
   LOUDNESS_OUT_OF_RANGE:
@@ -169,7 +169,8 @@ export function classifyRenderReview(
         ),
       );
 
-  // 3. Missing narration: silence that covers a narration span long enough.
+  // 3. A quiet span is a pacing note, not evidence of missing narration.
+  // Caption spans can include natural pauses, especially with estimated timing.
   for (const silence of measurements.silenceSpans) {
     if (silence.endMs - silence.startMs < thresholds.silence.minDurationMs)
       continue;
@@ -180,8 +181,8 @@ export function classifyRenderReview(
         findings.push(
           finding(
             "NARRATION_SILENT",
-            "error",
-            `Narration is silent for ${seconds(overlapEnd - overlapStart)} from ${seconds(overlapStart)}.`,
+            "warning",
+            `A narration pause was detected for ${seconds(overlapEnd - overlapStart)} from ${seconds(overlapStart)}.`,
             overlapStart,
           ),
         );

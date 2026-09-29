@@ -30,6 +30,7 @@ import {
   type LessonStoryboardScene,
   type LessonValidationRun,
   type RenderStatusResponse,
+  type SceneSpec,
 } from "@avlp/schemas";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
@@ -947,8 +948,7 @@ export class ServiceOneShotGateway
           revision: number;
           scenes: readonly {
             stableSceneId: string;
-            template: string;
-            durationSeconds: number;
+            scene: SceneSpec;
           }[];
         }
       | null
@@ -963,9 +963,8 @@ export class ServiceOneShotGateway
         lessonSpecId: working.id,
         nextRevision: working.revision,
         scenes: working.scenes.map((scene) => ({
+          ...scene.scene,
           id: scene.stableSceneId,
-          template: scene.template,
-          durationSeconds: scene.durationSeconds,
         })),
         createId: () => createId(now),
         now,

@@ -14,6 +14,7 @@
 import React from "react";
 import {
   creativeDesignPackDefaultSettings,
+  creativeDesignPackNames,
   type CreativeDesignPackId,
 } from "@avlp/schemas";
 
@@ -30,7 +31,7 @@ export const creativeStylePackOptions: readonly {
   },
   {
     value: "essential",
-    label: "Essential",
+    label: creativeDesignPackNames["essential"],
     description:
       "Warm white, ink black, a restrained accent; large typography; isolated objects; generous space. Strongest for science concepts, product explanations, foundational lessons.",
   },
@@ -40,31 +41,31 @@ export const creativeStylePackOptions: readonly {
   // hidden — see the terminal-error path in storyboard-job.ts.
   {
     value: "editorial",
-    label: "Editorial",
+    label: creativeDesignPackNames["editorial"],
     description:
       "Charcoal, ivory, restrained amber; bold headlines; photographic crops; annotated evidence. Strongest for history, economics, biographies, persuasive explanations.",
   },
   {
     value: "everyday",
-    label: "Everyday",
+    label: creativeDesignPackNames["everyday"],
     description:
       "Cobalt, mint, cream; friendly geometric illustration; relatable objects; clear numerals. Strongest for financial literacy, practical maths, everyday explanations.",
   },
   {
     value: "systems",
-    label: "Systems",
+    label: creativeDesignPackNames["systems"],
     description:
       "Deep ink or pale neutral backgrounds; fine connectors; precise diagrams. Strongest for technology, processes, cause and effect, business models.",
   },
   {
     value: "field-notes",
-    label: "Field Notes",
+    label: creativeDesignPackNames["field-notes"],
     description:
       "Paper tones, graphite, rust, olive; documentary images; clean annotations. Strongest for biology, geography, discovery, worked explanations.",
   },
   {
     value: "prism",
-    label: "Prism",
+    label: creativeDesignPackNames["prism"],
     description:
       "Saturated colour fields, oversized type, bold geometric cutouts, strong contrast. Strongest for short introductions, revision, younger audiences, memorable recaps.",
   },
@@ -89,7 +90,7 @@ export function CreativeStylePackSelector({
         const isSelected = value === option.value;
         return (
           <button
-            key={option.value ?? "mvp-default"}
+            key={option.value ?? "automatic"}
             type="button"
             role="radio"
             aria-checked={isSelected}

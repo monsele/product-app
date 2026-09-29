@@ -5,12 +5,14 @@ import { Audio, useCurrentFrame } from "remotion";
 import React, { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { z } from "zod";
 import {
-  creativeDesignManifestSchema,
+  anyCreativeDesignManifestSchema,
+  isCreativeDesignManifestV2,
   previewAssetSchema,
   sceneSpecSchema,
   type SceneSpec,
 } from "@avlp/schemas";
 import { CreativeScene } from "./full-lesson.js";
+import { CinemaScene } from "./cinema/cinema-scene.js";
 import {
   ScenePreviewRuntime,
   validateScene,
@@ -93,7 +95,7 @@ export const scenePreviewInputSchema = z
      * does. The storyboard passes its unsaved appearance edits here so they
      * preview before they are applied.
      */
-    creativeDesign: creativeDesignManifestSchema.optional(),
+    creativeDesign: anyCreativeDesignManifestSchema.optional(),
     manifest: previewAssetManifestSchema,
     scene: sceneSpecSchema,
     transitionContext: z
@@ -210,7 +212,20 @@ export function ScenePreviewComposition({
         data-testid="scene-preview-runtime"
         style={{ height: "100%", width: "100%" }}
       >
-        {creativeDesign?.selections[scene.id] === undefined ? (
+        {isCreativeDesignManifestV2(creativeDesign) &&
+        creativeDesign.scenes[scene.id] !== undefined ? (
+          <CinemaScene
+            creativeDesign={creativeDesign}
+            durationInFrames={
+              getSceneFrameTiming(scene.durationSeconds).durationInFrames
+            }
+            resolvedAssets={manifest.assets}
+            runtimeMode="preview"
+            scene={scene}
+            sceneCaptions={captions}
+          />
+        ) : isCreativeDesignManifestV2(creativeDesign) ||
+          creativeDesign?.selections[scene.id] === undefined ? (
           <ScenePreviewRuntime resolvedAssets={manifest.assets} scene={scene} />
         ) : (
           <CreativeScene

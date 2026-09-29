@@ -7,6 +7,7 @@ import {
   type SoundBedCompositionProp,
 } from "@avlp/scene-library";
 import {
+  creativeDesignStyleLabel,
   lessonValidationRunSchema,
   previewManifestSchema,
   type LessonValidationRun,
@@ -362,7 +363,10 @@ export function FullLessonPreview({
               {projectTitle ? `${projectTitle} • ` : ""}
               {manifest.storyboard.scenes.length} scene
               {manifest.storyboard.scenes.length === 1 ? "" : "s"} •{" "}
-              {formatSecondsToTime(totalDurationSeconds)} total • Focus Studio Theater
+              {formatSecondsToTime(totalDurationSeconds)} total •{" "}
+              <span data-testid="preview-style-label">
+                {creativeDesignStyleLabel(manifest.creativeDesign)} style
+              </span>
             </p>
           </div>
         </div>

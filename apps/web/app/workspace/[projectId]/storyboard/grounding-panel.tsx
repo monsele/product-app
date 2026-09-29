@@ -1,12 +1,35 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   groundingCheckRequestSchema,
   groundingCheckResultResponseSchema,
   type GroundingCheckResultResponse,
 } from "@avlp/schemas";
-import { groundingStatusLabel } from "./grounding-input";
+import {
+  groundingCheckMatchesLesson,
+  groundingReviewStatus,
+  groundingStatusLabel,
+} from "./grounding-input";
+
+export function GroundingClaimExplanation({
+  text,
+  spans,
+}: {
+  text: string;
+  spans: ReadonlyArray<{ start: number; end: number; reason: string }>;
+}) {
+  if (spans.length === 0) return null;
+  return (
+    <ul aria-label="Why this claim was flagged">
+      {spans.map((span, index) => (
+        <li key={`${span.start}-${span.end}-${index}`}>
+          <q>{text.slice(span.start, span.end)}</q>: {span.reason}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 type State =
   | { kind: "loading" }
@@ -53,8 +76,7 @@ export function SceneGrounding({
       const parsed = response.ok
         ? groundingCheckResultResponseSchema.safeParse(payload)
         : undefined;
-      if (parsed === undefined || !parsed.success)
-        throw new Error("grounding");
+      if (parsed === undefined || !parsed.success) throw new Error("grounding");
       setState({ kind: "ready", value: parsed.data });
     } catch {
       setState({
@@ -66,15 +88,13 @@ export function SceneGrounding({
 
   useEffect(() => {
     void refresh();
-  }, [refresh]);
+  }, [refresh, lessonSpecId, lessonSpecRevision]);
 
   useEffect(() => {
     if (
       state.kind !== "ready" ||
       state.value.latestJob === null ||
-      !["queued", "running", "retry_wait"].includes(
-        state.value.latestJob.state,
-      )
+      !["queued", "running", "retry_wait"].includes(state.value.latestJob.state)
     )
       return;
     const timer = window.setInterval(() => void refresh(), 2_000);
@@ -123,7 +143,12 @@ export function SceneGrounding({
     );
     return check.claims
       .filter((claim) => claim.location.sceneId === sceneId)
-      .map((claim) => ({ claim, result: resultsByClaim.get(claim.id) }));
+      .map((claim) => {
+        const result = resultsByClaim.get(claim.id);
+        return { claim, result: result === undefined ? undefined : {
+          ...result, status: groundingReviewStatus(result),
+        } };
+      });
   }, [state, sceneId]);
 
   if (state.kind === "loading")
@@ -137,6 +162,9 @@ export function SceneGrounding({
     );
 
   const { check, latestJob } = state.value;
+  const stale =
+    check !== null &&
+    !groundingCheckMatchesLesson(check, lessonSpecId, lessonSpecRevision);
   const running =
     latestJob !== null &&
     (latestJob.state === "queued" ||
@@ -146,6 +174,22 @@ export function SceneGrounding({
   return (
     <section aria-label="Grounding" data-testid={`grounding-${sceneId}`}>
       <h4>Grounding</h4>
+      <p>
+        Claim review notes do not block rendering. To change a flagged claim,
+        edit the scene's narration or on-screen text, then recheck grounding.
+        Missing or invalid source references must be fixed before rendering.
+      </p>
+      {stale ? (
+        <p role="status">
+          These results belong to an earlier lesson revision. Recheck grounding
+          to assess the current text.
+        </p>
+      ) : null}
+      {latestJob?.state === "failed" ? (
+        <p role="status">
+          The latest grounding check could not finish. You can recheck it here.
+        </p>
+      ) : null}
 
       {check === null ? (
         <p role="status">
@@ -156,15 +200,41 @@ export function SceneGrounding({
       ) : (
         <>
           <p role="status" data-testid={`grounding-summary-${sceneId}`}>
-            {check.summary.supported} supported · {check.summary.unsupported}{" "}
-            unsupported · {check.summary.generatedAddition} generated ·{" "}
-            {check.summary.needsReview} need review
+            {
+              claimsForScene.filter(
+                ({ result }) => result?.status === "supported",
+              ).length
+            }{" "}
+            supported ·{" "}
+            {
+              claimsForScene.filter(
+                ({ result }) => result?.status === "unsupported",
+              ).length
+            }{" "}
+            unsupported ·{" "}
+            {
+              claimsForScene.filter(
+                ({ result }) => result?.status === "generated_addition",
+              ).length
+            }{" "}
+            generated ·{" "}
+            {
+              claimsForScene.filter(
+                ({ result }) => result?.status === "needs_review",
+              ).length
+            }{" "}
+            need review in this scene
           </p>
           {claimsForScene.length > 0 ? (
             <ul aria-label="Grounding results for this scene">
               {claimsForScene.map(({ claim, result }) => (
                 <li key={claim.id} data-testid={`grounding-claim-${claim.id}`}>
                   <p>{claim.text}</p>
+                  <p>
+                    {claim.location.type === "on_screen_text"
+                      ? "On-screen text"
+                      : "Narration"}
+                  </p>
                   {result === undefined ? (
                     <p role="status">Not classified.</p>
                   ) : (
@@ -178,6 +248,12 @@ export function SceneGrounding({
                         </span>
                       ) : null}
                     </p>
+                  )}
+                  {result === undefined ? null : (
+                    <GroundingClaimExplanation
+                      text={claim.text}
+                      spans={result.unsupportedSpans}
+                    />
                   )}
                 </li>
               ))}

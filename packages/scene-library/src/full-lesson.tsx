@@ -12,11 +12,15 @@ import React, {
 } from "react";
 import { z } from "zod";
 import {
+  anyCreativeDesignManifestSchema,
   creativeDesignManifestSchema,
+  isCreativeDesignManifestV2,
   previewAssetSchema,
   sceneSpecSchema,
   treatmentFor,
-  validateCreativeDesignManifest,
+  validateAnyCreativeDesignManifest,
+  type AnyCreativeDesignManifest,
+  type CinemaCaptionCue,
   type CreativeDesignCandidate,
   type CreativeDesignPackId,
   type LessonSpec,
@@ -28,6 +32,7 @@ import {
   type CreativeScenePresentation,
   type ResolvedSceneAsset,
 } from "./scene-registry.js";
+import { CinemaScene } from "./cinema/cinema-scene.js";
 import { secondsToFrames } from "./timing.js";
 import { SoundBedTrack, soundBedCompositionPropSchema } from "./sound-bed.js";
 
@@ -95,7 +100,9 @@ export const fullLessonCompositionPropsSchema = z
   .object({
     assets: z.record(fullLessonPreviewAssetSchema).default({}),
     captions: z.array(fullLessonCaptionCueSchema),
-    creativeDesign: creativeDesignManifestSchema.optional(),
+    /** v1 renders through its frozen treatments, v2 through the `cinema`
+     * compositions (ADR-015). Absent keeps the legacy mvp-default look. */
+    creativeDesign: anyCreativeDesignManifestSchema.optional(),
     lesson: z
       .object({ scenes: z.array(sceneSpecSchema).min(1).max(100) })
       .passthrough(),
@@ -107,13 +114,9 @@ export const fullLessonCompositionPropsSchema = z
   .strict()
   .superRefine((value, context) => {
     if (value.creativeDesign !== undefined)
-      for (const issue of validateCreativeDesignManifest(
+      for (const issue of validateAnyCreativeDesignManifest(
         value.creativeDesign,
-        value.lesson.scenes.map((scene) => ({
-          durationSeconds: scene.durationSeconds,
-          id: scene.id,
-          template: scene.template,
-        })),
+        value.lesson.scenes,
       ))
         context.addIssue({
           code: z.ZodIssueCode.custom,
@@ -220,6 +223,20 @@ export function getLessonDurationInFrames(
   );
 }
 
+/** A scene's caption cues, converted to frames relative to its start. */
+export function sceneCaptionCues(
+  captions: readonly FullLessonCaptionCue[],
+  segment: TimelineSegment,
+): readonly CinemaCaptionCue[] {
+  return captions
+    .filter((cue) => cue.sceneId === segment.sceneId)
+    .map((cue) => ({
+      startFrame: cue.startFrame - segment.startFrame,
+      endFrame: cue.endFrame - segment.startFrame,
+      text: cue.text,
+    }));
+}
+
 export function getTimelineSegmentAtFrame(
   timeline: readonly TimelineSegment[],
   frame: number,
@@ -235,7 +252,7 @@ function FullLessonCaptionOverlay({
   creativeDesign,
 }: Readonly<{
   captions: readonly FullLessonCaptionCue[];
-  creativeDesign?: z.infer<typeof creativeDesignManifestSchema>;
+  creativeDesign?: AnyCreativeDesignManifest;
 }>): JSX.Element | null {
   const frame = useCurrentFrame();
   const cue = captions.find(
@@ -599,14 +616,28 @@ function TransitionedScene({
   runtimeMode,
   scene,
   durationInFrames,
+  sceneCaptions,
 }: Readonly<{
-  creativeDesign?: z.infer<typeof creativeDesignManifestSchema>;
+  creativeDesign?: AnyCreativeDesignManifest;
   resolvedAssets: Readonly<Record<string, ResolvedSceneAsset>>;
   runtimeMode: "preview" | "render";
   scene: LessonSpec["scenes"][number];
   durationInFrames: number;
+  sceneCaptions: readonly CinemaCaptionCue[];
 }>): JSX.Element {
   const frame = useCurrentFrame();
+  // ADR-015: a v2 design owns its transitions inside the scene's frames.
+  if (isCreativeDesignManifestV2(creativeDesign))
+    return (
+      <CinemaScene
+        creativeDesign={creativeDesign}
+        durationInFrames={durationInFrames}
+        resolvedAssets={resolvedAssets}
+        runtimeMode={runtimeMode}
+        scene={scene}
+        sceneCaptions={sceneCaptions}
+      />
+    );
   const transitionFrames =
     creativeDesign?.settings.motionEnergy === "calm"
       ? 16
@@ -1074,6 +1105,16 @@ export function FullLessonComposition({
   const narrationBySceneId = new Map(
     narrationTracks.map((track) => [track.sceneId, track]),
   );
+  const captionsBySceneId = useMemo(
+    () =>
+      new Map(
+        calculateLessonTimeline(lesson).map((segment) => [
+          segment.sceneId,
+          sceneCaptionCues(captions, segment),
+        ]),
+      ),
+    [captions, lesson],
+  );
   return (
     <main
       data-testid="full-lesson-composition"
@@ -1103,6 +1144,7 @@ export function FullLessonComposition({
               resolvedAssets={assets}
               runtimeMode={runtimeMode}
               scene={scene}
+              sceneCaptions={captionsBySceneId.get(segment.sceneId) ?? []}
             />
             {narration?.kind === "browser-audio" ? (
               <Audio

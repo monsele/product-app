@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { createDefaultCreativeDesignManifest } from "@avlp/schemas";
+import {
+  createDefaultCreativeDesignManifest,
+  createDefaultStoryboardSceneSpec,
+  planCinemaDesign,
+} from "@avlp/schemas";
 import {
   creativeDesignApplyBlockers,
   creativeDesignErrorMessage,
   creativeDesignPlanExpectedRevision,
   creativeDesignStatus,
+  selectedLayoutName,
 } from "./creative-design-panel";
 
 describe("creativeDesignPlanExpectedRevision", () => {
@@ -85,5 +90,25 @@ describe("creativeDesignApplyBlockers", () => {
       "Text needs at least 4.5:1 contrast against the background.",
     ]);
     expect(creativeDesignApplyBlockers([], [])).toEqual([]);
+  });
+});
+
+describe("selectedLayoutName", () => {
+  it("names the selected layout in either design release (ADR-015)", () => {
+    const scene = createDefaultStoryboardSceneSpec("hook", {
+      id: "01989a3d-8e00-7000-8000-000000000031",
+      order: 1,
+      durationSeconds: 12,
+    });
+    const v2 = planCinemaDesign({ packId: "prism", scenes: [scene], seed: "0123456789abcdef" });
+    // v2 shows the composition's name, never a raw identifier.
+    expect(selectedLayoutName(v2, scene.id)).not.toMatch(/-/u);
+    expect(selectedLayoutName(v2, scene.id).length).toBeGreaterThan(3);
+    expect(selectedLayoutName(v2, "missing")).toBe("its resolved layout");
+    const v1 = createDefaultCreativeDesignManifest({
+      packId: "prism",
+      scenes: [{ id: scene.id, template: "hook", durationSeconds: 10 }],
+    });
+    expect(selectedLayoutName(v1, scene.id)).toBe(v1.selections[scene.id]!.treatmentId);
   });
 });

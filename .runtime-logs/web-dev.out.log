@@ -55,3 +55,29 @@
  ○ Compiling /workspace/[projectId]/render ...
  ✓ Compiled /workspace/[projectId]/render in 9.5s (14068 modules)
  GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/render 200 in 11656ms
+ ✓ Compiled in 12s (14060 modules)
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/render 200 in 3441ms
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/render 200 in 937ms
+ ✓ Compiled in 15.8s (14060 modules)
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/storyboard 200 in 6140ms
+ ✓ Compiled in 35.4s (14060 modules)
+ ✓ Compiled in 8.3s (14060 modules)
+ ✓ Compiled in 14.3s (14060 modules)
+ ✓ Compiled in 5.2s (14060 modules)
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/render 200 in 3393ms
+ ✓ Compiled in 312s (14062 modules)
+ GET /workspace/01a0e759-3558-782d-a9ea-3699f8b2d4b6/render 200 in 12990ms
+ GET /workspace 200 in 983ms
+ ○ Compiling /api/projects ...
+ ✓ Compiled /api/projects in 17.2s (14081 modules)
+ POST /api/projects 303 in 18625ms
+ ○ Compiling /workspace/[projectId]/one-shot ...
+ ✓ Compiled /workspace/[projectId]/one-shot in 8.2s (14102 modules)
+ GET /workspace/01a0ecdc-8067-7926-814a-84d1a29920a5/one-shot 200 in 13364ms
+ GET /workspace/01a0ecdc-8067-7926-814a-84d1a29920a5/one-shot 200 in 931ms
+ GET /workspace/01a0ecdc-8067-7926-814a-84d1a29920a5/storyboard 200 in 18097ms
+ ✓ Compiled in 696.6s (14051 modules)
+ GET /workspace/01a0ecdc-8067-7926-814a-84d1a29920a5/one-shot 200 in 22265ms
+D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @avlp/web@0.0.0 dev: `next dev`
+Exit status 1

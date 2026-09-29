@@ -764,6 +764,9 @@ function BriefStage({
   );
 }
 
+const DOCUMENT_READ_RETRY_MS = 4000;
+const DOCUMENT_READ_MAX_ATTEMPTS = 45;
+
 function RequestForm({
   projectId,
   previous,
@@ -796,6 +799,7 @@ function RequestForm({
   const [showErrors, setShowErrors] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [reading, setReading] = useState(false);
   const inFlight = useRef(false);
   const idempotency = useRef<{ signature: string; key: string } | null>(null);
 
@@ -824,17 +828,36 @@ function RequestForm({
     if (idempotency.current?.signature !== signature)
       idempotency.current = { signature, key: newIdempotencyKey() };
     try {
-      onBrief(
-        await prepareBrief(
-          projectId,
-          {
-            focusPrompt: values.focusPrompt.trim(),
-            audience: audienceFor(values.audienceKind, values.studentAgeBand),
-            targetDurationSeconds: values.targetDurationSeconds,
-          },
-          idempotency.current.key,
-        ),
-      );
+      const body = {
+        focusPrompt: values.focusPrompt.trim(),
+        audience: audienceFor(values.audienceKind, values.studentAgeBand),
+        targetDurationSeconds: values.targetDurationSeconds,
+      };
+      // A document that is still being read answers 409 without using up a
+      // brief call, so wait and retry instead of showing an error.
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          const response = await prepareBrief(
+            projectId,
+            body,
+            idempotency.current.key,
+          );
+          setReading(false);
+          onBrief(response);
+          break;
+        } catch (error) {
+          const stillReading =
+            error instanceof OneShotRequestError &&
+            error.status === 409 &&
+            /still being read/i.test(error.message);
+          if (!stillReading || attempt >= DOCUMENT_READ_MAX_ATTEMPTS)
+            throw error;
+          setReading(true);
+          await new Promise((resolve) =>
+            setTimeout(resolve, DOCUMENT_READ_RETRY_MS),
+          );
+        }
+      }
     } catch (error) {
       setSubmitError(
         errorMessage(
@@ -844,6 +867,7 @@ function RequestForm({
       );
     } finally {
       inFlight.current = false;
+      setReading(false);
       setSubmitting(false);
     }
   };
@@ -882,6 +906,7 @@ function RequestForm({
       documentSlot={documentSlot}
       blockedReason={blockedReason}
       submitting={submitting}
+      reading={reading}
       submitError={submitError}
       onFocusPromptChange={(focusPrompt) =>
         setValues((prev) => ({ ...prev, focusPrompt }))

@@ -33,7 +33,11 @@ import type { DemonstrationVariantPlan } from "@avlp/schemas/demonstration-pilot
 import {
   renderRequestSchema,
   renderStatusResponseSchema,
-  creativeDesignManifestSchema,
+  anyCreativeDesignManifestSchema,
+  creativeDesignAssetIds,
+  creativeDesignPackIds,
+  isCreativeDesignManifestV2,
+  creativeDesignStyleLabel,
   lessonSpecSchema,
   readPinnedSoundBed,
   readVideoApproach,
@@ -63,7 +67,7 @@ const renderProfile = Object.freeze({
 });
 // Must equal `renderImplementationVersion` in apps/renderer/src/contracts.ts:
 // the worker rejects any other value as an unavailable historical release.
-const rendererVersion = "st-103-remotion-4.0.507-sound-bed-render-review-v1";
+const rendererVersion = "st-103-remotion-4.0.507-sound-bed-render-review-v2";
 const renderIdentityPolicy = canonicalJsonPolicy;
 const defaultRenderLimits = Object.freeze({
   maxConcurrentPerProject: 1,
@@ -370,26 +374,39 @@ export class PostgresRenderService implements RenderService {
       const lesson = lessonSpecSchema.parse(
         (version.snapshot as { lessonSpec?: unknown }).lessonSpec,
       );
-      // A creative-design logo is a resolved project asset, just like a scene
-      // asset. Include it in the immutable render manifest so the renderer
+      // A creative-design logo, and a v2 design's pinned presentation
+      // illustrations (ADR-015), are resolved project assets just like scene
+      // assets. Include them in the immutable render manifest so the renderer
       // never has to look up current project state while rendering a version.
-      const creativeDesign = creativeDesignManifestSchema.safeParse(
+      const creativeDesign = anyCreativeDesignManifestSchema.safeParse(
         (version.snapshot as { creativeDesign?: { manifest?: unknown } })
           .creativeDesign?.manifest,
       );
-      const logoAssetId = creativeDesign.success
-        ? creativeDesign.data.settings.logoAssetId
-        : null;
       const assetIds = [
         ...new Set(
           [
             ...lesson.scenes.flatMap((scene) =>
               scene.assetBindings.map((binding) => binding.assetId),
             ),
-            ...(logoAssetId === null ? [] : [logoAssetId]),
+            ...creativeDesignAssetIds(
+              creativeDesign.success ? creativeDesign.data : undefined,
+            ),
           ],
         ),
       ];
+      // Design pictures belong to a scene for media accounting: a pinned
+      // illustration to the scene that shows it, the logo to the first scene.
+      const designSceneByAssetId = new Map<string, string>();
+      if (creativeDesign.success) {
+        const firstSceneId = lesson.scenes[0]?.id;
+        const logoAssetId = creativeDesign.data.settings.logoAssetId;
+        if (logoAssetId !== null && firstSceneId !== undefined)
+          designSceneByAssetId.set(logoAssetId, firstSceneId);
+        if (isCreativeDesignManifestV2(creativeDesign.data))
+          for (const [sceneId, design] of Object.entries(creativeDesign.data.scenes))
+            if (design.imagery.hero !== null && !designSceneByAssetId.has(design.imagery.hero.assetId))
+              designSceneByAssetId.set(design.imagery.hero.assetId, sceneId);
+      }
       // ST-093: resolve via the reuse-aware lookup so a same-owner reused
       // ingestion artifact's figures remain renderable from this project.
       const document =
@@ -762,7 +779,7 @@ export class PostgresRenderService implements RenderService {
           scene.assetBindings.some(
             (binding) => binding.assetId === asset.assetId,
           ),
-        )?.id ?? (asset.assetId === logoAssetId ? lesson.scenes[0]?.id : undefined);
+        )?.id ?? designSceneByAssetId.get(asset.assetId);
         if (sceneId === undefined)
           throw new Error("A bound render asset did not resolve to a scene.");
         return [
@@ -1028,9 +1045,14 @@ export class PostgresRenderService implements RenderService {
         job: jobs,
         video: renderedVideos,
         thumbnail: renderThumbnails,
+        // Only the pack id, not the whole snapshot, to name the style.
+        stylePackId: sql<
+          string | null
+        >`${lessonVersions.snapshot}->'creativeDesign'->'manifest'->'pack'->>'id'`,
       })
       .from(renderJobs)
       .innerJoin(jobs, eq(jobs.id, renderJobs.jobId))
+      .leftJoin(lessonVersions, eq(lessonVersions.id, renderJobs.lessonVersionId))
       .leftJoin(renderedVideos, eq(renderedVideos.renderJobId, renderJobs.id))
       .leftJoin(
         renderThumbnails,
@@ -1072,9 +1094,13 @@ export class PostgresRenderService implements RenderService {
               expiresInSeconds: 300,
             })
           ).url;
+    const stylePackId = creativeDesignPackIds.find((id) => id === row.stylePackId);
     return renderStatusResponseSchema.parse({
       id: row.render.id,
       lessonVersionId: row.render.lessonVersionId,
+      styleLabel: creativeDesignStyleLabel(
+        stylePackId === undefined ? null : { pack: { id: stylePackId } },
+      ),
       validationRunId: row.render.validationRunId,
       status: statusForJob(row.job.state),
       progress: row.job.progress,

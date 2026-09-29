@@ -8,7 +8,7 @@ import {
   manualLessonFixtureId,
   type RenderJobPayload,
 } from "./contracts.js";
-import { lessonSpecSchema } from "@avlp/schemas";
+import { creativeDesignAssetIds, lessonSpecSchema } from "@avlp/schemas";
 import {
   demonstrationCompositionPropsSchema,
   type DemonstrationCompositionProps,
@@ -102,14 +102,12 @@ export async function hydrateProductionComposition(
       scene.assetBindings.map((binding) => binding.assetId),
     ),
   );
-  // A selected logo is a first-class resolved asset even though it is not a
-  // scene binding. Its signed URL is created here, at render time, alongside
+  // A selected logo, and a v2 design's pinned presentation illustrations
+  // (ADR-015), are first-class resolved assets even though they are not scene
+  // bindings. Their signed URLs are created here, at render time, alongside
   // every other tenant-owned image.
-  if (
-    composition.creativeDesign?.settings.logoAssetId !== null &&
-    composition.creativeDesign?.settings.logoAssetId !== undefined
-  )
-    expectedAssetIds.add(composition.creativeDesign.settings.logoAssetId);
+  for (const assetId of creativeDesignAssetIds(composition.creativeDesign))
+    expectedAssetIds.add(assetId);
   const visualAssets = await Promise.all(
     payload.manifest.visualAssets.map(async (asset) => {
       if (!expectedAssetIds.delete(asset.assetId))

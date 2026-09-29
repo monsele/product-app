@@ -4,8 +4,8 @@
  * - A real Remotion render of a short lesson with a catalog sound bed under
  *   narration passes the review, with a four-frame contact sheet.
  * - Synthetic MP4 fixtures, encoded with the renderer's own pinned ffmpeg,
- *   carry a black gap and a silent narration span. The review fails them
- *   with the right codes at the right timestamps.
+ *   carry a black gap and a silent narration span. The review blocks the black
+ *   gap and reports the narration pause as a timestamped advisory note.
  * - With a bed playing where narration went missing, the bed-aware silence
  *   floor still catches it; the plain -50 dB floor would not (ADR-012).
  */
@@ -236,7 +236,7 @@ describe("post-render review on real media", () => {
   );
 
   it(
-    "fails silent narration inside a narration span with its timestamp",
+    "warns without blocking for a narration pause, with its timestamp",
     async () => {
       const fixture = await encodeFixture({
         audio: (t) => (t >= 2 && t < 4 ? 0 : tone(0.25)(t)),
@@ -254,9 +254,11 @@ describe("post-render review on real media", () => {
         expectationsFor(fixture.durationMs, [{ startMs: 500, endMs: 5_500 }]),
       );
       const errors = findings.filter((item) => item.severity === "error");
-      expect(errors.map((item) => item.code)).toEqual(["NARRATION_SILENT"]);
-      expect(errors[0]!.atMs).toBeGreaterThanOrEqual(1_900);
-      expect(errors[0]!.atMs).toBeLessThanOrEqual(2_100);
+      expect(errors).toEqual([]);
+      const pause = findings.find((item) => item.code === "NARRATION_SILENT");
+      expect(pause?.severity).toBe("warning");
+      expect(pause!.atMs).toBeGreaterThanOrEqual(1_900);
+      expect(pause!.atMs).toBeLessThanOrEqual(2_100);
       // The same silence outside every narration span is not an error.
       expect(
         classifyRenderReview(
@@ -292,7 +294,7 @@ describe("post-render review on real media", () => {
           withFloor.measurements,
           expectationsFor(fixture.durationMs, spans),
         )
-          .filter((item) => item.severity === "error")
+          .filter((item) => item.severity === "warning" && item.code === "NARRATION_SILENT")
           .map((item) => item.code),
       ).toEqual(["NARRATION_SILENT"]);
       const plainFloor = await inspector.inspect({

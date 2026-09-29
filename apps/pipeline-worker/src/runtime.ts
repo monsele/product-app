@@ -323,6 +323,7 @@ export async function runPipelineWorker(
         }),
         createStoryboardGenerationJobHandler({
           database: database.client,
+          creativeDesignV2: workerEnvironment.CREATIVE_DESIGN_V2_DEFAULT,
           provider: languageModelProvider,
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),
           quotaGuard: generationQuotaGuard({

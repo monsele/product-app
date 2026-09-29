@@ -2,10 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import {
-  creativeDesignManifestSchema,
+  anyCreativeDesignManifestSchema,
+  cinemaComposition,
   creativeDesignPackDefaultSettings,
   creativeDesignPackIds,
   creativeDesignProposalPatchSchema,
+  isCreativeDesignManifestV2,
+  type AnyCreativeDesignManifest,
+  type CinemaCompositionId,
   type CreativeDesignPackId,
   type CreativeDesignManifest,
 } from "@avlp/schemas";
@@ -15,7 +19,8 @@ import styles from "./storyboard.module.css";
 
 type Draft = {
   revision: number;
-  manifest: CreativeDesignManifest;
+  /** v1, or an ADR-015 v2 design with per-scene compositions. */
+  manifest: AnyCreativeDesignManifest;
   eligibility: readonly string[];
   /** The saved draft is the design the lesson previews and renders. */
   applied: boolean;
@@ -69,7 +74,7 @@ export function creativeDesignErrorMessage(
  */
 export function creativeDesignStatus(
   draft: Pick<Draft, "manifest" | "applied">,
-  local: CreativeDesignManifest,
+  local: AnyCreativeDesignManifest,
 ): "unsaved" | "not_applied" | "applied" {
   if (JSON.stringify(local) !== JSON.stringify(draft.manifest)) return "unsaved";
   return draft.applied ? "applied" : "not_applied";
@@ -81,6 +86,20 @@ export function creativeDesignApplyBlockers(
   colorIssues: readonly string[],
 ): readonly string[] {
   return [...eligibility, ...colorIssues];
+}
+
+/** The human-readable layout a scene uses in either design release. */
+export function selectedLayoutName(
+  manifest: AnyCreativeDesignManifest,
+  sceneId: string,
+): string {
+  if (isCreativeDesignManifestV2(manifest)) {
+    const design = manifest.scenes[sceneId];
+    return design === undefined
+      ? "its resolved layout"
+      : cinemaComposition(design.compositionId).label;
+  }
+  return manifest.selections[sceneId]?.treatmentId ?? "its resolved treatment";
 }
 
 function PackSwatch({ packId }: { packId: CreativeDesignPackId }) {
@@ -118,10 +137,10 @@ export function CreativeDesignPanel({
    * Receives the design as currently edited, applied or not, so the
    * storyboard's scene preview can draw it live.
    */
-  onPreviewDesignChange?: (manifest: CreativeDesignManifest | null) => void;
+  onPreviewDesignChange?: (manifest: AnyCreativeDesignManifest | null) => void;
 }) {
   const [draft, setDraft] = useState<Draft | null>(null);
-  const [local, setLocal] = useState<CreativeDesignManifest | null>(null);
+  const [local, setLocal] = useState<AnyCreativeDesignManifest | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [pilotAvailable, setPilotAvailable] = useState(true);
@@ -161,7 +180,7 @@ export function CreativeDesignPanel({
       eligibility?: unknown;
       applied?: unknown;
     };
-    const manifest = creativeDesignManifestSchema.safeParse(parsed.manifest);
+    const manifest = anyCreativeDesignManifestSchema.safeParse(parsed.manifest);
     if (
       !manifest.success ||
       typeof parsed.revision !== "number" ||
@@ -290,6 +309,25 @@ export function CreativeDesignPanel({
   };
   const chooseAlternative = (treatmentId: Alternative["treatmentId"]) => {
     if (selectedSceneId === null || local === null) return;
+    if (isCreativeDesignManifestV2(local)) {
+      // v2 alternatives name registered compositions (ADR-015).
+      const design = local.scenes[selectedSceneId];
+      if (design === undefined) return;
+      setLocal({
+        ...local,
+        scenes: {
+          ...local.scenes,
+          [selectedSceneId]: {
+            ...design,
+            compositionId: treatmentId as CinemaCompositionId,
+            locked: true,
+          },
+        },
+      });
+      setAlternatives([]);
+      setMessage("Layout selected in this unsaved preview. Apply to lesson to save it.");
+      return;
+    }
     setLocal({
       ...local,
       selections: {
@@ -306,6 +344,38 @@ export function CreativeDesignPanel({
     setMessage(
       "Layout selected in this unsaved preview. Apply to lesson to save it.",
     );
+  };
+  /** ADR-015's explicit upgrade: re-plan this v1 draft as v2, never applied. */
+  const upgrade = async () => {
+    if (draft === null) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      const response = await fetch(
+        api(`/projects/${encodeURIComponent(projectId)}/creative-design/upgrade`),
+        {
+          method: "POST",
+          credentials: "include",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ expectedRevision: draft.revision }),
+        },
+      );
+      const value: unknown = await response.json().catch(() => null);
+      if (!response.ok)
+        throw new Error(
+          creativeDesignErrorMessage(value, "The new compositions could not be planned."),
+        );
+      await load();
+      setMessage(
+        "Planned with the new compositions. Review the preview, then Apply to lesson to use it.",
+      );
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "The new compositions could not be planned.",
+      );
+    } finally {
+      setBusy(false);
+    }
   };
   const apply = async () => {
     if (draft === null || local === null) return;
@@ -600,6 +670,19 @@ export function CreativeDesignPanel({
           </button>
         ))}
       </div>
+      {isCreativeDesignManifestV2(local) ? null : (
+        <p>
+          <button
+            type="button"
+            disabled={busy || status === "unsaved"}
+            onClick={() => void upgrade()}
+          >
+            Try the new compositions
+          </button>{" "}
+          Re-plans every scene with the newer layouts in the same style. Nothing
+          changes in the video until you apply it.
+        </p>
+      )}
       {draft.eligibility.length > 0 ? (
         <p role="alert">{draft.eligibility.join(" ")}</p>
       ) : (
@@ -722,7 +805,7 @@ export function CreativeDesignPanel({
         >
           {selectedSceneId === null
             ? "Select a storyboard scene to preview its treatment."
-            : `Selected scene uses ${local.selections[selectedSceneId]?.treatmentId ?? "its resolved treatment"}.`}
+            : `Selected scene uses ${selectedLayoutName(local, selectedSceneId)}.`}
         </p>
       </div>
       <label>

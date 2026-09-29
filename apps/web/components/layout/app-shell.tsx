@@ -6,6 +6,7 @@ import { ProjectPipelineRail, type StageState } from "./project-pipeline-rail";
 import { PageContainer } from "./page-container";
 import { Drawer } from "../ui/drawer";
 import { OneShotRunLink } from "./one-shot-run-link";
+import { WorkspaceHomeLink } from "./workspace-home-link";
 
 export interface AppShellProps {
   children: React.ReactNode;
@@ -62,6 +63,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         actions={
           stages && stages.length > 0 ? (
             <>
+              <WorkspaceHomeLink />
               <OneShotRunLink />
               {headerActions}
             </>

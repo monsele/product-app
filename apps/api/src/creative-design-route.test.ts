@@ -53,6 +53,7 @@ describe("ST-097 creative-design routes", () => {
         manifest: {} as never,
       })),
       alternatives: vi.fn(async () => []),
+      upgrade: vi.fn(async () => ({ revision: 3, manifest: {} as never })),
       apply: vi.fn(async () => ({
         snapshotId: createId(),
         manifestHash: "a".repeat(64),
@@ -124,6 +125,31 @@ describe("ST-097 creative-design routes", () => {
       ownerUserId: fixture.ownerUserId,
       projectId: fixture.projectId,
       body: { packId: "essential", expectedRevision: 0 },
+    });
+  });
+
+  it("upgrades a design only on an explicit, trusted, authorized request", async () => {
+    const { fixture, service, server } = await api();
+    const untrusted = await server.inject({
+      method: "POST",
+      url: `/projects/${fixture.projectId}/creative-design/upgrade`,
+      cookies: { [sessionCookieName]: "owner" },
+      payload: { expectedRevision: 2 },
+    });
+    expect(untrusted.statusCode).toBe(403);
+    expect(service.upgrade).not.toHaveBeenCalled();
+    const response = await server.inject({
+      method: "POST",
+      url: `/projects/${fixture.projectId}/creative-design/upgrade`,
+      cookies: { [sessionCookieName]: "owner" },
+      headers: { origin: "https://teacher.example.test" },
+      payload: { expectedRevision: 2 },
+    });
+    expect(response.statusCode).toBe(201);
+    expect(service.upgrade).toHaveBeenCalledWith({
+      ownerUserId: fixture.ownerUserId,
+      projectId: fixture.projectId,
+      body: { expectedRevision: 2 },
     });
   });
 });

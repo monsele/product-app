@@ -5,7 +5,7 @@
  * `renderReviewVersion`. Each report records the version it was judged by, and
  * a stored report is never re-interpreted under newer thresholds.
  */
-export const renderReviewVersion = "render-review-v1" as const;
+export const renderReviewVersion = "render-review-v2" as const;
 
 export const renderReviewThresholds = Object.freeze({
   /** Streams: the existing rendered-duration rule (media.ts). */
@@ -21,8 +21,9 @@ export const renderReviewThresholds = Object.freeze({
     analysisWidth: 160,
     analysisHeight: 90,
   }),
-  /** Missing narration: `silencedetect` at this floor, for at least this
-   * long, overlapping a narration segment by at least `overlapMs`. */
+  /** Advisory narration pauses: `silencedetect` at this floor, for at least
+   * this long, overlapping a narration segment by at least `overlapMs`.
+   * Quiet audio alone cannot establish missing speech (ADR-014). */
   silence: Object.freeze({
     noiseFloorDb: -50,
     minDurationMs: 1_000,

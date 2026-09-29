@@ -13,6 +13,7 @@
  */
 
 import {
+  creativeDesignPackNames,
   lessonFocusPromptMaxLength,
   soundBedCatalogResponseSchema,
   type CreativeDesignPackId,
@@ -447,15 +448,9 @@ export function requestSignature(values: RequestFormValues): string {
 // ST-107 — brief choices and the decision log
 // ---------------------------------------------------------------------------
 
-/** Plain names for the registered style packs, in the order offered. */
-export const stylePackLabels: Record<CreativeDesignPackId, string> = {
-  essential: "Essential",
-  editorial: "Editorial",
-  everyday: "Everyday",
-  systems: "Systems",
-  "field-notes": "Field Notes",
-  prism: "Prism",
-};
+/** Plain names for the registered style packs (one source: the schemas). */
+export const stylePackLabels: Readonly<Record<CreativeDesignPackId, string>> =
+  creativeDesignPackNames;
 
 export type SoundBedOption = { value: SoundBedChoice; label: string };
 

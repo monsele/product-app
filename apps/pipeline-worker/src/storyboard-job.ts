@@ -21,6 +21,7 @@ import {
   type DatabaseClient,
   type DatabaseExecutor,
 } from "@avlp/database";
+import { createHash } from "node:crypto";
 import { JobExecutionError } from "@avlp/jobs";
 import {
   type LanguageModelProvider,
@@ -31,7 +32,10 @@ import {
 import {
   carryForwardCreativeDesignManifest,
   createDefaultCreativeDesignManifest,
+  planCinemaDesign,
   suggestCreativeDesignPack,
+  type AnyCreativeDesignManifest,
+  type CreativeDesignPackId,
   creativeDesignHash,
   creativeDesignPackIdSchema,
   lessonStoryboardSceneSchema,
@@ -565,6 +569,7 @@ export function sceneGeneratedAdditions(
  */
 export async function persistLessonStoryboard(input: {
   executor: DatabaseExecutor;
+  creativeDesignV2?: boolean;
   output: StoryboardOutputV1;
   sourcePackage: SourcePackage;
   params: ModelCallParams;
@@ -594,6 +599,7 @@ export async function persistLessonStoryboard(input: {
 
 async function persistLessonStoryboardDraft(input: {
   executor: DatabaseExecutor;
+  creativeDesignV2?: boolean;
   output: StoryboardOutputV1;
   sourcePackage: SourcePackage;
   params: ModelCallParams;
@@ -748,22 +754,37 @@ async function persistLessonStoryboardDraft(input: {
     )
     .limit(1);
   let creativeDesign:
-    | { manifest: ReturnType<typeof createDefaultCreativeDesignManifest>; manifestHash: string }
+    | { manifest: AnyCreativeDesignManifest; manifestHash: string }
     | undefined;
   const designScenes = storyboard.scenes.map((scene) => ({
     id: scene.id,
     template: scene.template,
     durationSeconds: scene.durationSeconds,
   }));
+  // ST-112 (ADR-015): a v2 design plans compositions over full scene content,
+  // keyed by stable scene ID as carry-forward, preview and render read it.
+  // The variation seed is derived from the storyboard, so a retried job
+  // reproduces the same design while separate lessons still differ.
+  const planV2 = (packId: CreativeDesignPackId) =>
+    planCinemaDesign({
+      packId,
+      scenes: storyboard.scenes.map((scene) => ({ ...scene.scene, id: scene.stableSceneId })),
+      seed: createHash("sha256")
+        .update(`${input.context.projectId}:${storyboard.id}`)
+        .digest("hex")
+        .slice(0, 16),
+    });
   if (configuration?.creativeStylePack != null) {
     try {
       const packId = creativeDesignPackIdSchema.parse(
         configuration.creativeStylePack,
       );
-      const manifest = createDefaultCreativeDesignManifest({
-        packId,
-        scenes: designScenes,
-      });
+      const manifest: AnyCreativeDesignManifest = input.creativeDesignV2 === true
+        ? planV2(packId)
+        : createDefaultCreativeDesignManifest({
+            packId,
+            scenes: designScenes,
+          });
       creativeDesign = { manifest, manifestHash: creativeDesignHash(manifest) };
     } catch (error) {
       // Deterministic given this pack and these scenes: it will fail the
@@ -784,15 +805,23 @@ async function persistLessonStoryboardDraft(input: {
     // it in the storyboard's appearance settings. Unlike a chosen pack, a
     // suggestion that cannot cover these scenes is simply skipped and the
     // lesson keeps the legacy look; it must never fail the storyboard.
-    const manifest = carryForwardCreativeDesignManifest({
+    const suggested = suggestCreativeDesignPack({
+      subject: configuration?.subject ?? storyboard.subject,
+      lessonTitle: configuration?.lessonTitle ?? storyboard.title,
+      ageBand: configuration?.ageBand ?? null,
+      difficulty: configuration?.difficulty ?? null,
+      projectId: input.context.projectId,
+    });
+    let manifest: AnyCreativeDesignManifest | undefined;
+    if (input.creativeDesignV2 === true)
+      try {
+        manifest = planV2(suggested);
+      } catch {
+        // Falls through to the v1 suggestion, which may itself be skipped.
+      }
+    manifest ??= carryForwardCreativeDesignManifest({
       previous: undefined,
-      packId: suggestCreativeDesignPack({
-        subject: configuration?.subject ?? storyboard.subject,
-        lessonTitle: configuration?.lessonTitle ?? storyboard.title,
-        ageBand: configuration?.ageBand ?? null,
-        difficulty: configuration?.difficulty ?? null,
-        projectId: input.context.projectId,
-      }),
+      packId: suggested,
       scenes: designScenes,
     });
     if (manifest !== undefined)
@@ -952,6 +981,8 @@ function storyboardContextError(
  */
 export function createStoryboardGenerationJobHandler(input: {
   database: DatabaseClient;
+  /** ST-112: create a v2 (ADR-015) design for new storyboards. */
+  creativeDesignV2?: boolean;
   provider: LanguageModelProvider;
   promptRegistry: PromptRegistry;
   quotaGuard: QuotaGuard;
@@ -1037,6 +1068,7 @@ export function createStoryboardGenerationJobHandler(input: {
         operationContext: candidate.operationContext,
         context: candidate.context,
         now: candidate.now,
+        creativeDesignV2: input.creativeDesignV2 ?? false,
       }),
     ...(input.pricing === undefined ? {} : { pricing: input.pricing }),
     ...(input.maxRepairs === undefined ? {} : { maxRepairs: input.maxRepairs }),

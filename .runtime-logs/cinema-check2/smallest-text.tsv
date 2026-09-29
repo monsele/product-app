@@ -1,0 +1,5 @@
+24	everyday__comparison-split__maximumDensityComparisonFixture	p "4444444444444444444444444444"
+26	everyday__comparison-split__imageAssistedComparisonFixture	p[data-cinema-kicker] "compare and contrast"
+26	everyday__comparison-stacked__imageAssistedComparisonFixture	p[data-cinema-kicker] "compare and contrast"
+26	everyday__comparison-split__textOnlyComparisonFixture	p[data-cinema-kicker] "compare and contrast"
+26	everyday__comparison-stacked__textOnlyComparisonFixture	p[data-cinema-kicker] "compare and contrast"

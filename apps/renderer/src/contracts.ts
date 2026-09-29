@@ -32,9 +32,10 @@ export const manualLessonFixtureId = "photosynthesis-three-minute-v1" as const;
  * sound bed, and every render now passes a post-render review before it is
  * completed. Both change what a manifest produces or whether it is
  * delivered, so a new identity is required (CR-03).
+ * ADR-014 bumps the review policy to v2: narration pauses are advisory.
  */
 export const renderImplementationVersion =
-  "st-103-remotion-4.0.507-sound-bed-render-review-v1" as const;
+  "st-103-remotion-4.0.507-sound-bed-render-review-v2" as const;
 /** Canonical serialization policy used for render-affecting identity hashes. */
 export const renderIdentityPolicy = canonicalJsonPolicy;
 

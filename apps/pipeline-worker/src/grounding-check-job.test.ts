@@ -1042,7 +1042,7 @@ describe("normalizeGroundingOutput", () => {
     );
     const normalized = normalizeGroundingOutput(output, context, pkg);
     expect(normalized.results[0]).toMatchObject({
-      status: "supported",
+      status: "needs_review",
       supportedSpans: [{ start: 0, end: first!.text.length }],
       unsupportedSpans: [{ start: 2, end: first!.text.length }],
     });

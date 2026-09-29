@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { DatabaseClient } from "@avlp/database";
 import {
   createDefaultStoryboardSceneSpec,
+  planCinemaDesign,
   type SceneSpec,
 } from "@avlp/schemas";
 import type { NestFastifyApplication } from "@nestjs/platform-fastify";
@@ -164,6 +165,48 @@ describe("preview manifest", () => {
       },
     ).get({ ownerUserId, projectId });
     expect(manifest.creativeDesign).toEqual(design);
+  });
+
+  it("resolves a v2 design's pinned illustration like a scene picture (ADR-015)", async () => {
+    const heroId = "01989a3d-8e00-7000-8000-0000000000be";
+    const design = planCinemaDesign({
+      packId: "everyday",
+      scenes: [scene],
+      seed: "0123456789abcdef",
+      imagery: { [scene.id]: { assetId: heroId, origin: "generated", altText: "A plant kitchen" } },
+    });
+    const signer = {
+      createSignedDownload: vi.fn().mockResolvedValue({
+        url: "https://storage.example.test/signed",
+        expiresAt: new Date("2026-08-24T10:05:00.000Z"),
+      }),
+    };
+    const manifest = await new PreviewManifestService(
+      databaseFor([
+        ...rows(),
+        [{ manifest: design }],
+        [
+          {
+            id: heroId,
+            storageKey: `users/${ownerUserId}/projects/${projectId}/hero.png`,
+            thumbnailStorageKey: null,
+            originalName: "hero.png",
+            provenance: "ai_generated",
+          },
+        ],
+      ]),
+      signer,
+    ).get({ ownerUserId, projectId });
+    expect(manifest.creativeDesign).toEqual(design);
+    expect(manifest.assets[heroId]).toMatchObject({
+      assetId: heroId,
+      provenance: "ai_generated",
+      source: "source",
+      src: "https://storage.example.test/signed",
+    });
+    expect(signer.createSignedDownload).toHaveBeenCalledWith(
+      expect.objectContaining({ key: `users/${ownerUserId}/projects/${projectId}/hero.png` }),
+    );
   });
 
   it("ST-103: includes the project's configured sound bed with a fresh signed URL, and omits none", async () => {

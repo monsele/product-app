@@ -189,6 +189,7 @@ export interface RequestFieldsProps {
   documentError?: string | undefined;
   blockedReason: string | null;
   submitting: boolean;
+  reading?: boolean;
   submitError: string | null;
   onFocusPromptChange: (value: string) => void;
   onAudienceKindChange: (value: AudienceKind) => void;
@@ -205,6 +206,7 @@ export function RequestFields({
   documentSlot,
   blockedReason,
   submitting,
+  reading = false,
   submitError,
   onFocusPromptChange,
   onAudienceKindChange,
@@ -382,6 +384,13 @@ export function RequestFields({
             message={blockedReason}
           />
         )}
+        {reading && (
+          <Notice
+            type="info"
+            title="Still reading your document"
+            message="Your upload is done, but the document is still being read. The brief will be prepared automatically as soon as it is ready. You don't need to click again."
+          />
+        )}
         {submitError !== null && (
           <Notice
             type="error"
@@ -410,7 +419,11 @@ export function RequestFields({
             leftIcon={<Sparkle weight="bold" />}
             data-testid="one-shot-prepare-brief"
           >
-            {submitting ? "Preparing the brief…" : "Prepare brief"}
+            {reading
+              ? "Reading your document…"
+              : submitting
+                ? "Preparing the brief…"
+                : "Prepare brief"}
           </Button>
           {onBackToBrief !== undefined && (
             <Button

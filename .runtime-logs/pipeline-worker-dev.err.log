@@ -1,0 +1,36 @@
+Job execution error: JobExecutionError: The model output failed deterministic checks.
+    at handler (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\pipeline-worker\src\model-call.ts:521:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async executeJobDelivery (D:\Eronmonsele\Documents\SoundMinds\product-app\packages\jobs\src\worker.ts:138:7)
+    at async D:\Eronmonsele\Documents\SoundMinds\product-app\node_modules\.pnpm\bullmq@5.81.3\node_modules\bullmq\dist\cjs\classes\worker.js:612:32 {
+  classification: 'terminal',
+  code: 'MODEL_OUTPUT_DETERMINISTIC_FAILURE',
+  details: {
+    reason: 'LONG_COPIED_PASSAGE',
+    message: 'blocks[3].sentences[6] copies a 11-word passage from source block 59033b68-f011-7e5d-8f35-aa1bc2fb5832. (14 more sentences to fix)'
+  }
+}
+Job execution error: JobExecutionError: The model output failed deterministic checks.
+    at handler (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\pipeline-worker\src\model-call.ts:521:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async executeJobDelivery (D:\Eronmonsele\Documents\SoundMinds\product-app\packages\jobs\src\worker.ts:138:7)
+    at async D:\Eronmonsele\Documents\SoundMinds\product-app\node_modules\.pnpm\bullmq@5.81.3\node_modules\bullmq\dist\cjs\classes\worker.js:612:32 {
+  classification: 'terminal',
+  code: 'MODEL_OUTPUT_DETERMINISTIC_FAILURE',
+  details: {
+    reason: 'LONG_COPIED_PASSAGE',
+    message: 'blocks[5].sentences[4] copies a 9-word passage from source block 30c28461-607e-745c-b1bb-0ba6b3963b9c. (2 more sentences to fix)'
+  }
+}
+Job execution error: JobExecutionError: The model output failed deterministic checks.
+    at handler (D:\Eronmonsele\Documents\SoundMinds\product-app\apps\pipeline-worker\src\model-call.ts:535:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async executeJobDelivery (D:\Eronmonsele\Documents\SoundMinds\product-app\packages\jobs\src\worker.ts:138:7)
+    at async D:\Eronmonsele\Documents\SoundMinds\product-app\node_modules\.pnpm\bullmq@5.81.3\node_modules\bullmq\dist\cjs\classes\worker.js:612:32 {
+  classification: 'terminal',
+  code: 'MODEL_OUTPUT_DETERMINISTIC_FAILURE',
+  details: {
+    reason: 'SENTENCE_TOO_LONG',
+    message: 'blocks[4].sentences[4] has 58 words; the maximum is 40. (4 more sentences to fix)'
+  }
+}

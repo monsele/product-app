@@ -30,11 +30,21 @@ import {
   planCreativeDesign,
   treatmentFor,
   validateCreativeDesignManifest,
-  type CreativeDesignManifest,
   type CreativeDesignProposalPatch,
   type CreativeDesignSceneType,
   modelCallJobPayloadSchema,
+  creativeDesignDraftV2InputSchema,
+  creativeDesignManifestV2Schema,
+  creativeDesignManifestV2Version,
+  creativeDesignUpgradeInputSchema,
+  eligibleCinemaCompositions,
+  isCreativeDesignManifestV2,
+  planCinemaDesign,
+  validateCreativeDesignManifestV2,
+  type AnyCreativeDesignManifest,
+  type SceneSpec,
 } from "@avlp/schemas";
+import { randomBytes } from "node:crypto";
 import { createIdempotencyKey, createJobEnvelope } from "@avlp/jobs";
 import { createModelCallProviderApproval } from "./model-call-approval.js";
 import { lessonStoryboardSchema } from "@avlp/schemas";
@@ -53,17 +63,26 @@ type StoryboardScene = Readonly<{
 export interface CreativeDesignService {
   getDraft(input: Scope): Promise<{
     revision: number;
-    manifest: CreativeDesignManifest;
+    manifest: AnyCreativeDesignManifest;
     eligibility: readonly string[];
     /** True when this draft is the design the lesson previews and renders. */
     applied: boolean;
   } | null>;
   plan(
     input: Scope & { body: unknown },
-  ): Promise<{ revision: number; manifest: CreativeDesignManifest }>;
+  ): Promise<{ revision: number; manifest: AnyCreativeDesignManifest }>;
+  /** Accepts a v1 or (ADR-015) v2 draft manifest. */
   createOrUpdateDraft(
     input: Scope & { body: unknown },
-  ): Promise<{ revision: number; manifest: CreativeDesignManifest }>;
+  ): Promise<{ revision: number; manifest: AnyCreativeDesignManifest }>;
+  /**
+   * ADR-015's explicit upgrade path: re-plan the current v1 draft as a v2
+   * draft with the same pack, settings and preset. Never applies it; the
+   * teacher reviews and applies as usual. Idempotent on a v2 draft.
+   */
+  upgrade(
+    input: Scope & { body: unknown },
+  ): Promise<{ revision: number; manifest: AnyCreativeDesignManifest }>;
   alternatives(
     input: Scope & { sceneId: Identifier },
   ): Promise<readonly { treatmentId: string; description: string }[]>;
@@ -88,7 +107,7 @@ export interface CreativeDesignService {
   >;
   applyPreset(
     input: Scope & { presetId: Identifier; body: unknown },
-  ): Promise<{ revision: number; manifest: CreativeDesignManifest }>;
+  ): Promise<{ revision: number; manifest: AnyCreativeDesignManifest }>;
   describe(
     input: Scope & { body: unknown; correlationId: Identifier },
   ): Promise<
@@ -126,7 +145,14 @@ export {
  */
 export function parseStoredCreativeDesignManifest(
   value: unknown,
-): CreativeDesignManifest {
+): AnyCreativeDesignManifest {
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "manifestVersion" in value &&
+    value.manifestVersion === creativeDesignManifestV2Version
+  )
+    return creativeDesignManifestV2Schema.parse(value);
   const parsed = creativeDesignManifestSchema.safeParse(value);
   if (parsed.success) return parsed.data;
   if (
@@ -152,7 +178,7 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
 
   public async getDraft(input: Scope): Promise<{
     revision: number;
-    manifest: CreativeDesignManifest;
+    manifest: AnyCreativeDesignManifest;
     eligibility: readonly string[];
     applied: boolean;
   } | null> {
@@ -200,18 +226,45 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
       revision: draft.revision,
       manifest,
       applied: appliedSnapshot !== undefined,
-      eligibility: creativeDesignCapability({
-        approach: manifest.approach,
-        scenes,
-      }),
+      eligibility: isCreativeDesignManifestV2(manifest)
+        ? validateCreativeDesignManifestV2(
+            manifest,
+            await this.sceneSpecs(this.database, input, draft.lessonSpecId),
+          )
+        : creativeDesignCapability({
+            approach: manifest.approach,
+            scenes,
+          }),
     };
   }
 
   public async plan(
     input: Scope & { body: unknown },
-  ): Promise<{ revision: number; manifest: CreativeDesignManifest }> {
+  ): Promise<{ revision: number; manifest: AnyCreativeDesignManifest }> {
     const command = parse(creativeDesignPlanInputSchema, input.body);
     const spec = await this.currentSpec(this.database, input);
+    // Switching style on a v2 draft keeps it v2 (ADR-015): re-planned for the
+    // new pack with its default settings (as a v1 switch does), keeping only
+    // the variation seed. Only an explicit upgrade moves a v1 draft to v2.
+    const current = await this.getDraft(input);
+    if (current !== null && isCreativeDesignManifestV2(current.manifest)) {
+      let manifest: AnyCreativeDesignManifest;
+      try {
+        manifest = planCinemaDesign({
+          packId: command.packId,
+          scenes: await this.sceneSpecs(this.database, input, spec.id),
+          seed: current.manifest.variationSeed,
+        });
+      } catch {
+        throw invalidDesign([
+          "This storyboard cannot use that style's compositions yet. The current design was kept.",
+        ]);
+      }
+      return this.createOrUpdateDraft({
+        ...input,
+        body: { expectedRevision: command.expectedRevision, manifest },
+      });
+    }
     const scenes = await this.storyboardScenes(this.database, input, spec.id);
     const typedScenes = scenes.map((scene) => ({
       id: scene.id,
@@ -230,9 +283,24 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
 
   public async createOrUpdateDraft(
     input: Scope & { body: unknown },
-  ): Promise<{ revision: number; manifest: CreativeDesignManifest }> {
-    const command = parse(creativeDesignDraftInputSchema, input.body);
+  ): Promise<{ revision: number; manifest: AnyCreativeDesignManifest }> {
     const now = this.now();
+    if (isV2DraftBody(input.body)) {
+      const command = parse(creativeDesignDraftV2InputSchema, input.body);
+      return this.database.transaction(async (tx) => {
+        const spec = await this.currentSpec(tx, input);
+        // A v2 manifest carries its own compositions and pinned imagery;
+        // validate it whole against the current scene content (ADR-015).
+        const issues = validateCreativeDesignManifestV2(
+          command.manifest,
+          await this.sceneSpecs(tx, input, spec.id),
+        );
+        if (issues.length > 0) throw invalidDesign(issues);
+        await this.assertLogoOwnership(tx, input, command.manifest.settings.logoAssetId);
+        return this.persistDraft(tx, input, spec, command.manifest, command.expectedRevision, now);
+      });
+    }
+    const command = parse(creativeDesignDraftInputSchema, input.body);
     return this.database.transaction(async (tx) => {
       const spec = await this.currentSpec(tx, input);
       const scenes = await this.storyboardScenes(tx, input, spec.id);
@@ -274,66 +342,78 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
       const issues = validateCreativeDesignManifest(manifest, scenes);
       if (issues.length > 0) throw invalidDesign(issues);
       await this.assertLogoOwnership(tx, input, manifest.settings.logoAssetId);
-      const hash = creativeDesignHash(manifest);
-      const [current] = await tx
-        .select()
-        .from(creativeDesignDrafts)
-        .where(
-          and(
-            eq(creativeDesignDrafts.ownerUserId, input.ownerUserId),
-            eq(creativeDesignDrafts.projectId, input.projectId),
-            eq(creativeDesignDrafts.lessonSpecId, spec.id),
-          ),
-        )
-        .limit(1)
-        .for("update");
-      if (current === undefined) {
-        if (command.expectedRevision !== 0) throw editConflict();
-        const [created] = await tx
-          .insert(creativeDesignDrafts)
-          .values({
-            id: createId(now),
-            ownerUserId: input.ownerUserId,
-            projectId: input.projectId,
-            lessonSpecId: spec.id,
-            lessonSpecRevision: spec.revision,
-            manifest,
-            manifestHash: hash,
-            revision: 1,
-            createdAt: now,
-            updatedAt: now,
-          })
-          .returning();
-        if (created === undefined) throw editConflict();
-        return { revision: created.revision, manifest };
-      }
-      if (
-        hasCreativeDesignDraftEditConflict({
-          currentRevision: current.revision,
-          expectedRevision: command.expectedRevision,
-        })
+      return this.persistDraft(tx, input, spec, manifest, command.expectedRevision, now);
+    });
+  }
+
+  /** Writes a validated draft under the optimistic revision check. */
+  private async persistDraft(
+    tx: DatabaseExecutor,
+    input: Scope,
+    spec: Readonly<{ id: string; revision: number }>,
+    manifest: AnyCreativeDesignManifest,
+    expectedRevision: number,
+    now: Date,
+  ): Promise<{ revision: number; manifest: AnyCreativeDesignManifest }> {
+    const hash = creativeDesignHash(manifest);
+    const [current] = await tx
+      .select()
+      .from(creativeDesignDrafts)
+      .where(
+        and(
+          eq(creativeDesignDrafts.ownerUserId, input.ownerUserId),
+          eq(creativeDesignDrafts.projectId, input.projectId),
+          eq(creativeDesignDrafts.lessonSpecId, spec.id),
+        ),
       )
-        throw editConflict();
-      const [updated] = await tx
-        .update(creativeDesignDrafts)
-        .set({
+      .limit(1)
+      .for("update");
+    if (current === undefined) {
+      if (expectedRevision !== 0) throw editConflict();
+      const [created] = await tx
+        .insert(creativeDesignDrafts)
+        .values({
+          id: createId(now),
+          ownerUserId: input.ownerUserId,
+          projectId: input.projectId,
+          lessonSpecId: spec.id,
+          lessonSpecRevision: spec.revision,
           manifest,
           manifestHash: hash,
-          lessonSpecRevision: spec.revision,
-          revision: current.revision + 1,
+          revision: 1,
+          createdAt: now,
           updatedAt: now,
         })
-        .where(
-          and(
-            eq(creativeDesignDrafts.id, current.id),
-            eq(creativeDesignDrafts.revision, current.revision),
-            eq(creativeDesignDrafts.ownerUserId, input.ownerUserId),
-          ),
-        )
         .returning();
-      if (updated === undefined) throw editConflict();
-      return { revision: updated.revision, manifest };
-    });
+      if (created === undefined) throw editConflict();
+      return { revision: created.revision, manifest };
+    }
+    if (
+      hasCreativeDesignDraftEditConflict({
+        currentRevision: current.revision,
+        expectedRevision: expectedRevision,
+      })
+    )
+      throw editConflict();
+    const [updated] = await tx
+      .update(creativeDesignDrafts)
+      .set({
+        manifest,
+        manifestHash: hash,
+        lessonSpecRevision: spec.revision,
+        revision: current.revision + 1,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(creativeDesignDrafts.id, current.id),
+          eq(creativeDesignDrafts.revision, current.revision),
+          eq(creativeDesignDrafts.ownerUserId, input.ownerUserId),
+        ),
+      )
+      .returning();
+    if (updated === undefined) throw editConflict();
+    return { revision: updated.revision, manifest };
   }
 
   public async alternatives(
@@ -346,6 +426,26 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
         "Create a design draft before choosing another layout.",
         404,
       );
+    if (isCreativeDesignManifestV2(draft.manifest)) {
+      const spec = await this.currentSpec(this.database, input);
+      const scene = (await this.sceneSpecs(this.database, input, spec.id)).find(
+        (entry) => entry.id === input.sceneId,
+      );
+      if (scene === undefined || draft.manifest.scenes[input.sceneId] === undefined)
+        throw new PublicError(
+          "not_found",
+          "This scene is not eligible for a creative layout.",
+          404,
+        );
+      // v2 alternatives are the registered compositions that can present
+      // this scene's complete content; `treatmentId` carries the composition.
+      return Object.freeze(
+        eligibleCinemaCompositions(scene).map((composition) => ({
+          treatmentId: composition.id,
+          description: `${composition.label}. ${composition.description}`,
+        })),
+      );
+    }
     const selected = draft.manifest.selections[input.sceneId];
     if (selected === undefined)
       throw new PublicError(
@@ -401,8 +501,9 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
         throw editConflict();
       const manifest = parseStoredCreativeDesignManifest(draft.manifest);
       const manifestHash = creativeDesignHash(manifest);
-      const scenes = await this.storyboardScenes(tx, input, spec.id);
-      const issues = validateCreativeDesignManifest(manifest, scenes);
+      const issues = isCreativeDesignManifestV2(manifest)
+        ? validateCreativeDesignManifestV2(manifest, await this.sceneSpecs(tx, input, spec.id))
+        : validateCreativeDesignManifest(manifest, await this.storyboardScenes(tx, input, spec.id));
       if (issues.length > 0) throw invalidDesign(issues);
       await this.assertLogoOwnership(tx, input, manifest.settings.logoAssetId);
       const [snapshot] = await tx
@@ -638,7 +739,7 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
 
   public async applyPreset(
     input: Scope & { presetId: Identifier; body: unknown },
-  ): Promise<{ revision: number; manifest: CreativeDesignManifest }> {
+  ): Promise<{ revision: number; manifest: AnyCreativeDesignManifest }> {
     const command = parse(creativeDesignApplyPresetInputSchema, input.body);
     const [preset] = await this.database
       .select()
@@ -687,6 +788,43 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
         expectedRevision: command.expectedRevision,
         manifest: { ...saved, presetVersionId: version.id as Identifier },
       },
+    });
+  }
+
+  public async upgrade(
+    input: Scope & { body: unknown },
+  ): Promise<{ revision: number; manifest: AnyCreativeDesignManifest }> {
+    const command = parse(creativeDesignUpgradeInputSchema, input.body);
+    const draft = await this.getDraft(input);
+    if (draft === null)
+      throw new PublicError(
+        "not_found",
+        "Create a design draft before upgrading it.",
+        404,
+      );
+    if (draft.revision !== command.expectedRevision) throw editConflict();
+    if (isCreativeDesignManifestV2(draft.manifest))
+      return { revision: draft.revision, manifest: draft.manifest };
+    const spec = await this.currentSpec(this.database, input);
+    let manifest: AnyCreativeDesignManifest;
+    try {
+      manifest = planCinemaDesign({
+        packId: draft.manifest.pack.id,
+        scenes: await this.sceneSpecs(this.database, input, spec.id),
+        // A fresh variation seed: the upgraded lesson may differ from other
+        // lessons in the same pack, and the seed is then pinned for reuse.
+        seed: randomBytes(8).toString("hex"),
+        settings: draft.manifest.settings,
+        presetVersionId: draft.manifest.presetVersionId,
+      });
+    } catch {
+      throw invalidDesign([
+        "This storyboard cannot use the new compositions yet. The current design was kept.",
+      ]);
+    }
+    return this.createOrUpdateDraft({
+      ...input,
+      body: { expectedRevision: command.expectedRevision, manifest },
     });
   }
 
@@ -944,25 +1082,22 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
       );
     return approved;
   }
+  /** Full scene specs keyed by stable scene ID, as v2 manifests are. */
+  private async sceneSpecs(
+    db: DatabaseExecutor,
+    input: Scope,
+    lessonSpecId: string,
+  ): Promise<SceneSpec[]> {
+    const storyboard = await this.storyboard(db, input, lessonSpecId);
+    return storyboard.scenes.map((entry) => ({ ...entry.scene, id: entry.stableSceneId }));
+  }
+
   private async storyboardScenes(
     db: DatabaseExecutor,
     input: Scope,
     lessonSpecId: string,
   ): Promise<readonly StoryboardScene[]> {
-    const [row] = await db
-      .select({ payload: lessonSpecs.payload })
-      .from(lessonSpecs)
-      .where(
-        and(
-          eq(lessonSpecs.id, lessonSpecId),
-          eq(lessonSpecs.ownerUserId, input.ownerUserId),
-          eq(lessonSpecs.projectId, input.projectId),
-        ),
-      )
-      .limit(1);
-    if (row === undefined)
-      throw new PublicError("not_found", "The storyboard is unavailable.", 404);
-    const storyboard = lessonStoryboardSchema.parse(row.payload);
+    const storyboard = await this.storyboard(db, input, lessonSpecId);
     return storyboard.scenes.map((entry) => ({
       id: entry.stableSceneId,
       template: entry.scene.template,
@@ -976,6 +1111,27 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
                 : ("legacy" as const),
           }),
     }));
+  }
+
+  private async storyboard(
+    db: DatabaseExecutor,
+    input: Scope,
+    lessonSpecId: string,
+  ) {
+    const [row] = await db
+      .select({ payload: lessonSpecs.payload })
+      .from(lessonSpecs)
+      .where(
+        and(
+          eq(lessonSpecs.id, lessonSpecId),
+          eq(lessonSpecs.ownerUserId, input.ownerUserId),
+          eq(lessonSpecs.projectId, input.projectId),
+        ),
+      )
+      .limit(1);
+    if (row === undefined)
+      throw new PublicError("not_found", "The storyboard is unavailable.", 404);
+    return lessonStoryboardSchema.parse(row.payload);
   }
 
   private async assertLogoOwnership(
@@ -1056,5 +1212,18 @@ function invalidDesign(issues: readonly string[]): PublicError {
     Object.fromEntries(
       issues.map((issue, index) => [`issues.${index}`, issue]),
     ),
+  );
+}
+
+/** A draft body carrying a v2 manifest (validated by its own schema). */
+function isV2DraftBody(body: unknown): boolean {
+  return (
+    typeof body === "object" &&
+    body !== null &&
+    "manifest" in body &&
+    typeof body.manifest === "object" &&
+    body.manifest !== null &&
+    "manifestVersion" in body.manifest &&
+    body.manifest.manifestVersion === creativeDesignManifestV2Version
   );
 }
