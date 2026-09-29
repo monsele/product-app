@@ -664,6 +664,40 @@ function TransitionedScene({
         )}
       </div>
     );
+  return (
+    <CreativeScene
+      creativeDesign={creativeDesign}
+      durationInFrames={durationInFrames}
+      frameStyle={{ opacity, transform: `translateX(${translateX}px)` }}
+      resolvedAssets={resolvedAssets}
+      runtimeMode={runtimeMode}
+      scene={scene}
+    />
+  );
+}
+
+/**
+ * One scene drawn with its creative-design treatment: the pack's background,
+ * signature, decoration and treatment layout around the scene runtime. Shared
+ * by the full lesson and the storyboard's single-scene preview, so a style
+ * edit previews exactly as it will render.
+ */
+export function CreativeScene({
+  creativeDesign,
+  durationInFrames,
+  frameStyle,
+  resolvedAssets,
+  runtimeMode,
+  scene,
+}: Readonly<{
+  creativeDesign: z.infer<typeof creativeDesignManifestSchema>;
+  durationInFrames: number;
+  frameStyle?: Readonly<{ opacity?: number; transform?: string }>;
+  resolvedAssets: Readonly<Record<string, ResolvedSceneAsset>>;
+  runtimeMode: "preview" | "render";
+  scene: LessonSpec["scenes"][number];
+}>): JSX.Element {
+  const frame = useCurrentFrame();
   const selection = creativeDesign.selections[scene.id];
   const treatmentId = selection?.treatmentId;
   // Composition props are validated before preview or render. Throw if a
@@ -748,8 +782,7 @@ function TransitionedScene({
       style={{
         background: creativeDesign.settings.colors.background,
         height: "100%",
-        opacity,
-        transform: `translateX(${translateX}px)`,
+        ...frameStyle,
         width: "100%",
       }}
     >

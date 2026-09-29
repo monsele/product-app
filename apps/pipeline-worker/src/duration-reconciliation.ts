@@ -1,9 +1,11 @@
 import {
   computeLessonStoryboardContentHash,
   computeLessonStoryboardSceneContentHash,
+  createId,
   type Identifier,
 } from "@avlp/config";
 import {
+  carryForwardCreativeDesignSnapshot,
   lessonSpecs,
   sceneAudio,
   scenes,
@@ -138,6 +140,20 @@ export async function reconcileLessonSceneDurations(input: {
             eq(scenes.lessonSpecId, spec.id),
           ),
         );
+    // A retime changes only durations; the lesson keeps its style.
+    await carryForwardCreativeDesignSnapshot(transaction, {
+      ownerUserId: input.ownerUserId,
+      projectId: input.projectId,
+      lessonSpecId: spec.id,
+      nextRevision: next.revision,
+      scenes: nextScenes.map((scene) => ({
+        id: scene.stableSceneId,
+        template: scene.template,
+        durationSeconds: scene.durationSeconds,
+      })),
+      createId: () => createId(input.now),
+      now: input.now,
+    });
     await new PostgresAuditWriter(transaction).write({
       ownerUserId: input.ownerUserId,
       projectId: input.projectId,

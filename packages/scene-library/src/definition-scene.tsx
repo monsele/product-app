@@ -3,6 +3,7 @@ import { Easing, interpolate, useCurrentFrame } from "remotion";
 import type { CSSProperties, JSX } from "react";
 import {
   resolveSafeDiagramAsset,
+  scenePalette,
   type SceneComponentProps,
 } from "./scene-registry.js";
 import { getSceneFrameTiming } from "./timing.js";
@@ -72,6 +73,7 @@ export function DefinitionSceneFrame({
   if (scene.template !== "definition")
     throw new Error("DefinitionScene requires a definition scene.");
   const state = getDefinitionSceneFrameState(frame, scene.durationSeconds);
+  const palette = scenePalette(creativePresentation);
   const asset = exampleAsset(scene);
   const resolvedAsset = resolveSafeDiagramAsset(asset?.assetId, resolvedAssets);
   if (
@@ -97,7 +99,7 @@ export function DefinitionSceneFrame({
       aria-label="Lesson definition"
       style={{
         background:
-          creativePresentation?.background ?? videoTheme.colors.background,
+          creativePresentation?.background ?? palette.background,
         color: creativePresentation?.text ?? videoTheme.colors.text,
         fontFamily:
           creativePresentation?.fontFamily ?? videoTheme.typography.fontFamily,
@@ -114,7 +116,7 @@ export function DefinitionSceneFrame({
         >
           <p
             style={{
-              color: videoTheme.colors.primary,
+              color: palette.primary,
               fontSize: videoTheme.typography.bodySize,
               fontWeight: 700,
               letterSpacing: 2,
@@ -151,8 +153,8 @@ export function DefinitionSceneFrame({
             <aside
               aria-label={scene.visual.exampleLabel}
               style={{
-                borderLeft: `${videoTheme.lineWidths.emphasis}px solid ${videoTheme.colors.accent}`,
-                color: videoTheme.colors.mutedText,
+                borderLeft: `${videoTheme.lineWidths.emphasis}px solid ${palette.accent}`,
+                color: palette.mutedText,
                 marginTop: videoTheme.spacing.lg,
                 opacity: state.exampleOpacity,
                 paddingLeft: videoTheme.spacing.md,
@@ -160,7 +162,7 @@ export function DefinitionSceneFrame({
             >
               <strong
                 style={{
-                  color: videoTheme.colors.accent,
+                  color: palette.accent,
                   fontSize: 28,
                   letterSpacing: 1,
                 }}
@@ -186,8 +188,8 @@ export function DefinitionSceneFrame({
             data-definition-visual-asset-placeholder="visual-example"
             style={{
               alignSelf: "center",
-              background: videoTheme.colors.surface,
-              border: `${videoTheme.lineWidths.emphasis}px solid ${videoTheme.colors.primary}`,
+              background: palette.surface,
+              border: `${videoTheme.lineWidths.emphasis}px solid ${palette.primary}`,
               borderRadius: videoTheme.radii.md,
               display: "grid",
               height: 360,
@@ -201,10 +203,10 @@ export function DefinitionSceneFrame({
               viewBox="0 0 180 180"
               width="180"
             >
-              <circle cx="90" cy="90" fill={videoTheme.colors.primary} r="68" />
+              <circle cx="90" cy="90" fill={palette.primary} r="68" />
               <path
                 d="M58 90h64M90 58v64"
-                stroke={videoTheme.colors.background}
+                stroke={palette.background}
                 strokeWidth="14"
               />
             </svg>

@@ -3,16 +3,19 @@
 /**
  * ST-102 — the creative style pack selector.
  *
- * `null` (the first option) keeps today's legacy `mvp-default` appearance and
- * requests no creative-design manifest. Any other value is resolved into a
- * manifest automatically when the storyboard is generated (see
- * `apps/pipeline-worker/src/storyboard-job.ts`); this control has no server
- * eligibility check to honor because the pack catalogue is generally
- * available, not pilot-gated.
+ * `null` (the first option) lets the storyboard job suggest a pack from the
+ * subject and audience (`suggestCreativeDesignPack`), so lessons do not all
+ * share one look. Any other value is resolved into a manifest when the
+ * storyboard is generated (see `apps/pipeline-worker/src/storyboard-job.ts`);
+ * this control has no server eligibility check to honor because the pack
+ * catalogue is generally available, not pilot-gated.
  */
 
 import React from "react";
-import type { CreativeDesignPackId } from "@avlp/schemas";
+import {
+  creativeDesignPackDefaultSettings,
+  type CreativeDesignPackId,
+} from "@avlp/schemas";
 
 export const creativeStylePackOptions: readonly {
   value: CreativeDesignPackId | null;
@@ -21,9 +24,9 @@ export const creativeStylePackOptions: readonly {
 }[] = [
   {
     value: null,
-    label: "Warm editorial (Daylight Standard)",
+    label: "Automatic",
     description:
-      "High-legibility typography, clear hierarchy, and daylight warm accents for visual instruction.",
+      "We choose a style that suits the subject and audience. You can change it on the storyboard.",
   },
   {
     value: "essential",
@@ -115,11 +118,40 @@ export function CreativeStylePackSelector({
           >
             <span
               style={{
+                alignItems: "center",
+                display: "flex",
+                gap: "8px",
                 fontSize: "13px",
                 fontWeight: isSelected ? 600 : 500,
                 color: isSelected ? "var(--color-brand)" : "var(--color-text)",
               }}
             >
+              {option.value === null ? null : (
+                <span
+                  aria-hidden
+                  style={{
+                    border: "1px solid var(--color-border)",
+                    borderRadius: "4px",
+                    display: "inline-flex",
+                    height: "14px",
+                    overflow: "hidden",
+                    width: "48px",
+                  }}
+                >
+                  {(() => {
+                    const colors =
+                      creativeDesignPackDefaultSettings[option.value].colors;
+                    return [
+                      colors.background,
+                      colors.surface,
+                      colors.accent,
+                      colors.text,
+                    ].map((color, index) => (
+                      <span key={index} style={{ background: color, flex: 1 }} />
+                    ));
+                  })()}
+                </span>
+              )}
               {option.label}
             </span>
             <span

@@ -67,6 +67,11 @@
   white-space: nowrap;
 }
 
+.projectStatus {
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
 .accountGroup {
   display: flex;
   align-items: center;
@@ -115,4 +120,94 @@
 .signOut:hover {
   color: var(--color-text);
   background-color: var(--color-surface-subtle);
+}
+
+/* Focus Studio keeps project context readable without turning the top bar into
+   another editor panel. The same frame is shared by storyboard and preview. */
+.focusStudio {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  background-color: var(--color-surface);
+  border-bottom-color: var(--color-border);
+  box-shadow: 0 8px 28px rgb(8 4 14 / 0.16);
+}
+
+.focusStudio .brand {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+
+.focusStudio .projectGroup {
+  justify-self: center;
+  gap: 10px;
+  padding: 7px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface-raised);
+}
+
+.focusStudio .projectTitle {
+  font-size: 13px;
+  letter-spacing: -0.01em;
+}
+
+.focusStudio .projectStatus {
+  padding-left: 10px;
+  border-left: 1px solid var(--color-border);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.focusStudio .accountGroup {
+  justify-self: end;
+  gap: 10px;
+}
+
+.focusStudio .accountGroup a {
+  background-color: var(--color-surface-raised);
+}
+
+.focusStudio .signOut {
+  border-left: 1px solid var(--color-border);
+  border-radius: 0;
+  margin-left: 2px;
+  padding-left: 14px;
+}
+
+.focusStudio :where(a, button):focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 3px;
+}
+
+@media (max-width: 1199px) {
+  .focusStudio .userEmail {
+    display: none;
+  }
+}
+
+@media (max-width: 999px) {
+  .focusStudio .projectStatus {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .focusStudio {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .focusStudio .projectGroup {
+    display: none;
+  }
+
+  .focusStudio .accountGroup {
+    gap: 5px;
+  }
+
+  .focusStudio .signOut {
+    margin: 0;
+    padding: 7px 0 7px 8px;
+  }
 }

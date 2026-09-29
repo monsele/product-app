@@ -10,8 +10,9 @@
  * tenant-scoped on owner and project, like every other project query.
  */
 
-import { PublicError, type Identifier } from "@avlp/config";
+import { createId, PublicError, type Identifier } from "@avlp/config";
 import {
+  carryForwardCreativeDesignSnapshot,
   contentBlocks,
   jobs,
   lessonSpecs,
@@ -924,10 +925,53 @@ export class ServiceOneShotGateway
         scenesList.length,
       ),
       pinned: {
-        stylePackId: configuration.configuration?.creativeStylePack ?? null,
+        stylePackId: await this.renderedStylePack(scope, working),
         soundBed: configuration.configuration?.soundBed ?? null,
       },
     };
+  }
+
+  /**
+   * The style pack the lesson will actually preview and render with: the
+   * design snapshot pinned to the current storyboard revision. The lesson
+   * configuration alone is not enough, because a revision without a snapshot
+   * renders the legacy look whatever the configuration says. A missing
+   * snapshot is re-pinned here first (idempotent), so only a style that truly
+   * cannot be applied fails the brief promise.
+   */
+  private async renderedStylePack(
+    scope: OneShotScope,
+    working:
+      | {
+          id: string;
+          revision: number;
+          scenes: readonly {
+            stableSceneId: string;
+            template: string;
+            durationSeconds: number;
+          }[];
+        }
+      | null
+      | undefined,
+  ): Promise<string | null> {
+    if (working === null || working === undefined) return null;
+    const now = new Date();
+    const manifest = await this.services.database.transaction((transaction) =>
+      carryForwardCreativeDesignSnapshot(transaction, {
+        ownerUserId: scope.ownerUserId,
+        projectId: scope.projectId,
+        lessonSpecId: working.id,
+        nextRevision: working.revision,
+        scenes: working.scenes.map((scene) => ({
+          id: scene.stableSceneId,
+          template: scene.template,
+          durationSeconds: scene.durationSeconds,
+        })),
+        createId: () => createId(now),
+        now,
+      }),
+    );
+    return manifest?.pack.id ?? null;
   }
 
   // ---- Metering and audit -------------------------------------------------

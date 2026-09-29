@@ -3,6 +3,7 @@ import { Easing, interpolate, useCurrentFrame } from "remotion";
 import type { JSX } from "react";
 import {
   resolveSafeDiagramAsset,
+  scenePalette,
   type SceneComponentProps,
 } from "./scene-registry.js";
 import { getSceneFrameTiming } from "./timing.js";
@@ -71,6 +72,7 @@ export function SummarySceneFrame({
   runtimeMode = "preview",
   scene,
 }: SceneComponentProps & Readonly<{ frame: number }>): JSX.Element {
+  const palette = scenePalette(creativePresentation);
   if (scene.template !== "summary")
     throw new Error("SummaryScene requires a summary scene.");
   const state = getSummarySceneFrameState(
@@ -110,7 +112,7 @@ export function SummarySceneFrame({
       <header style={{ marginBottom: videoTheme.spacing.md }}>
         <p
           style={{
-            color: videoTheme.colors.primary,
+            color: palette.primary,
             fontSize: 22,
             fontWeight: 700,
             letterSpacing: 2,
@@ -134,8 +136,8 @@ export function SummarySceneFrame({
         <section
           data-summary-central-model
           style={{
-            background: videoTheme.colors.surface,
-            border: `${videoTheme.lineWidths.emphasis}px solid ${videoTheme.colors.primary}`,
+            background: palette.surface,
+            border: `${videoTheme.lineWidths.emphasis}px solid ${palette.primary}`,
             borderRadius: videoTheme.radii.md,
             fontSize: 30,
             fontWeight: 700,
@@ -183,8 +185,8 @@ export function SummarySceneFrame({
             key={`${index}-${takeaway.text}`}
             style={{
               alignItems: "center",
-              background: videoTheme.colors.surface,
-              borderLeft: `${videoTheme.lineWidths.emphasis}px solid ${videoTheme.colors.accent}`,
+              background: palette.surface,
+              borderLeft: `${videoTheme.lineWidths.emphasis}px solid ${palette.accent}`,
               display: "grid",
               fontSize: denseTakeaways ? 18 : 25,
               gap: videoTheme.spacing.sm,
@@ -198,7 +200,7 @@ export function SummarySceneFrame({
           >
             <span
               aria-hidden="true"
-              style={{ color: videoTheme.colors.accent, fontWeight: 700 }}
+              style={{ color: palette.accent, fontWeight: 700 }}
             >
               {index + 1}
             </span>
@@ -207,9 +209,9 @@ export function SummarySceneFrame({
               <span
                 data-summary-objective-badge
                 style={{
-                  background: videoTheme.colors.primary,
+                  background: palette.primary,
                   borderRadius: 999,
-                  color: videoTheme.colors.background,
+                  color: palette.background,
                   fontSize: 14,
                   fontWeight: 700,
                   padding: "4px 8px",
@@ -225,7 +227,7 @@ export function SummarySceneFrame({
         <p
           data-summary-call-to-action
           style={{
-            color: videoTheme.colors.primary,
+            color: palette.primary,
             fontSize: 22,
             fontWeight: 700,
             margin: `${videoTheme.spacing.md}px 0 0`,

@@ -29,7 +29,9 @@ import {
   type QuotaGuard,
 } from "@avlp/provider-adapters";
 import {
+  carryForwardCreativeDesignManifest,
   createDefaultCreativeDesignManifest,
+  suggestCreativeDesignPack,
   creativeDesignHash,
   creativeDesignPackIdSchema,
   lessonStoryboardSceneSchema,
@@ -730,7 +732,13 @@ async function persistLessonStoryboardDraft(input: {
   // unresolvable style never rolls back the AI-generated storyboard content
   // that already succeeded.
   const [configuration] = await input.executor
-    .select({ creativeStylePack: lessonConfigurations.creativeStylePack })
+    .select({
+      creativeStylePack: lessonConfigurations.creativeStylePack,
+      subject: lessonConfigurations.subject,
+      lessonTitle: lessonConfigurations.lessonTitle,
+      ageBand: lessonConfigurations.ageBand,
+      difficulty: lessonConfigurations.difficulty,
+    })
     .from(lessonConfigurations)
     .where(
       and(
@@ -742,6 +750,11 @@ async function persistLessonStoryboardDraft(input: {
   let creativeDesign:
     | { manifest: ReturnType<typeof createDefaultCreativeDesignManifest>; manifestHash: string }
     | undefined;
+  const designScenes = storyboard.scenes.map((scene) => ({
+    id: scene.id,
+    template: scene.template,
+    durationSeconds: scene.durationSeconds,
+  }));
   if (configuration?.creativeStylePack != null) {
     try {
       const packId = creativeDesignPackIdSchema.parse(
@@ -749,11 +762,7 @@ async function persistLessonStoryboardDraft(input: {
       );
       const manifest = createDefaultCreativeDesignManifest({
         packId,
-        scenes: storyboard.scenes.map((scene) => ({
-          id: scene.id,
-          template: scene.template,
-          durationSeconds: scene.durationSeconds,
-        })),
+        scenes: designScenes,
       });
       creativeDesign = { manifest, manifestHash: creativeDesignHash(manifest) };
     } catch (error) {
@@ -769,6 +778,25 @@ async function persistLessonStoryboardDraft(input: {
           : "The selected visual style could not be applied to this lesson.",
       );
     }
+  } else {
+    // No style chosen: start from a pack suggested by the subject and
+    // audience, so lessons do not all share one look. The teacher can change
+    // it in the storyboard's appearance settings. Unlike a chosen pack, a
+    // suggestion that cannot cover these scenes is simply skipped and the
+    // lesson keeps the legacy look; it must never fail the storyboard.
+    const manifest = carryForwardCreativeDesignManifest({
+      previous: undefined,
+      packId: suggestCreativeDesignPack({
+        subject: configuration?.subject ?? storyboard.subject,
+        lessonTitle: configuration?.lessonTitle ?? storyboard.title,
+        ageBand: configuration?.ageBand ?? null,
+        difficulty: configuration?.difficulty ?? null,
+        projectId: input.context.projectId,
+      }),
+      scenes: designScenes,
+    });
+    if (manifest !== undefined)
+      creativeDesign = { manifest, manifestHash: creativeDesignHash(manifest) };
   }
 
   return input.executor.transaction(async (transaction) => {

@@ -29,6 +29,7 @@ import {
 } from "@avlp/provider-adapters";
 import {
   buildSourcePackage,
+  creativeDesignPackIds,
   sourceSnapshotSchema,
   storyboardGenerationParamsSchema,
   storyboardOutputV1Schema,
@@ -813,11 +814,13 @@ describe("persistLessonStoryboard", () => {
     expect(snapshot.manifestHash).toBe(draft.manifestHash);
   });
 
-  it("creates no creative-design rows when the configuration has no style pack", async () => {
+  it("starts from a suggested style pack when the configuration has none", async () => {
     const { executor, draftInserts, snapshotInserts } = storeCapture();
     await callPersist({ executor, idempotencyKey: "key-4" });
-    expect(draftInserts).toHaveLength(0);
-    expect(snapshotInserts).toHaveLength(0);
+    expect(draftInserts).toHaveLength(1);
+    expect(snapshotInserts).toHaveLength(1);
+    const snapshot = snapshotInserts[0] as { manifest: { pack: { id: string } } };
+    expect(creativeDesignPackIds).toContain(snapshot.manifest.pack.id);
   });
 
   it("fails as a terminal job error when the configured style pack cannot be resolved", async () => {

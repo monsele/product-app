@@ -19,6 +19,7 @@ import {
 import { SceneCitations } from "./citation-panel";
 import { SceneGrounding } from "./grounding-panel";
 import { SceneEditorForm } from "./scene-editor-form";
+import { SceneNarrationEditor } from "./scene-narration-editor";
 import { IllustrationCandidatePanel } from "./illustration-candidate-panel";
 import { SceneAudioPanel } from "./scene-audio-panel";
 import styles from "./storyboard.module.css";
@@ -384,22 +385,17 @@ export function SceneDetailPanel({
       >
         {activeTab === "content" && (
           <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-            <div style={{ padding: "12px", borderRadius: "8px", backgroundColor: "var(--color-surface-subtle, #292035)", border: "1px solid var(--color-border, #3A3046)" }}>
-              <h4 style={{ margin: "0 0 6px", fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--color-text-muted, #BDB5C7)" }}>
-                Narration script
-              </h4>
-              <p style={{ margin: 0, fontSize: "13px", lineHeight: 1.5, color: "var(--color-text, #F4F1F8)" }}>
-                {scene.scene.narration}
-              </p>
-            </div>
-
-            {scene.scene.onScreenText.length > 0 ? (
-              <div style={{ padding: "10px 12px", borderRadius: "6px", backgroundColor: "rgba(0,0,0,0.2)", border: "1px solid var(--color-border, #3A3046)" }}>
-                <p style={{ margin: 0, fontSize: "12px", color: "var(--color-text-muted, #BDB5C7)" }}>
-                  <strong style={{ color: "var(--color-text, #F4F1F8)" }}>On screen:</strong> {scene.scene.onScreenText.join(" · ")}
-                </p>
-              </div>
-            ) : null}
+            <SceneNarrationEditor
+              projectId={projectId}
+              detail={detail}
+              revision={lessonSpecRevision}
+              disabled={pending || generating || validationBusy}
+              validation={validation ?? null}
+              {...(onAcknowledgeValidation === undefined
+                ? {}
+                : { onAcknowledge: onAcknowledgeValidation })}
+              onPersisted={onChanged}
+            />
 
             <div style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "12px", color: "var(--color-text-muted, #BDB5C7)" }}>
               <p style={{ margin: 0 }}>Transition: <span style={{ color: "var(--color-text, #F4F1F8)" }}>{scene.scene.transition}</span></p>

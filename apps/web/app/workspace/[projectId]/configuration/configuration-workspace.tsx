@@ -2327,7 +2327,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
               >
                 {creativeStylePackOptions.find(
                   (option) => option.value === lessonForm.creativeStylePack,
-                )?.label ?? "Warm editorial"}
+                )?.label ?? "Automatic"}
               </span>
             </div>
 

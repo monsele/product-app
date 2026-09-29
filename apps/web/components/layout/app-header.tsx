@@ -13,6 +13,7 @@ export interface AppHeaderProps {
   actions?: React.ReactNode | undefined;
   onToggleMobileMenu?: (() => void) | undefined;
   isMobileMenuOpen?: boolean | undefined;
+  focusStudio?: boolean | undefined;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -23,9 +24,12 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   actions,
   onToggleMobileMenu,
   isMobileMenuOpen = false,
+  focusStudio = false,
 }) => {
   return (
-    <header className={styles.header}>
+    <header
+      className={`${styles.header} ${focusStudio ? styles.focusStudio : ""}`}
+    >
       <div className={styles.brandGroup}>
         {onToggleMobileMenu && (
           <IconButton
@@ -44,7 +48,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
       {projectTitle && (
         <div className={styles.projectGroup}>
           <span className={styles.projectTitle}>{projectTitle}</span>
-          {projectStatus}
+          {projectStatus && (
+            <div className={styles.projectStatus}>{projectStatus}</div>
+          )}
         </div>
       )}
 

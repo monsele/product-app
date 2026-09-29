@@ -91,6 +91,43 @@ export type CreativeScenePresentation = Readonly<{
   text: string;
   variant: "primary" | "alternate";
 }>;
+/**
+ * The colour roles a scene paints with. Without a creative design these are
+ * the legacy dark video theme. With one, every role comes from the pack's
+ * palette: a scene must never mix the dark theme's pale text and cyan/amber
+ * highlights into a light pack, where they become illegible.
+ */
+export type ScenePalette = Readonly<{
+  background: string;
+  surface: string;
+  primary: string;
+  accent: string;
+  text: string;
+  mutedText: string;
+}>;
+
+export function scenePalette(
+  creativePresentation: CreativeScenePresentation | undefined,
+): ScenePalette {
+  if (creativePresentation === undefined)
+    return {
+      background: videoTheme.colors.background,
+      surface: videoTheme.colors.surface,
+      primary: videoTheme.colors.primary,
+      accent: videoTheme.colors.accent,
+      text: videoTheme.colors.text,
+      mutedText: videoTheme.colors.mutedText,
+    };
+  return {
+    background: creativePresentation.background,
+    surface: creativePresentation.surface,
+    primary: creativePresentation.accent,
+    accent: creativePresentation.accent,
+    text: creativePresentation.text,
+    mutedText: creativePresentation.text,
+  };
+}
+
 export type SceneComponentProps = Readonly<{
   creativePresentation?: CreativeScenePresentation;
   resolvedAssets?: Readonly<Record<string, ResolvedSceneAsset>>;

@@ -47,7 +47,7 @@ describe("CreativeStylePackSelector (Playwright)", () => {
         expect(await radios.count()).toBe(creativeStylePackOptions.length);
         expect(await radios.nth(0).getAttribute("aria-checked")).toBe("true");
         expect(await radios.nth(0).textContent()).toContain(
-          "Warm editorial (Daylight Standard)",
+          "Automatic",
         );
         for (let index = 1; index < creativeStylePackOptions.length; index += 1)
           expect(await radios.nth(index).getAttribute("aria-checked")).toBe(

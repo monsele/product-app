@@ -14,6 +14,7 @@ import {
   lessonAudioGenerationResponseSchema,
   lessonIllustrationGenerationResponseSchema,
   versionSaveReadinessSchema,
+  type CreativeDesignManifest,
   type LessonValidationRun,
   type PreviewManifest,
   type ProjectAsset,
@@ -55,6 +56,7 @@ import {
   ArrowRight as ArrowRightIcon,
   CaretDown as CaretDownIcon,
   Copy as CopyIcon,
+  FilmStrip as FilmStripIcon,
   Plus as PlusIcon,
 } from "@phosphor-icons/react";
 import styles from "./storyboard.module.css";
@@ -201,6 +203,8 @@ export function StoryboardPanel({
   projectTitle?: string;
 }) {
   const [view, setView] = useState<ViewState>({ kind: "loading" });
+  const [previewDesign, setPreviewDesign] =
+    useState<CreativeDesignManifest | null>(null);
   const [pending, setPending] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -972,9 +976,18 @@ export function StoryboardPanel({
   const teacherReplacement = selectedDetail
     ? teacherReplacementPreviewForScene(selectedDetail, teacherAssets)
     : undefined;
-  const previewInput = selectedDetail
-    ? buildScenePreviewInput(selectedDetail, previewManifest)
-    : null;
+  const previewInput = useMemo(
+    () =>
+      selectedDetail
+        ? {
+            ...buildScenePreviewInput(selectedDetail, previewManifest),
+            // The appearance panel's design as edited, applied or not, so a
+            // style change shows on the selected scene before it is applied.
+            ...(previewDesign === null ? {} : { creativeDesign: previewDesign }),
+          }
+        : null,
+    [selectedDetail, previewManifest, previewDesign],
+  );
 
   const totalDuration = listScenes.reduce(
     (acc, s) => acc + s.durationSeconds,
@@ -1040,18 +1053,21 @@ export function StoryboardPanel({
   return (
     <div className={styles.panel}>
       <header className={styles.header}>
-        <div>
-          <div className={styles.headingRow}>
-            <h1 id="storyboard-heading" className={styles.title}>
-              Storyboard
-            </h1>
-            <span className={styles.badge}>Focus Studio</span>
-          </div>
+        <div className={styles.headerIdentity}>
+          <span className={styles.headerKicker}>
+            <FilmStripIcon size={16} aria-hidden />
+            Focus Studio
+          </span>
+          <h1 id="storyboard-heading" className={styles.title}>
+            Storyboard
+          </h1>
 
           {projectTitle ? (
             <p className={styles.projectTitle}>{projectTitle}</p>
           ) : null}
+        </div>
 
+        <div className={styles.headerUtility}>
           <p role="status" className={styles.headerStatus}>
             <span className={styles.statusLabel}>
               {storyboardGenerationStateLabel(view.value.state)}
@@ -1069,97 +1085,102 @@ export function StoryboardPanel({
               </span>
             ) : null}
           </p>
-        </div>
 
-        <div className={styles.headerActions}>
-          {storyboard === null && view.value.canGenerate ? (
-            <button
-              type="button"
-              onClick={() => void generate()}
-              disabled={submitting || generating}
-              className={`${styles.button} ${styles.buttonPrimary}`}
-            >
-              {submitting || generating
-                ? "Starting generation…"
-                : "Generate storyboard"}
-            </button>
-          ) : null}
-          {storyboard !== null ? (
-            <details className={styles.moreActions}>
-              <summary className={`${styles.button} ${styles.buttonSecondary}`}>
-                More actions <CaretDownIcon size={14} aria-hidden />
-              </summary>
-              <div className={styles.moreActionsMenu}>
-                {view.value.canGenerate ? (
-                  <button
-                    type="button"
-                    onClick={() => void generate()}
-                    disabled={submitting || generating}
-                    className={`${styles.button} ${styles.buttonSecondary}`}
-                  >
-                    {submitting || generating
-                      ? "Starting generation…"
-                      : storyboard === null
-                        ? "Generate storyboard"
-                        : "Regenerate storyboard"}
-                  </button>
-                ) : null}
-                {storyboard !== null ? (
-                  <button
-                    type="button"
-                    onClick={() => void generateMissingIllustrations()}
-                    disabled={illustrationBatchBusy || generating || editing}
-                    className={`${styles.button} ${styles.buttonSecondary}`}
-                  >
-                    {illustrationBatchBusy
-                      ? "Queueing illustrations…"
-                      : "Generate missing illustrations"}
-                  </button>
-                ) : null}
-                {storyboard !== null ? (
-                  <Link
-                    href={`/workspace/${encodeURIComponent(projectId)}/storyboard/candidates`}
-                    className={`${styles.button} ${styles.buttonSecondary}`}
-                  >
-                    Review illustration candidates
-                  </Link>
-                ) : null}
-              </div>
-            </details>
-          ) : null}
+          <div className={styles.headerActions}>
+            {storyboard === null && view.value.canGenerate ? (
+              <button
+                type="button"
+                onClick={() => void generate()}
+                disabled={submitting || generating}
+                className={`${styles.button} ${styles.buttonPrimary}`}
+              >
+                {submitting || generating
+                  ? "Starting generation…"
+                  : "Generate storyboard"}
+              </button>
+            ) : null}
+            {storyboard !== null ? (
+              <details className={styles.moreActions}>
+                <summary
+                  className={`${styles.button} ${styles.buttonSecondary}`}
+                >
+                  More actions <CaretDownIcon size={14} aria-hidden />
+                </summary>
+                <div className={styles.moreActionsMenu}>
+                  {view.value.canGenerate ? (
+                    <button
+                      type="button"
+                      onClick={() => void generate()}
+                      disabled={submitting || generating}
+                      className={`${styles.button} ${styles.buttonSecondary}`}
+                    >
+                      {submitting || generating
+                        ? "Starting generation…"
+                        : storyboard === null
+                          ? "Generate storyboard"
+                          : "Regenerate storyboard"}
+                    </button>
+                  ) : null}
+                  {storyboard !== null ? (
+                    <button
+                      type="button"
+                      onClick={() => void generateMissingIllustrations()}
+                      disabled={illustrationBatchBusy || generating || editing}
+                      className={`${styles.button} ${styles.buttonSecondary}`}
+                    >
+                      {illustrationBatchBusy
+                        ? "Queueing illustrations…"
+                        : "Generate missing illustrations"}
+                    </button>
+                  ) : null}
+                  {storyboard !== null ? (
+                    <Link
+                      href={`/workspace/${encodeURIComponent(projectId)}/storyboard/candidates`}
+                      className={`${styles.button} ${styles.buttonSecondary}`}
+                    >
+                      Review illustration candidates
+                    </Link>
+                  ) : null}
+                </div>
+              </details>
+            ) : null}
 
-          {storyboard !== null && !mediaReady ? (
-            <button
-              type="button"
-              onClick={() => void generateLessonAudio()}
-              disabled={
-                audioBatchBusy || pendingMedia || view.value.stale || generating
-              }
-              className={`${styles.button} ${styles.buttonPrimary}`}
-            >
-              {audioBatchBusy || pendingMedia
-                ? "Generating audio & captions…"
-                : "Generate all audio & captions"}
-            </button>
-          ) : storyboard !== null && !validationReady ? (
-            <button
-              type="button"
-              onClick={() => void runValidation()}
-              disabled={validationBusy}
-              className={`${styles.button} ${styles.buttonPrimary}`}
-            >
-              {validationBusy ? "Running final checks…" : "Run final checks"}
-            </button>
-          ) : canOpenPreview ? (
-            <Link
-              href={`/workspace/${encodeURIComponent(projectId)}/preview`}
-              prefetch={true}
-              className={`${styles.button} ${styles.buttonPrimary}`}
-            >
-              Preview lesson
-              <ArrowRightIcon size={16} weight="bold" aria-hidden />
-            </Link>
-          ) : null}
+            {storyboard !== null && !mediaReady ? (
+              <button
+                type="button"
+                onClick={() => void generateLessonAudio()}
+                disabled={
+                  audioBatchBusy ||
+                  pendingMedia ||
+                  view.value.stale ||
+                  generating
+                }
+                className={`${styles.button} ${styles.buttonPrimary} ${styles.buttonWide}`}
+              >
+                {audioBatchBusy || pendingMedia
+                  ? "Generating audio & captions…"
+                  : "Generate all audio & captions"}
+              </button>
+            ) : storyboard !== null && !validationReady ? (
+              <button
+                type="button"
+                onClick={() => void runValidation()}
+                disabled={validationBusy}
+                className={`${styles.button} ${styles.buttonPrimary}`}
+              >
+                {validationBusy ? "Running final checks…" : "Run final checks"}
+              </button>
+            ) : canOpenPreview ? (
+              <Link
+                href={`/workspace/${encodeURIComponent(projectId)}/preview`}
+                prefetch={true}
+                className={`${styles.button} ${styles.buttonPrimary}`}
+              >
+                Preview lesson
+                <ArrowRightIcon size={16} weight="bold" aria-hidden />
+              </Link>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -1566,6 +1587,7 @@ export function StoryboardPanel({
                     <CreativeDesignPanel
                       projectId={projectId}
                       selectedSceneId={selectedSceneId}
+                      onPreviewDesignChange={setPreviewDesign}
                     />
                   </details>
                 </motion.div>

@@ -3,11 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   creativeDesignManifestSchema,
+  creativeDesignPackDefaultSettings,
   creativeDesignPackIds,
   creativeDesignProposalPatchSchema,
   type CreativeDesignPackId,
   type CreativeDesignManifest,
 } from "@avlp/schemas";
+import { stylePackLabels } from "../../../../lib/one-shot";
 import { creativeDesignColorIssues } from "./creative-design-colors";
 import styles from "./storyboard.module.css";
 
@@ -15,6 +17,8 @@ type Draft = {
   revision: number;
   manifest: CreativeDesignManifest;
   eligibility: readonly string[];
+  /** The saved draft is the design the lesson previews and renders. */
+  applied: boolean;
 };
 type Preset = {
   id: string;
@@ -59,12 +63,62 @@ export function creativeDesignErrorMessage(
     : message;
 }
 
+/**
+ * Whether the design on screen is what the lesson will render: unsaved local
+ * edits, a saved draft that was never applied, or the applied design.
+ */
+export function creativeDesignStatus(
+  draft: Pick<Draft, "manifest" | "applied">,
+  local: CreativeDesignManifest,
+): "unsaved" | "not_applied" | "applied" {
+  if (JSON.stringify(local) !== JSON.stringify(draft.manifest)) return "unsaved";
+  return draft.applied ? "applied" : "not_applied";
+}
+
+/** Why Apply is unavailable, in words, instead of a silently disabled button. */
+export function creativeDesignApplyBlockers(
+  eligibility: readonly string[],
+  colorIssues: readonly string[],
+): readonly string[] {
+  return [...eligibility, ...colorIssues];
+}
+
+function PackSwatch({ packId }: { packId: CreativeDesignPackId }) {
+  const colors = creativeDesignPackDefaultSettings[packId].colors;
+  return (
+    <span
+      aria-hidden
+      style={{
+        border: "1px solid rgba(0,0,0,.15)",
+        borderRadius: 6,
+        display: "inline-flex",
+        height: 20,
+        overflow: "hidden",
+        verticalAlign: "middle",
+        width: 60,
+      }}
+    >
+      {[colors.background, colors.surface, colors.accent, colors.text].map(
+        (color, index) => (
+          <span key={index} style={{ background: color, flex: 1 }} />
+        ),
+      )}
+    </span>
+  );
+}
+
 export function CreativeDesignPanel({
   projectId,
   selectedSceneId,
+  onPreviewDesignChange,
 }: {
   projectId: string;
   selectedSceneId: string | null;
+  /**
+   * Receives the design as currently edited, applied or not, so the
+   * storyboard's scene preview can draw it live.
+   */
+  onPreviewDesignChange?: (manifest: CreativeDesignManifest | null) => void;
 }) {
   const [draft, setDraft] = useState<Draft | null>(null);
   const [local, setLocal] = useState<CreativeDesignManifest | null>(null);
@@ -73,6 +127,9 @@ export function CreativeDesignPanel({
   const [pilotAvailable, setPilotAvailable] = useState(true);
   const [presets, setPresets] = useState<readonly Preset[]>([]);
   const [alternatives, setAlternatives] = useState<readonly Alternative[]>([]);
+  useEffect(() => {
+    onPreviewDesignChange?.(local);
+  }, [local, onPreviewDesignChange]);
   const load = useCallback(async () => {
     const response = await fetch(
       api(`/projects/${encodeURIComponent(projectId)}/creative-design`),
@@ -102,6 +159,7 @@ export function CreativeDesignPanel({
       revision?: unknown;
       manifest?: unknown;
       eligibility?: unknown;
+      applied?: unknown;
     };
     const manifest = creativeDesignManifestSchema.safeParse(parsed.manifest);
     if (
@@ -113,6 +171,7 @@ export function CreativeDesignPanel({
     const next = {
       revision: parsed.revision,
       manifest: manifest.data,
+      applied: parsed.applied === true,
       eligibility: parsed.eligibility.filter(
         (item): item is string => typeof item === "string",
       ),
@@ -487,25 +546,60 @@ export function CreativeDesignPanel({
       <section aria-label="Creative design" className={styles.creativePanel}>
         <h3>Appearance settings</h3>
         <p>
-          Choose a style only when every scene in this lesson is supported.
-          Existing lessons keep their saved appearance.
+          This lesson uses the plain default look. Choose a style to give it
+          its own colours, type and layouts.
         </p>
-        {creativeDesignPackIds.map((pack) => (
-          <button
-            key={pack}
-            type="button"
-            disabled={busy}
-            onClick={() => void start(pack)}
-            style={{ marginRight: 8 }}
-          >{`Start ${pack}`}</button>
-        ))}
+        <div aria-label="Style packs" style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {creativeDesignPackIds.map((pack) => (
+            <button
+              key={pack}
+              type="button"
+              disabled={busy}
+              onClick={() => void start(pack)}
+            >
+              <PackSwatch packId={pack} /> {stylePackLabels[pack]}
+            </button>
+          ))}
+        </div>
         {message ? <p role="alert">{message}</p> : null}
       </section>
     );
   const colorIssues = creativeDesignColorIssues(local.settings.colors);
+  const status = creativeDesignStatus(draft, local);
+  const applyBlockers = creativeDesignApplyBlockers(
+    draft.eligibility,
+    colorIssues,
+  );
   return (
     <section aria-label="Creative design" className={styles.creativePanel}>
       <h3>Appearance settings</h3>
+      <p role="status" data-design-status={status}>
+        <strong>
+          {status === "applied"
+            ? "Applied to lesson"
+            : status === "unsaved"
+              ? "Unsaved changes"
+              : "Not applied yet"}
+        </strong>
+        {" · "}
+        {stylePackLabels[local.pack.id]} style.{" "}
+        {status === "applied"
+          ? "The preview and the rendered video use this design."
+          : "The scene preview shows these changes; Apply to lesson to use them in the video."}
+      </p>
+      <div aria-label="Switch style" style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {creativeDesignPackIds.map((pack) => (
+          <button
+            key={pack}
+            type="button"
+            aria-pressed={local.pack.id === pack}
+            disabled={busy || local.pack.id === pack}
+            onClick={() => void start(pack)}
+          >
+            <PackSwatch packId={pack} /> {stylePackLabels[pack]}
+          </button>
+        ))}
+      </div>
       {draft.eligibility.length > 0 ? (
         <p role="alert">{draft.eligibility.join(" ")}</p>
       ) : (
@@ -720,13 +814,16 @@ export function CreativeDesignPanel({
       </form>
       <button
         type="button"
-        disabled={
-          busy || draft.eligibility.length > 0 || colorIssues.length > 0
-        }
+        disabled={busy || applyBlockers.length > 0 || status === "applied"}
         onClick={() => void apply()}
       >
         Apply to lesson
       </button>
+      {applyBlockers.length > 0 ? (
+        <p role="alert">
+          Apply is unavailable: {applyBlockers.join(" ")}
+        </p>
+      ) : null}
       <button
         type="button"
         disabled={busy}

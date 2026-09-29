@@ -4,8 +4,10 @@ import type { CSSProperties, JSX } from "react";
 import type { ComparisonSubject } from "@avlp/schemas";
 import {
   resolveSafeDiagramAsset,
+  scenePalette,
   type ResolvedSceneAsset,
   type SceneComponentProps,
+  type ScenePalette,
 } from "./scene-registry.js";
 import { getSceneFrameTiming } from "./timing.js";
 
@@ -69,9 +71,11 @@ function SubjectCard({
   asset,
   label,
   opacity,
+  palette,
   side,
 }: Readonly<{
   asset: ResolvedSceneAsset | undefined;
+  palette: ScenePalette;
   label: string;
   opacity: number;
   side: "left" | "right";
@@ -82,8 +86,8 @@ function SubjectCard({
       data-comparison-subject={side}
       style={{
         alignItems: "center",
-        background: videoTheme.colors.surface,
-        border: `${videoTheme.lineWidths.emphasis}px solid ${videoTheme.colors.primary}`,
+        background: palette.surface,
+        border: `${videoTheme.lineWidths.emphasis}px solid ${palette.primary}`,
         borderRadius: videoTheme.radii.md,
         boxSizing: "border-box",
         display: "grid",
@@ -101,7 +105,7 @@ function SubjectCard({
           data-comparison-asset={asset.assetId}
           data-comparison-asset-slot={`${side}-subject-image`}
           style={{
-            background: videoTheme.colors.background,
+            background: palette.background,
             borderRadius: videoTheme.radii.md,
             display: "grid",
             height: 112,
@@ -114,7 +118,7 @@ function SubjectCard({
             src={asset.src}
             style={{ borderRadius: videoTheme.radii.md, height: "100%", objectFit: "cover", width: "100%" }}
           />
-          <span aria-hidden="true" style={{ color: videoTheme.colors.accent, display: "none", fontSize: 48 }}>
+          <span aria-hidden="true" style={{ color: palette.accent, display: "none", fontSize: 48 }}>
             ◉
           </span>
         </div>
@@ -137,14 +141,16 @@ function TraitList({
   heading,
   items,
   opacity,
+  palette,
   variant,
 }: Readonly<{
+  palette: ScenePalette;
   heading: string;
   items: readonly string[];
   opacity: number;
   variant: "difference" | "similarity";
 }>): JSX.Element {
-  const accent = variant === "similarity" ? videoTheme.colors.accent : videoTheme.colors.primary;
+  const accent = variant === "similarity" ? palette.accent : palette.primary;
   return (
     <section
       aria-label={heading}
@@ -194,16 +200,7 @@ export function ComparisonSceneFrame({
       (rightBinding !== undefined && rightAsset === undefined))
   )
     throw new Error("Comparison render requires resolved subject assets.");
-  const colors = creativePresentation === undefined
-    ? videoTheme.colors
-    : {
-        ...videoTheme.colors,
-        accent: creativePresentation.accent,
-        background: creativePresentation.background,
-        primary: creativePresentation.accent,
-        surface: creativePresentation.surface,
-        text: creativePresentation.text,
-      };
+  const colors = scenePalette(creativePresentation);
   const sectionStyle: CSSProperties = {
     boxSizing: "border-box",
     display: "grid",
@@ -216,7 +213,7 @@ export function ComparisonSceneFrame({
     <main aria-label="Concept comparison" style={{ background: colors.background, color: colors.text, fontFamily: creativePresentation?.fontFamily ?? videoTheme.typography.fontFamily, height: "100%", width: "100%" }}>
       <section style={sectionStyle}>
         <header>
-          <p style={{ color: videoTheme.colors.primary, fontSize: videoTheme.typography.bodySize, fontWeight: 700, letterSpacing: 2, margin: 0 }}>
+          <p style={{ color: colors.primary, fontSize: videoTheme.typography.bodySize, fontWeight: 700, letterSpacing: 2, margin: 0 }}>
             COMPARE AND CONTRAST
           </p>
           <h1 style={{ display: "-webkit-box", fontSize: 56, lineHeight: 1.1, margin: `${videoTheme.spacing.xs}px 0 0`, maxHeight: 124, overflow: "hidden", overflowWrap: "anywhere", WebkitBoxOrient: "vertical", WebkitLineClamp: 2 }}>
@@ -224,12 +221,12 @@ export function ComparisonSceneFrame({
           </h1>
         </header>
         <div data-comparison-subjects style={{ display: "grid", gap: videoTheme.spacing.md, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)" }}>
-          <SubjectCard asset={leftAsset} label={scene.visual.leftSubject.label} opacity={state.subjectsOpacity} side="left" />
-          <SubjectCard asset={rightAsset} label={scene.visual.rightSubject.label} opacity={state.subjectsOpacity} side="right" />
+          <SubjectCard palette={colors} asset={leftAsset} label={scene.visual.leftSubject.label} opacity={state.subjectsOpacity} side="left" />
+          <SubjectCard palette={colors} asset={rightAsset} label={scene.visual.rightSubject.label} opacity={state.subjectsOpacity} side="right" />
         </div>
         <div data-comparison-layout style={{ alignSelf: "start", display: "grid", gap: videoTheme.spacing.lg, gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)" }}>
-          <TraitList heading="SHARED TRAITS" items={scene.visual.similarities} opacity={state.similaritiesOpacity} variant="similarity" />
-          <TraitList heading="KEY DIFFERENCES" items={scene.visual.differences} opacity={state.differencesOpacity} variant="difference" />
+          <TraitList palette={colors} heading="SHARED TRAITS" items={scene.visual.similarities} opacity={state.similaritiesOpacity} variant="similarity" />
+          <TraitList palette={colors} heading="KEY DIFFERENCES" items={scene.visual.differences} opacity={state.differencesOpacity} variant="difference" />
         </div>
       </section>
     </main>

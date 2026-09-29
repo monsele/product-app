@@ -5,10 +5,12 @@ import { Audio, useCurrentFrame } from "remotion";
 import React, { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { z } from "zod";
 import {
+  creativeDesignManifestSchema,
   previewAssetSchema,
   sceneSpecSchema,
   type SceneSpec,
 } from "@avlp/schemas";
+import { CreativeScene } from "./full-lesson.js";
 import {
   ScenePreviewRuntime,
   validateScene,
@@ -86,6 +88,12 @@ export type PreviewAssetManifest = z.infer<typeof previewAssetManifestSchema>;
 export const scenePreviewInputSchema = z
   .object({
     captions: z.array(captionCueSchema).max(100).default([]),
+    /**
+     * Optional creative design to draw the scene with, as the full lesson
+     * does. The storyboard passes its unsaved appearance edits here so they
+     * preview before they are applied.
+     */
+    creativeDesign: creativeDesignManifestSchema.optional(),
     manifest: previewAssetManifestSchema,
     scene: sceneSpecSchema,
     transitionContext: z
@@ -183,6 +191,7 @@ function CaptionOverlay({
 
 export function ScenePreviewComposition({
   captions,
+  creativeDesign,
   manifest,
   scene,
   transitionContext,
@@ -201,7 +210,19 @@ export function ScenePreviewComposition({
         data-testid="scene-preview-runtime"
         style={{ height: "100%", width: "100%" }}
       >
-        <ScenePreviewRuntime resolvedAssets={manifest.assets} scene={scene} />
+        {creativeDesign?.selections[scene.id] === undefined ? (
+          <ScenePreviewRuntime resolvedAssets={manifest.assets} scene={scene} />
+        ) : (
+          <CreativeScene
+            creativeDesign={creativeDesign}
+            durationInFrames={
+              getSceneFrameTiming(scene.durationSeconds).durationInFrames
+            }
+            resolvedAssets={manifest.assets}
+            runtimeMode="preview"
+            scene={scene}
+          />
+        )}
       </div>
       {manifest.audio === undefined ? null : (
         <Audio

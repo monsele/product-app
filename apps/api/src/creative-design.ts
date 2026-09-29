@@ -55,6 +55,8 @@ export interface CreativeDesignService {
     revision: number;
     manifest: CreativeDesignManifest;
     eligibility: readonly string[];
+    /** True when this draft is the design the lesson previews and renders. */
+    applied: boolean;
   } | null>;
   plan(
     input: Scope & { body: unknown },
@@ -152,7 +154,17 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
     revision: number;
     manifest: CreativeDesignManifest;
     eligibility: readonly string[];
+    applied: boolean;
   } | null> {
+    // The draft belongs to the current storyboard: a regenerated storyboard
+    // is a new lesson spec, and an older spec's draft is no longer editable.
+    const spec = await this.currentSpec(this.database, input).catch(
+      (error: unknown) => {
+        if (error instanceof PublicError) return undefined;
+        throw error;
+      },
+    );
+    if (spec === undefined) return null;
     const [draft] = await this.database
       .select()
       .from(creativeDesignDrafts)
@@ -160,10 +172,24 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
         and(
           eq(creativeDesignDrafts.ownerUserId, input.ownerUserId),
           eq(creativeDesignDrafts.projectId, input.projectId),
+          eq(creativeDesignDrafts.lessonSpecId, spec.id),
         ),
       )
       .limit(1);
     if (draft === undefined) return null;
+    const [appliedSnapshot] = await this.database
+      .select({ id: creativeDesignSnapshots.id })
+      .from(creativeDesignSnapshots)
+      .where(
+        and(
+          eq(creativeDesignSnapshots.ownerUserId, input.ownerUserId),
+          eq(creativeDesignSnapshots.projectId, input.projectId),
+          eq(creativeDesignSnapshots.lessonSpecId, spec.id),
+          eq(creativeDesignSnapshots.lessonSpecRevision, spec.revision),
+          eq(creativeDesignSnapshots.manifestHash, draft.manifestHash),
+        ),
+      )
+      .limit(1);
     const manifest = parseStoredCreativeDesignManifest(draft.manifest);
     const scenes = await this.storyboardScenes(
       this.database,
@@ -173,6 +199,7 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
     return {
       revision: draft.revision,
       manifest,
+      applied: appliedSnapshot !== undefined,
       eligibility: creativeDesignCapability({
         approach: manifest.approach,
         scenes,

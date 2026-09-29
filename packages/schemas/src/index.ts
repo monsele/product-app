@@ -8286,6 +8286,7 @@ export const validationIssueCodeSchema = z.enum([
   "caption_timing_invalid",
   "grounding_missing",
   "grounding_recheck_required",
+  "grounding_unsupported_claim",
   "generated_addition_unlabelled",
   "scene_monotony",
 ]);

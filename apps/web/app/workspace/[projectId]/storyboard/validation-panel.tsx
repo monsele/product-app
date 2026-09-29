@@ -79,6 +79,9 @@ export function ValidationPanel({
 
   const errors = run.issues.filter((issue) => issue.severity === "error");
   const warnings = run.issues.filter((issue) => issue.severity === "warning");
+  const openWarnings = warnings.filter(
+    (issue) => issue.acknowledgeable && issue.acknowledgedAt === null,
+  ).length;
   const grouped = groupValidationIssues([...errors, ...warnings]);
 
   return (
@@ -153,7 +156,9 @@ export function ValidationPanel({
             ? "These results are out of date and cannot be used for rendering. Run checks again."
             : errors.length > 0
               ? `${errors.length} blocking issue${errors.length === 1 ? "" : "s"} must be fixed before rendering.`
-              : "Ready for rendering."}
+              : openWarnings > 0
+                ? `Ready for rendering. ${openWarnings} warning${openWarnings === 1 ? "" : "s"} to review: open the scene to edit, or keep it as is.`
+                : "Ready for rendering."}
         </p>
       </div>
 
@@ -265,14 +270,18 @@ export function ValidationPanel({
                         cursor: busy ? "not-allowed" : "pointer",
                       }}
                     >
-                      Acknowledge warning
+                      {issue.code === "grounding_unsupported_claim"
+                        ? "Keep it"
+                        : "Acknowledge warning"}
                     </button>
                   ) : null}
 
                   {issue.acknowledgedAt !== null ? (
                     <span style={{ fontSize: "12px", color: "var(--color-success-fg, #86EFAC)" }}>
                       {" "}
-                      Acknowledged.
+                      {issue.code === "grounding_unsupported_claim"
+                        ? "Kept as is."
+                        : "Acknowledged."}
                     </span>
                   ) : null}
                 </div>

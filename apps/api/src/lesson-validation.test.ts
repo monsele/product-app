@@ -28,6 +28,7 @@ import {
   sceneMonotonyThreshold,
   validationIssueResponse,
   validationInputHash,
+  type GroundingFinding,
 } from "./lesson-validation.js";
 
 const projectId = "01989a3d-8e00-7000-8000-000000000001";
@@ -114,9 +115,10 @@ function input(source = storyboard()) {
     ),
     grounding: {
       exact: true,
-      hasUnsupportedClaims: false,
+      unreadable: false,
+      unsupportedClaims: [] as GroundingFinding[],
       hasUnlabelledGeneratedAdditions: false,
-      needsReview: false,
+      needsReviewClaims: [] as GroundingFinding[],
     },
     mediaByStableSceneId: new Map(
       source.scenes.map((scene) => [
@@ -364,20 +366,78 @@ describe("deterministic lesson validation", () => {
     );
   });
 
-  it("blocks unsupported grounding and unresolved citations with actionable paths", () => {
+  it("flags each unsupported claim on its own scene as a warning the teacher can keep", () => {
     const fixture = input();
-    fixture.grounding.hasUnsupportedClaims = true;
+    const sceneId = fixture.storyboard.scenes[1]!.stableSceneId;
+    fixture.grounding.unsupportedClaims = [
+      {
+        claimId: "claim-1",
+        sceneId,
+        text: "Water boils at 50 degrees.",
+        location: "narration",
+        reasons: ["The source gives 100 degrees."],
+      },
+    ];
+    fixture.grounding.needsReviewClaims = [
+      {
+        claimId: "claim-2",
+        sceneId,
+        text: "Steam is invisible.",
+        location: "on_screen_text",
+        reasons: [],
+      },
+    ];
+    const issues = evaluateLessonValidation(fixture);
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: "grounding_unsupported_claim",
+        severity: "warning",
+        acknowledgeable: true,
+        sceneId,
+        fieldPath: "grounding.claims.claim-1",
+        message: expect.stringContaining('"Water boils at 50 degrees."'),
+        details: expect.objectContaining({
+          claimText: "Water boils at 50 degrees.",
+          reasons: ["The source gives 100 degrees."],
+        }),
+      }),
+    );
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        code: "grounding_recheck_required",
+        severity: "warning",
+        acknowledgeable: true,
+        sceneId,
+        message: expect.stringContaining("On-screen text"),
+      }),
+    );
+    // Neither finding blocks rendering; only structural grounding does.
+    expect(
+      issues.filter((item) => item.fieldPath.startsWith("grounding.claims.")),
+    ).not.toContainEqual(expect.objectContaining({ severity: "error" }));
+  });
+
+  it("asks for a recheck, not a block, when the saved grounding cannot be read", () => {
+    const fixture = input();
+    fixture.grounding.unreadable = true;
+    expect(evaluateLessonValidation(fixture)).toContainEqual(
+      expect.objectContaining({
+        code: "grounding_recheck_required",
+        severity: "warning",
+        acknowledgeable: true,
+        fieldPath: "grounding.results",
+      }),
+    );
+  });
+
+  it("still blocks unresolved citations with an actionable path", () => {
+    const fixture = input();
     fixture.citationIssueCountsByStableSceneId.set(
       fixture.storyboard.scenes[1]!.stableSceneId,
       [1],
     );
     expect(evaluateLessonValidation(fixture)).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          code: "grounding_missing",
-          fieldPath: "grounding.results",
-          severity: "error",
-        }),
         expect.objectContaining({
           code: "grounding_missing",
           fieldPath: "scenes.1.scene.sourceRefs.0.blockIds",

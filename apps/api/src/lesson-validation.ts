@@ -57,6 +57,7 @@ const durationToleranceMs = sceneAudioFitToleranceMs;
 export const acknowledgeableWarningCodes: ReadonlySet<ValidationIssueCode> =
   new Set<ValidationIssueCode>([
     "grounding_recheck_required",
+    "grounding_unsupported_claim",
     "audio_duration_mismatch",
     "scene_monotony",
   ]);
@@ -105,9 +106,13 @@ type ValidationInput = Readonly<{
   mediaByStableSceneId: ReadonlyMap<string, SceneMedia>;
   grounding: Readonly<{
     exact: boolean;
-    hasUnsupportedClaims: boolean;
+    /** The stored check could not be read, so nothing in it can be trusted. */
+    unreadable: boolean;
+    /** Claims the check found no support for, each tied to its scene. */
+    unsupportedClaims: readonly GroundingFinding[];
     hasUnlabelledGeneratedAdditions: boolean;
-    needsReview: boolean;
+    /** Claims the check could not decide, each tied to its scene. */
+    needsReviewClaims: readonly GroundingFinding[];
   }>;
 }>;
 
@@ -148,6 +153,50 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** One claim the grounding check flagged, located to the scene that says it. */
+export type GroundingFinding = Readonly<{
+  claimId: string;
+  sceneId: string | null;
+  text: string;
+  location: "narration" | "on_screen_text";
+  reasons: readonly string[];
+}>;
+
+function groundingFindings(
+  claims: readonly unknown[],
+  results: readonly unknown[],
+  status: "unsupported" | "needs_review",
+): GroundingFinding[] {
+  const claimsById = new Map<string, Record<string, unknown>>();
+  for (const claim of claims)
+    if (isRecord(claim) && typeof claim.id === "string")
+      claimsById.set(claim.id, claim);
+  const findings: GroundingFinding[] = [];
+  for (const result of results) {
+    if (!isRecord(result) || result.status !== status) continue;
+    const claimId = typeof result.claimId === "string" ? result.claimId : "";
+    const claim = claimsById.get(claimId);
+    const location = isRecord(claim?.location) ? claim.location : {};
+    findings.push({
+      claimId,
+      sceneId: typeof location.sceneId === "string" ? location.sceneId : null,
+      text: typeof claim?.text === "string" ? claim.text : "",
+      location:
+        location.type === "on_screen_text" ? "on_screen_text" : "narration",
+      reasons: Array.isArray(result.unsupportedSpans)
+        ? result.unsupportedSpans
+            .map((span) =>
+              isRecord(span) && typeof span.reason === "string"
+                ? span.reason
+                : null,
+            )
+            .filter((reason): reason is string => reason !== null)
+        : [],
+    });
+  }
+  return findings;
+}
+
 function groundingState(
   check:
     | {
@@ -160,9 +209,10 @@ function groundingState(
   if (check === undefined)
     return {
       exact: false,
-      hasUnsupportedClaims: false,
+      unreadable: false,
+      unsupportedClaims: [],
       hasUnlabelledGeneratedAdditions: false,
-      needsReview: false,
+      needsReviewClaims: [],
     };
   if (
     !Array.isArray(check.claims) ||
@@ -173,17 +223,19 @@ function groundingState(
   )
     return {
       exact: false,
-      hasUnsupportedClaims: true,
+      unreadable: true,
+      unsupportedClaims: [],
       hasUnlabelledGeneratedAdditions: false,
-      needsReview: false,
+      needsReviewClaims: [],
     };
   return {
     exact: true,
-    hasUnsupportedClaims:
-      check.summary.unsupported > 0 ||
-      check.results.some(
-        (result) => isRecord(result) && result.status === "unsupported",
-      ),
+    unreadable: false,
+    unsupportedClaims: groundingFindings(
+      check.claims,
+      check.results,
+      "unsupported",
+    ),
     hasUnlabelledGeneratedAdditions: check.claims.some(
       (claim) =>
         !isRecord(claim) ||
@@ -191,11 +243,11 @@ function groundingState(
         (claim.sourceRefs.length === 0 &&
           claim.generatedAddition === undefined),
     ),
-    needsReview:
-      check.summary.needsReview > 0 ||
-      check.results.some(
-        (result) => isRecord(result) && result.status === "needs_review",
-      ),
+    needsReviewClaims: groundingFindings(
+      check.claims,
+      check.results,
+      "needs_review",
+    ),
   };
 }
 
@@ -236,6 +288,7 @@ export const validationRuleDependencies = Object.freeze({
   grounding: [
     "grounding_missing",
     "grounding_recheck_required",
+    "grounding_unsupported_claim",
     "generated_addition_unlabelled",
   ],
   lesson: [
@@ -265,6 +318,43 @@ export function affectedValidationRules(
       changed.flatMap((dependency) => validationRuleDependencies[dependency]),
     ),
   ];
+}
+
+function quoteClaim(text: string): string {
+  const trimmed = text.replace(/\s+/g, " ").trim();
+  return trimmed.length <= 220 ? trimmed : `${trimmed.slice(0, 219).trim()}…`;
+}
+
+function groundingFindingIssue(
+  finding: GroundingFinding,
+  kind: "unsupported" | "needs_review",
+): IssueDraft {
+  const where =
+    finding.location === "on_screen_text" ? "On-screen text" : "Narration";
+  const quoted = finding.text === "" ? "" : ` "${quoteClaim(finding.text)}"`;
+  return issue(
+    kind === "unsupported"
+      ? "grounding_unsupported_claim"
+      : "grounding_recheck_required",
+    {
+      severity: "warning",
+      scopeType: "grounding",
+      scopeId: finding.sceneId as Identifier | null,
+      sceneId: finding.sceneId as Identifier | null,
+      fieldPath: `grounding.claims.${finding.claimId}`,
+      message:
+        kind === "unsupported"
+          ? `${where} isn't backed by your document:${quoted}. Edit it, or keep it if you're confident it's right.`
+          : `${where} may not match your document:${quoted}. Check it, or keep it if it's right.`,
+      details: {
+        claimId: finding.claimId,
+        claimText: finding.text,
+        location: finding.location,
+        reasons: finding.reasons,
+      },
+      acknowledgeable: true,
+    },
+  );
 }
 
 function issue(
@@ -727,17 +817,23 @@ export function evaluateLessonValidation(
       runStart = index;
     }
   }
-  if (input.grounding.hasUnsupportedClaims)
+  // A claim the source does not support is the teacher's call, not a hard
+  // stop: each one is reported on the scene that says it, quoted, so the
+  // teacher can reword it or knowingly keep it.
+  for (const finding of input.grounding.unsupportedClaims)
+    issues.push(groundingFindingIssue(finding, "unsupported"));
+  if (input.grounding.unreadable)
     issues.push(
-      issue("grounding_missing", {
-        severity: "error",
+      issue("grounding_recheck_required", {
+        severity: "warning",
         scopeType: "grounding",
         scopeId: null,
         sceneId: null,
         fieldPath: "grounding.results",
         message:
-          "Grounding found unsupported claims that must be corrected before rendering.",
+          "The saved grounding check could not be read. Recheck grounding from any scene's Sources tab.",
         details: {},
+        acknowledgeable: true,
       }),
     );
   if (input.grounding.hasUnlabelledGeneratedAdditions)
@@ -752,19 +848,8 @@ export function evaluateLessonValidation(
         details: {},
       }),
     );
-  if (input.grounding.needsReview)
-    issues.push(
-      issue("grounding_recheck_required", {
-        severity: "warning",
-        scopeType: "grounding",
-        scopeId: null,
-        sceneId: null,
-        fieldPath: "grounding.results",
-        message: "Grounding requires teacher review before rendering.",
-        details: {},
-        acknowledgeable: true,
-      }),
-    );
+  for (const finding of input.grounding.needsReviewClaims)
+    issues.push(groundingFindingIssue(finding, "needs_review"));
   return issues;
 }
 

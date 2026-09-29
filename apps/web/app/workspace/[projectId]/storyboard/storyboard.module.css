@@ -46,15 +46,29 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 16px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid var(--color-border);
+  gap: 20px;
+  padding: 18px 20px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background-color: var(--color-surface);
 }
 
-.headingRow {
-  display: flex;
+.headerIdentity {
+  min-width: 0;
+}
+
+.headerKicker {
+  display: inline-flex;
   align-items: center;
-  gap: 12px;
+  gap: 7px;
+  margin-bottom: 4px;
+  color: var(--color-brand);
+  font: var(--text-supporting);
+  font-weight: 650;
+}
+
+.headerKicker svg {
+  flex: none;
 }
 
 .title {
@@ -64,19 +78,18 @@
   letter-spacing: -0.045em;
 }
 
-.badge {
-  font: var(--text-supporting);
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: var(--radius-pill);
-  background-color: var(--color-surface-brand);
-  color: var(--color-brand);
+.projectTitle {
+  font: var(--text-control);
+  margin: 2px 0 0;
+  color: var(--color-text-muted);
 }
 
-.projectTitle {
-  font: var(--text-body);
-  margin: 3px 0 0;
-  color: var(--color-text-muted);
+.headerUtility {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 11px;
+  min-width: 0;
 }
 
 .headerStatus {
@@ -84,13 +97,21 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
-  margin: 12px 0 0;
+  justify-content: flex-end;
+  gap: 0;
+  margin: 0;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background-color: var(--color-surface-raised);
   color: var(--color-text-muted);
 }
 
+.headerStatus > span {
+  padding: 4px 10px;
+}
+
 .headerStatus > span:not(:first-child) {
-  padding-left: 10px;
   border-left: 1px solid var(--color-border);
 }
 
@@ -107,6 +128,7 @@
 .headerActions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
   flex-wrap: wrap;
 }
@@ -420,6 +442,14 @@
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+}
+
+@media (min-width: 1181px) {
+  .centerCanvas {
+    position: sticky;
+    top: 80px;
+    align-self: start;
+  }
 }
 
 .stage {
@@ -925,6 +955,39 @@
     padding: 16px 12px 24px;
   }
 
+  .header {
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .headerIdentity,
+  .headerUtility {
+    width: 100%;
+  }
+
+  .headerUtility {
+    align-items: flex-start;
+  }
+
+  .headerStatus {
+    justify-content: flex-start;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
+    background: transparent;
+  }
+
+  .headerStatus > span:first-child {
+    padding-left: 0;
+    flex-basis: 100%;
+  }
+
+  .headerStatus > span:nth-child(2) {
+    padding-left: 0;
+    border-left: 0;
+  }
+
   .tabs {
     display: flex;
   }
@@ -934,7 +997,24 @@
   }
 
   .headerActions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     width: 100%;
+  }
+
+  .headerActions .moreActions > summary,
+  .headerActions .buttonPrimary {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .headerActions .buttonPrimary {
+    padding-inline: 12px;
+  }
+
+  .headerActions > :only-child,
+  .headerActions .buttonWide {
+    grid-column: 1 / -1;
   }
 
   .moreActionsMenu {

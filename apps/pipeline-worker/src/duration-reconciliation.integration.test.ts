@@ -2,6 +2,8 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Identifier } from "@avlp/config";
 import {
   auditEvents,
+  creativeDesignDrafts,
+  creativeDesignSnapshots,
   jobs,
   learningObjectives,
   learningObjectiveSets,
@@ -26,6 +28,8 @@ import {
 import { createTestDatabase, type TestDatabase } from "@avlp/database/testing";
 import { sceneAudio } from "@avlp/database";
 import {
+  createDefaultCreativeDesignManifest,
+  creativeDesignHash,
   sceneAudioFitToleranceMs,
   storyboardDurationToleranceSeconds,
 } from "@avlp/schemas";
@@ -351,6 +355,8 @@ async function seed(client: DatabaseClient) {
   await client.delete(outboxEvents);
   await client.delete(jobs);
   await client.delete(auditEvents);
+  await client.delete(creativeDesignSnapshots);
+  await client.delete(creativeDesignDrafts);
   await client.delete(scenes);
   await client.delete(lessonSpecs);
   await client.delete(narrationBlocks);
@@ -630,6 +636,37 @@ describeWithPostgres("reconcileLessonSceneDurations (Postgres)", () => {
             outcome.measuredAudioDurationMs,
         ),
       ).toBeLessThanOrEqual(sceneAudioFitToleranceMs);
+  });
+
+  it("re-pins the lesson's style to the reconciled revision", async () => {
+    // Without this the preview and render find no design for the new
+    // revision and fall back to the legacy mvp-default look.
+    const manifest = createDefaultCreativeDesignManifest({
+      packId: "field-notes",
+      scenes: [
+        { id: sceneA, template: "definition", durationSeconds: 30 },
+        { id: sceneB, template: "summary", durationSeconds: 30 },
+      ],
+    });
+    await database!.client.insert(creativeDesignSnapshots).values({
+      id: "019ffbf1-aaab-7000-8000-000000000084",
+      ownerUserId,
+      projectId,
+      lessonSpecId,
+      lessonSpecRevision: 0,
+      manifest,
+      manifestHash: creativeDesignHash(manifest),
+      createdAt: now,
+    });
+    await seedAudio(database!.client, { [sceneA]: 33_400, [sceneB]: 27_600 });
+    const result = await reconcile();
+    expect(result.status).toBe("reconciled");
+    const pinned = await database!.client
+      .select()
+      .from(creativeDesignSnapshots)
+      .where(eq(creativeDesignSnapshots.lessonSpecRevision, result.revision!));
+    expect(pinned).toHaveLength(1);
+    expect(pinned[0]!.manifestHash).toBe(creativeDesignHash(manifest));
   });
 
   it("keeps the scene payload and the normalized rows in step", async () => {

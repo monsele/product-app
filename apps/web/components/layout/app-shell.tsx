@@ -42,7 +42,9 @@ export const AppShell: React.FC<AppShellProps> = ({
 
   return (
     <div
-      className={mode === "focus-studio" ? "theme-focus-studio" : "theme-studio-daylight"}
+      className={
+        mode === "focus-studio" ? "theme-focus-studio" : "theme-studio-daylight"
+      }
       style={{
         minHeight: "100dvh",
         backgroundColor: "var(--color-canvas)",
@@ -52,6 +54,7 @@ export const AppShell: React.FC<AppShellProps> = ({
       }}
     >
       <AppHeader
+        focusStudio={mode === "focus-studio"}
         projectTitle={projectTitle}
         projectStatus={projectStatus}
         userEmail={userEmail}
@@ -66,7 +69,9 @@ export const AppShell: React.FC<AppShellProps> = ({
             headerActions
           )
         }
-        onToggleMobileMenu={stages && stages.length > 0 ? toggleMobileMenu : undefined}
+        onToggleMobileMenu={
+          stages && stages.length > 0 ? toggleMobileMenu : undefined
+        }
         isMobileMenuOpen={isMobileMenuOpen}
       />
 

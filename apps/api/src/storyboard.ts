@@ -11,6 +11,7 @@ import {
 } from "@avlp/config";
 import {
   captionCues,
+  carryForwardCreativeDesignSnapshot,
   captionTracks,
   extractedFigures,
   figureInclusionOverlays,
@@ -855,6 +856,15 @@ export class PostgresStoryboardService implements StoryboardService {
         )
         .returning({ id: lessonSpecs.id });
       if (updated === undefined) throw sceneConflict();
+      await carryForwardCreativeDesignSnapshot(transaction, {
+        ownerUserId: input.ownerUserId,
+        projectId: input.projectId,
+        lessonSpecId: lessonSpec.id,
+        nextRevision: lessonSpec.revision + 1,
+        scenes: designScenes(updatedStoryboard.scenes),
+        createId: () => createId(timestamp),
+        now: timestamp,
+      });
       await transaction
         .update(scenes)
         .set({
@@ -2042,6 +2052,17 @@ export class PostgresStoryboardService implements StoryboardService {
       )
       .returning({ id: lessonSpecs.id });
     if (updated === undefined) throw sceneConflict();
+    // Every storyboard write re-pins the lesson's style to the new revision;
+    // preview and render read only the current revision's design snapshot.
+    await carryForwardCreativeDesignSnapshot(executor, {
+      ownerUserId: lessonSpec.ownerUserId,
+      projectId: lessonSpec.projectId,
+      lessonSpecId: lessonSpec.id,
+      nextRevision: storyboard.revision,
+      scenes: designScenes(storyboard.scenes),
+      createId: () => createId(timestamp),
+      now: timestamp,
+    });
   }
 
   /**
@@ -3402,3 +3423,13 @@ function parseBoundary<T>(schema: z.ZodType<T>, input: unknown): T {
 }
 
 export type { StoryboardGenerationParams };
+
+function designScenes(
+  storyboardScenes: readonly LessonStoryboardScene[],
+): { id: string; template: string; durationSeconds: number }[] {
+  return storyboardScenes.map((scene) => ({
+    id: scene.stableSceneId,
+    template: scene.template,
+    durationSeconds: scene.durationSeconds,
+  }));
+}

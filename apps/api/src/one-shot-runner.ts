@@ -1345,7 +1345,9 @@ export async function advanceOneShotRun(input: {
     );
     // Sentences grounding could not verify are never acknowledged or
     // rewritten here: they are taken out of the narration, so the video never
-    // states them. Bounded per resume; each removal is logged.
+    // states them. Bounded per resume; each removal is logged. They are
+    // warnings, so any the removal could not take out reach the preview for
+    // the user to decide rather than stopping the run.
     const previous = steps.find((entry) => entry.step === "validation")?.detail;
     const removalRounds =
       previous?.[sentenceRemovalResumeKey] === run.resumeCount &&
@@ -1354,8 +1356,11 @@ export async function advanceOneShotRun(input: {
         : 0;
     detail[sentenceRemovalResumeKey] = run.resumeCount;
     detail[sentenceRemovalRoundsKey] = removalRounds;
+    const unsupportedClaims = (result.findings ?? []).filter(
+      (finding) => finding.code === "grounding_unsupported_claim",
+    );
     const onlyUnsupportedClaims =
-      blockingUnrepairable.length > 0 &&
+      (unsupportedClaims.length > 0 || blockingUnrepairable.length > 0) &&
       blockingUnrepairable.every((finding) => finding.code === "grounding_missing");
     if (onlyUnsupportedClaims && removalRounds < oneShotMaxSentenceRemovalRounds) {
       const outcome = await gateway.removeUnverifiedSentences(
@@ -1609,7 +1614,9 @@ export async function advanceOneShotRun(input: {
         kind: "attention",
         stage: "configuration",
         errorCode: "BRIEF_PROMISE_UNMET",
-        message: `The lesson setup no longer uses the ${!checked.stylePackPinned ? "style pack" : "sound bed"} confirmed in the brief. Restore it in the setup, then resume the run.`,
+        message: !checked.stylePackPinned
+          ? "The lesson no longer uses the style pack confirmed in the brief. Choose it again in the storyboard's appearance settings, then resume the run."
+          : "The lesson setup no longer uses the sound bed confirmed in the brief. Restore it in the setup, then resume the run.",
       };
     const gaps = checked.unmetCoverage.map((entry) => entry.point);
     const previous = run.coverageGaps ?? [];

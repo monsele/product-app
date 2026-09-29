@@ -174,6 +174,39 @@ describe("ST-107 runner with a confirmed brief", () => {
     );
   });
 
+  it("removes per-scene unsupported-claim warnings, and leaves any it cannot remove for the preview", async () => {
+    const fake = pipeline();
+    fake.findingsDriveValidation = true;
+    fake.findings = [
+      {
+        code: "grounding_unsupported_claim",
+        severity: "warning",
+        sceneId: "s1",
+        scopeId: "s1",
+        details: {},
+      },
+    ];
+    fake.unverified = [{ sceneId: "s1", text: "An unverified sentence." }];
+    const first = await drive(fake, briefRun());
+    expect(fake.calls.filter((call) => call === "removeUnverifiedSentences")).toHaveLength(1);
+    expect(first.last.status).toBe("awaiting_render_approval");
+
+    // Nothing left to remove: the warning does not stop the run.
+    const stuck = pipeline();
+    stuck.findingsDriveValidation = true;
+    stuck.findings = [
+      {
+        code: "grounding_unsupported_claim",
+        severity: "warning",
+        sceneId: "s1",
+        scopeId: "s1",
+        details: {},
+      },
+    ];
+    const { last } = await drive(stuck, briefRun());
+    expect(last.status).toBe("awaiting_render_approval");
+  });
+
   it("stops in plain words when an unverified claim cannot be removed", async () => {
     const fake = pipeline();
     fake.findingsDriveValidation = true;

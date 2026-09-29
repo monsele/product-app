@@ -133,6 +133,101 @@ export const defaultCreativeDesignSettings = Object.freeze({
   captionPreset: "standard" as const,
 });
 
+/**
+ * Each pack's starting look. Before this, every pack started from
+ * `defaultCreativeDesignSettings`, so switching pack changed only layouts and
+ * every lesson shared one palette. Every entry passes the contrast preflight
+ * in `validateCreativeDesignManifest` (asserted in creative-design.test).
+ */
+export const creativeDesignPackDefaultSettings: Readonly<
+  Record<CreativeDesignPackId, CreativeDesignSettings>
+> = Object.freeze({
+  essential: Object.freeze({
+    colors: Object.freeze({
+      background: "#fbf8f3",
+      surface: "#ffffff",
+      text: "#1a1a1a",
+      accent: "#b42318",
+      diagramEmphasis: "#1f6feb",
+    }),
+    fontPair: "atkinson-inter" as const,
+    logoAssetId: null,
+    motionEnergy: "calm" as const,
+    imageryPreference: "compatible_mix" as const,
+    captionPreset: "standard" as const,
+  }),
+  editorial: Object.freeze({
+    colors: Object.freeze({
+      background: "#f7f1e3",
+      surface: "#fffaf0",
+      text: "#22201c",
+      accent: "#b45309",
+      diagramEmphasis: "#7c2d12",
+    }),
+    fontPair: "source-serif-inter" as const,
+    logoAssetId: null,
+    motionEnergy: "balanced" as const,
+    imageryPreference: "photography" as const,
+    captionPreset: "standard" as const,
+  }),
+  everyday: Object.freeze({
+    colors: Object.freeze({
+      background: "#fdf8ec",
+      surface: "#ffffff",
+      text: "#13234a",
+      accent: "#1d4ed8",
+      diagramEmphasis: "#0f9d77",
+    }),
+    fontPair: "nunito-inter" as const,
+    logoAssetId: null,
+    motionEnergy: "lively" as const,
+    imageryPreference: "illustration" as const,
+    captionPreset: "standard" as const,
+  }),
+  systems: Object.freeze({
+    colors: Object.freeze({
+      background: "#0f172a",
+      surface: "#1e293b",
+      text: "#e2e8f0",
+      accent: "#38bdf8",
+      diagramEmphasis: "#22d3ee",
+    }),
+    fontPair: "atkinson-inter" as const,
+    logoAssetId: null,
+    motionEnergy: "balanced" as const,
+    imageryPreference: "diagrams" as const,
+    captionPreset: "standard" as const,
+  }),
+  "field-notes": Object.freeze({
+    colors: Object.freeze({
+      background: "#f4efe4",
+      surface: "#fbf8f1",
+      text: "#2b2b2b",
+      accent: "#a8431b",
+      diagramEmphasis: "#5b6b2f",
+    }),
+    fontPair: "source-serif-inter" as const,
+    logoAssetId: null,
+    motionEnergy: "calm" as const,
+    imageryPreference: "illustration" as const,
+    captionPreset: "standard" as const,
+  }),
+  prism: Object.freeze({
+    colors: Object.freeze({
+      background: "#3b0764",
+      surface: "#4c1d95",
+      text: "#ffffff",
+      accent: "#facc15",
+      diagramEmphasis: "#f472b6",
+    }),
+    fontPair: "nunito-inter" as const,
+    logoAssetId: null,
+    motionEnergy: "lively" as const,
+    imageryPreference: "compatible_mix" as const,
+    captionPreset: "standard" as const,
+  }),
+});
+
 export const creativeDesignSceneSelectionSchema = z
   .object({
     treatmentId: creativeDesignTreatmentIdSchema,
@@ -655,10 +750,173 @@ export function createDefaultCreativeDesignManifest(
     plannerVersion: creativeDesignPlannerVersion,
     pack: { id: input.packId, version: "1.0.0" },
     approach: "standard",
-    settings: defaultCreativeDesignSettings,
+    settings: creativeDesignPackDefaultSettings[input.packId],
     selections: planCreativeDesign(input),
     presetVersionId: null,
   });
+}
+
+/**
+ * The design a new storyboard revision inherits from the previous one. A
+ * snapshot is pinned to an exact revision, so every revision bump (duration
+ * reconciliation, scene edits, regeneration) must re-pin it or the lesson
+ * silently falls back to the legacy `mvp-default` look.
+ *
+ * Keeps the previous design untouched while it still fits. When it no longer
+ * fits (a regenerated scene changed template, a retime made a scene too short
+ * for its treatment), re-plans the same pack, keeping the teacher's settings
+ * and every lock that still fits. Returns `undefined` when there is nothing to
+ * carry or the pack cannot cover these scenes: the caller keeps the lesson on
+ * the legacy look rather than inventing a different style.
+ */
+export function carryForwardCreativeDesignManifest(
+  input: Readonly<{
+    previous: CreativeDesignManifest | undefined;
+    packId?: CreativeDesignPackId | null;
+    scenes: readonly Readonly<{
+      id: string;
+      template: string;
+      durationSeconds: number;
+    }>[];
+  }>,
+): CreativeDesignManifest | undefined {
+  const { previous, scenes } = input;
+  if (
+    previous !== undefined &&
+    validateCreativeDesignManifest(previous, scenes).length === 0
+  )
+    return previous;
+  const packId = previous?.pack.id ?? input.packId ?? undefined;
+  if (packId === undefined) return undefined;
+  if (
+    creativeDesignCapability({ approach: "standard", scenes }).length > 0
+  )
+    return undefined;
+  const typedScenes = scenes.map((scene) => ({
+    id: scene.id,
+    template: scene.template as CreativeDesignSceneType,
+    durationSeconds: scene.durationSeconds,
+  }));
+  const planWith = (
+    locks: Readonly<Record<string, CreativeDesignTreatmentId>> | undefined,
+  ) => {
+    try {
+      return planCreativeDesign({
+        packId,
+        scenes: typedScenes,
+        ...(locks === undefined ? {} : { locks }),
+      });
+    } catch {
+      return undefined;
+    }
+  };
+  const fittingLocks =
+    previous === undefined
+      ? undefined
+      : Object.fromEntries(
+          Object.entries(previous.selections).filter(([sceneId, selection]) => {
+            if (!selection.locked) return false;
+            const scene = typedScenes.find((item) => item.id === sceneId);
+            const candidate = creativeDesignCatalogue.find(
+              (item) => item.id === selection.treatmentId,
+            );
+            return (
+              scene !== undefined &&
+              candidate !== undefined &&
+              candidate.packId === packId &&
+              candidate.sceneType === scene.template &&
+              candidate.minDurationSeconds <= scene.durationSeconds
+            );
+          }).map(([sceneId, selection]) => [sceneId, selection.treatmentId]),
+        );
+  const selections = planWith(fittingLocks) ?? planWith(undefined);
+  if (selections === undefined) return undefined;
+  const manifest = creativeDesignManifestSchema.parse({
+    manifestVersion: creativeDesignManifestVersion,
+    plannerVersion: creativeDesignPlannerVersion,
+    pack: { id: packId, version: creativeDesignPackVersion },
+    approach: "standard",
+    settings: previous?.settings ?? creativeDesignPackDefaultSettings[packId],
+    selections,
+    presetVersionId: previous?.presetVersionId ?? null,
+  });
+  return validateCreativeDesignManifest(manifest, scenes).length === 0
+    ? manifest
+    : undefined;
+}
+
+const packSubjectKeywords: readonly (readonly [
+  CreativeDesignPackId,
+  readonly string[],
+])[] = [
+  [
+    "systems",
+    [
+      "comput", "software", "program", "network", "engineer", "electr",
+      "circuit", "data", "algorithm", "technolog", "machine", "system",
+      "mechanic", "physics", "structur", "cyber",
+    ],
+  ],
+  [
+    "field-notes",
+    [
+      "biolog", "ecolog", "geograph", "geolog", "earth", "plant", "animal",
+      "cell", "anatom", "environment", "climate", "botan", "zoolog",
+      "ocean", "weather", "evolution",
+    ],
+  ],
+  [
+    "editorial",
+    [
+      "histor", "econom", "politic", "law", "literat", "philosoph",
+      "sociolog", "government", "civic", "art", "religio", "ethic",
+      "media", "english", "language",
+    ],
+  ],
+  [
+    "everyday",
+    [
+      "financ", "money", "budget", "maths", "math", "arithmetic",
+      "percent", "health", "nutrition", "cooking", "business", "career",
+      "personal",
+    ],
+  ],
+  [
+    "essential",
+    ["chemi", "science", "medic", "psycholog", "statistic", "calculus"],
+  ],
+];
+
+/**
+ * Deterministic starting pack for a lesson whose owner chose none, so lessons
+ * no longer all default to one look. No model call: subject keywords first,
+ * then audience, then a stable hash of the project so unrelated lessons still
+ * vary. The owner can always change it.
+ */
+export function suggestCreativeDesignPack(
+  input: Readonly<{
+    subject?: string | null;
+    lessonTitle?: string | null;
+    ageBand?: string | null;
+    difficulty?: string | null;
+    projectId: string;
+  }>,
+): CreativeDesignPackId {
+  // Keywords match word starts, so "art" matches "artists" but not "part".
+  const words = `${input.subject ?? ""} ${input.lessonTitle ?? ""}`
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter((word) => word.length > 0);
+  const young = input.ageBand === "8-10" || input.ageBand === "11-13";
+  const matched = packSubjectKeywords.find(([, keywords]) =>
+    keywords.some((keyword) => words.some((word) => word.startsWith(keyword))),
+  )?.[0];
+  if (young) return matched === "systems" ? "everyday" : "prism";
+  if (matched !== undefined) return matched;
+  let hash = 0;
+  for (const character of input.projectId)
+    hash = (hash * 31 + character.charCodeAt(0)) >>> 0;
+  return creativeDesignPackIds[hash % creativeDesignPackIds.length]!;
 }
 
 function canonicalCreativeDesignValue(value: unknown): unknown {
