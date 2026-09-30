@@ -118,6 +118,7 @@ Status values: `Ready`, `In Progress`, `Blocked`, `In Review`, `Done`.
 |   110 | Visual Storytelling | [ST-110 - Add a Bounded Visual-Planning Job and Consistent, Purposeful Illustration](stories/11-visual-storytelling/ST-110-visual-planning-and-purposeful-imagery.md) | ST-109 | Done |
 |   111 | Visual Storytelling | [ST-111 - Make Motion Follow the Narration with Anchored Visual Beats](stories/11-visual-storytelling/ST-111-narration-led-motion.md) | ST-109 | Done |
 |   112 | Visual Storytelling | [ST-112 - Integrate V2 Visual Storytelling into Production and Prove It on Three Lessons](stories/11-visual-storytelling/ST-112-production-integration-and-acceptance.md) | ST-110, ST-111 | Done |
+|   113 | Visual Storytelling | [ST-113 - Add a Curated Illustration Library as the Picture Fallback](stories/11-visual-storytelling/ST-113-curated-illustration-library-fallback.md) | ST-110, ST-112 | Ready |
 
 Maintenance 2026-09-08: ST-063 audio-provider failure repair verified on the reported scene (11,776 ms WAV and three caption cues). See its Dev Agent Record for the Together alignment configuration change and regression checks. Story status remains Done.
 
