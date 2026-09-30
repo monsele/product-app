@@ -6,20 +6,26 @@ Stories: ST-108 to ST-112 are all Done, with Dev Agent Records written and rows 
 Steps 1–9 are committed on `feat/st-107-video-brief-budget-self-repair` (852af5d, af971c7, 10bd3a2). The 2026-09-30 visual fixes and step 10 are committed as bf91b0f. Ask the user before committing or branching.
 
 ## Resume here (as of 2026-09-30, closed)
-- **The work is finished.** All ten steps are committed (last: bf91b0f). The user accepted the proof on 2026-09-30, so the code default of `CREATIVE_DESIGN_V2_DEFAULT` is now **true** and ST-108 to ST-112 are Done. That flip and the Done statuses are uncommitted until the user says to commit.
+- **The work is finished.** All ten steps, the default flip and the Done statuses are committed (last: cd705ac). The 2026-09-30 afternoon re-render fixes below are **uncommitted**.
+- **All three proof lessons re-rendered with the fixes (2026-09-30, user-approved)**, in `.runtime-logs/`: `st112-finance-v2.mp4`, `st112-investigated-v2.mp4`, `st112-engineering-v4.mp4` (use v4; v3 lacks a picture), with frames in `st112-frames-*`. Reviewed from frames only, not watched with sound.
+  - Engineering: the pictures were regenerated on the dark surface. `.runtime-logs/st112-unpin.local.ts` cleared the old generated heroes from the draft and retired their three candidate records (slot `cinema-hero-retired`), so the key-based reuse would not bring them back. Proof project only.
+  - The investigated render lost its job lease after 47 minutes (browser crashes under low memory) and succeeded on retry.
+  - Spend: five plan calls (about $0.035 each) and four generated pictures.
+- **Fixed after watching those renders (uncommitted):**
+  - `groundCinemaBeats` now brings a scene's picture (`image`) in by mid-narration, like its text. The re-plan had anchored the engineering definition's picture to the last sentence, so the scene stood without it (engineering v3, 54 s).
+  - An annotated definition with a headline showed its kicker twice; the term's own kicker is now dropped when the header carries one (not visible in any MP4 yet).
+  - Checks: schemas 452 tests; scene-library lint, `cinema.test.tsx` and `timing-parity` 24; harness 876 pass / 0 fail.
 - **Optional follow-ups, none blocking:**
-  - Regenerate the engineering lesson's pictures for the dark Systems identity (paid image calls).
-  - Re-render the finance and investigated lessons to see the 2026-09-30 fixes in them (one plan call each).
-  - A planner kicker that wraps to two lines pushes an annotated definition's term down.
+  - In the finance diagram the "r/n: rate per period" card sits lower than its node; not reproduced with guessed anchors.
   - A `visual-plan@v2` prompt that names each scene's primary text, so fewer emphasis words are dropped.
-  - ST-108 AC3 (no border unless declared) was reviewed from screenshots and has no test.
-  - The local `.env` already had the flag on; nothing changes locally.
+  - ST-108 AC3 (no border unless declared) has no test.
+  - A library of reusable pictures for the fallback does not exist; the user asked about prompting pictures into one. Proposed as a new story, not started.
 - **Decisions (2026-09-29):**
   - The leftover `avlp_test_*` databases were dropped (10). Only `postgres` and `visual_learning` remain.
   - The `creative-design.interpret` envelope entry is kept.
   - **v1 pixel snapshots** (`summary-scene-render`, `scene-preview-render-smoke`, `full-lesson-render`): not a regression. On this Windows machine, the baseline commit `cb5bfdc` (where they were recorded) and HEAD render all 20 hashes identically; the committed values differ from both. So the baselines were recorded in another environment, almost certainly Linux CI (`ubuntu-latest`, Playwright Chromium), and font/antialiasing rendering differs on Windows. **Do not refresh them on Windows**: that would make CI fail. Treat these 3 as expected local failures; refresh only on Linux/CI if CI ever fails them. (`gh` is not installed here, so CI status was not checked.)
 - **Known unrelated failures:** web `cross-screen-quality.playwright.test.tsx`, 5 cases ("React is not defined": auth, password reset and project board).
-- **Local environment:** Docker containers all exited mid-session. Only `product-app-postgres-1` was restarted; Redis and MinIO are still stopped (start them for `run-app`).
+- **Local environment (2026-09-30 evening):** Postgres, Redis and MinIO are running; the worker and renderer started for the re-renders were stopped.
 - **Review tools:**
   - `node .claude/skills/inspect-render/shoot-cinema.mjs` checks 876 renders, including the 24px phone floor, broken words and content inside the 40px margin above the caption band. It adds shapes-only diagrams (every shape at 3, 5 and 8 labels) and a full-column hook to the exported fixtures.
   - `render-cinema-mp4.mjs --pack <id>` renders the photosynthesis MP4.

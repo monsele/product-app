@@ -973,16 +973,18 @@ describe("ST-112 a plan may time emphasis, never withhold content", () => {
       beat("detail", 4),
       beat("headline", 2, "tension"),
     ]);
+    // As the engineering lesson was re-planned: the picture was anchored to
+    // the closing example, so an annotated definition stood without it.
     expect(grounded.map((entry) => [entry.target, entry.anchor.sentence])).toEqual([
       ["headline", 0],
+      ["image", 2],
       ["detail", 2],
-      ["image", 3],
     ]);
     expect(grounded[0]!.anchor).toEqual({ sentence: 0 });
   });
 
   it("leaves beats that were already early enough exactly as proposed", () => {
-    const proposed = [beat("headline", 0), beat("detail", 1, "pulled or being pushed"), beat("image", 3)];
+    const proposed = [beat("headline", 0), beat("detail", 1, "pulled or being pushed"), beat("image", 2)];
     expect(groundCinemaBeats("hero-annotated", definition, proposed)).toEqual(proposed);
   });
 });

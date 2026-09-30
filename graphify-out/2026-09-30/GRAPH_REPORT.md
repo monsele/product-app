@@ -1,9 +1,9 @@
 # Graph Report - product-app  (2026-09-30)
 
 ## Corpus Check
-- 1234 files · ~9,156,934 words
+- 1234 files · ~8,943,907 words
 - Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 195 file(s) not represented in the graph (top: .log 162, .css 13, .tsv 7)
+- Unclassified: 197 file(s) not represented in the graph (top: .log 164, .css 13, .tsv 7)
 
 ## Summary
 - 13716 nodes · 27721 edges · 601 communities (524 shown, 77 thin omitted)
@@ -11,7 +11,7 @@
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `10bd3a26`
+- Built from commit: `bf91b0f4`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -2750,7 +2750,7 @@ Nodes (4): ADR-014: Narration pauses are advisory, Consequences, Context, Decisi
 _Questions this graph is uniquely positioned to answer:_
 
 - **Why does `vitest` connect `vitest` to `ref_react_dom`, `lib/one-shot.ts`, `scene-library/src/index.test.ts`, `one-shot-st107.integration.test.ts`, `render-worker.ts`, `next`, `src/narration.ts`, `outline-editor.test.ts`, `style-proof-contract.test.ts`, `diagram-layout.ts`, `schemas/src/demonstration-pilot.ts`, `creative-design-v2.ts`, `schemas/src/creative-design.ts`, `storyboard-panel.tsx`, `toast-provider.tsx`, `narration-panel.tsx`, `schemas/src/storyboard.test.ts`, `storyboard-scene-query.ts`, `storyboard.ts`, `render-review.ts`, `scene-audio-panel.tsx`, `state.ts`, `package.json`, `demonstration-proof/fixtures.ts`, `pilot-bindings.ts`, `together-alignment.ts`, `config/src/index.ts`, `schemas/src/narration.test.ts`, `worker.ts`, `provider-adapters/src/contracts.ts`, `project-access.ts`, `render-worker.test.ts`, `gateway.ts`, `plan-builder.ts`, `observability/src/contracts.ts`, `telemetry.ts`, `ST-084 — Reconcile Scene Durations With Measured Audio Before Real TTS Adoption`, `sound-bed.ts`, `schemas/src/voice-configuration.test.ts`, `lesson-versions.ts`, `api/src/runtime.ts`, `pipeline-worker/src/cinema-lesson.fixture.ts`, `preview/preview-player.tsx`, `creative-design-panel.tsx`, `lesson-configuration-input.ts`, `together-provider.ts`, `ref_zod`, `schemas/src/grounding.test.ts`, `docling-normalizer.ts`, `illustration-contact-sheet.tsx`, `focus-audience.test.ts`, `lease-reaper.ts`, `lesson-spec.test.ts`, `cost.ts`, `authorized-project-storage.ts`, `s3-compatible.ts`, `one-shot-runner-st112.test.ts`, `jobs/src/repository.ts`, `worker.test.ts`, `demonstration-proof/index.ts`, `source-snapshot.ts`, `packages_database_dist_index_databaseclient`, `logging.ts`, `./process-scene.js`, `mvp-acceptance.ts`, `client.ts`, `ingestion-status-panel.tsx`, `packages_schemas_dist_index`, `ingestion-review-viewer.tsx`, `runner.ts`, `schemas/src/one-shot.ts`, `database.integration.test.ts`, `one-shot-repair.ts`, `api/src/one-shot.ts`, `storyboard-input.ts`, `metrics.ts`, `schemas/src/outline.test.ts`, `visual-role.test.ts`, `keys.ts`, `narration-editor.test.ts`, `configuration-workspace.tsx`, `packages_config_dist_index_createid`, `source-upload-form.tsx`, `comparison-workspace.tsx`, `ref_node_url`, `style-proof-tokens.ts`, `Dev Agent Record`, `captions.ts`, `scene-editor-form.tsx`, `quota.ts`, `objectives-panel.tsx`, `ST-063 — Generate and Retry Text-to-Speech Audio Per Scene`, `outline-panel.tsx`, `illustration-candidate-panel.tsx`, `SourceSnapshotService`, `document-validation.test.ts`, `cinema.test.tsx`, `scene-detail-panel.tsx`, `AuthGateway`, `focus-prompts.test.ts`, `normalized-document.test.ts`, `objectives-editor.test.ts`, `render-panel.tsx`, `ingestion-quality.ts`, `creative-design-carry-forward.ts`, `jobs/src/contracts.test.ts`, `job-envelope.ts`, `creative-style-pack-selector.tsx`, `grounding-panel.tsx`, `video-approach-selector.playwright.test.tsx`, `ref_node_fs`, `narration-pauses.ts`, `getSceneFrameTiming`, `source-figure-controls.ts`, `schemas/src/citations.test.ts`, `lesson-version.test.ts`?**
-  _High betweenness centrality (0.139) - this node is a cross-community bridge._
+  _High betweenness centrality (0.140) - this node is a cross-community bridge._
 - **Why does `LessonSpec` connect `LessonSpec` to `schemas/src/index.ts`, `ST-071 MVP acceptance`, `runner.ts`, `diagram-layout.ts`, `E15. Scene and Lesson Preview`, `ST-020 — Implement the Worked Example Scene Template`, `packages_schemas_dist_demonstration_proof`, `schemas/src/storyboard.test.ts`, `E11. Visual Scene Template Library`, `OpenMontage Learnings — Reconciled Findings and Candidate Stories`, `OpenMontage Learnings — Final Consolidated Plan`, `Epic E10: Storyboard Generation`, `Dev Agent Record`, `Decision`, `ST-015 — Implement the Input–Process–Output Scene Template`, `ST-018 — Implement the Labelled Diagram Scene Template`, `ADR-005: Versioned style packs for multi-style video`, `schemas/src/narration.test.ts`, `project-access.ts`, `mvp-plan.md`, `ST-016 — Implement the Comparison Scene Template`, `ST-014 — Implement the Process or Sequence Scene Template`, `Reconciled OpenMontage Learnings and Video-Quality Roadmap`, `8. Epic Implementation Specifications`, `ST-088 — Add Editorial Scene-Monotony Validation as a Versioned Advisory Rule`, `Decision`, `NormalizedDocument`, `ST-007 — Define LessonSpec v1 and Scene Discriminated Unions`, `OpenMontage Learnings: Asset Generation Discovery`, `README.md`, `focus-audience.test.ts`, `ST-057 — Create the Approved Reusable Asset Catalog and Scene Asset Picker`, `2. Architecture Principles`, `lesson-spec.test.ts`, `media.ts`, `mvp-prd.md`, `Dev Agent Record`?**
   _High betweenness centrality (0.086) - this node is a cross-community bridge._
 - **Why does `2. Product Objectives` connect `mvp-prd.md` to `LessonSpec`?**

@@ -1212,8 +1212,9 @@ export function authoredCinemaBeats(
  * Drops beats whose target, sentence or phrase this scene cannot honour, and
  * keeps the rest readable. A plan may time emphasis, never withhold content:
  * the heading arrives with the first sentence, and the scene's own text
- * (`detail`) no later than the middle of the narration, so it stays on screen
- * long enough to read. An anchor moved for that reason loses its phrase.
+ * (`detail`) and its picture (`image`) no later than the middle of the
+ * narration, so they stay on screen long enough to take in. An anchor moved
+ * for that reason loses its phrase.
  */
 export function groundCinemaBeats(
   id: CinemaCompositionId,
@@ -1222,9 +1223,11 @@ export function groundCinemaBeats(
 ): readonly CinemaBeat[] {
   const targets = cinemaBeatTargets(id, scene);
   const sentences = narrationSentences(scene.narration);
+  const middle = Math.floor(Math.max(0, sentences.length - 1) / 2);
   const latestBySentence: Readonly<Record<string, number>> = {
     headline: 0,
-    detail: Math.floor(Math.max(0, sentences.length - 1) / 2),
+    detail: middle,
+    image: middle,
   };
   return Object.freeze(
     beats

@@ -245,15 +245,16 @@ function AnnotatedDefinition({ scene, design, identity, hero }: CinemaCompositio
         <HeroVisual drift={beats.drift} hero={hero} identity={identity} height={heroBox.height} progress={1} width={heroBox.width} />
       </div>
       <svg aria-hidden height={cinemaCanvas.height} style={{ left: 0, position: "absolute", top: 0 }} width={cinemaCanvas.width}>
-        <Connector arrow={false} identity={identity} from={{ x: cinemaCanvas.left + termEnd + 24, y: termY + 43 + termFit.fontSize * 0.54 }} to={{ x: heroBox.x + 60, y: heroBox.y + heroBox.height * 0.3 }} progress={Math.min(beats.reveal("headline"), beats.reveal("image"))} />
+        <Connector arrow={false} identity={identity} from={{ x: cinemaCanvas.left + termEnd + 24, y: termY + (showHeadline ? 0 : 43) + termFit.fontSize * 0.54 }} to={{ x: heroBox.x + 60, y: heroBox.y + heroBox.height * 0.3 }} progress={Math.min(beats.reveal("headline"), beats.reveal("image"))} />
         <Connector arrow={false} identity={identity} from={{ x: cinemaCanvas.right - column - 10, y: definitionY + 60 }} to={{ x: heroBox.x + heroBox.width - 60, y: heroBox.y + heroBox.height * 0.45 }} progress={Math.min(beats.reveal("detail"), beats.reveal("image"))} />
         {example === undefined ? null : (
           <Connector arrow={false} identity={identity} from={{ x: cinemaCanvas.left + column + 10, y: exampleY + 60 }} to={{ x: heroBox.x + 80, y: heroBox.y + heroBox.height * 0.75 }} progress={Math.min(beats.reveal("detail"), beats.reveal("image"))} />
         )}
       </svg>
       <div style={{ ...absolute(cinemaCanvas.left, termY, column), ...arrival(beats.reveal("headline"), "left", 30) }}>
-        <Kicker identity={identity}>{design.display.kicker}</Kicker>
-        <PrimaryText identity={identity} scene={scene} design={design} fontSize={termFit.fontSize} style={{ marginTop: 12 }} />
+        {/* With a headline, the header above already carries the kicker. */}
+        {showHeadline ? null : <Kicker identity={identity}>{design.display.kicker}</Kicker>}
+        <PrimaryText identity={identity} scene={scene} design={design} fontSize={termFit.fontSize} style={{ marginTop: showHeadline ? 0 : 12 }} />
       </div>
       <Surface identity={identity} style={{ ...absolute(cinemaCanvas.right - column, definitionY, column), padding: 24, ...arrival(beats.reveal("detail"), "right", 30) }}>
         <BodyText identity={identity} fontSize={definitionFit.fontSize} style={{ fontWeight: 600 }}>
