@@ -67,7 +67,13 @@ export interface LanguageModelProvider {
 export const illustrationRequestSchema = z.object({
   prompt: z.string().trim().min(1).max(2_000),
   size: z.enum(["1024x1024", "1536x1024"]),
-  style: z.literal("flat-educational-vector"),
+  /** The drawing language the prompt describes; ST-110 adds the cinema treatments. */
+  style: z.enum([
+    "flat-educational-vector",
+    "cinema-flat",
+    "cinema-ink-sketch",
+    "cinema-editorial",
+  ]),
 });
 export type IllustrationRequest = z.infer<typeof illustrationRequestSchema>;
 export const illustrationResponseSchema = z.object({

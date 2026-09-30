@@ -63,9 +63,13 @@ import { createSceneRegenerationJobHandler } from "./scene-regeneration-job.js";
 import { createStoryboardGenerationJobHandler } from "./storyboard-job.js";
 import { createGroundingCheckJobHandler } from "./grounding-check-job.js";
 import { createProjectAssetValidationJobHandler } from "./project-asset-validation-job.js";
-import { createIllustrationGenerationJobHandler } from "./illustration-generation-job.js";
+import {
+  createCinemaIllustrationJobHandler,
+  createIllustrationGenerationJobHandler,
+} from "./illustration-generation-job.js";
 import { createSceneAudioGenerationJobHandler } from "./scene-audio-job.js";
 import { createCreativeDesignInterpretationJobHandler } from "./creative-design-job.js";
+import { createVisualPlanJobHandler } from "./visual-plan-job.js";
 import { TogetherKokoroTtsProvider } from "./together-tts.js";
 import { TogetherWhisperAlignmentProvider } from "./together-alignment.js";
 
@@ -233,6 +237,24 @@ export async function runPipelineWorker(
           undefined,
           workerEnvironment.MAX_PROVIDER_CALLS_PER_HOUR,
         );
+      const imageProvider =
+        illustrationProvider ??
+        new MockIllustrationProvider({
+          providerCallId: "local-illustration-fixture",
+          mediaType: "image/png",
+          bytes: new Uint8Array([
+            137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0,
+            0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0,
+            13, 73, 68, 65, 84, 8, 215, 99, 248, 207, 192, 240, 31, 0, 5, 0,
+            1, 255, 137, 153, 61, 29, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66,
+            96, 130,
+          ]),
+          width: 1,
+          height: 1,
+          units: 1,
+          costUsd: 0,
+          moderation: { status: "approved", code: "mock_safe" },
+        });
       handlers = [
         createDocumentValidationJobHandler({
           database: database.client,
@@ -249,24 +271,12 @@ export async function runPipelineWorker(
         createIllustrationGenerationJobHandler({
           database: database.client,
           storage,
-          provider:
-            illustrationProvider ??
-            new MockIllustrationProvider({
-              providerCallId: "local-illustration-fixture",
-              mediaType: "image/png",
-              bytes: new Uint8Array([
-                137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0,
-                0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0,
-                13, 73, 68, 65, 84, 8, 215, 99, 248, 207, 192, 240, 31, 0, 5, 0,
-                1, 255, 137, 153, 61, 29, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66,
-                96, 130,
-              ]),
-              width: 1,
-              height: 1,
-              units: 1,
-              costUsd: 0,
-              moderation: { status: "approved", code: "mock_safe" },
-            }),
+          provider: imageProvider,
+        }),
+        createCinemaIllustrationJobHandler({
+          database: database.client,
+          storage,
+          provider: imageProvider,
         }),
         createDocumentIngestionJobHandler({
           database: database.client,
@@ -352,6 +362,15 @@ export async function runPipelineWorker(
           pricing: togetherPricing,
         }),
         createCreativeDesignInterpretationJobHandler({
+          database: database.client,
+          provider: languageModelProvider,
+          promptRegistry: new StaticPromptRegistry(repositoryPrompts),
+          quotaGuard: generationQuotaGuard({
+            "ai.creative_design": { maxCallsPerHour: 20 },
+          }),
+          pricing: togetherPricing,
+        }),
+        createVisualPlanJobHandler({
           database: database.client,
           provider: languageModelProvider,
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),

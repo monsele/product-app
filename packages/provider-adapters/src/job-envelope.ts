@@ -28,6 +28,9 @@ export const pipelineJobAdapterEnvelopes = {
   "storyboard.generate": ["language-model"],
   "storyboard.scene-regenerate": ["language-model"],
   "grounding.check": ["language-model"],
+  "creative-design.interpret": ["language-model"],
+  // ST-110. The bounded visual planner between storyboard and illustrations.
+  "creative-design.visual-plan": ["language-model"],
   "tts.generate": ["text-to-speech", "forced-alignment"],
   // Generic model-call tests and internal operation tooling use these names;
   // production handlers use the explicit job names above.

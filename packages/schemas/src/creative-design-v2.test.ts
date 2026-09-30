@@ -6,20 +6,30 @@ import {
   cinemaComposition,
   cinemaCompositionCatalogue,
   cinemaCompositionEligibility,
+  captionMsToFrame,
+  cinemaCaptionsSha256,
   cinemaFinalHoldFrames,
+  cinemaIllustrationBudget,
+  cinemaIllustrationKey,
+  cinemaIllustrationPrompt,
+  cinemaPackArtDirection,
+  planCinemaIllustrations,
   cinemaBeatRevealFrames,
   creativeDesignAssetIds,
   creativeDesignStyleLabel,
   eligibleCinemaCompositions,
   groundCinemaDisplay,
+  groundVisualPlanProposal,
   isGroundedDisplayWording,
   linearGraphOrder,
   planCinemaDesign,
   resolveCinemaBeatFrames,
+  resolveCinemaTiming,
   selectCinemaCompositions,
   validateCreativeDesignManifestV2,
   visualPlanProposalSchema,
   type CinemaCompositionFamily,
+  type CinemaIllustrationBrief,
 } from "./creative-design-v2.js";
 import {
   createDefaultCreativeDesignManifest,
@@ -448,6 +458,374 @@ describe("ST-110 visual-plan proposal grounding", () => {
     expect(design.imagery.brief?.concept).toBe("savings jar");
     expect(design.beats.map((beat) => beat.target)).toEqual(["item-1", "item-2"]);
     expect(validateCreativeDesignManifestV2(manifest, scenes)).toEqual([]);
+  });
+
+  it("drops unsupported scenes, compositions, wording and beats without applying them (AC2)", () => {
+    const scenes = investigatedLesson();
+    const [hook, , processScene, comparison] = scenes;
+    const proposal = visualPlanProposalSchema.parse({
+      scenes: [
+        { sceneId: "00000000-0000-7000-8000-000000000999", compositions: ["statement"] },
+        {
+          sceneId: comparison!.id,
+          // A sequence cannot present a comparison; the split can.
+          compositions: ["sequence", "comparison-split"],
+          headline: "Compound interest doubles every 7 years",
+          kicker: "compare",
+          beats: [
+            { target: "left", motion: "sequential-reveal", sentence: 0 },
+            { target: "right", motion: "sequential-reveal", sentence: 9 },
+          ],
+        },
+        { sceneId: comparison!.id, compositions: ["comparison-stacked"] },
+        {
+          sceneId: processScene!.id,
+          compositions: ["sequence"],
+          emphasis: ["interest", "bonus"],
+          beats: [{ target: "item-1", motion: "path-build", sentence: 0, phrase: "not said" }],
+        },
+        { sceneId: hook!.id, compositions: ["statement"], headline: "Why does money grow" },
+      ],
+    });
+    const { proposal: grounded, dropped } = groundVisualPlanProposal(proposal, scenes);
+    expect(grounded.scenes.map((entry) => entry.sceneId)).toEqual([
+      comparison!.id,
+      processScene!.id,
+      hook!.id,
+    ]);
+    const comparisonPlan = grounded.scenes[0]!;
+    expect(comparisonPlan.compositions).toEqual(["comparison-split"]);
+    expect(comparisonPlan.headline).toBeUndefined();
+    expect(comparisonPlan.kicker).toBe("compare");
+    expect(comparisonPlan.beats?.map((beat) => beat.target)).toEqual(["left"]);
+    expect(grounded.scenes[1]!.beats).toEqual([]);
+    expect(grounded.scenes[2]!.headline).toBe("Why does money grow");
+    expect(dropped.map((entry) => `${entry.sceneId ?? "-"}:${entry.field}`).sort()).toEqual(
+      [
+        "-:scene",
+        `${comparison!.id}:scene`,
+        `${comparison!.id}:compositions`,
+        `${comparison!.id}:headline`,
+        `${comparison!.id}:beats`,
+        `${processScene!.id}:emphasis`,
+        `${processScene!.id}:beats`,
+      ].sort(),
+    );
+    // The authored reasons never echo model text back.
+    expect(JSON.stringify(dropped)).not.toMatch(/doubles|not said/u);
+    // Grounding is idempotent, and the grounded plan builds a valid design.
+    expect(groundVisualPlanProposal(grounded, scenes).dropped).toEqual([]);
+    const manifest = planCinemaDesign({
+      packId: "prism",
+      scenes,
+      seed: "0123456789abcdef",
+      proposal: grounded,
+    });
+    expect(manifest.scenes[comparison!.id]!.compositionId).toBe("comparison-split");
+    expect(validateCreativeDesignManifestV2(manifest, scenes)).toEqual([]);
+  });
+
+  it("keeps emphasis only for words the scene sets large", () => {
+    const scenes = investigatedLesson();
+    const definition = scenes[1]!;
+    const { proposal, dropped } = groundVisualPlanProposal(
+      visualPlanProposalSchema.parse({
+        scenes: [
+          {
+            sceneId: definition.id,
+            compositions: ["statement"],
+            emphasis: ["Compound", "unicorn"],
+          },
+        ],
+      }),
+      scenes,
+    );
+    expect(proposal.scenes[0]!.emphasis).toEqual(["Compound"]);
+    expect(dropped.map((entry) => entry.field)).toEqual(["emphasis"]);
+  });
+
+  it.each([
+    ["a hex colour", "A jar of coins in #ff3366 on white."],
+    ["a CSS colour function", "A jar tinted rgb(255, 0, 0)."],
+    ["CSS declarations", "A jar; color: red; margin: 4px"],
+    ["pixel sizes", "A jar 400px tall in the middle."],
+    ["a font", "A jar with a serif font title."],
+    ["coordinates", "Place the jar at x=120 and y=40."],
+    ["a coordinate pair", "A jar drawn at (120, 40) on the canvas."],
+    ["a URL", "Like the jar at https://example.com/jar.png"],
+    ["code", "const jar = () => coins"],
+    ["markup", "<div>A jar</div>"],
+    ["writing in the picture", "A jar with the label SAVINGS written on it."],
+    ["numbers in the picture", "A jar showing numbers for each year."],
+  ])("refuses an illustration brief carrying %s (AC1)", (_, description) => {
+    const scenes = investigatedLesson();
+    const { proposal, dropped } = groundVisualPlanProposal(
+      visualPlanProposalSchema.parse({
+        scenes: [
+          {
+            sceneId: scenes[0]!.id,
+            compositions: ["illustrated-headline"],
+            illustration: { concept: "savings jar", description, subject: "object" },
+          },
+        ],
+      }),
+      scenes,
+    );
+    expect(proposal.scenes[0]!.illustration).toBeUndefined();
+    expect(dropped.map((entry) => entry.field)).toEqual(["illustration"]);
+  });
+
+  it("keeps a plain subject brief, including people and ordinary subject colours", () => {
+    const scenes = investigatedLesson();
+    const illustration = {
+      concept: "saver at a bank",
+      description: "A smiling child drops a coin into a green piggy bank on a kitchen table.",
+      subject: "person" as const,
+    };
+    const { proposal, dropped } = groundVisualPlanProposal(
+      visualPlanProposalSchema.parse({
+        artDirection: { treatment: "ink-sketch", humanFigures: true },
+        scenes: [{ sceneId: scenes[0]!.id, compositions: ["illustrated-headline"], illustration }],
+      }),
+      scenes,
+    );
+    expect(dropped).toEqual([]);
+    expect(proposal.scenes[0]!.illustration).toEqual(illustration);
+    expect(proposal.artDirection).toEqual({ treatment: "ink-sketch", humanFigures: true });
+  });
+
+  it("rejects code, CSS, coordinates, colours and fonts as plan fields (AC1)", () => {
+    const scenes = investigatedLesson();
+    for (const extra of [
+      { css: "color: red" },
+      { x: 10, y: 20 },
+      { colors: { accent: "#ff0000" } },
+      { fontPair: "serif" },
+      { code: "render()" },
+    ]) {
+      expect(
+        visualPlanProposalSchema.safeParse({
+          scenes: [{ sceneId: scenes[0]!.id, compositions: ["statement"], ...extra }],
+        }).success,
+      ).toBe(false);
+      expect(
+        visualPlanProposalSchema.safeParse({
+          ...extra,
+          scenes: [{ sceneId: scenes[0]!.id, compositions: ["statement"] }],
+        }).success,
+      ).toBe(false);
+    }
+  });
+});
+
+describe("ST-110 presentation illustrations", () => {
+  const jar: CinemaIllustrationBrief = { concept: "savings jar", description: "A glass jar filling with coins.", subject: "object" };
+  const snowball: CinemaIllustrationBrief = { concept: "snowball", description: "A snowball rolling downhill and growing.", subject: "object" };
+
+  /** Hook and analogy picture-led, definition text-only, summary with an inset. */
+  function designWithBriefs(
+    briefs: Readonly<Record<number, CinemaIllustrationBrief | null>>,
+    scenes = investigatedLesson(),
+  ) {
+    const manifest = planCinemaDesign({
+      packId: "everyday",
+      scenes,
+      seed: "0123456789abcdef",
+      locks: {
+        [scenes[0]!.id]: "illustrated-headline",
+        [scenes[1]!.id]: "statement",
+        [scenes[6]!.id]: "illustrated-headline",
+        [scenes[7]!.id]: "chapter",
+      },
+    });
+    const withBriefs = {
+      ...manifest,
+      scenes: Object.fromEntries(
+        Object.entries(manifest.scenes).map(([id, design]) => {
+          const index = scenes.findIndex((entry) => entry.id === id);
+          const brief = briefs[index];
+          return [id, brief === undefined ? design : { ...design, imagery: { ...design.imagery, brief } }];
+        }),
+      ),
+    };
+    return { scenes, manifest: withBriefs };
+  }
+
+  it("budgets eight per five minutes, at least one, capped at twelve", () => {
+    expect([0, 30, 180, 300, 301, 450, 600, 3_600].map(cinemaIllustrationBudget)).toEqual([
+      1, 1, 5, 8, 9, 12, 12, 12,
+    ]);
+  });
+
+  it("deduplicates by concept and treatment", () => {
+    expect(cinemaIllustrationKey("A savings jar", "flat")).toBe(cinemaIllustrationKey("savings jars", "flat"));
+    expect(cinemaIllustrationKey("savings jar", "flat")).not.toBe(cinemaIllustrationKey("savings jar", "ink-sketch"));
+    expect(cinemaIllustrationKey("savings jar", "flat")).not.toBe(cinemaIllustrationKey("piggy bank", "flat"));
+  });
+
+  it("generates one picture per concept, skips text-only compositions and reuses what exists", () => {
+    const { scenes, manifest } = designWithBriefs({ 0: jar, 1: snowball, 6: { ...jar, concept: "Savings jars" }, 7: snowball });
+    const plan = planCinemaIllustrations({ manifest, scenes, targetDurationSeconds: 180 });
+    expect(plan.budget).toBe(5);
+    // The definition's composition shows no picture, so its brief costs nothing.
+    expect(plan.generate.map((entry) => [entry.brief.concept, entry.sceneIds])).toEqual([
+      ["savings jar", [scenes[0]!.id, scenes[6]!.id]],
+      ["snowball", [scenes[7]!.id]],
+    ]);
+    expect(plan.motif).toEqual([]);
+
+    const reused = planCinemaIllustrations({
+      manifest,
+      scenes,
+      targetDurationSeconds: 180,
+      reusable: {
+        [cinemaIllustrationKey("savings jar", "flat")]: {
+          assetId: "00000000-0000-7000-8000-000000000901",
+          origin: "generated",
+        },
+      },
+    });
+    expect(reused.generate.map((entry) => entry.brief.concept)).toEqual(["snowball"]);
+    expect(reused.reuse.map((entry) => [entry.sceneId, entry.hero.assetId])).toEqual([
+      [scenes[0]!.id, "00000000-0000-7000-8000-000000000901"],
+      [scenes[6]!.id, "00000000-0000-7000-8000-000000000901"],
+    ]);
+  });
+
+  it("serves picture-led scenes first and falls back to the motif past the budget", () => {
+    const { scenes, manifest } = designWithBriefs({ 0: jar, 6: snowball, 7: { ...jar, concept: "coin stack" } });
+    const plan = planCinemaIllustrations({
+      manifest,
+      scenes,
+      targetDurationSeconds: 300,
+      alreadyGenerated: 6,
+    });
+    expect(plan.generate.map((entry) => entry.brief.concept)).toEqual(["savings jar", "snowball"]);
+    expect(plan.motif).toEqual([{ sceneId: scenes[7]!.id, reason: "over_budget" }]);
+    expect(
+      planCinemaIllustrations({ manifest, scenes, targetDurationSeconds: 300, alreadyGenerated: 12 }).generate,
+    ).toEqual([]);
+  });
+
+  it("keeps the scene's own picture and draws no people when the art direction excludes them", () => {
+    const scenes = investigatedLesson();
+    scenes[0] = sceneSpecSchema.parse({
+      ...scenes[0],
+      assetBindings: [
+        {
+          assetId: "00000000-0000-7000-8000-000000000902",
+          provenance: "source_figure",
+          role: "illustration",
+          slot: "subject",
+          visualRole: "decorative",
+        },
+      ],
+    });
+    const { manifest } = designWithBriefs({ 0: jar, 6: { ...snowball, subject: "person" } }, scenes);
+    const plan = planCinemaIllustrations({
+      manifest: { ...manifest, artDirection: { ...manifest.artDirection, humanFigures: false } },
+      scenes,
+      targetDurationSeconds: 180,
+    });
+    expect(plan.generate).toEqual([]);
+    expect(plan.motif).toEqual([{ sceneId: scenes[6]!.id, reason: "no_people" }]);
+  });
+
+  it("never plans or accepts a generated picture over evidence (AC5)", () => {
+    const scenes = investigatedLesson();
+    const diagram = scene(
+      "labelled-diagram",
+      { kind: "shapes", shape: "cell", labels: [{ anchor: "left", id: "wall", text: "Cell wall" }] },
+      "The cell wall protects the cell.",
+    );
+    const lesson = [...scenes, diagram];
+    const manifest = planCinemaDesign({ packId: "systems", scenes: lesson, seed: "0123456789abcdef" });
+    const design = manifest.scenes[diagram.id]!;
+    expect(cinemaComposition(design.compositionId).imageUse).not.toBe("none");
+    const briefed = {
+      ...manifest,
+      scenes: { ...manifest.scenes, [diagram.id]: { ...design, imagery: { ...design.imagery, brief: jar } } },
+    };
+    expect(planCinemaIllustrations({ manifest: briefed, scenes: lesson, targetDurationSeconds: 300 })).toMatchObject({
+      generate: [],
+      motif: [{ sceneId: diagram.id, reason: "evidence_picture" }],
+    });
+    const pinned = (origin: "generated" | "source_figure") => ({
+      ...manifest,
+      scenes: {
+        ...manifest.scenes,
+        [diagram.id]: {
+          ...design,
+          imagery: {
+            ...design.imagery,
+            hero: { assetId: "00000000-0000-7000-8000-000000000903", origin, altText: "A cell" },
+          },
+        },
+      },
+    });
+    expect(validateCreativeDesignManifestV2(pinned("generated"), lesson)).toEqual([
+      `Scene ${diagram.id} shows evidence that a presentation illustration cannot replace.`,
+    ]);
+    expect(validateCreativeDesignManifestV2(pinned("source_figure"), lesson)).toEqual([]);
+  });
+
+  it("builds the image prompt from the brief and the shared art direction only", () => {
+    const prompt = cinemaIllustrationPrompt({
+      brief: jar,
+      artDirection: cinemaPackArtDirection["field-notes"],
+      palette: { accent: "#aa3300", diagramEmphasis: "#225588", surface: "#fff8ee" },
+    });
+    expect(prompt).toContain("A glass jar filling with coins. Main subject: savings jar.");
+    expect(prompt).toContain("ink and pencil sketch");
+    expect(prompt).toContain("No text, letters, numbers");
+    expect(prompt.length).toBeLessThanOrEqual(2_000);
+  });
+});
+
+describe("ST-111 pinned timing", () => {
+  it("pins each scene's resolved frames and the captions they came from", () => {
+    const scenes = investigatedLesson();
+    const manifest = planCinemaDesign({ packId: "everyday", scenes, seed: "0123456789abcdef" });
+    const process = scenes[2]!;
+    const captions = [
+      { startMs: 400, endMs: 2_050, text: "First you save money." },
+      { startMs: 2_050, endMs: 5_000, text: "Then the bank pays interest." },
+    ];
+    const timing = resolveCinemaTiming({ manifest, scenes, captionsBySceneId: { [process.id]: captions } });
+    expect(Object.keys(timing.scenes).sort()).toEqual(scenes.map((scene) => scene.id).sort());
+    expect(timing.scenes[process.id]).toEqual({
+      captionsSha256: cinemaCaptionsSha256(captions),
+      beatFrames: [
+        ...resolveCinemaBeatFrames({
+          beats: manifest.scenes[process.id]!.beats,
+          narration: process.narration,
+          cues: captions.map((cue) => ({
+            startFrame: captionMsToFrame(cue.startMs),
+            endFrame: captionMsToFrame(cue.endMs),
+            text: cue.text,
+          })),
+          durationInFrames: process.durationSeconds * 30,
+        }),
+      ],
+    });
+    // A scene without captions pins its proportional timing.
+    const hook = scenes[0]!;
+    expect(timing.scenes[hook.id]!.beatFrames).toEqual([
+      ...resolveCinemaBeatFrames({
+        beats: manifest.scenes[hook.id]!.beats,
+        narration: hook.narration,
+        cues: [],
+        durationInFrames: hook.durationSeconds * 30,
+      }),
+    ]);
+    // Deterministic, and sensitive to any caption change.
+    expect(resolveCinemaTiming({ manifest, scenes, captionsBySceneId: { [process.id]: captions } })).toEqual(timing);
+    expect(cinemaCaptionsSha256([{ ...captions[0]!, text: "First you save." }, captions[1]!])).not.toBe(
+      cinemaCaptionsSha256(captions),
+    );
+    expect(cinemaCaptionsSha256([{ ...captions[0]!, endMs: 2_051 }, captions[1]!])).not.toBe(
+      cinemaCaptionsSha256(captions),
+    );
   });
 });
 

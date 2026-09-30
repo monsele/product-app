@@ -1,6 +1,7 @@
-import type {
-  PreviewManifest,
-  StoryboardSceneDetailResponse,
+import {
+  captionMsToFrame,
+  type PreviewManifest,
+  type StoryboardSceneDetailResponse,
 } from "@avlp/schemas";
 import type { ScenePreviewInput } from "@avlp/scene-library";
 import { videoTheme } from "@avlp/design-system/video-theme";
@@ -70,8 +71,8 @@ export function buildScenePreviewInput(
           }),
     },
     captions: (media?.captions ?? []).map((cue) => ({
-      startFrame: Math.round((cue.startMs / 1_000) * videoTheme.canvas.fps),
-      endFrame: Math.round((cue.endMs / 1_000) * videoTheme.canvas.fps),
+      startFrame: captionMsToFrame(cue.startMs, videoTheme.canvas.fps),
+      endFrame: captionMsToFrame(cue.endMs, videoTheme.canvas.fps),
       text: cue.text,
     })),
   };

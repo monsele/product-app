@@ -4,8 +4,10 @@ import {
   type Identifier,
 } from "@avlp/config";
 import {
+  creativeDesignDrafts,
   illustrationGenerationCandidates,
   jobs,
+  lessonSpecs,
   outboxEvents,
   projectAssets,
   scenes,
@@ -15,6 +17,15 @@ import {
 import { createIdempotencyKey, createJobEnvelope } from "@avlp/jobs";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
+  anyCreativeDesignManifestSchema,
+  cinemaHeroSlot,
+  cinemaIllustrationJobPayloadSchema,
+  cinemaIllustrationPromptVersion,
+  creativeDesignHash,
+  isCreativeDesignManifestV2,
+  lessonStoryboardSchema,
+  planCinemaIllustrations,
+  validateCreativeDesignManifestV2,
   illustrationGenerationInputSchema,
   illustrationCandidateDecisionInputSchema,
   illustrationGenerationJobPayloadSchema,
@@ -818,7 +829,254 @@ export class IllustrationGenerationService {
     });
     return { status: "rejected" };
   }
+
+  /**
+   * ST-110: the presentation illustrations a v2 design asks for, in the
+   * ADR-015 order. Scenes whose concept already has a generated picture in
+   * this project take it now (pinned as `imagery.hero`); new concepts are
+   * queued once each (deduplicated by concept and treatment) within the
+   * lesson's budget; everything else keeps its authored motif. A v1 design
+   * queues nothing. Idempotent: a concept is never requested twice, so a
+   * replayed call adds no cost.
+   */
+  public async queueCinemaIllustrations(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    correlationId: Identifier;
+    /** ST-105. A deterministic per-request key for replayed runs. */
+    requestKey?: string | undefined;
+    oneShotRunId?: Identifier | undefined;
+  }): Promise<CinemaIllustrationQueueResult> {
+    const now = this.now();
+    const scope = and(
+      eq(lessonSpecs.ownerUserId, input.ownerUserId),
+      eq(lessonSpecs.projectId, input.projectId),
+      eq(lessonSpecs.status, "draft"),
+    );
+    const [spec] = await this.database
+      .select()
+      .from(lessonSpecs)
+      .where(scope)
+      .orderBy(desc(lessonSpecs.generatedAt))
+      .limit(1);
+    const none = (reason: string): CinemaIllustrationQueueResult => ({
+      queued: [],
+      reused: [],
+      motif: [],
+      budget: 0,
+      skipped: reason,
+    });
+    if (spec === undefined) return none("no_storyboard");
+    const [draft] = await this.database
+      .select()
+      .from(creativeDesignDrafts)
+      .where(
+        and(
+          eq(creativeDesignDrafts.ownerUserId, input.ownerUserId),
+          eq(creativeDesignDrafts.projectId, input.projectId),
+          eq(creativeDesignDrafts.lessonSpecId, spec.id),
+        ),
+      )
+      .limit(1);
+    if (draft === undefined) return none("no_design");
+    const manifest = anyCreativeDesignManifestSchema.parse(draft.manifest);
+    if (!isCreativeDesignManifestV2(manifest)) return none("design_v1");
+    const storyboard = lessonStoryboardSchema.parse(spec.payload);
+    const sceneSpecs = storyboard.scenes.map((entry) => ({
+      ...entry.scene,
+      id: entry.stableSceneId,
+    }));
+    const sceneRows = await this.database
+      .select({ id: scenes.id, stableSceneId: scenes.stableSceneId })
+      .from(scenes)
+      .where(
+        and(
+          eq(scenes.ownerUserId, input.ownerUserId),
+          eq(scenes.projectId, input.projectId),
+          eq(scenes.lessonSpecId, spec.id),
+        ),
+      );
+    const rowByStableId = new Map(sceneRows.map((row) => [row.stableSceneId, row.id]));
+    // Every hero picture this project has requested, by illustration key.
+    const history = await this.database
+      .select({
+        idempotencyKey: illustrationGenerationCandidates.idempotencyKey,
+        status: illustrationGenerationCandidates.status,
+        assetId: illustrationGenerationCandidates.assetId,
+        assetStatus: projectAssets.status,
+        lessonSpecId: scenes.lessonSpecId,
+      })
+      .from(illustrationGenerationCandidates)
+      .innerJoin(scenes, eq(scenes.id, illustrationGenerationCandidates.sceneId))
+      .leftJoin(projectAssets, eq(projectAssets.id, illustrationGenerationCandidates.assetId))
+      .where(
+        and(
+          eq(illustrationGenerationCandidates.ownerUserId, input.ownerUserId),
+          eq(illustrationGenerationCandidates.projectId, input.projectId),
+          eq(illustrationGenerationCandidates.slot, cinemaHeroSlot),
+        ),
+      );
+    const keyOf = (idempotencyKey: string) => idempotencyKey.slice(cinemaHeroKeyPrefix.length);
+    const reusable: Record<string, { assetId: string; origin: "generated" }> = {};
+    const requested = new Set<string>();
+    const generatedForLesson = new Set<string>();
+    for (const row of history) {
+      const key = keyOf(row.idempotencyKey);
+      if (row.lessonSpecId === spec.id) generatedForLesson.add(key);
+      if (row.status === "accepted" && row.assetId !== null && row.assetStatus === "active")
+        reusable[key] = { assetId: row.assetId, origin: "generated" };
+      else requested.add(key);
+    }
+    const plan = planCinemaIllustrations({
+      manifest,
+      scenes: sceneSpecs,
+      targetDurationSeconds: spec.targetDurationSeconds,
+      reusable,
+      requested,
+      alreadyGenerated: generatedForLesson.size,
+    });
+
+    if (plan.reuse.length > 0) {
+      let next = manifest;
+      for (const entry of plan.reuse) {
+        const design = next.scenes[entry.sceneId]!;
+        const candidate = {
+          ...next,
+          scenes: {
+            ...next.scenes,
+            [entry.sceneId]: { ...design, imagery: { ...design.imagery, hero: entry.hero } },
+          },
+        };
+        if (validateCreativeDesignManifestV2(candidate, sceneSpecs).length === 0) next = candidate;
+      }
+      if (next !== manifest)
+        await this.database
+          .update(creativeDesignDrafts)
+          .set({
+            manifest: next,
+            manifestHash: creativeDesignHash(next),
+            revision: draft.revision + 1,
+            updatedAt: now,
+          })
+          .where(
+            and(
+              eq(creativeDesignDrafts.id, draft.id),
+              eq(creativeDesignDrafts.revision, draft.revision),
+            ),
+          );
+    }
+
+    const queued: CinemaIllustrationQueueResult["queued"] = [];
+    for (const request of plan.generate) {
+      const firstRowId = rowByStableId.get(request.sceneIds[0]!);
+      if (firstRowId === undefined) continue;
+      const idempotencyKey = `${cinemaHeroKeyPrefix}${request.key}`;
+      const jobKey = createIdempotencyKey({
+        jobType: "illustration.generate",
+        projectId: input.projectId,
+        inputVersion: idempotencyKey,
+        options: { requestKey: input.requestKey ?? draft.id },
+      });
+      const result = await this.database.transaction(async (transaction) => {
+        const [candidate] = await transaction
+          .insert(illustrationGenerationCandidates)
+          .values({
+            id: createId(now),
+            ownerUserId: input.ownerUserId,
+            projectId: input.projectId,
+            sceneId: firstRowId,
+            slot: cinemaHeroSlot,
+            status: "queued",
+            promptVersion: cinemaIllustrationPromptVersion,
+            provider:
+              process.env.TOGETHER_API_KEY?.trim() === undefined ||
+              process.env.TOGETHER_API_KEY.trim().length === 0
+                ? "mock-illustration"
+                : "together",
+            moderationStatus: "pending",
+            idempotencyKey,
+          })
+          .onConflictDoNothing()
+          .returning({ id: illustrationGenerationCandidates.id });
+        // Requested concurrently by another call: that request pays for it.
+        if (candidate === undefined) return undefined;
+        const payload = cinemaIllustrationJobPayloadSchema.parse({
+          schemaVersion: 2,
+          candidateId: candidate.id,
+          ...(input.oneShotRunId === undefined ? {} : { oneShotRunId: input.oneShotRunId }),
+          draftId: draft.id,
+          sceneIds: request.sceneIds,
+          key: request.key,
+          brief: request.brief,
+          artDirection: manifest.artDirection,
+          palette: {
+            accent: manifest.settings.colors.accent,
+            diagramEmphasis: manifest.settings.colors.diagramEmphasis,
+            surface: manifest.settings.colors.surface,
+          },
+        });
+        const envelope = createJobEnvelope(cinemaIllustrationJobPayloadSchema, {
+          jobId: createId(now),
+          jobType: "illustration.generate",
+          projectId: input.projectId,
+          ownerUserId: input.ownerUserId,
+          inputVersion: idempotencyKey,
+          idempotencyKey: jobKey,
+          correlationId: input.correlationId,
+          payloadVersion: 2,
+          payload,
+          requestedAt: now,
+        });
+        const [job] = await transaction
+          .insert(jobs)
+          .values({
+            id: envelope.jobId,
+            jobType: envelope.jobType,
+            queueName: "pipeline",
+            projectId: envelope.projectId,
+            ownerUserId: envelope.ownerUserId,
+            inputVersion: envelope.inputVersion,
+            idempotencyKey: envelope.idempotencyKey,
+            correlationId: envelope.correlationId,
+            payloadVersion: envelope.payloadVersion,
+            payload: envelope.payload,
+          })
+          .onConflictDoNothing()
+          .returning({ id: jobs.id });
+        if (job === undefined) return undefined;
+        await transaction.insert(outboxEvents).values({
+          id: createId(now),
+          jobId: job.id,
+          eventType: "illustration.generation.requested.v2",
+          queueName: "pipeline",
+          envelope,
+          deliveryOptions: { maxAttempts: 3, retryDelayMs: 5_000 },
+        });
+        return { candidateId: candidate.id as Identifier, jobId: job.id as Identifier };
+      });
+      if (result !== undefined)
+        queued.push({ key: request.key, sceneIds: [...request.sceneIds], ...result });
+    }
+    return {
+      queued,
+      reused: plan.reuse.map((entry) => ({ sceneId: entry.sceneId, assetId: entry.hero.assetId })),
+      motif: plan.motif.map((entry) => ({ sceneId: entry.sceneId, reason: entry.reason })),
+      budget: plan.budget,
+    };
+  }
 }
+
+/** Candidates for a v2 hero record their illustration key after this prefix. */
+const cinemaHeroKeyPrefix = "cinema-hero:";
+
+export type CinemaIllustrationQueueResult = {
+  queued: { key: string; sceneIds: string[]; candidateId: Identifier; jobId: Identifier }[];
+  reused: { sceneId: string; assetId: string }[];
+  motif: { sceneId: string; reason: string }[];
+  budget: number;
+  /** Why nothing was planned (no storyboard, no design, a v1 design). */
+  skipped?: string;
+};
 
 function reviewableCandidateNotFound(): PublicError {
   return new PublicError(

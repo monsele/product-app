@@ -6,6 +6,7 @@ import { InMemoryOwnerScopedProjectRepository, ProjectAuthorizationService, crea
 import { createId } from "@avlp/config";
 import { assertCurrentVersion, buildLessonVersionSnapshot, canonicalJson, computeReadinessBlockers, lessonVersionContentHash, mediaReferences, prepareRestoredSnapshot, restoredStoryboardDraft } from "./lesson-versions.js";
 import { createApp, sessionCookieName } from "./app.js";
+import { cinemaCaptionsSha256, createDefaultCreativeDesignManifest, planCinemaDesign, resolveCinemaTiming, sceneSpecSchema } from "@avlp/schemas";
 
 describe("lesson version canonical serialization", () => {
   it("hashes equivalent object-key order deterministically without changing array order", () => {
@@ -66,6 +67,28 @@ it("clones a compatible historical snapshot without mutating it", () => {
   expect(draft.scenes[0]!.id).not.toBe(id);
   expect(draft.scenes[0]!.scene.id).toBe(draft.scenes[0]!.id);
   expect(() => prepareRestoredSnapshot({ schemaVersion: "lesson-version-v0" }, id, id, {}, {})).toThrow("incompatible or corrupt");
+});
+
+describe("ST-111 pinned beat timing", () => {
+  const id = "019ffbf1-eeee-7000-8000-000000000111";
+  const scene = sceneSpecSchema.parse({ id, order: 1, narration: "Water warms in the sun. Then it rises as vapour.", durationSeconds: 30, onScreenText: [], transition: "cut", assetBindings: [], sourceRefs: [{ documentId: id, parsedDocumentVersion: 1, pageStart: 1, sectionId: id, blockIds: [id] }], generatedAdditions: [], template: "definition", visual: { term: "Evaporation", definition: "A liquid becoming a gas." } });
+  const state = (manifest: unknown, sceneCaptions?: Map<string, { startMs: number; endMs: number; text: string }[]>) => ({ configuration: { version: 2, ageBand: "11-13", difficulty: "introductory", targetDurationSeconds: 180, tone: "friendly", visualTheme: "mvp-default" }, objectives: { id }, outline: { id, sourceSnapshotId: id }, narration: { id, sourceSnapshotId: id, promptVersion: "v4" }, storyboard: { id, projectId: id, title: "Water", subject: "Science", objectiveIds: [id], promptVersion: "v3", basedOnNarrationSetId: id, payload: { scenes: [{ scene }] } }, source: { id, payload: {} }, objectiveItems: [{ id }], outlineItems: [{ id }], blocks: [{ id }], groundingCheckId: null, creativeDesign: manifest === undefined ? undefined : { id, manifestHash: "h", manifest }, ...(sceneCaptions === undefined ? {} : { sceneCaptions }) }) as unknown as Parameters<typeof buildLessonVersionSnapshot>[0];
+  const captions = [{ startMs: 400, endMs: 2_050, text: "Water warms in the sun." }, { startMs: 2_050, endMs: 4_800, text: "Then it rises as vapour." }];
+  const v2 = planCinemaDesign({ packId: "everyday", scenes: [scene], seed: "0123456789abcdef" });
+
+  it("pins a v2 version's resolved beat frames and caption identity", () => {
+    const snapshot = buildLessonVersionSnapshot(state(v2, new Map([[id, captions]])), { sceneCitations: [] }) as { cinemaTiming?: unknown };
+    expect(snapshot.cinemaTiming).toEqual(resolveCinemaTiming({ manifest: v2, scenes: [scene], captionsBySceneId: { [id]: captions } }));
+    expect(snapshot.cinemaTiming).toMatchObject({ scenes: { [id]: { captionsSha256: cinemaCaptionsSha256(captions) } } });
+  });
+
+  it("pins nothing until every scene has captions, and never for a v1 design", () => {
+    expect(buildLessonVersionSnapshot(state(v2, new Map()), { sceneCitations: [] })).not.toHaveProperty("cinemaTiming");
+    const v1 = createDefaultCreativeDesignManifest({ packId: "everyday", scenes: [{ id, template: "definition", durationSeconds: 30 }] });
+    const snapshot = buildLessonVersionSnapshot(state(v1, new Map([[id, captions]])), { sceneCitations: [] });
+    // A v1 snapshot is unchanged byte for byte: no key at all.
+    expect(Object.keys(snapshot as object)).not.toContain("cinemaTiming");
+  });
 });
 
 it("rejects a restore confirmation when the current-version pointer is stale", () => {

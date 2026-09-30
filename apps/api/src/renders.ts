@@ -34,7 +34,11 @@ import {
   renderRequestSchema,
   renderStatusResponseSchema,
   anyCreativeDesignManifestSchema,
+  captionMsToFrame,
+  cinemaCaptionsSha256,
+  cinemaTimingSchema,
   creativeDesignAssetIds,
+  type CinemaCaptionMs,
   creativeDesignPackIds,
   isCreativeDesignManifestV2,
   creativeDesignStyleLabel,
@@ -636,12 +640,12 @@ export class PostgresRenderService implements RenderService {
             "Current captions are required for every scene before rendering.",
             409,
           );
+        assertPinnedCaptionsUnchanged(version.snapshot, scene.id, cues);
         captions.push(
           ...cues.map((cue) => ({
             sceneId: scene.id,
-            startFrame:
-              sceneOffsetFrames + Math.round((cue.startMs / 1_000) * 30),
-            endFrame: sceneOffsetFrames + Math.round((cue.endMs / 1_000) * 30),
+            startFrame: sceneOffsetFrames + captionMsToFrame(cue.startMs),
+            endFrame: sceneOffsetFrames + captionMsToFrame(cue.endMs),
             text: cue.text,
           })),
         );
@@ -1200,4 +1204,27 @@ export class PostgresRenderService implements RenderService {
       reviewedAt: report.reviewedAt,
     };
   }
+}
+
+/**
+ * ST-111. A v2 version pinned its beat frames against its scenes' captions;
+ * rendering it against changed captions would animate against the wrong
+ * speech, so the render is refused rather than silently drifting. A version
+ * without pinned timing (v1, or saved before captions) is not affected.
+ */
+export function assertPinnedCaptionsUnchanged(
+  snapshot: unknown,
+  sceneId: string,
+  cues: readonly CinemaCaptionMs[],
+): void {
+  const pinned = cinemaTimingSchema.safeParse(
+    (snapshot as { cinemaTiming?: unknown } | null)?.cinemaTiming,
+  );
+  const scene = pinned.success ? pinned.data.scenes[sceneId] : undefined;
+  if (scene !== undefined && scene.captionsSha256 !== cinemaCaptionsSha256(cues))
+    throw new PublicError(
+      "bad_request",
+      "The narration captions changed after this version was saved. Save a new version, then render it.",
+      409,
+    );
 }

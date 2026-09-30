@@ -86,12 +86,28 @@ function transitionStyle(
   return { opacity, transform: `translateX(${offset}px)` };
 }
 
+/**
+ * The beat frames a scene draws. A saved version renders the frames it
+ * pinned (ST-111), so a later resolver change cannot move its motion; a
+ * draft, or pinned frames that no longer fit its beats, resolves from the
+ * scene's captions.
+ */
+export function cinemaSceneBeatFrames(
+  input: Parameters<typeof resolveCinemaBeatFrames>[0] &
+    Readonly<{ pinned?: readonly number[] | undefined }>,
+): readonly number[] {
+  return input.pinned !== undefined && input.pinned.length === input.beats.length
+    ? input.pinned
+    : resolveCinemaBeatFrames(input);
+}
+
 export function CinemaScene({
   creativeDesign,
   durationInFrames,
   frameStyle,
   resolvedAssets,
   runtimeMode,
+  pinnedBeatFrames,
   scene,
   sceneCaptions = [],
 }: Readonly<{
@@ -103,6 +119,8 @@ export function CinemaScene({
   scene: LessonSpec["scenes"][number];
   /** Caption cues for this scene, in scene-relative frames. */
   sceneCaptions?: readonly CinemaCaptionCue[];
+  /** A saved version's pinned beat frames (ST-111); they win over re-resolving. */
+  pinnedBeatFrames?: readonly number[] | undefined;
 }>): JSX.Element {
   const frame = useCurrentFrame();
   const design = creativeDesign.scenes[scene.id];
@@ -116,13 +134,14 @@ export function CinemaScene({
   );
   const beatFrames = useMemo(
     () =>
-      resolveCinemaBeatFrames({
+      cinemaSceneBeatFrames({
         beats: design.beats,
         narration: scene.narration,
         cues: sceneCaptions,
         durationInFrames,
+        pinned: pinnedBeatFrames,
       }),
-    [design.beats, scene.narration, sceneCaptions, durationInFrames],
+    [pinnedBeatFrames, design.beats, scene.narration, sceneCaptions, durationInFrames],
   );
   const energy = creativeDesign.settings.motionEnergy;
   const timeline = createBeatTimeline({

@@ -7,6 +7,7 @@ import {
   type SoundBedCompositionProp,
 } from "@avlp/scene-library";
 import {
+  captionMsToFrame,
   creativeDesignStyleLabel,
   lessonValidationRunSchema,
   previewManifestSchema,
@@ -112,10 +113,10 @@ export function previewPlayerInput(manifest: PreviewManifest) {
           compositionSceneIdByStableId.get(entry.sceneId) ?? entry.sceneId,
         startFrame:
           (offsetByStableSceneId.get(entry.sceneId) ?? 0) +
-          Math.round((cue.startMs * manifest.canvas.fps) / 1_000),
+          captionMsToFrame(cue.startMs, manifest.canvas.fps),
         endFrame:
           (offsetByStableSceneId.get(entry.sceneId) ?? 0) +
-          Math.round((cue.endMs * manifest.canvas.fps) / 1_000),
+          captionMsToFrame(cue.endMs, manifest.canvas.fps),
         text: cue.text,
       })),
     ),

@@ -45,7 +45,13 @@ import {
   type VersionRecoveryStage,
   type VersionSaveBlocker,
   type VersionSaveBlockerCode,
+  resolveCinemaTiming,
+  type AnyCreativeDesignManifest,
+  type CinemaCaptionMs,
+  type CinemaTiming,
+  type SceneSpec,
 } from "@avlp/schemas";
+import { loadSceneCaptionsMs } from "./scene-captions.js";
 import { PostgresAuditWriter } from "@avlp/observability";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -747,6 +753,10 @@ async function loadState(db: DatabaseExecutor, scope: Scope) {
     blocks,
     groundingCheckId: (check?.id as Identifier | undefined) ?? null,
     creativeDesign,
+    // ST-111: the captions a v2 version's beat timing is resolved from.
+    sceneCaptions: storyboard
+      ? await loadSceneCaptionsMs(db, scope, storyboard.id)
+      : new Map<string, CinemaCaptionMs[]>(),
   };
 }
 async function approvedObjectives(db: DatabaseExecutor, scope: Scope) {
@@ -1129,6 +1139,8 @@ export function buildLessonVersionSnapshot(
     ? anyCreativeDesignManifestSchema.safeParse(state.creativeDesign.manifest)
     : undefined;
   const designManifest = parsedDesign?.success ? parsedDesign.data : undefined;
+  const lessonSpec = portableLessonSpec(state);
+  const cinemaTiming = pinnedCinemaTiming(designManifest, lessonSpec.scenes, state.sceneCaptions);
   return JSON.parse(
     JSON.stringify({
       schemaVersion: "lesson-version-v1",
@@ -1138,7 +1150,7 @@ export function buildLessonVersionSnapshot(
       outline: { set: state.outline, items: state.outlineItems },
       narration: { set: state.narration, blocks: state.blocks },
       storyboard: state.storyboard.payload,
-      lessonSpec: portableLessonSpec(state),
+      lessonSpec,
       sourceSnapshot: state.source.payload,
       citations: citation,
       // ST-097: a saved version pins the full resolved design snapshot. An absent
@@ -1154,6 +1166,9 @@ export function buildLessonVersionSnapshot(
       // `null` means no bed. Snapshots saved before this story have no key at
       // all, which `readPinnedSoundBed` reads the same way.
       soundBed: state.soundBed,
+      // ST-111: a v2 version pins its resolved beat frames and the captions
+      // they came from; v1 snapshots carry no key, so their hashes are unchanged.
+      ...(cinemaTiming === undefined ? {} : { cinemaTiming }),
       mediaReferences: mediaReferences(state.storyboard.payload),
       versions: {
         lessonSpec: lessonSpecVersion,
@@ -1171,6 +1186,24 @@ export function buildLessonVersionSnapshot(
       },
     }),
   ) as unknown;
+}
+/**
+ * The beat frames a v2 version will render, resolved from the captions of
+ * every scene. Absent when the design is v1 or any scene has no captions yet;
+ * such a version resolves its beats at render time, as before.
+ */
+function pinnedCinemaTiming(
+  manifest: AnyCreativeDesignManifest | undefined,
+  scenes: readonly SceneSpec[],
+  captions: ReadonlyMap<string, readonly CinemaCaptionMs[]> | undefined,
+): CinemaTiming | undefined {
+  if (!isCreativeDesignManifestV2(manifest) || captions === undefined) return undefined;
+  if (scenes.some((scene) => !captions.has(scene.id))) return undefined;
+  return resolveCinemaTiming({
+    manifest,
+    scenes,
+    captionsBySceneId: Object.fromEntries(captions),
+  });
 }
 function portableLessonSpec(state: Awaited<ReturnType<typeof loadState>>) {
   const value = state as typeof state & {

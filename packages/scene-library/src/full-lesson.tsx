@@ -14,6 +14,7 @@ import { z } from "zod";
 import {
   anyCreativeDesignManifestSchema,
   creativeDesignManifestSchema,
+  cinemaTimingSchema,
   isCreativeDesignManifestV2,
   previewAssetSchema,
   sceneSpecSchema,
@@ -110,9 +111,29 @@ export const fullLessonCompositionPropsSchema = z
     /** ST-103. Absent means no bed, and the composition renders exactly as it
      * did before sound beds existed. */
     soundBed: soundBedCompositionPropSchema.optional(),
+    /** ST-111. A saved version's pinned beat frames (v2 only). Absent, beats
+     * resolve from the captions, as a draft preview does. */
+    cinemaTiming: cinemaTimingSchema.optional(),
   })
   .strict()
   .superRefine((value, context) => {
+    if (value.cinemaTiming !== undefined) {
+      const design = value.creativeDesign;
+      if (!isCreativeDesignManifestV2(design))
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["cinemaTiming"],
+          message: "Pinned beat timing belongs only to a v2 creative design.",
+        });
+      else
+        for (const [sceneId, timing] of Object.entries(value.cinemaTiming.scenes))
+          if (design.scenes[sceneId]?.beats.length !== timing.beatFrames.length)
+            context.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["cinemaTiming", "scenes", sceneId],
+              message: "Pinned beat timing does not match the scene's planned beats.",
+            });
+    }
     if (value.creativeDesign !== undefined)
       for (const issue of validateAnyCreativeDesignManifest(
         value.creativeDesign,
@@ -616,6 +637,7 @@ function TransitionedScene({
   runtimeMode,
   scene,
   durationInFrames,
+  pinnedBeatFrames,
   sceneCaptions,
 }: Readonly<{
   creativeDesign?: AnyCreativeDesignManifest;
@@ -623,6 +645,7 @@ function TransitionedScene({
   runtimeMode: "preview" | "render";
   scene: LessonSpec["scenes"][number];
   durationInFrames: number;
+  pinnedBeatFrames?: readonly number[] | undefined;
   sceneCaptions: readonly CinemaCaptionCue[];
 }>): JSX.Element {
   const frame = useCurrentFrame();
@@ -636,6 +659,7 @@ function TransitionedScene({
         runtimeMode={runtimeMode}
         scene={scene}
         sceneCaptions={sceneCaptions}
+        {...(pinnedBeatFrames === undefined ? {} : { pinnedBeatFrames })}
       />
     );
   const transitionFrames =
@@ -1088,6 +1112,7 @@ export function CreativeScene({
 export function FullLessonComposition({
   assets,
   captions,
+  cinemaTiming,
   creativeDesign,
   lesson,
   narrationTracks,
@@ -1145,6 +1170,7 @@ export function FullLessonComposition({
               runtimeMode={runtimeMode}
               scene={scene}
               sceneCaptions={captionsBySceneId.get(segment.sceneId) ?? []}
+              pinnedBeatFrames={cinemaTiming?.scenes[segment.sceneId]?.beatFrames}
             />
             {narration?.kind === "browser-audio" ? (
               <Audio

@@ -9,7 +9,9 @@ import {
   type AuthGateway,
 } from "@avlp/auth";
 import { createApp, sessionCookieName } from "./app.js";
+import { cinemaCaptionsSha256 } from "@avlp/schemas";
 import {
+  assertPinnedCaptionsUnchanged,
   PostgresRenderService,
   renderEnvelopePayloadSchema,
   renderIdempotencyKey,
@@ -1356,5 +1358,36 @@ describe("ST-103 sound bed and review in the render service", () => {
       }),
     ).rejects.toThrow("outside the render tenant");
     expect(createSignedDownload).not.toHaveBeenCalled();
+  });
+});
+
+describe("ST-111 pinned caption check", () => {
+  const sceneId = "019ffbf1-7777-7000-8000-000000000111";
+  const cues = [
+    { startMs: 400, endMs: 2_050, text: "Water warms in the sun." },
+    { startMs: 2_050, endMs: 4_800, text: "Then it rises as vapour." },
+  ];
+  const snapshot = {
+    cinemaTiming: {
+      version: "cinema-timing-v1",
+      fps: 30,
+      scenes: { [sceneId]: { captionsSha256: cinemaCaptionsSha256(cues), beatFrames: [6, 40] } },
+    },
+  };
+
+  it("renders a version whose captions are the ones its timing was pinned to", () => {
+    expect(() => assertPinnedCaptionsUnchanged(snapshot, sceneId, cues)).not.toThrow();
+  });
+
+  it("refuses a version whose captions changed since it was saved", () => {
+    const retimed = [cues[0]!, { ...cues[1]!, startMs: 2_300 }];
+    expect(() => assertPinnedCaptionsUnchanged(snapshot, sceneId, retimed)).toThrow(
+      /captions changed after this version was saved/u,
+    );
+  });
+
+  it("leaves versions without pinned timing unaffected", () => {
+    expect(() => assertPinnedCaptionsUnchanged({}, sceneId, cues)).not.toThrow();
+    expect(() => assertPinnedCaptionsUnchanged(snapshot, "019ffbf1-7777-7000-8000-000000000999", cues)).not.toThrow();
   });
 });

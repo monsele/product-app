@@ -31,7 +31,8 @@ export function loadImmutableFixture(
 ): Readonly<FullLessonCompositionProps> {
   if (payload.fixtureId === undefined) {
     const snapshot = payload.manifest?.snapshot as
-      { lessonSpec?: unknown; creativeDesign?: unknown } | undefined;
+      | { lessonSpec?: unknown; creativeDesign?: unknown; cinemaTiming?: unknown }
+      | undefined;
     const lesson = lessonSpecSchema.parse(snapshot?.lessonSpec);
     return deepFreeze(
       fullLessonCompositionPropsSchema.parse({
@@ -43,6 +44,10 @@ export function loadImmutableFixture(
         "manifest" in snapshot.creativeDesign
           ? { creativeDesign: snapshot.creativeDesign.manifest }
           : {}),
+        // ST-111: a v2 version renders the beat frames it pinned when saved.
+        ...(snapshot?.cinemaTiming === undefined || snapshot.cinemaTiming === null
+          ? {}
+          : { cinemaTiming: snapshot.cinemaTiming }),
         lesson,
         narrationTracks: lesson.scenes.map((scene) => ({
           kind: "deterministic-silence" as const,

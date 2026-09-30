@@ -1180,6 +1180,71 @@ function generateGroundingCheckJson(text: string, allUuids: string[]): string {
  * - scene-regeneration-v1
  * - grounding-claim-v1
  */
+type VisualPlanMockInput = {
+  catalogue?: { id: string; family: string; imageUse: string }[];
+  scenes?: {
+    sceneId: string;
+    title?: string;
+    template: string;
+    hasPicture?: boolean;
+    narration?: { sentence: number; text: string }[];
+    eligibleCompositions?: { id: string; beatTargets: string[] }[];
+  }[];
+};
+
+/**
+ * ST-110: a grounded visual plan built only from the planner's own input, so
+ * local runs exercise the visual-plan job end to end without a provider.
+ * Varies families like a real plan and anchors item beats across sentences.
+ */
+function generateVisualPlanJson(text: string): string {
+  const input = extractJsonObject<VisualPlanMockInput>(text, "do not change it.");
+  const families = new Map(
+    (input?.catalogue ?? []).map((entry) => [entry.id, entry]),
+  );
+  const history: string[] = [];
+  const scenes = (input?.scenes ?? []).flatMap((scene) => {
+    const eligible = scene.eligibleCompositions ?? [];
+    if (eligible.length === 0) return [];
+    const familyOf = (id: string) => families.get(id)?.family ?? id;
+    const fresh = eligible.filter(
+      (entry) => !history.slice(-2).includes(familyOf(entry.id)),
+    );
+    const ordered = [...fresh, ...eligible.filter((entry) => !fresh.includes(entry))];
+    const first = ordered[0]!;
+    history.push(familyOf(first.id));
+    const sentences = Math.max(1, scene.narration?.length ?? 1);
+    const items = first.beatTargets.filter((target) => target.startsWith("item-"));
+    const beats = [
+      { target: "headline", motion: "sequential-reveal", sentence: 0 },
+      ...items.map((target, index) => ({
+        target,
+        motion: first.id === "sequence" || first.id === "connected" ? "path-build" : "sequential-reveal",
+        sentence: Math.min(sentences - 1, Math.floor((index * sentences) / Math.max(1, items.length))),
+      })),
+    ].filter((beat) => beat.target === "headline" || first.beatTargets.includes(beat.target));
+    const wantsPicture =
+      scene.hasPicture !== true && families.get(first.id)?.imageUse !== "none";
+    const subject = clampText(scene.title ?? scene.template.replace(/-/g, " "), 80);
+    return [
+      {
+        sceneId: scene.sceneId,
+        compositions: ordered.slice(0, 2).map((entry) => entry.id),
+        ...(scene.title === undefined ? {} : { headline: clampText(scene.title, 160) }),
+        illustration: wantsPicture
+          ? {
+              concept: subject,
+              description: clampText(`A clear, friendly picture that shows ${subject.toLowerCase()}.`, 300),
+              subject: "object",
+            }
+          : null,
+        beats: beats.slice(0, 12),
+      },
+    ];
+  });
+  return JSON.stringify({ scenes });
+}
+
 export class DynamicMockLanguageModelProvider implements LanguageModelProvider {
   public readonly providerId: string;
   public readonly supportedModels = [togetherModelDefaults.llm] as const;
@@ -1216,6 +1281,8 @@ export class DynamicMockLanguageModelProvider implements LanguageModelProvider {
       jsonOutput = generateGroundingCheckJson(fullText, allUuids);
     } else if (systemText.includes("You name lessons")) {
       jsonOutput = generateLessonIntentJson(fullText);
+    } else if (systemText.includes("video art director")) {
+      jsonOutput = generateVisualPlanJson(fullText);
     } else if (systemText.includes("You plan short explainer videos")) {
       jsonOutput = generateOneShotBriefJson(fullText);
     } else if (systemText.includes("instructional designer")) {

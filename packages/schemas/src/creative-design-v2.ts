@@ -358,7 +358,9 @@ export const cinemaPackArtDirection: Readonly<
  */
 export function cinemaArtDirectionBrief(
   artDirection: CinemaArtDirection,
-  settings: CreativeDesignSettings,
+  settings: Readonly<{
+    colors: Pick<CreativeDesignSettings["colors"], "accent" | "diagramEmphasis" | "surface">;
+  }>,
 ): string {
   const treatment =
     artDirection.treatment === "flat"
@@ -1320,6 +1322,91 @@ export function resolveCinemaBeatFrames(
 }
 
 // ---------------------------------------------------------------------------
+// Resolved timing, pinned in a lesson version (ST-111 AC5)
+// ---------------------------------------------------------------------------
+
+export const cinemaTimingVersion = "cinema-timing-v1" as const;
+
+/**
+ * The one conversion from a caption time to a frame, for preview, render and
+ * a saved version alike. It keeps the arithmetic the render path has always
+ * used, `round((ms / 1000) × fps)`, so re-rendering an approved video places
+ * every caption where it did; the algebraically equal `round(ms × fps / 1000)`
+ * differs by one frame at some half-frame boundaries (2050 ms at 30 fps).
+ */
+export function captionMsToFrame(ms: number, fps = 30): number {
+  return Math.round((ms / 1_000) * fps);
+}
+
+/** A scene's length in frames, as the lesson timeline counts it. */
+export function cinemaSceneDurationInFrames(durationSeconds: number, fps = 30): number {
+  return Math.max(1, Math.round(durationSeconds * fps));
+}
+
+export type CinemaCaptionMs = Readonly<{ startMs: number; endMs: number; text: string }>;
+
+/** Identifies the exact scene captions a pinned timing was resolved from. */
+export function cinemaCaptionsSha256(cues: readonly CinemaCaptionMs[]): string {
+  return sha256(JSON.stringify(cues.map((cue) => [cue.startMs, cue.endMs, cue.text])));
+}
+
+export const cinemaTimingSchema = z
+  .object({
+    version: z.literal(cinemaTimingVersion),
+    fps: z.literal(30),
+    scenes: z.record(
+      identifierSchema,
+      z
+        .object({
+          captionsSha256: z.string().regex(/^[0-9a-f]{64}$/),
+          /** Scene-relative start frame of each beat, in manifest beat order. */
+          beatFrames: z.array(z.number().int().nonnegative()).max(24),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+export type CinemaTiming = z.infer<typeof cinemaTimingSchema>;
+
+/**
+ * Resolves every scene's beats against its narration captions, for pinning
+ * in a lesson version. Uses exactly the conversions the preview and render
+ * compositions use, so the pinned frames are the frames either would draw.
+ */
+export function resolveCinemaTiming(
+  input: Readonly<{
+    manifest: CreativeDesignManifestV2;
+    scenes: readonly AnyScene[];
+    /** Scene-relative caption cues in milliseconds, by scene ID. */
+    captionsBySceneId: Readonly<Record<string, readonly CinemaCaptionMs[]>>;
+  }>,
+): CinemaTiming {
+  const fps = 30;
+  const scenes: Record<string, CinemaTiming["scenes"][string]> = {};
+  for (const scene of input.scenes) {
+    const design = input.manifest.scenes[scene.id];
+    if (design === undefined) continue;
+    const captions = input.captionsBySceneId[scene.id] ?? [];
+    scenes[scene.id] = {
+      captionsSha256: cinemaCaptionsSha256(captions),
+      beatFrames: [
+        ...resolveCinemaBeatFrames({
+          beats: design.beats,
+          narration: scene.narration,
+          cues: captions.map((cue) => ({
+            startFrame: captionMsToFrame(cue.startMs, fps),
+            endFrame: captionMsToFrame(cue.endMs, fps),
+            text: cue.text,
+          })),
+          durationInFrames: cinemaSceneDurationInFrames(scene.durationSeconds, fps),
+        }),
+      ],
+    };
+  }
+  return cinemaTimingSchema.parse({ version: cinemaTimingVersion, fps, scenes });
+}
+
+// ---------------------------------------------------------------------------
 // Visual-plan proposal (model output) — ST-110
 // ---------------------------------------------------------------------------
 
@@ -1372,6 +1459,149 @@ export const visualPlanProposalSchema = z
   })
   .strict();
 export type VisualPlanProposal = z.infer<typeof visualPlanProposalSchema>;
+
+/** One part of a proposal that was not applied, described by our code only. */
+export type VisualPlanDrop = Readonly<{
+  sceneId: string | null;
+  field:
+    | "scene"
+    | "compositions"
+    | "headline"
+    | "kicker"
+    | "emphasis"
+    | "illustration"
+    | "beats";
+  reason: string;
+}>;
+
+/**
+ * Presentation instructions an illustration brief must never carry (ST-110
+ * AC1): colour codes, CSS, markup, code, URLs, coordinates and fonts. The
+ * palette and drawing language come from the shared art direction; a brief
+ * says only what the picture shows. Plain subject colours ("a green leaf")
+ * describe content and stay allowed.
+ */
+const briefPresentationPattern = new RegExp(
+  [
+    String.raw`#[0-9a-f]{3,8}\b`,
+    String.raw`\b(?:rgba?|hsla?)\s*\(`,
+    String.raw`[{};<>\x60]`,
+    String.raw`=>`,
+    String.raw`\b\d+(?:\.\d+)?\s*(?:px|em|rem|vh|vw|pt)\b`,
+    String.raw`\b(?:css|font|fonts|typeface|serif|sans-serif|z-index|margin|padding|opacity)\b`,
+    String.raw`\b(?:colou?r|style|class|width|height|position)\s*[:=]`,
+    String.raw`https?:|www\.|\.(?:png|jpe?g|svg|gif|webp)\b`,
+    String.raw`\b[xy]\s*[:=]\s*-?\d`,
+    String.raw`\(\s*-?\d+\s*,\s*-?\d+\s*\)`,
+    String.raw`\b(?:top|left|right|bottom)\s*[:=]`,
+  ].join("|"),
+  "iu",
+);
+
+/** Briefs that ask for writing inside the picture, which renders as garbled text. */
+const briefLetteringPattern =
+  /\b(?:labels?|labell?ed|captions?|captioned|lettering|text|written|writing|words?|letters?|numbers?|numerals?|logos?|watermarks?)\b/iu;
+
+/**
+ * Applies a model's visual-plan proposal only where it is supported (ST-110
+ * AC2): unknown or repeated scenes are dropped; compositions a scene cannot
+ * present, ungrounded wording, unaddressable beats and illustration briefs
+ * that carry presentation instructions are removed. Pure and idempotent: a
+ * grounded proposal grounds to itself. Composition lists may be emptied, in
+ * which case the whole-video selection chooses freely for that scene.
+ */
+export function groundVisualPlanProposal(
+  proposal: VisualPlanProposal,
+  scenes: readonly AnyScene[],
+): Readonly<{ proposal: VisualPlanProposal; dropped: readonly VisualPlanDrop[] }> {
+  const byId = new Map(scenes.map((scene) => [scene.id, scene]));
+  const seen = new Set<string>();
+  const dropped: VisualPlanDrop[] = [];
+  const drop = (sceneId: string | null, field: VisualPlanDrop["field"], reason: string) =>
+    dropped.push(Object.freeze({ sceneId, field, reason }));
+  const grounded: VisualPlanProposal["scenes"] = [];
+  for (const entry of proposal.scenes) {
+    const scene = byId.get(entry.sceneId);
+    if (scene === undefined) {
+      drop(null, "scene", "The plan named a scene that is not in this lesson.");
+      continue;
+    }
+    if (seen.has(entry.sceneId)) {
+      drop(entry.sceneId, "scene", "The plan named this scene more than once.");
+      continue;
+    }
+    seen.add(entry.sceneId);
+    const eligible = eligibleCinemaCompositions(scene).map((candidate) => candidate.id);
+    const compositions = [...new Set(entry.compositions)].filter((id) => eligible.includes(id));
+    if (compositions.length < new Set(entry.compositions).size)
+      drop(entry.sceneId, "compositions", "A proposed composition cannot present this scene's content.");
+    const { rejected } = groundCinemaDisplay(scene, {
+      headline: entry.headline,
+      emphasis: entry.emphasis,
+      kicker: entry.kicker,
+    });
+    for (const field of rejected)
+      drop(
+        entry.sceneId,
+        field as "headline" | "kicker" | "emphasis",
+        `The proposed ${field} is not grounded in the scene's approved content.`,
+      );
+    let emphasis = entry.emphasis;
+    if (emphasis !== undefined && rejected.includes("emphasis")) {
+      const headline = rejected.includes("headline") ? undefined : entry.headline;
+      const primary = cinemaPrimaryText(scene, {
+        headline: headline ?? authoredCinemaDisplay(scene).headline,
+      });
+      const words = new Set(
+        primary.split(/\s+/u).map((word) => word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "")),
+      );
+      emphasis = emphasis.map((word) => word.trim()).filter((word) => words.has(word)).slice(0, 3);
+    }
+    let illustration = entry.illustration;
+    if (
+      illustration !== undefined &&
+      illustration !== null &&
+      [illustration.concept, illustration.description].some(
+        (value) => briefPresentationPattern.test(value) || briefLetteringPattern.test(value),
+      )
+    ) {
+      drop(
+        entry.sceneId,
+        "illustration",
+        "The illustration brief carried presentation instructions or asked for writing in the picture.",
+      );
+      illustration = undefined;
+    }
+    const targetPool = compositions.length > 0 ? compositions : eligible;
+    const targets = new Set(targetPool.flatMap((id) => [...cinemaBeatTargets(id, scene)]));
+    const sentences = narrationSentences(scene.narration);
+    const beats = (entry.beats ?? []).filter(
+      (beat) =>
+        targets.has(beat.target) &&
+        beat.sentence < Math.max(1, sentences.length) &&
+        (beat.phrase === undefined ||
+          (sentences[beat.sentence] ?? "").toLowerCase().includes(beat.phrase.toLowerCase())),
+    );
+    if (entry.beats !== undefined && beats.length < entry.beats.length)
+      drop(entry.sceneId, "beats", "A proposed beat addresses an element or narration span this scene does not have.");
+    grounded.push({
+      sceneId: entry.sceneId,
+      compositions,
+      ...(entry.headline === undefined || rejected.includes("headline") ? {} : { headline: entry.headline }),
+      ...(entry.kicker === undefined || rejected.includes("kicker") ? {} : { kicker: entry.kicker }),
+      ...(emphasis === undefined ? {} : { emphasis }),
+      ...(illustration === undefined ? {} : { illustration }),
+      ...(entry.beats === undefined ? {} : { beats }),
+    });
+  }
+  return Object.freeze({
+    proposal: {
+      ...(proposal.artDirection === undefined ? {} : { artDirection: proposal.artDirection }),
+      scenes: grounded,
+    },
+    dropped: Object.freeze(dropped),
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Whole-video selection (ST-109 AC3)
@@ -1702,6 +1932,14 @@ export function validateCreativeDesignManifestV2(
     }
     if (design.requiredHoldFrames + 30 > Math.floor(scene.durationSeconds * 30))
       issues.push(`Scene ${scene.id} is too short for its readable hold.`);
+    // A pinned hero displaces the scene's own picture; evidence may be
+    // replaced only by evidence (ST-110 AC5).
+    if (
+      design.imagery.hero !== null &&
+      design.imagery.hero.origin !== "source_figure" &&
+      cinemaSceneHasEvidencePicture(scene)
+    )
+      issues.push(`Scene ${scene.id} shows evidence that a presentation illustration cannot replace.`);
     const approved = cinemaApprovedSceneText(scene);
     // The authored fallback headline ("How it happens", "What to remember")
     // is fixed generic wording, like a generic kicker: it adds no claim.
@@ -1788,4 +2026,249 @@ export function carryForwardCinemaDesign(
   } catch {
     return undefined;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Presentation illustrations (ST-110)
+// ---------------------------------------------------------------------------
+
+/** Identifies the v2 hero illustration request and its prompt construction. */
+export const cinemaIllustrationPromptVersion = "cinema-illustration-v1" as const;
+/** The candidate slot a v2 hero illustration is recorded under; not a template slot. */
+export const cinemaHeroSlot = "cinema-hero" as const;
+export const cinemaIllustrationsPerFiveMinutes = 8;
+export const cinemaIllustrationCap = 12;
+
+type SceneAssetBinding = SceneSpec["assetBindings"][number];
+
+const heroPictureRoles = ["diagram", "icon", "illustration", "photo", "supporting"];
+
+/**
+ * The scene's own picture for the hero position (hook subject, definition
+ * example, analogy or summary central visual, labelled-diagram base). Shared
+ * by the renderer, planning and validation so they agree on what a pinned
+ * presentation illustration would cover.
+ */
+export function cinemaHeroSlotBinding(scene: AnyScene): SceneAssetBinding | undefined {
+  switch (scene.template) {
+    case "hook":
+      return scene.assetBindings.find((binding) =>
+        ["icon", "illustration", "photo"].includes(binding.role),
+      );
+    case "definition":
+      return scene.assetBindings.find(
+        (binding) => binding.slot === "visual-example" && heroPictureRoles.includes(binding.role),
+      );
+    case "analogy":
+      return scene.assetBindings.find(
+        (binding) => binding.slot === "central-visual" && binding.role === "illustration",
+      );
+    case "summary":
+      return scene.visual.centralAssetSlot === undefined
+        ? undefined
+        : scene.assetBindings.find(
+            (binding) =>
+              binding.slot === scene.visual.centralAssetSlot && binding.role === "illustration",
+          );
+    case "labelled-diagram":
+      return scene.visual.kind === "asset"
+        ? scene.assetBindings.find(
+            (binding) => binding.slot === scene.visual.baseAssetSlot && binding.role === "diagram",
+          )
+        : undefined;
+    default:
+      return undefined;
+  }
+}
+
+/**
+ * True when the hero position carries evidence: a labelled diagram (drawn or
+ * bound) or a diagram, grounding-critical or source-derived picture. A pinned
+ * hero displaces that picture in the renderer, so only a source figure may be
+ * pinned there (ST-110 AC5).
+ */
+export function cinemaSceneHasEvidencePicture(scene: AnyScene): boolean {
+  if (scene.template === "labelled-diagram") return true;
+  const binding = cinemaHeroSlotBinding(scene);
+  return (
+    binding !== undefined &&
+    (binding.role === "diagram" ||
+      binding.visualRole === "grounding_critical" ||
+      binding.visualRole === "source_derived")
+  );
+}
+
+/** Unique generated illustrations a video of this length may request. */
+export function cinemaIllustrationBudget(targetDurationSeconds: number): number {
+  const allowance = Math.ceil(
+    (cinemaIllustrationsPerFiveMinutes * Math.max(0, targetDurationSeconds)) / 300,
+  );
+  return Math.min(cinemaIllustrationCap, Math.max(1, allowance));
+}
+
+/** Deduplication key: one generated picture per concept and treatment. */
+export function cinemaIllustrationKey(
+  concept: string,
+  treatment: CinemaIllustrationTreatment,
+): string {
+  const normalised = concept
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .split(" ")
+    .filter((word) => word.length > 0 && !stopWords.has(word))
+    // Fold plurals only: "jars" and "jar" are one concept.
+    .map((word) => (word.length > 3 && /[^s]s$/u.test(word) ? word.slice(0, -1) : word))
+    .join(" ");
+  return `${treatment}:${normalised}`.slice(0, 200);
+}
+
+export type CinemaIllustrationBrief = NonNullable<CinemaSceneImagery["brief"]>;
+export type CinemaIllustrationPalette = Pick<
+  CreativeDesignSettings["colors"],
+  "accent" | "diagramEmphasis" | "surface"
+>;
+
+/**
+ * The image prompt: the plan's brief plus the video's shared art direction.
+ * Built only from the brief, never from source or lesson text.
+ */
+export function cinemaIllustrationPrompt(
+  input: Readonly<{
+    brief: CinemaIllustrationBrief;
+    artDirection: CinemaArtDirection;
+    palette: CinemaIllustrationPalette;
+  }>,
+): string {
+  return `${input.brief.description} Main subject: ${input.brief.concept}. ${cinemaArtDirectionBrief(
+    input.artDirection,
+    { colors: input.palette },
+  )}`.slice(0, 2_000);
+}
+
+const paletteColor = z.string().regex(/^#[0-9a-fA-F]{6}$/);
+
+export const cinemaIllustrationJobPayloadSchema = z
+  .object({
+    schemaVersion: z.literal(2),
+    candidateId: identifierSchema,
+    /** ST-105. The prompt-to-video run that authorised this paid call. */
+    oneShotRunId: identifierSchema.optional(),
+    draftId: identifierSchema,
+    /** Every scene the deduplicated picture is bound to. */
+    sceneIds: z.array(identifierSchema).min(1).max(60),
+    key: z.string().min(1).max(200),
+    brief: cinemaSceneImagerySchema.shape.brief.unwrap(),
+    artDirection: cinemaArtDirectionSchema,
+    palette: z
+      .object({ accent: paletteColor, diagramEmphasis: paletteColor, surface: paletteColor })
+      .strict(),
+  })
+  .strict();
+export type CinemaIllustrationJobPayload = z.infer<typeof cinemaIllustrationJobPayloadSchema>;
+
+export type CinemaIllustrationReusable = Readonly<
+  Record<string, Readonly<{ assetId: string; origin: "generated" | "project_asset" | "library" }>>
+>;
+
+type CinemaMotifReason = "over_budget" | "evidence_picture" | "no_people";
+
+export type CinemaIllustrationPlan = Readonly<{
+  budget: number;
+  /** New pictures to generate, one per concept and treatment. */
+  generate: readonly Readonly<{
+    key: string;
+    brief: CinemaIllustrationBrief;
+    sceneIds: readonly string[];
+  }>[];
+  /** Scenes that take an already available picture of the same concept. */
+  reuse: readonly Readonly<{
+    sceneId: string;
+    hero: NonNullable<CinemaSceneImagery["hero"]>;
+  }>[];
+  /** Scenes that keep their authored motif, and why. */
+  motif: readonly Readonly<{ sceneId: string; reason: CinemaMotifReason }>[];
+}>;
+
+/**
+ * Decides which scenes get which picture, in the ADR-015 order: the scene's
+ * own (source) picture, a pinned hero or an available picture of the same
+ * concept and treatment, a new generated picture within budget, then the
+ * authored motif. Only scenes whose composition shows a picture are
+ * considered, and none whose hero position carries evidence (AC5). When the
+ * budget is short, picture-led compositions are served first.
+ */
+export function planCinemaIllustrations(
+  input: Readonly<{
+    manifest: CreativeDesignManifestV2;
+    scenes: readonly AnyScene[];
+    targetDurationSeconds: number;
+    /** Pictures already generated for this project, by illustration key. */
+    reusable?: CinemaIllustrationReusable | undefined;
+    /** Unique pictures already generated for this lesson against the budget. */
+    alreadyGenerated?: number | undefined;
+    /** Keys already requested (in flight or failed): never requested again. */
+    requested?: ReadonlySet<string> | undefined;
+  }>,
+): CinemaIllustrationPlan {
+  const budget = cinemaIllustrationBudget(input.targetDurationSeconds);
+  const { treatment, humanFigures } = input.manifest.artDirection;
+  const reuse: { sceneId: string; hero: NonNullable<CinemaSceneImagery["hero"]> }[] = [];
+  const motif: { sceneId: string; reason: CinemaMotifReason }[] = [];
+  const wanted = new Map<
+    string,
+    { brief: CinemaIllustrationBrief; sceneIds: string[]; central: boolean; order: number }
+  >();
+  for (const scene of [...input.scenes].sort((left, right) => left.order - right.order)) {
+    const design = input.manifest.scenes[scene.id];
+    if (design === undefined || design.imagery.hero !== null || design.imagery.brief === null)
+      continue;
+    const imageUse = cinemaComposition(design.compositionId).imageUse;
+    if (imageUse === "none") continue;
+    if (cinemaSceneHasEvidencePicture(scene)) {
+      motif.push({ sceneId: scene.id, reason: "evidence_picture" });
+      continue;
+    }
+    // The scene's own picture is shown: nothing to generate.
+    if (cinemaHeroSlotBinding(scene) !== undefined) continue;
+    const { brief } = design.imagery;
+    if (brief.subject === "person" && !humanFigures) {
+      motif.push({ sceneId: scene.id, reason: "no_people" });
+      continue;
+    }
+    const key = cinemaIllustrationKey(brief.concept, treatment);
+    const available = input.reusable?.[key];
+    if (available !== undefined) {
+      reuse.push({
+        sceneId: scene.id,
+        hero: { assetId: available.assetId, origin: available.origin, altText: brief.description },
+      });
+      continue;
+    }
+    if (input.requested?.has(key) === true) continue;
+    const existing = wanted.get(key);
+    if (existing === undefined)
+      wanted.set(key, { brief, sceneIds: [scene.id], central: imageUse === "central", order: scene.order });
+    else {
+      existing.sceneIds.push(scene.id);
+      existing.central ||= imageUse === "central";
+    }
+  }
+  const remaining = Math.max(0, budget - (input.alreadyGenerated ?? 0));
+  const ranked = [...wanted.entries()].sort(
+    ([, left], [, right]) => Number(right.central) - Number(left.central) || left.order - right.order,
+  );
+  for (const [, value] of ranked.slice(remaining))
+    for (const sceneId of value.sceneIds) motif.push({ sceneId, reason: "over_budget" });
+  return Object.freeze({
+    budget,
+    generate: Object.freeze(
+      ranked.slice(0, remaining).map(([key, value]) =>
+        Object.freeze({ key, brief: value.brief, sceneIds: Object.freeze(value.sceneIds) }),
+      ),
+    ),
+    reuse: Object.freeze(reuse),
+    motif: Object.freeze(motif),
+  });
 }

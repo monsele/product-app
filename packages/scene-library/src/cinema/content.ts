@@ -9,6 +9,7 @@
  * shows the authored motif instead so a teacher can keep working.
  */
 import {
+  cinemaHeroSlotBinding,
   cinemaSceneItems,
   cinemaSequenceStops,
   type CinemaSceneDesign,
@@ -25,38 +26,6 @@ type Assets = Readonly<Record<string, ResolvedSceneAsset>> | undefined;
 type Mode = "preview" | "render";
 
 const pictureRoles = ["diagram", "icon", "illustration", "photo", "supporting"];
-
-function heroSlotBinding(scene: SceneSpec) {
-  switch (scene.template) {
-    case "hook":
-      return scene.assetBindings.find((binding) =>
-        ["icon", "illustration", "photo"].includes(binding.role),
-      );
-    case "definition":
-      return scene.assetBindings.find(
-        (binding) => binding.slot === "visual-example" && pictureRoles.includes(binding.role),
-      );
-    case "analogy":
-      return scene.assetBindings.find(
-        (binding) => binding.slot === "central-visual" && binding.role === "illustration",
-      );
-    case "summary":
-      return scene.visual.centralAssetSlot === undefined
-        ? undefined
-        : scene.assetBindings.find(
-            (binding) =>
-              binding.slot === scene.visual.centralAssetSlot && binding.role === "illustration",
-          );
-    case "labelled-diagram":
-      return scene.visual.kind === "asset"
-        ? scene.assetBindings.find(
-            (binding) => binding.slot === scene.visual.baseAssetSlot && binding.role === "diagram",
-          )
-        : undefined;
-    default:
-      return undefined;
-  }
-}
 
 function missing(sceneId: string, what: string): Error {
   return new Error(`Scene render blocked for ${sceneId}: ${what} could not be resolved safely.`);
@@ -78,7 +47,7 @@ export function resolveCinemaHero(
       };
     if (mode === "render") throw missing(scene.id, "the pinned illustration");
   }
-  const binding = heroSlotBinding(scene);
+  const binding = cinemaHeroSlotBinding(scene);
   if (binding !== undefined) {
     const table = resolveSafeTableVisual(binding.assetId, assets);
     if (table?.table !== undefined)
