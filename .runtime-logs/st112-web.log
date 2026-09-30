@@ -1,0 +1,38 @@
+
+> @avlp/web@0.0.0 dev D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web
+> next dev
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.193:3000
+
+ ✓ Starting...
+ ✓ Ready in 54.8s
+ ○ Compiling /sign-in ...
+ ✓ Compiled /sign-in in 29s (10529 modules)
+ GET /sign-in 200 in 31500ms
+ GET /sign-in 200 in 113ms
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 1326ms (158 modules)
+ GET /sign-in 200 in 157ms
+ GET /sign-in 200 in 159ms
+ ○ Compiling /workspace ...
+ ✓ Compiled /workspace in 5.9s (10849 modules)
+ GET /workspace 200 in 7781ms
+ GET /workspace 200 in 7790ms
+ ○ Compiling /api/projects ...
+ ✓ Compiled /api/projects in 2.2s (10869 modules)
+ POST /api/projects 303 in 3163ms
+ POST /api/projects 303 in 3171ms
+ ○ Compiling /workspace/[projectId]/one-shot ...
+ ✓ Compiled /workspace/[projectId]/one-shot in 10.4s (14089 modules)
+ GET /workspace/01a0f157-88f9-7296-a2b4-4b2f7d919094/one-shot 200 in 30165ms
+ GET /workspace/01a0f157-88fb-7876-ac7b-94c9dc93e943/one-shot 200 in 30169ms
+ GET /workspace/01a0f157-88f9-7296-a2b4-4b2f7d919094/one-shot 200 in 314ms
+ GET /workspace/01a0f157-88fb-7876-ac7b-94c9dc93e943/one-shot 200 in 294ms
+ ✓ Compiled in 50s (14062 modules)
+ ✓ Compiled in 8.3s (14062 modules)
+ ✓ Compiled in 5.8s (14062 modules)
+D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @avlp/web@0.0.0 dev: `next dev`
+Exit status 4294967295

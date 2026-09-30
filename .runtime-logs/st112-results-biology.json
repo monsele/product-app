@@ -1,0 +1,421 @@
+[
+  {
+    "subject": "biology",
+    "projectId": "01a0f13e-9da6-7208-9b8a-575fd7316bd6",
+    "briefRevisions": 1,
+    "brief": {
+      "title": "How do mitochondria and chloroplasts supply energy to a cell",
+      "points": [
+        {
+          "point": "Explain 1. What is a cell?",
+          "chips": [
+            "1. What is a cell?"
+          ]
+        },
+        {
+          "point": "Explain 2. Parts of a cell",
+          "chips": [
+            "2. Parts of a cell"
+          ]
+        },
+        {
+          "point": "Explain 3. Plant cells and animal cells",
+          "chips": [
+            "3. Plant cells and animal cells"
+          ]
+        }
+      ],
+      "notCovered": [],
+      "style": "essential",
+      "sound": "morning-pad",
+      "estimateUsd": "$23.92"
+    },
+    "briefAccuracy": [
+      {
+        "expected": "/mitochond/i",
+        "citedByAChip": false
+      },
+      {
+        "expected": "/chloroplast|photosynth/i",
+        "citedByAChip": false
+      }
+    ],
+    "nothingPaidBeforeConfirm": true,
+    "stop": "approval",
+    "status": "completed",
+    "downloaded": "how-do-mitochondria-and-chloroplasts-supply-energy-to-a-cell-v1.mp4",
+    "coverageGaps": [
+      "Explain 3. Plant cells and animal cells"
+    ],
+    "stylePack": "essential",
+    "soundBed": "morning-pad",
+    "repairCount": {
+      "queued": 1,
+      "applied": 1,
+      "discardedOrStopped": 0
+    },
+    "decisionKinds": [
+      "brief",
+      "style_pack",
+      "sound_bed",
+      "budget_reservation",
+      "auto_approval",
+      "auto_approval",
+      "auto_approval",
+      "auto_approval",
+      "style_pack",
+      "auto_approval",
+      "repair",
+      "repair",
+      "coverage_gap",
+      "render_review"
+    ],
+    "estimateUsd": 23.9179,
+    "reservedUsd": 23.91786,
+    "capUsd": 29.897325,
+    "actualUsdLedger": 0.0825,
+    "actualUsdRun": 0.0825,
+    "ledger": [
+      {
+        "step": "brief",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.00825,
+        "records": 1
+      },
+      {
+        "step": "objectives",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.00825,
+        "records": 1
+      },
+      {
+        "step": "outline",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.00825,
+        "records": 1
+      },
+      {
+        "step": "narration",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.00825,
+        "records": 1
+      },
+      {
+        "step": "storyboard",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.00825,
+        "records": 1
+      },
+      {
+        "step": "visual_plan",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.00825,
+        "records": 1
+      },
+      {
+        "step": "illustrations",
+        "estimateUsd": 0.0135,
+        "actualUsd": 0,
+        "records": 3
+      },
+      {
+        "step": "grounding",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.02475,
+        "records": 3
+      },
+      {
+        "step": "audio",
+        "estimateUsd": 0.05112,
+        "actualUsd": 0,
+        "records": 4
+      },
+      {
+        "step": "repair",
+        "estimateUsd": 16.29324,
+        "actualUsd": 0.00825,
+        "records": 1
+      }
+    ],
+    "briefPhoneOverflowPx": 0,
+    "promptInUrl": true,
+    "minutes": "11.0",
+    "pageErrors": [],
+    "log": {
+      "runId": "01a0f13e-e898-759d-9c70-9a634a8e9e07",
+      "decisions": [
+        {
+          "runId": "01a0f13e-e898-759d-9c70-9a634a8e9e07",
+          "seq": 1,
+          "kind": "brief",
+          "summary": "Prepared brief revision 1: 3 coverage points, 6 scenes planned, estimate $23.92.",
+          "reason": null,
+          "model": "moonshotai/Kimi-K3",
+          "promptVersion": "one-shot-brief/v1",
+          "costUsd": 0.00825,
+          "relatedIds": [
+            "01a0f13e-ed5d-791c-b1a4-d2e46605cbf2"
+          ],
+          "createdAt": "2026-09-30T07:37:09.370Z"
+        },
+        {
+          "runId": "01a0f13e-e898-759d-9c70-9a634a8e9e07",
+          "seq": 2,
+          "kind": "style_pack",
+          "summary": "Style pack: essential.",
+          "reason": "A clear, neutral look that keeps attention on the explanation.",
+          "model": "moonshotai/Kimi-K3",
+          "promptVersion": "one-shot-brief/v1",
+          "costUsd": null,
+          "relatedIds": [],
+          "createdAt": "2026-09-30T07:37:12.419Z"
+        },
+        {
+          "runId": "01a0f13e-e898-759d-9c70-9a634a8e9e07",
+          "seq": 3,
+          "kind": "sound_bed",
+          "summary": "Sound bed: morning-pad.",
+          "reason": "A calm bed that sits under the narration without competing with it.",
+          "model": "moonshotai/Kimi-K3",
+          "promptVersion": "one-shot-brief/v1",
+          "costUsd": null,
+          "relatedIds": [],
+          "createdAt": "2026-09-30T07:37:12.419Z"
+        },
+        {
+          "runId": "01a0f13e-e898-759d-9c70-9a634a8e9e07",
+          "seq": 4,
+          "kind": "budget_reservation",
+          "summary": "Reserved $23.92 for brief revision 1; the run stops before any step that would pass $29.90.",
+          "reason": "The cap is the accepted estimate times 1.25.",
+          "model": null,
+          "promptVersion": null,
+          "costUsd": null,
+          "relatedIds": [],
+          "createdAt": "2026-09-30T07:37:12.419Z"
+        },
+        {
+          "runId": "01a0f13e-e898-759d-9c70-9a634a8e9e07",
+          "seq": 5,
+          "kind": "auto_approval",
+          "summary": "Approved the source review automatically.",
+          "reason": null,
+          "model": null,
+          "promptVersion": null,
+          "costUsd": null,
+          "relatedIds": [
+            "01a0f13f-0613-7670-82d0-60bcf468adee"
+          ],
+          "createdAt": "2026-09-30T07:37:15.396Z"
+        },
+        {
+          "runId": "01a0f13e-e898-759d-9c70-9a634a8e9e07",
+          "seq": 6,
+          "kind": "auto_approval",
+          "summary": "Approved the objectives automatically (revision 0).",
+          "reason": null,
+          "model": null,
+          "promptVersion": null,
+          "costUsd": null,
+          "relatedIds": [
+            "01a0f13f-707c-775b-b00c-fd449872525b"
+          ],
+          "createdAt": "2026-09-30T07:37:47.176Z"
+        },
+        {
+          "runId": "01a0f13e-e898-759d-9c70-9a634a8e9e07",
+          "seq": 7,
+          "kind": "auto_approval",
+          "summary": "Approved the outline automatically (revision 0).",
+          "reason": null,
+          "model": null,
+          "promptVersion": null,
+          "costUsd": null,
+          "relatedIds": [
+            "01a0f13f-a6eb-7ea5-80e0-e1ab2baeb57b"
+          ],
+          "createdAt": "2026-09-30T07:38:02.093Z"
+        },
+        {
+          "runId": "01a0f13e-e898-759d-9c70-9a634a8e9e07",
+          "seq": 8,
+          "kind": "auto_approval",
+          "summary": "Approved the narration automatically (revision 0).",
+          "reason": null,
+          "model": null,
+          "promptVersion": null,
+          "costUsd": null,
+          "relatedIds": [
+            "01a0f13f-d852-7b5d-89bc-dc435f5ae91c"
+          ],
+          "createdAt": "2026-09-30T07:38:12.975Z"
+        },
+        {
+          "runId": "01a0f13e-e898-759d-9c70-9a634a8e9e07",
+          "seq": 9,
+          "kind": "style_pack",
+          "summary": "Planned the visuals: a composition, short on-screen wording, picture briefs and narration-timed reveals for each scene.",
+          "reason": null,
+          "model": null,
+          "promptVersion": "visual-plan/v1",
+          "costUsd": null,
+          "relatedIds": [
+            "01a0f140-2a46-7edd-90d1-bc473f3f4d13"
+          ],
+          "createdAt": "2026-09-30T07:38:33.783Z"
+        },
+        {
+          "runId": "01a0f13e-e898-759d-9c70-9a634a8e9e07",
+          "seq": 10,
+          "kind": "auto_approval",
+          "summary": "Applied the planned visual design automatically.",
+          "reason": null,
+          "model": null,
+          "promptVersion": null,
+          "costUsd": null,
+          "relatedIds": [
+            "01a0f140-49f1-70c3-a776-16fe4107a32b"
+          ],
+          "createdAt": "2026-09-30T07:38:37.458Z"
+        },
+        {
+          "runId": "01a0f13e-e898-759d-9c70-9a634a8e9e07",
+          "seq": 11,
+          "kind": "repair",
+          "summary": "Coverage fix: regenerating scene 2 because a confirmed brief point was not covered.",
+          "reason": "Make this scene also cover the confirmed brief point: \"Explain 3. Plant cells and animal cells\". Use only the scene's existing source references.",
+          "model": "moonshotai/Kimi-K3",
+          "promptVersion": "scene-regeneration/v2",
+          "costUsd": null,
+          "relatedIds": [
+            "01a0f140-8c0c-70ac-8776-0d16dcc057e1"
+          ],
+          "createdAt": "2026-09-30T07:38:54.478Z"
+        },
+        {
+          "runId": "01a0f13e-e898-759d-9c70-9a634a8e9e07",
+          "seq": 12,
+          "kind": "repair",
+          "summary": "Coverage fix: applied the regenerated scene 2.",
+          "reason": "a confirmed brief point was not covered",
+          "model": "moonshotai/Kimi-K3",
+          "promptVersion": "scene-regeneration/v2",
+          "costUsd": 0.00825,
+          "relatedIds": [
+            "01a0f140-8fea-75d4-ac23-d03c52b955e8",
+            "01a0f140-8fea-7099-a216-b379c3aea323"
+          ],
+          "createdAt": "2026-09-30T07:38:58.814Z"
+        },
+        {
+          "runId": "01a0f13e-e898-759d-9c70-9a634a8e9e07",
+          "seq": 13,
+          "kind": "coverage_gap",
+          "summary": "Not covered: Explain 3. Plant cells and animal cells",
+          "reason": "No scene cites the document sections behind this brief point, even after one repair attempt. You decide whether to render.",
+          "model": null,
+          "promptVersion": null,
+          "costUsd": null,
+          "relatedIds": [],
+          "createdAt": "2026-09-30T07:39:11.129Z"
+        }
+      ],
+      "ledger": [
+        {
+          "step": "brief",
+          "estimateUsd": 1.08,
+          "actualUsd": 0.00825,
+          "usageRecordIds": [
+            "01a0f13e-ed5d-7271-9acc-8d932d8b83d4"
+          ]
+        },
+        {
+          "step": "objectives",
+          "estimateUsd": 1.08,
+          "actualUsd": 0.00825,
+          "usageRecordIds": [
+            "01a0f13f-707c-7aa3-8425-0a616839e9db"
+          ]
+        },
+        {
+          "step": "outline",
+          "estimateUsd": 1.08,
+          "actualUsd": 0.00825,
+          "usageRecordIds": [
+            "01a0f13f-a6eb-76b2-b590-d85d23d83d05"
+          ]
+        },
+        {
+          "step": "narration",
+          "estimateUsd": 1.08,
+          "actualUsd": 0.00825,
+          "usageRecordIds": [
+            "01a0f13f-d852-77fa-8491-61aa90db7454"
+          ]
+        },
+        {
+          "step": "storyboard",
+          "estimateUsd": 1.08,
+          "actualUsd": 0.00825,
+          "usageRecordIds": [
+            "01a0f140-1a6c-7e22-a36c-a93282453961"
+          ]
+        },
+        {
+          "step": "visual_plan",
+          "estimateUsd": 1.08,
+          "actualUsd": 0.00825,
+          "usageRecordIds": [
+            "01a0f140-2b93-764f-b018-f82d1a43357a"
+          ]
+        },
+        {
+          "step": "illustrations",
+          "estimateUsd": 0.0135,
+          "actualUsd": 0,
+          "usageRecordIds": [
+            "01a0f140-3e94-7769-82f2-f67b11dc778f",
+            "01a0f140-3fa9-7a04-948c-34a8f53ae562",
+            "01a0f140-4051-774f-afd7-8898aec0c44c"
+          ]
+        },
+        {
+          "step": "grounding",
+          "estimateUsd": 1.08,
+          "actualUsd": 0.02475,
+          "usageRecordIds": [
+            "01a0f140-5bc3-7fe6-af3c-a9eba74dce00",
+            "01a0f140-7c10-7458-9720-b00ccdc2fdca",
+            "01a0f140-bf9f-7ca4-bfe9-0a45ab272516"
+          ]
+        },
+        {
+          "step": "audio",
+          "estimateUsd": 0.05112,
+          "actualUsd": 0,
+          "usageRecordIds": [
+            "01a0f140-6cb9-7107-ad09-0f35ecf3e99c",
+            "01a0f140-6e1f-7070-8194-771a2524e479",
+            "01a0f140-6f13-7945-b3a4-2b8d3980978f",
+            "01a0f140-6feb-7290-b1ab-61362fa5c992"
+          ]
+        },
+        {
+          "step": "repair",
+          "estimateUsd": 16.29324,
+          "actualUsd": 0.00825,
+          "usageRecordIds": [
+            "01a0f140-8fea-73b4-ab31-8633c00c1be6"
+          ]
+        }
+      ],
+      "budget": {
+        "reservedUsd": 23.91786,
+        "capUsd": 29.897325,
+        "actualUsd": 0.0825,
+        "reservationRevision": 1,
+        "proposedEstimateUsd": null
+      }
+    }
+  }
+]

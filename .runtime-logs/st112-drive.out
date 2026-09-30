@@ -1,0 +1,322 @@
+  [finance] 1-request
+  [engineering] 1-request
+  [finance] 2-brief
+  [finance] 3-brief-phone
+  [engineering] 2-brief
+  [engineering] 3-brief-phone
+  [finance] 4-progress-after-reload
+  [engineering] 4-progress-after-reload
+  [engineering] 5-attention
+  [finance] 5-approval
+  [finance] 6-delivery-completed
+[
+  {
+    "subject": "engineering",
+    "projectId": "01a0f157-88fb-7876-ac7b-94c9dc93e943",
+    "briefRevisions": 1,
+    "brief": {
+      "title": "How a Truss Bridge Carries Load",
+      "points": [
+        {
+          "point": "A truss is a frame of triangles, and triangles stay rigid because they cannot change shape without a side changing length, unlike a rectangle that can lean into a parallelogram",
+          "chips": [
+            "1. What a truss is"
+          ]
+        },
+        {
+          "point": "Every truss member carries force along its length, either tension pulling it or compression pushing it",
+          "chips": [
+            "2. Tension and compression"
+          ]
+        },
+        {
+          "point": "In a simple bridge truss the top chord is in compression, the bottom chord is in tension, and diagonals alternate between the two",
+          "chips": [
+            "2. Tension and compression"
+          ]
+        },
+        {
+          "point": "The load path runs from the vehicle's weight on the deck, to the truss joints, from member to member toward the ends",
+          "chips": [
+            "3. The load path"
+          ]
+        },
+        {
+          "point": "Supports at each end push up on the truss and pass the load into the ground, completing the load path",
+          "chips": [
+            "3. The load path"
+          ]
+        }
+      ],
+      "notCovered": [
+        "Why trusses use less material than solid beams (section a16aed0f) — beyond the requested scope",
+        "How trusses fail, including buckling and joint design (section 6e4f872b) — beyond the requested scope"
+      ],
+      "style": "systems",
+      "sound": "quiet-pulse",
+      "estimateUsd": "$23.92"
+    },
+    "briefAccuracy": [
+      {
+        "expected": "/truss|load/i",
+        "citedByAChip": true
+      },
+      {
+        "expected": "/tension|compression/i",
+        "citedByAChip": true
+      }
+    ],
+    "nothingPaidBeforeConfirm": true,
+    "stop": "attention",
+    "status": "attention",
+    "downloaded": null,
+    "coverageGaps": [],
+    "stylePack": "systems",
+    "soundBed": "quiet-pulse",
+    "repairCount": {
+      "queued": 0,
+      "applied": 0,
+      "discardedOrStopped": 0
+    },
+    "decisionKinds": [
+      "brief",
+      "style_pack",
+      "sound_bed",
+      "budget_reservation",
+      "auto_approval",
+      "auto_approval",
+      "auto_approval",
+      "auto_approval",
+      "style_pack",
+      "style_pack",
+      "auto_approval"
+    ],
+    "estimateUsd": 23.9179,
+    "reservedUsd": 23.91786,
+    "capUsd": 29.897325,
+    "actualUsdLedger": 0.560043,
+    "actualUsdRun": 0.560043,
+    "ledger": [
+      {
+        "step": "brief",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.010551,
+        "records": 1
+      },
+      {
+        "step": "objectives",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.06504,
+        "records": 1
+      },
+      {
+        "step": "outline",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.022614,
+        "records": 1
+      },
+      {
+        "step": "narration",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.072039,
+        "records": 1
+      },
+      {
+        "step": "storyboard",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.112599,
+        "records": 1
+      },
+      {
+        "step": "visual_plan",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.034485,
+        "records": 1
+      },
+      {
+        "step": "illustrations",
+        "estimateUsd": 0.0135,
+        "actualUsd": 0.00675,
+        "records": 3
+      },
+      {
+        "step": "grounding",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.193872,
+        "records": 2
+      },
+      {
+        "step": "audio",
+        "estimateUsd": 0.05112,
+        "actualUsd": 0.042093,
+        "records": 11
+      },
+      {
+        "step": "repair",
+        "estimateUsd": 16.29324,
+        "actualUsd": 0,
+        "records": 0
+      }
+    ],
+    "briefPhoneOverflowPx": 0,
+    "promptInUrl": false,
+    "minutes": "18.1",
+    "pageErrors": []
+  },
+  {
+    "subject": "finance",
+    "projectId": "01a0f157-88f9-7296-a2b4-4b2f7d919094",
+    "briefRevisions": 1,
+    "brief": {
+      "title": "Compound Interest: Formula, Frequency, and Time",
+      "points": [
+        {
+          "point": "Contrast simple interest (paid only on the original principal) with compound interest, so viewers see why compounding accelerates growth.",
+          "chips": [
+            "1. Simple and compound interest"
+          ]
+        },
+        {
+          "point": "Present the compound interest formula A = P(1 + r/n)^(nt) and identify each variable: principal P, annual rate r, compounding periods per year n, and time t.",
+          "chips": [
+            "2. The compound interest formula"
+          ]
+        },
+        {
+          "point": "Explain how the exponent nt and the term r/n connect compounding frequency and time to the final balance.",
+          "chips": [
+            "2. The compound interest formula",
+            "3. Compounding frequency and time"
+          ]
+        },
+        {
+          "point": "Show that more frequent compounding (larger n) increases growth, building on the audience's familiarity with rates.",
+          "chips": [
+            "3. Compounding frequency and time"
+          ]
+        },
+        {
+          "point": "Show that longer time horizons (larger t) increase growth, reinforcing why starting early matters.",
+          "chips": [
+            "3. Compounding frequency and time"
+          ]
+        }
+      ],
+      "notCovered": [
+        "Worked numerical examples comparing specific frequencies (e.g., monthly vs. yearly), since the document states effects qualitatively only.",
+        "Continuous compounding and the constant e, which the document does not mention.",
+        "APY/APR distinctions and real-world account details, which are outside the document's scope."
+      ],
+      "style": "everyday",
+      "sound": "quiet-pulse",
+      "estimateUsd": "$23.92"
+    },
+    "briefAccuracy": [
+      {
+        "expected": "/formula/i",
+        "citedByAChip": true
+      },
+      {
+        "expected": "/frequency|time/i",
+        "citedByAChip": true
+      }
+    ],
+    "nothingPaidBeforeConfirm": true,
+    "stop": "approval",
+    "status": "completed",
+    "downloaded": "compound-interest-formula-frequency-and-time-v1.mp4",
+    "coverageGaps": [],
+    "stylePack": "everyday",
+    "soundBed": "quiet-pulse",
+    "repairCount": {
+      "queued": 0,
+      "applied": 0,
+      "discardedOrStopped": 1
+    },
+    "decisionKinds": [
+      "brief",
+      "style_pack",
+      "sound_bed",
+      "budget_reservation",
+      "auto_approval",
+      "auto_approval",
+      "auto_approval",
+      "auto_approval",
+      "style_pack",
+      "auto_approval",
+      "repair",
+      "render_review"
+    ],
+    "estimateUsd": 23.9179,
+    "reservedUsd": 23.91786,
+    "capUsd": 29.897325,
+    "actualUsdLedger": 0.882776,
+    "actualUsdRun": 0.882776,
+    "ledger": [
+      {
+        "step": "brief",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.01122,
+        "records": 1
+      },
+      {
+        "step": "objectives",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.080112,
+        "records": 1
+      },
+      {
+        "step": "outline",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.05367,
+        "records": 1
+      },
+      {
+        "step": "narration",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.042408,
+        "records": 1
+      },
+      {
+        "step": "storyboard",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.125001,
+        "records": 1
+      },
+      {
+        "step": "visual_plan",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.083736,
+        "records": 1
+      },
+      {
+        "step": "illustrations",
+        "estimateUsd": 0.0135,
+        "actualUsd": 0.00675,
+        "records": 3
+      },
+      {
+        "step": "grounding",
+        "estimateUsd": 1.08,
+        "actualUsd": 0.429552,
+        "records": 4
+      },
+      {
+        "step": "audio",
+        "estimateUsd": 0.05112,
+        "actualUsd": 0.050327,
+        "records": 10
+      },
+      {
+        "step": "repair",
+        "estimateUsd": 16.29324,
+        "actualUsd": 0,
+        "records": 0
+      }
+    ],
+    "briefPhoneOverflowPx": 0,
+    "promptInUrl": true,
+    "minutes": "29.2",
+    "pageErrors": []
+  }
+]
