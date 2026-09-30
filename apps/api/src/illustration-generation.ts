@@ -879,8 +879,12 @@ export class IllustrationGenerationService {
       )
       .limit(1);
     if (draft === undefined) return none("no_design");
-    const manifest = anyCreativeDesignManifestSchema.parse(draft.manifest);
-    if (!isCreativeDesignManifestV2(manifest)) return none("design_v1");
+    // Anything that is not a readable v2 design (a v1 draft, including one a
+    // v1 reader has to recover) plans nothing here.
+    const parsedManifest = anyCreativeDesignManifestSchema.safeParse(draft.manifest);
+    if (!parsedManifest.success || !isCreativeDesignManifestV2(parsedManifest.data))
+      return none("design_v1");
+    const manifest = parsedManifest.data;
     const storyboard = lessonStoryboardSchema.parse(spec.payload);
     const sceneSpecs = storyboard.scenes.map((entry) => ({
       ...entry.scene,

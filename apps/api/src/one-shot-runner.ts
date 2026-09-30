@@ -27,6 +27,11 @@
  * - decision-log entries for every automatic decision, and the ST-103 render
  *   review on the render it tracks.
  *
+ * ST-112 adds the `visual_plan` step between storyboard and illustrations
+ * for a lesson with a v2 design (ADR-015). Planning and its pictures are
+ * optional polish: a failure, a refusal or a budget shortfall keeps a valid
+ * authored design and the run continues without asking anyone.
+ *
  * The runner is a *client* of the existing services. It never bypasses their
  * checks (snapshot staleness, `expectedRevision`, grounding, validation,
  * version and render requirements); a service refusal becomes
@@ -138,6 +143,30 @@ export type IllustrationState = {
   pending: number;
   /** Unbound decorative slots with a selectable candidate (ST-059 rules). */
   acceptable: AcceptableIllustration[];
+};
+
+/** ST-112. The design the current storyboard's draft holds. */
+export type VisualDesignState = {
+  /** `null` when the lesson has no design and renders the legacy look. */
+  release: "v1" | "v2" | null;
+  /** The draft is the design the lesson previews and renders with. */
+  applied: boolean;
+  /** v2 only. What the design resolved to, for the run's record. */
+  summary?: {
+    /** Scenes per composition family, as `family:count` pairs. */
+    families: string;
+    /** Scenes showing a pinned picture, and how many of those were generated. */
+    pictures: number;
+    generatedPictures: number;
+  };
+};
+
+/** ST-112. A visual-plan job the run queued, and how it left the design. */
+export type VisualPlanStatus = {
+  job: OneShotJobStatus | null;
+  /** `null` until the job succeeds. `authored` is the job's own fallback. */
+  outcome: "model" | "authored" | "superseded" | null;
+  fallbackReason: string | null;
 };
 
 export type GroundingState = {
@@ -275,9 +304,31 @@ export interface OneShotStageGateway {
   ): Promise<{ approvedId: Identifier; revision: number }>;
   storyboard(scope: OneShotScope): Promise<StoryboardState>;
   illustrations(scope: OneShotScope): Promise<IllustrationState>;
-  requestIllustrations(
+  /**
+   * Requests the lesson's missing pictures. A v2 design asks for its
+   * deduplicated presentation illustrations (`cinema`); any other lesson
+   * fills its unbound decorative slots.
+   */
+  requestIllustrations(context: OneShotCallContext): Promise<{
+    queued: number;
+    skipped: number;
+    cinema?: { reused: number; motif: number; budget: number };
+  }>;
+  /** ST-112. */
+  visualDesign(scope: OneShotScope): Promise<VisualDesignState>;
+  /** ST-112. Queues the visual planner; `null` when there is no v2 draft. */
+  requestVisualPlan(
     context: OneShotCallContext,
-  ): Promise<{ queued: number; skipped: number }>;
+  ): Promise<{ jobId: Identifier } | null>;
+  visualPlan(scope: OneShotScope, jobId: Identifier): Promise<VisualPlanStatus>;
+  /**
+   * ST-112. Makes the draft (the plan and its pinned pictures) the design the
+   * lesson renders with. `applied: false` when the draft no longer fits the
+   * storyboard: the design already in use is kept.
+   */
+  applyVisualDesign(
+    context: OneShotCallContext,
+  ): Promise<{ applied: true; snapshotId: Identifier } | { applied: false }>;
   acceptIllustration(
     context: OneShotCallContext,
     candidate: AcceptableIllustration,
@@ -465,6 +516,7 @@ const ledgerOrder: readonly OneShotLedgerStep[] = [
   "outline",
   "narration",
   "storyboard",
+  "visual_plan",
   "illustrations",
   "grounding",
   "audio",
@@ -477,6 +529,7 @@ function remainingLedgerSteps(step: OneShotStep): OneShotLedgerStep[] {
     step === "outline" ||
     step === "narration" ||
     step === "storyboard" ||
+    step === "visual_plan" ||
     step === "illustrations" ||
     step === "grounding" ||
     step === "audio"
@@ -509,6 +562,7 @@ const pipelineSteps = [
   "outline",
   "narration",
   "storyboard",
+  "visual_plan",
   "illustrations",
   "grounding",
   "audio",
@@ -572,6 +626,7 @@ const userStepName: Record<OneShotAttentionStage, string> = {
   outline: "Outline",
   narration: "Narration",
   storyboard: "Visuals",
+  visual_plan: "Visuals",
   illustrations: "Visuals",
   grounding: "Visuals",
   audio: "Audio",
@@ -796,6 +851,10 @@ export async function advanceOneShotRun(input: {
     };
   };
 
+  // A tick acts at most once and then returns, so one read serves the tick.
+  let designRead: Promise<VisualDesignState> | undefined;
+  const visualDesign = () => (designRead ??= gateway.visualDesign(scope));
+
   const autoApproval = (summary: string, relatedIds: Identifier[]) => {
     decisions.push({ kind: "auto_approval", summary, relatedIds });
   };
@@ -921,7 +980,10 @@ export async function advanceOneShotRun(input: {
     // for the whole round, then re-run once for every touched scene.
     if (
       repair.active !== null &&
-      (step === "illustrations" || step === "grounding" || step === "audio")
+      (step === "visual_plan" ||
+        step === "illustrations" ||
+        step === "grounding" ||
+        step === "audio")
     )
       continue;
     let outcome: Outcome;
@@ -1002,6 +1064,8 @@ export async function advanceOneShotRun(input: {
         return evaluateApprovalStage(step);
       case "storyboard":
         return evaluateStoryboard();
+      case "visual_plan":
+        return evaluateVisualPlan();
       case "illustrations":
         return evaluateIllustrations();
       case "grounding":
@@ -1197,26 +1261,137 @@ export async function advanceOneShotRun(input: {
     return { kind: "acted", jobId: queued.jobId };
   }
 
+  /**
+   * ST-112. Between storyboard and illustrations, a v2 design (ADR-015) gets
+   * one bounded visual-plan call per storyboard. Nothing here can stop the
+   * run: the storyboard already holds a valid authored v2 design, so an
+   * unavailable, refused, failed or unaffordable plan keeps that design, and
+   * the choice is logged.
+   */
+  async function evaluateVisualPlan(): Promise<Outcome> {
+    const storyboard = await gateway.storyboard(scope);
+    const lessonSpecId = storyboard.lessonSpecId;
+    if (lessonSpecId === null) return { kind: "wait" };
+    const previous = steps.find((entry) => entry.step === "visual_plan");
+    const settle = (
+      outcome: NonNullable<VisualPlanStatus["outcome"]>,
+      reason: string | null,
+      jobId?: Identifier,
+    ): Outcome => {
+      decisions.push({
+        kind: "style_pack",
+        summary:
+          outcome === "model"
+            ? "Planned the visuals: a composition, short on-screen wording, picture briefs and narration-timed reveals for each scene."
+            : outcome === "superseded"
+              ? "Kept the current visual design: it was changed while the visual plan was being prepared."
+              : "Kept the standard visual design for this style: the visual plan was not available.",
+        ...(reason === null ? {} : { reason: reason.slice(0, 500) }),
+        ...(outcome === "model" ? { promptVersion: "visual-plan/v1" } : {}),
+        ...(jobId === undefined ? {} : { relatedIds: [jobId] }),
+      });
+      return {
+        kind: "done",
+        detail: {
+          plannedFor: lessonSpecId,
+          visualPlan: outcome,
+          ...(reason === null ? {} : { fallbackReason: reason.slice(0, 300) }),
+        },
+      };
+    };
+    // One plan per storyboard: a settled plan is never paid for again.
+    if (previous?.detail?.plannedFor === lessonSpecId) {
+      if (previous.detail.visualPlan !== undefined)
+        return { kind: "done", detail: previous.detail };
+      const jobId = previous.jobId as Identifier | undefined;
+      if (jobId === undefined) return settle("authored", "job_missing");
+      const status = await gateway.visualPlan(scope, jobId);
+      if (isActive(status.job)) return { kind: "wait", jobId };
+      if (status.outcome !== null)
+        return settle(status.outcome, status.fallbackReason, jobId);
+      return settle("authored", status.job?.errorCode ?? "job_failed", jobId);
+    }
+    const design = await visualDesign();
+    // A v1 or legacy lesson has nothing to plan. Not recorded against the
+    // storyboard, so a later upgrade to v2 is still planned.
+    if (design.release !== "v2") return { kind: "done" };
+    if ((await guard("visual_plan", "model_call")) !== null) {
+      budgetProposalUsd = null;
+      return settle("authored", "budget_cap");
+    }
+    let queued: { jobId: Identifier } | null;
+    try {
+      queued = await gateway.requestVisualPlan(
+        context("visual_plan", `:${lessonSpecId}`),
+      );
+    } catch (error) {
+      // Transient failures retry on the next tick; a refusal is final.
+      if (refusal("visual_plan", error) === null) throw error;
+      return settle("authored", "request_refused");
+    }
+    if (queued === null) return settle("authored", "not_available");
+    return {
+      kind: "acted",
+      jobId: queued.jobId,
+      detail: { plannedFor: lessonSpecId },
+    };
+  }
+
   async function evaluateIllustrations(): Promise<Outcome> {
     const storyboard = await gateway.storyboard(scope);
     if (storyboard.lessonSpecId === null) return { kind: "wait" };
     const previous = steps.find((entry) => entry.step === "illustrations");
+    const design = await visualDesign();
+    const v2 = design.release === "v2";
     // Missing illustrations are requested once per storyboard. Accepting a
     // candidate changes the scene revision, so re-requesting after that would
     // pay for the same slot again.
     const requestedFor = previous?.detail?.requestedFor;
     if (requestedFor !== storyboard.lessonSpecId) {
       const stop = await guard("illustrations", "illustrations");
-      if (stop !== null) return stop;
+      if (stop !== null) {
+        if (!v2) return stop;
+        // ST-112. A v2 design's pictures are optional: over the cap, every
+        // scene keeps its authored motif, which costs nothing (ADR-015 §7).
+        budgetProposalUsd = null;
+        decisions.push({
+          kind: "style_pack",
+          summary:
+            "Skipped generated pictures to stay within the budget cap: scenes use the style's own drawn motifs instead.",
+          reason: "budget_cap",
+        });
+        return {
+          kind: "acted",
+          detail: {
+            requestedFor: storyboard.lessonSpecId,
+            queued: 0,
+            skipped: 0,
+            pictureFallback: "budget_cap",
+          },
+        };
+      }
       const requested = await gateway.requestIllustrations(
         context("illustrations", `:${storyboard.lessonSpecId}`),
       );
+      if (requested.cinema !== undefined && requested.cinema.motif > 0)
+        decisions.push({
+          kind: "style_pack",
+          summary: `${requested.cinema.motif} scene${requested.cinema.motif === 1 ? " uses" : "s use"} the style's own drawn motif instead of a generated picture.`,
+          reason: `Up to ${requested.cinema.budget} generated pictures are allowed for a video of this length, and evidence pictures are never replaced.`,
+        });
       return {
         kind: "acted",
         detail: {
           requestedFor: storyboard.lessonSpecId,
           queued: requested.queued,
           skipped: requested.skipped,
+          ...(requested.cinema === undefined
+            ? {}
+            : {
+                reused: requested.cinema.reused,
+                motif: requested.cinema.motif,
+                pictureBudget: requested.cinema.budget,
+              }),
         },
       };
     }
@@ -1237,9 +1412,57 @@ export async function advanceOneShotRun(input: {
       );
       return { kind: "acted" };
     }
+    // ST-112. Once per storyboard, the planned design and the pictures pinned
+    // to it become the design the lesson renders with. A picture that failed
+    // simply is not pinned: its scenes keep their authored motif.
+    if (
+      v2 &&
+      !design.applied &&
+      previous?.detail?.designSettledFor !== storyboard.lessonSpecId
+    ) {
+      const result = await gateway.applyVisualDesign(
+        context("illustrations", `:design:${storyboard.lessonSpecId}`),
+      );
+      if (result.applied) {
+        await gateway.auditApproval(context("illustrations"), {
+          step: "illustrations",
+          target: { type: "creative_design_snapshot", id: result.snapshotId },
+        });
+        autoApproval("Applied the planned visual design automatically.", [
+          result.snapshotId,
+        ]);
+      } else
+        decisions.push({
+          kind: "style_pack",
+          summary:
+            "Kept the visual design already in use: the planned design no longer fitted the storyboard.",
+          reason: "design_invalid",
+        });
+      return {
+        kind: "acted",
+        detail: {
+          ...previous?.detail,
+          designSettledFor: storyboard.lessonSpecId,
+          designApplied: result.applied,
+        },
+      };
+    }
     // Slots without an acceptable candidate stay empty for validation to
     // report; a guarded (grounding-critical) slot is never filled here.
-    return { kind: "done", ...(previous?.detail === undefined ? {} : { detail: previous.detail }) };
+    const detail: OneShotStepDetail = {
+      ...previous?.detail,
+      ...(design.summary === undefined
+        ? {}
+        : {
+            families: design.summary.families.slice(0, 300),
+            pictures: design.summary.pictures,
+            generatedPictures: design.summary.generatedPictures,
+          }),
+    };
+    return {
+      kind: "done",
+      ...(Object.keys(detail).length === 0 ? {} : { detail }),
+    };
   }
 
   async function evaluateGrounding(): Promise<Outcome> {

@@ -281,6 +281,9 @@ export async function runApi(input: {
     // as a consumer of the `orchestration` queue (ADR-013 §5). It is
     // registered whatever the flag says, so turning the flag off drains runs
     // already in flight instead of stranding them.
+    const creativeDesignService = new PostgresCreativeDesignService(
+      database.client,
+    );
     const oneShotGateway = new ServiceOneShotGateway({
       database: database.client,
       ingestion: ingestionStatusService,
@@ -303,6 +306,7 @@ export async function runApi(input: {
       narration: narrationService,
       storyboard: storyboardService,
       illustrations: illustrationGenerationService,
+      creativeDesign: creativeDesignService,
       grounding: groundingService,
       sceneAudio: sceneAudioService,
       validation: lessonValidationService,
@@ -402,9 +406,7 @@ export async function runApi(input: {
         database.client,
       ),
       lessonConfigurationService,
-      creativeDesignService: new PostgresCreativeDesignService(
-        database.client,
-      ),
+      creativeDesignService,
       sourceSnapshotService,
       sourceVisualsService: new PostgresSourceVisualsService(
         database.client,

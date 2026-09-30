@@ -142,7 +142,8 @@ The runner is ordinary job code, with no agent framework (ADR-013 §5).
 | `objectives` | Generates with the confirmed coverage points (`objectives/v4`, `{{briefCoverage}}`), then approves with `expectedRevision`. | Coverage is `not_covered` (`FOCUS_NOT_COVERED`), or the job it queued fails. |
 | `outline`, `narration` | Generates, then approves. | The draft cannot be approved, or the job it queued fails. |
 | `storyboard` | Generates. | The job it queued fails. |
-| `illustrations` | Requests missing illustrations once per storyboard. Accepts selectable candidates in required decorative slots only. Grounding-critical slots are never filled; they are left for validation to report. | Refused. |
+| `visual_plan` | ST-112, v2 designs only (`CREATIVE_DESIGN_V2_DEFAULT`, ADR-015). Queues the `creative-design.visual-plan` job once per storyboard. Any other lesson passes straight through. | Never. A failed, refused, unavailable or unaffordable plan keeps the authored design and is logged. |
+| `illustrations` | Requests missing illustrations once per storyboard. Accepts selectable candidates in required decorative slots only. Grounding-critical slots are never filled; they are left for validation to report. For a v2 design it instead requests that design's deduplicated pictures (at most 5, 8 or 12 for a 3, 5 or 7 minute video), waits for them, then applies the planned design once. A picture that fails, or does not fit the budget, leaves its scenes on the style's drawn motif. | Refused. For a v2 design, only when applying the design is refused for a reason other than the design no longer fitting the storyboard. |
 | `grounding` | Checks the current storyboard revision. | The job it queued fails. |
 | `audio` | Generates every scene. | A scene's audio fails. |
 | `validation` | Runs validation, then bounded self-repair, then the brief-promise check (ST-107, below). | An error outside the repair map, or one repair did not fix (`VALIDATION_BLOCKING`, stage `preview`); a duration or pinning mismatch (`BRIEF_PROMISE_UNMET`). |
@@ -160,6 +161,12 @@ A step with no progress for 20 minutes fails the run with
   and a repair. A call that would pass the cap is not made. The run stops at
   that step with `ONE_SHOT_BUDGET_CAP` and proposes a new estimate: actual
   spend plus the accepted estimate for every remaining step.
+- **Optional visuals (ST-112).** The visual plan and a v2 design's pictures
+  are the exception: over the cap they are skipped, not stopped for. The
+  lesson keeps its authored design and drawn motifs, which cost nothing, and
+  the decision log records it. The estimate (`one-shot-estimate-v3`) reserves
+  one visual-plan call on its own ledger line, and enough illustrations for
+  either design: one per planned scene, or the v2 allowance if that is more.
 - **Concurrency.** The check runs inside the tick. The tick lease serialises
   every paid enqueue of a run, so no other enqueue of the same run can race
   it. The enqueue itself stays in the services' own transactional outbox.

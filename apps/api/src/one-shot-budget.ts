@@ -9,7 +9,7 @@
  * and the configured prices only.
  */
 
-import { narrationWordCountRange } from "@avlp/schemas";
+import { cinemaIllustrationBudget, narrationWordCountRange } from "@avlp/schemas";
 import {
   oneShotEstimateSchema,
   type OneShotEstimate,
@@ -24,8 +24,9 @@ export type OneShotPricing = {
   alignmentCostUsdPerAudioMinute: number;
 };
 
-/** v1 (ST-105) estimated from the duration alone; v2 from the brief. */
-export const oneShotPricingVersion = "one-shot-estimate-v2";
+/** v1 (ST-105) estimated from the duration alone; v2 from the brief; v3
+ * (ST-112) adds the visual plan and the v2 design's illustration allowance. */
+export const oneShotPricingVersion = "one-shot-estimate-v3";
 
 /** Bounded self-repair: validation rounds, scenes per round, and the one
  * extra round an unmet brief coverage point may trigger. */
@@ -43,10 +44,15 @@ export function roundUsd(value: number): number {
 
 /**
  * The itemised upper bound a brief shows and the user accepts: the brief
- * call, the five generation calls and the grounding check, one illustration
- * and one narration clip per planned scene, caption alignment, and the full
- * self-repair allowance. The allowance is spent only when validation finds
- * something the repair map can fix.
+ * call, the generation calls (the visual plan among them) and the grounding
+ * check, the illustrations, one narration clip per planned scene, caption
+ * alignment, and the full self-repair allowance. The allowance is spent only
+ * when validation finds something the repair map can fix.
+ *
+ * Illustrations are budgeted for whichever design the lesson ends up with:
+ * one per planned scene (v1), or the v2 allowance of
+ * `cinemaIllustrationBudget` deduplicated pictures (ADR-015 §7), whichever is
+ * larger, so the reservation covers both.
  */
 export function estimateOneShotBrief(input: {
   targetDurationSeconds: 180 | 300 | 420;
@@ -68,6 +74,7 @@ export function estimateOneShotBrief(input: {
     { key: "ai.outline", label: "Lesson outline" },
     { key: "ai.narration", label: "Narration script" },
     { key: "ai.storyboard", label: "Storyboard" },
+    { key: "ai.visual-plan", label: "Visual plan" },
     { key: "ai.grounding", label: "Grounding check" },
   ];
   const item = (
@@ -87,7 +94,12 @@ export function estimateOneShotBrief(input: {
     ...modelCalls.map((call) =>
       item(call.key, call.label, 1, pricing.modelCallCostUsd),
     ),
-    item("image.generation", "Scene illustrations", scenes, pricing.imageCostUsd),
+    item(
+      "image.generation",
+      "Scene illustrations",
+      Math.max(scenes, cinemaIllustrationBudget(input.targetDurationSeconds)),
+      pricing.imageCostUsd,
+    ),
     item("tts.generation", "Narration audio", scenes, ttsPerScene),
     item(
       "tts.alignment",
@@ -127,6 +139,7 @@ const ledgerStepByEstimateItem: Readonly<Record<string, OneShotLedgerStep>> = {
   "ai.outline": "outline",
   "ai.narration": "narration",
   "ai.storyboard": "storyboard",
+  "ai.visual-plan": "visual_plan",
   "ai.grounding": "grounding",
   "image.generation": "illustrations",
   "tts.generation": "audio",
@@ -156,6 +169,9 @@ export function ledgerStepForOperation(operationType: string): OneShotLedgerStep
       return "narration";
     case "ai.storyboard":
       return "storyboard";
+    // ST-112. The visual plan is the only `ai.creative_design` call a run makes.
+    case "ai.creative_design":
+      return "visual_plan";
     case "ai.grounding":
       return "grounding";
     case "ai.scene_regeneration":

@@ -295,6 +295,7 @@ describe("ST-107 prompt-to-video brief estimate", () => {
       "ai.outline",
       "ai.narration",
       "ai.storyboard",
+      "ai.visual-plan",
       "ai.grounding",
       "image.generation",
       "tts.generation",
@@ -303,7 +304,7 @@ describe("ST-107 prompt-to-video brief estimate", () => {
       "repair.grounding",
       "repair.audio",
     ]);
-    expect(short.pricingVersion).toBe("one-shot-estimate-v2");
+    expect(short.pricingVersion).toBe("one-shot-estimate-v3");
     expect(short.estimatedScenes).toBe(6);
     expect(short.totalUsd).toBeCloseTo(
       short.items.reduce((sum, item) => sum + item.costUsd, 0),

@@ -40,7 +40,7 @@ describe("ST-107 budget: the brief estimate", () => {
   it("splits into ledger lines that add back up to the total", () => {
     const lines = ledgerEstimates(estimate);
     expect(Object.keys(lines).sort()).toEqual(
-      ["audio", "brief", "grounding", "illustrations", "narration", "objectives", "outline", "repair", "storyboard"].sort(),
+      ["audio", "brief", "grounding", "illustrations", "narration", "objectives", "outline", "repair", "storyboard", "visual_plan"].sort(),
     );
     const sum = Object.values(lines).reduce((total, value) => total + (value ?? 0), 0);
     expect(roundUsd(sum)).toBeCloseTo(estimate.totalUsd, 5);
@@ -102,6 +102,32 @@ describe("ST-107 budget: ledger mapping", () => {
     expect(ledgerStepForOperation("image.generation")).toBe("illustrations");
     expect(ledgerStepForOperation("tts.generation")).toBe("audio");
     expect(ledgerStepForOperation("video.render")).toBe("render");
-    expect(ledgerStepForOperation("ai.creative_design")).toBe("other");
+    // ST-112: the visual plan is the run's only creative-design call.
+    expect(ledgerStepForOperation("ai.creative_design")).toBe("visual_plan");
+    expect(ledgerStepForOperation("ai.something-new")).toBe("other");
+  });
+});
+
+describe("ST-112 budget: the visual plan and the v2 illustration allowance", () => {
+  const quantity = (value: typeof estimate, key: string) =>
+    value.items.find((item) => item.key === key)?.quantity;
+  const estimateFor = (targetDurationSeconds: 180 | 300 | 420, plannedSceneCount: number) =>
+    estimateOneShotBrief({ targetDurationSeconds, plannedSceneCount, pricing });
+
+  it("reserves one visual-plan call on its own ledger line", () => {
+    expect(quantity(estimate, "ai.visual-plan")).toBe(1);
+    expect(ledgerEstimates(estimate).visual_plan).toBe(1.08);
+    expect(estimate.pricingVersion).toBe("one-shot-estimate-v3");
+  });
+
+  it("covers the v2 picture allowance (5, 8, 12) when the scene plan is smaller", () => {
+    expect(quantity(estimateFor(180, 3), "image.generation")).toBe(5);
+    expect(quantity(estimateFor(300, 5), "image.generation")).toBe(8);
+    expect(quantity(estimateFor(420, 7), "image.generation")).toBe(12);
+  });
+
+  it("keeps one picture per planned scene when that is more", () => {
+    expect(quantity(estimateFor(180, 9), "image.generation")).toBe(9);
+    expect(quantity(estimateFor(420, 21), "image.generation")).toBe(21);
   });
 });

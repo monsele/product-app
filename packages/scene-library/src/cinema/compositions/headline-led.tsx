@@ -36,6 +36,11 @@ function TitleLine({
 }: Pick<CinemaCompositionProps, "identity" | "scene" | "design"> & Readonly<{ width: number }>): JSX.Element | null {
   const primary = cinemaPrimaryText(scene, design.display);
   if (primary === design.display.headline || headlineRepeatsPrimary(scene, design)) return null;
+  // A headline the planner took word for word from the scene's own content
+  // is already on screen in the detail below.
+  const headline = design.display.headline.trim().toLowerCase();
+  const shown = Object.values(scene.visual as Record<string, unknown>).flat();
+  if (shown.some((value) => typeof value === "string" && value.trim().toLowerCase() === headline)) return null;
   return (
     <BodyText identity={identity} fontSize={30} muted style={{ fontWeight: 600, width }}>
       {design.display.headline}

@@ -3763,6 +3763,7 @@ const unavailableLessonConfigurationService: LessonConfigurationApiService = {
 
 const unavailableCreativeDesignService: CreativeDesignApiService = {
   getDraft: () => Promise.resolve(null),
+  requestVisualPlan: () => Promise.resolve({ skipped: "no_design" }),
   upgrade: () =>
     Promise.reject(
       new PublicError(

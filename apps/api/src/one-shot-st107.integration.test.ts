@@ -264,7 +264,7 @@ describeWithPostgres("ST-107 brief, budget, self-repair and decisions (Postgres)
     expect(view.stylePackId).toBe("essential");
     expect(view.soundBed).toBe("morning-pad");
     expect(view.stylePackReason.length).toBeGreaterThan(0);
-    expect(view.estimate.pricingVersion).toBe("one-shot-estimate-v2");
+    expect(view.estimate.pricingVersion).toBe("one-shot-estimate-v3");
     expect(prepared.revisionsUsed).toBe(1);
 
     // The brief call saw headings and first blocks, never the rest of the body.
@@ -331,6 +331,80 @@ describeWithPostgres("ST-107 brief, budget, self-repair and decisions (Postgres)
       .where(eq(auditEvents.eventType, "one_shot.brief_prepared"));
     expect(audits).toHaveLength(1);
     expect(JSON.stringify(audits[0]!.metadata)).not.toContain("truss");
+  });
+
+  it("ST-112: persists the visual plan step, its decisions and its ledger line for a v2 design", async () => {
+    fake.designRelease = "v2";
+    const prepared = await brief("brief-1");
+    const estimate = prepared.brief!.estimate;
+    // The accepted estimate reserves the plan call and the picture allowance.
+    expect(estimate.items.find((item) => item.key === "ai.visual-plan")).toMatchObject({ quantity: 1 });
+    await confirm(1, estimate.totalUsd);
+
+    // As the worker meters the plan call: under the run's correlation id.
+    await database!.client.insert(usageRecords).values({
+      id: "019ffc60-7777-7000-8000-000000000112",
+      ownerUserId,
+      projectId,
+      operationType: "ai.creative_design",
+      idempotencyKey: "visual-plan:test",
+      provider: "fake",
+      model: "mock-model-1",
+      unit: "token",
+      quantity: "200",
+      estimatedCostUsd: "0.040000",
+      status: "succeeded",
+      correlationId,
+      occurredAt: clock,
+    });
+    const run = await pump();
+    expect(run.status).toBe("awaiting_render_approval");
+
+    const view = (await service().current(scope)).run!;
+    expect(view.steps.map((entry) => entry.step)).toEqual([
+      "ingestion",
+      "source_snapshot",
+      "configuration",
+      "objectives",
+      "outline",
+      "narration",
+      "storyboard",
+      "visual_plan",
+      "illustrations",
+      "grounding",
+      "audio",
+      "validation",
+    ]);
+    // Fallbacks, composition distribution and image use are on the steps.
+    expect(view.steps.find((entry) => entry.step === "visual_plan")).toMatchObject({
+      state: "done",
+      jobId: fake.visualPlanJob!.id,
+      detail: { visualPlan: "model" },
+    });
+    expect(view.steps.find((entry) => entry.step === "illustrations")?.detail).toMatchObject({
+      queued: 2,
+      reused: 1,
+      motif: 1,
+      designApplied: true,
+      families: "sequence:1,statement:2",
+      pictures: 2,
+    });
+
+    const reloaded = await service().decisions(scope);
+    const summaries = reloaded.decisions.map((entry) => entry.summary);
+    expect(summaries).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("Planned the visuals"),
+        expect.stringContaining("drawn motif instead of a generated picture"),
+        "Applied the planned visual design automatically.",
+      ]),
+    );
+    // Cost and estimate sit on the plan's own ledger line.
+    const line = reloaded.ledger.find((entry) => entry.step === "visual_plan")!;
+    expect(line.estimateUsd).toBeCloseTo(1.08, 6);
+    expect(line.actualUsd).toBeCloseTo(0.04, 6);
+    expect(line.usageRecordIds).toEqual(["019ffc60-7777-7000-8000-000000000112"]);
+    expect(reloaded.ledger.map((entry) => entry.step)).not.toContain("other");
   });
 
   it("rejects a brief that names a section, style pack or track that does not exist, with no silent fallback", async () => {

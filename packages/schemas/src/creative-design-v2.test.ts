@@ -18,6 +18,7 @@ import {
   creativeDesignAssetIds,
   creativeDesignStyleLabel,
   eligibleCinemaCompositions,
+  groundCinemaBeats,
   groundCinemaDisplay,
   groundVisualPlanProposal,
   isGroundedDisplayWording,
@@ -780,6 +781,21 @@ describe("ST-110 presentation illustrations", () => {
     expect(prompt).toContain("No text, letters, numbers");
     expect(prompt.length).toBeLessThanOrEqual(2_000);
   });
+
+  it("ST-112: asks for the identity's own background colour, so a dark style gets no white-backed picture", () => {
+    const dark = cinemaIllustrationPrompt({
+      brief: jar,
+      artDirection: cinemaPackArtDirection.systems,
+      palette: { accent: "#38bdf8", diagramEmphasis: "#22d3ee", surface: "#1e293b" },
+    });
+    expect(dark).toContain("solid #1e293b background");
+    const vignette = cinemaIllustrationPrompt({
+      brief: jar,
+      artDirection: cinemaPackArtDirection.everyday,
+      palette: { accent: "#1d4ed8", diagramEmphasis: "#059669", surface: "#ffffff" },
+    });
+    expect(vignette).toContain("fades to a plain, solid #ffffff background");
+  });
 });
 
 describe("ST-111 pinned timing", () => {
@@ -887,6 +903,63 @@ describe("ST-111 beat resolution", () => {
       });
       expect(new Set(frames).size, composition.id).toBeGreaterThanOrEqual(2);
     }
+  });
+});
+
+describe("ST-112 a plan may time emphasis, never withhold content", () => {
+  // As the engineering proof lesson was planned: the definition's own text
+  // was anchored to the last sentence, so it showed for two seconds.
+  const definition = scene(
+    "definition",
+    {
+      term: "Tension vs. compression",
+      definition: "Every member is pulled or pushed along its length.",
+      exampleLabel: "Rope and spring",
+      exampleText: "Rope = tension; spring = compression",
+    },
+    "Forces act on a truss. Each member is being pulled or being pushed. A pulled member is in tension. A pushed member is in compression. Think of a tug-of-war rope and a squashed spring.",
+  );
+  const beat = (target: string, sentence: number, phrase?: string) => ({
+    target,
+    motion: "sequential-reveal" as const,
+    anchor: { sentence, ...(phrase === undefined ? {} : { phrase }) },
+  });
+
+  it("brings the heading in with the first sentence and the scene's text by mid-narration", () => {
+    const grounded = groundCinemaBeats("hero-annotated", definition, [
+      beat("headline", 1),
+      beat("image", 2),
+      beat("detail", 4, "tug-of-war rope"),
+    ]);
+    expect(grounded).toEqual([beat("headline", 0), beat("image", 2), beat("detail", 2)]);
+    // Resolved against a 22 s scene, the text now has most of the scene to be read.
+    const frames = resolveCinemaBeatFrames({
+      beats: grounded,
+      narration: definition.narration,
+      cues: [],
+      durationInFrames: 660,
+    });
+    expect(frames[0]).toBeLessThan(30);
+    expect(frames[2]).toBeLessThan(330);
+  });
+
+  it("keeps narration order after moving a beat, so nothing is delayed behind it", () => {
+    const grounded = groundCinemaBeats("hero-annotated", definition, [
+      beat("image", 3),
+      beat("detail", 4),
+      beat("headline", 2, "tension"),
+    ]);
+    expect(grounded.map((entry) => [entry.target, entry.anchor.sentence])).toEqual([
+      ["headline", 0],
+      ["detail", 2],
+      ["image", 3],
+    ]);
+    expect(grounded[0]!.anchor).toEqual({ sentence: 0 });
+  });
+
+  it("leaves beats that were already early enough exactly as proposed", () => {
+    const proposed = [beat("headline", 0), beat("detail", 1, "pulled or being pushed"), beat("image", 3)];
+    expect(groundCinemaBeats("hero-annotated", definition, proposed)).toEqual(proposed);
   });
 });
 

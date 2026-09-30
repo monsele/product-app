@@ -80,6 +80,9 @@ export const oneShotStepValues = [
   "outline",
   "narration",
   "storyboard",
+  /** ST-112. The bounded visual planner of a v2 design (ADR-015); done at
+   * once for a lesson without one. */
+  "visual_plan",
   "illustrations",
   "grounding",
   "audio",
@@ -374,6 +377,7 @@ export const oneShotLedgerStepValues = [
   "outline",
   "narration",
   "storyboard",
+  "visual_plan",
   "illustrations",
   "grounding",
   "audio",

@@ -8,6 +8,7 @@ import {
 import {
   captionCues,
   captionTracks,
+  creativeDesignSnapshots,
   extractedFigures,
   groundingChecks,
   learningObjectives,
@@ -26,7 +27,9 @@ import {
 } from "@avlp/database";
 import { validateScene } from "@avlp/scene-library";
 import {
+  creativeDesignManifestV2Version,
   lessonStoryboardSchema,
+  sceneAssetSlotRequirement,
   sourceSnapshotSchema,
   lessonValidationRulesetVersion,
   lessonValidationRunInputSchema,
@@ -114,6 +117,13 @@ type ValidationInput = Readonly<{
     /** Claims the check could not decide, each tied to its scene. */
     needsReviewClaims: readonly GroundingFinding[];
   }>;
+  /**
+   * ST-112 (ADR-015 §6). True when the lesson previews and renders with a v2
+   * design: its compositions draw a scene without a picture as an authored
+   * motif, so a planned decorative slot may stay unbound. Evidence slots
+   * (grounding-critical, source-derived) are required either way.
+   */
+  decorativeAssetsOptional?: boolean;
 }>;
 
 /**
@@ -560,6 +570,13 @@ export function evaluateLessonValidation(
       const binding = scene.assetBindings.find(
         (item) => item.slot === requirement.slot,
       );
+      if (
+        binding === undefined &&
+        input.decorativeAssetsOptional === true &&
+        sceneAssetSlotRequirement(scene.template, requirement.slot)
+          ?.visualRole === "decorative"
+      )
+        continue;
       if (binding === undefined)
         issues.push(
           issue("asset_required", {
@@ -1488,6 +1505,29 @@ export class PostgresLessonValidationService implements LessonValidationService 
       results: exactGrounding?.results ?? null,
       summary: exactGrounding?.summary ?? null,
     });
+    // The design this revision previews and renders with, as lesson versions
+    // read it. Only a v2 design changes a rule, and only then is it hashed,
+    // so every other lesson's runs keep their input hash.
+    const [designSnapshot] = await this.database
+      .select({ manifest: creativeDesignSnapshots.manifest })
+      .from(creativeDesignSnapshots)
+      .where(
+        and(
+          eq(creativeDesignSnapshots.ownerUserId, input.ownerUserId),
+          eq(creativeDesignSnapshots.projectId, input.projectId),
+          eq(creativeDesignSnapshots.lessonSpecId, spec.id),
+          eq(creativeDesignSnapshots.lessonSpecRevision, spec.revision),
+        ),
+      )
+      .orderBy(desc(creativeDesignSnapshots.createdAt))
+      .limit(1);
+    const decorativeAssetsOptional =
+      (designSnapshot?.manifest as { manifestVersion?: unknown } | undefined)
+        ?.manifestVersion === creativeDesignManifestV2Version;
+    if (decorativeAssetsOptional)
+      artifactHashes.design = hashValidationArtifact({
+        manifestVersion: creativeDesignManifestV2Version,
+      });
     return {
       spec,
       artifactHashes,
@@ -1503,6 +1543,7 @@ export class PostgresLessonValidationService implements LessonValidationService 
         citationIssueCountsByStableSceneId,
         mediaByStableSceneId,
         grounding: groundingState(exactGrounding),
+        ...(decorativeAssetsOptional ? { decorativeAssetsOptional } : {}),
       },
     };
   }

@@ -24,6 +24,9 @@ import {
 } from "@avlp/database";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
+  cinemaComposition,
+  cinemaHeroSlot,
+  isCreativeDesignManifestV2,
   lessonStoryboardSceneSchema,
   reconciledLessonDurationToleranceSeconds,
   sceneSpecSchema,
@@ -34,6 +37,7 @@ import {
 } from "@avlp/schemas";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
+import type { CreativeDesignService } from "./creative-design.js";
 import type { GroundingService } from "./grounding.js";
 import type { IllustrationGenerationService } from "./illustration-generation.js";
 import type { IngestionStatusService } from "./ingestion-status.js";
@@ -57,6 +61,8 @@ import type {
   RenderState,
   RepairContext,
   SceneRepairStatus,
+  VisualDesignState,
+  VisualPlanStatus,
 } from "./one-shot-runner.js";
 import type { OutlineService } from "./outline.js";
 import { withoutSentences } from "./one-shot-repair.js";
@@ -90,7 +96,11 @@ export type OneShotGatewayServices = {
   >;
   illustrations: Pick<
     IllustrationGenerationService,
-    "generateMissing" | "contactSheet"
+    "generateMissing" | "contactSheet" | "queueCinemaIllustrations"
+  >;
+  creativeDesign: Pick<
+    CreativeDesignService,
+    "getDraft" | "requestVisualPlan" | "apply"
   >;
   grounding: Pick<GroundingService, "current" | "check">;
   sceneAudio: Pick<SceneAudioService, "generateAll" | "status">;
@@ -426,14 +436,138 @@ export class ServiceOneShotGateway
   }
 
   public async requestIllustrations(context: OneShotCallContext) {
-    const response = await this.services.illustrations.generateMissing({
+    const request = {
+      ownerUserId: context.ownerUserId,
+      projectId: context.projectId,
+      correlationId: context.correlationId,
+      requestKey: context.requestKey,
+      oneShotRunId: context.oneShotRunId,
+    };
+    // ST-112. A v2 design takes its deduplicated, budgeted presentation
+    // illustrations; its decorative slots stay unbound (an authored motif is
+    // drawn instead), so slot filling is for every other lesson only.
+    const cinema =
+      await this.services.illustrations.queueCinemaIllustrations(request);
+    if (cinema.skipped === undefined)
+      return {
+        queued: cinema.queued.length,
+        skipped: cinema.motif.length,
+        cinema: {
+          reused: cinema.reused.length,
+          motif: cinema.motif.length,
+          budget: cinema.budget,
+        },
+      };
+    const response = await this.services.illustrations.generateMissing(request);
+    return { queued: response.queued, skipped: response.skipped };
+  }
+
+  // ---- ST-112: the v2 visual plan ----------------------------------------
+
+  public async visualDesign(scope: OneShotScope): Promise<VisualDesignState> {
+    const draft = await this.services.creativeDesign.getDraft(scope);
+    if (draft === null) return { release: null, applied: false };
+    if (!isCreativeDesignManifestV2(draft.manifest))
+      return { release: "v1", applied: draft.applied };
+    const families = new Map<string, number>();
+    let pictures = 0;
+    let generatedPictures = 0;
+    for (const design of Object.values(draft.manifest.scenes)) {
+      const family = cinemaComposition(design.compositionId).family;
+      families.set(family, (families.get(family) ?? 0) + 1);
+      if (design.imagery.hero === null) continue;
+      pictures += 1;
+      if (design.imagery.hero.origin === "generated") generatedPictures += 1;
+    }
+    return {
+      release: "v2",
+      applied: draft.applied,
+      summary: {
+        families: [...families.entries()]
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([family, count]) => `${family}:${count}`)
+          .join(","),
+        pictures,
+        generatedPictures,
+      },
+    };
+  }
+
+  public async requestVisualPlan(context: OneShotCallContext) {
+    const response = await this.services.creativeDesign.requestVisualPlan({
       ownerUserId: context.ownerUserId,
       projectId: context.projectId,
       correlationId: context.correlationId,
       requestKey: context.requestKey,
       oneShotRunId: context.oneShotRunId,
     });
-    return { queued: response.queued, skipped: response.skipped };
+    return "skipped" in response ? null : { jobId: response.jobId };
+  }
+
+  public async visualPlan(
+    scope: OneShotScope,
+    jobId: Identifier,
+  ): Promise<VisualPlanStatus> {
+    const [job] = await this.services.database
+      .select({
+        id: jobs.id,
+        state: jobs.state,
+        errorMetadata: jobs.errorMetadata,
+        resultMetadata: jobs.resultMetadata,
+      })
+      .from(jobs)
+      .where(
+        and(
+          eq(jobs.id, jobId),
+          eq(jobs.ownerUserId, scope.ownerUserId),
+          eq(jobs.projectId, scope.projectId),
+          eq(jobs.jobType, "creative-design.visual-plan"),
+        ),
+      )
+      .limit(1);
+    if (job === undefined)
+      return { job: null, outcome: null, fallbackReason: null };
+    const code = (job.errorMetadata as { code?: unknown } | null)?.code;
+    const status: OneShotJobStatus = {
+      id: job.id as Identifier,
+      state: job.state,
+      errorCode: typeof code === "string" ? code : null,
+    };
+    if (job.state !== "succeeded")
+      return { job: status, outcome: null, fallbackReason: null };
+    const result = job.resultMetadata as {
+      visualPlan?: unknown;
+      fallbackReason?: unknown;
+    } | null;
+    const outcome = result?.visualPlan;
+    return {
+      job: status,
+      outcome:
+        outcome === "model" || outcome === "superseded" ? outcome : "authored",
+      fallbackReason:
+        typeof result?.fallbackReason === "string"
+          ? result.fallbackReason
+          : null,
+    };
+  }
+
+  public async applyVisualDesign(context: OneShotCallContext) {
+    const draft = await this.services.creativeDesign.getDraft(context);
+    if (draft === null) return { applied: false as const };
+    try {
+      const snapshot = await this.services.creativeDesign.apply({
+        ownerUserId: context.ownerUserId,
+        projectId: context.projectId,
+        expectedRevision: draft.revision,
+      });
+      return { applied: true as const, snapshotId: snapshot.snapshotId };
+    } catch (error) {
+      // The draft no longer fits the storyboard (it was edited since): the
+      // design already pinned to this revision stays in use.
+      if (error instanceof PublicError && error.code === "validation_failed")
+        return { applied: false as const };
+      throw error;
+    }
   }
 
   public async illustrations(scope: OneShotScope): Promise<IllustrationState> {
@@ -448,6 +582,16 @@ export class ServiceOneShotGateway
     for (const scene of sheet.scenes) {
       for (const slot of scene.slots) {
         const key = `${scene.sceneId}:${slot.slot}`;
+        // ST-112. A v2 design's presentation illustrations are pinned by the
+        // worker as they finish, so only the ones in flight matter here.
+        if (slot.slot === cinemaHeroSlot) {
+          pending += slot.candidates.filter(
+            (candidate) =>
+              candidate.status === "queued" ||
+              candidate.status === "generating",
+          ).length;
+          continue;
+        }
         // Only slots the storyboard requires and nothing has filled yet.
         if (!slots.required.has(key) || slots.bound.has(key)) continue;
         // Only decorative slots are ever filled automatically (ST-059/085).

@@ -376,16 +376,18 @@ export function cinemaArtDirectionBrief(
         : artDirection.line === "bold"
           ? "bold rounded outlines"
           : "hand-drawn wobbly outlines";
+  // The picture sits on the identity's surface colour. Naming it keeps a
+  // dark identity from receiving a white-backed picture.
+  const { colors } = settings;
   const background =
     artDirection.background === "cutout"
-      ? "isolated subject on a plain empty background"
+      ? `isolated subject on a plain, empty, solid ${colors.surface} background`
       : artDirection.background === "soft-vignette"
-        ? "subject on a soft pale shape that fades to a plain background"
+        ? `subject on a soft shape that fades to a plain, solid ${colors.surface} background`
         : "subject filling the frame edge to edge";
   const people = artDirection.humanFigures
     ? "friendly, diverse people may appear when they help explain the idea"
     : "no people";
-  const { colors } = settings;
   return `Style: ${treatment}, ${line}, ${background}. Limited palette built around ${colors.accent}, ${colors.diagramEmphasis} and ${colors.surface}. ${people}. No text, letters, numbers, labels, logos or watermarks anywhere in the image.`;
 }
 
@@ -1183,7 +1185,13 @@ export function authoredCinemaBeats(
   return Object.freeze(beats.slice(0, 24));
 }
 
-/** Drops beats whose target, sentence or phrase this scene cannot honour. */
+/**
+ * Drops beats whose target, sentence or phrase this scene cannot honour, and
+ * keeps the rest readable. A plan may time emphasis, never withhold content:
+ * the heading arrives with the first sentence, and the scene's own text
+ * (`detail`) no later than the middle of the narration, so it stays on screen
+ * long enough to read. An anchor moved for that reason loses its phrase.
+ */
 export function groundCinemaBeats(
   id: CinemaCompositionId,
   scene: AnyScene,
@@ -1191,16 +1199,37 @@ export function groundCinemaBeats(
 ): readonly CinemaBeat[] {
   const targets = cinemaBeatTargets(id, scene);
   const sentences = narrationSentences(scene.narration);
+  const latestBySentence: Readonly<Record<string, number>> = {
+    headline: 0,
+    detail: Math.floor(Math.max(0, sentences.length - 1) / 2),
+  };
   return Object.freeze(
-    beats.filter(
-      (beat) =>
-        targets.has(beat.target) &&
-        beat.anchor.sentence < Math.max(1, sentences.length) &&
-        (beat.anchor.phrase === undefined ||
-          (sentences[beat.anchor.sentence] ?? "")
-            .toLowerCase()
-            .includes(beat.anchor.phrase.toLowerCase())),
-    ),
+    beats
+      .filter(
+        (beat) =>
+          targets.has(beat.target) &&
+          beat.anchor.sentence < Math.max(1, sentences.length) &&
+          (beat.anchor.phrase === undefined ||
+            (sentences[beat.anchor.sentence] ?? "")
+              .toLowerCase()
+              .includes(beat.anchor.phrase.toLowerCase())),
+      )
+      .map((beat) => {
+        const latest = latestBySentence[beat.target];
+        if (beat.target === "headline")
+          return { target: beat.target, motion: beat.motion, anchor: { sentence: 0 } };
+        return latest === undefined || beat.anchor.sentence <= latest
+          ? beat
+          : { target: beat.target, motion: beat.motion, anchor: { sentence: latest } };
+      })
+      // Frames never run backwards through the list, so a moved beat must
+      // also take its place in narration order (stable for equal sentences).
+      .map((beat, index) => ({ beat, index }))
+      .sort(
+        (left, right) =>
+          left.beat.anchor.sentence - right.beat.anchor.sentence || left.index - right.index,
+      )
+      .map((entry) => entry.beat),
   );
 }
 
@@ -2033,7 +2062,7 @@ export function carryForwardCinemaDesign(
 // ---------------------------------------------------------------------------
 
 /** Identifies the v2 hero illustration request and its prompt construction. */
-export const cinemaIllustrationPromptVersion = "cinema-illustration-v1" as const;
+export const cinemaIllustrationPromptVersion = "cinema-illustration-v2" as const;
 /** The candidate slot a v2 hero illustration is recorded under; not a template slot. */
 export const cinemaHeroSlot = "cinema-hero" as const;
 export const cinemaIllustrationsPerFiveMinutes = 8;

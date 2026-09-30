@@ -1022,3 +1022,48 @@ describe("audio to reconciliation to preflight", () => {
     );
   });
 });
+
+describe("ST-112: planned pictures under a v2 design (ADR-015 §6)", () => {
+  /** One scene of `template` with one planned, unbound asset slot. */
+  function withUnboundSlot(template: SceneTemplate, slot: string): LessonStoryboard {
+    const source = storyboardWithTemplates([template, "hook", "summary", "analogy", "hook"]);
+    const [first, ...rest] = source.scenes;
+    return {
+      ...source,
+      scenes: [
+        { ...first!, assetRequirements: [{ slot, purpose: "A supporting picture." }] },
+        ...rest,
+      ],
+    } as LessonStoryboard;
+  }
+  const assetIssues = (value: ReturnType<typeof input>, optional: boolean) =>
+    evaluateLessonValidation({
+      ...value,
+      ...(optional ? { decorativeAssetsOptional: true } : {}),
+    }).filter((issue) => issue.code === "asset_required");
+
+  it("requires a planned decorative slot for every other lesson, as before", () => {
+    const source = withUnboundSlot("definition", "visual-example");
+    expect(assetIssues(input(source), false)).toEqual([
+      expect.objectContaining({
+        severity: "error",
+        sceneId: source.scenes[0]!.stableSceneId,
+        details: { slot: "visual-example" },
+      }),
+    ]);
+  });
+
+  it("lets a v2 design leave a planned decorative slot unbound", () => {
+    expect(assetIssues(input(withUnboundSlot("definition", "visual-example")), true)).toEqual([]);
+  });
+
+  it("still requires a slot that is not decorative, or that the template does not declare", () => {
+    for (const [template, slot] of [
+      ["labelled-diagram", "diagram"],
+      ["definition", "not-a-declared-slot"],
+    ] as const) {
+      const issues = assetIssues(input(withUnboundSlot(template, slot)), true);
+      expect(issues.some((issue) => issue.details.slot === slot)).toBe(true);
+    }
+  });
+});

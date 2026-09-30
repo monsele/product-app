@@ -375,3 +375,195 @@ describe("removing sentences grounding could not verify", () => {
     expect(updateScene).not.toHaveBeenCalled();
   });
 });
+
+describe("ST-112 one-shot gateway: the v2 visual plan", () => {
+  const job = (state: string, extra: Record<string, unknown> = {}) => ({
+    id: "019ffc30-7777-7000-8000-000000000112",
+    state,
+    errorMetadata: null,
+    resultMetadata: null,
+    ...extra,
+  });
+  /** A database whose one `jobs` read returns `rows`. */
+  const jobsDatabase = (rows: unknown[]) =>
+    ({
+      select: () => ({
+        from: () => ({ where: () => ({ limit: () => Promise.resolve(rows) }) }),
+      }),
+    }) as unknown as DatabaseClient;
+  const planGateway = (rows: unknown[]) =>
+    new ServiceOneShotGateway({ database: jobsDatabase(rows) } as OneShotGatewayServices);
+  const jobId = "019ffc30-7777-7000-8000-000000000112" as Identifier;
+
+  it("asks for a v2 design's pictures and reports what each scene gets", async () => {
+    const queueCinemaIllustrations = vi.fn().mockResolvedValue({
+      queued: [{ key: "flat:kettle" }, { key: "flat:puddle" }],
+      reused: [{ sceneId: "s3" }],
+      motif: [{ sceneId: "s4", reason: "over_budget" }],
+      budget: 5,
+    });
+    const generateMissing = vi.fn();
+    const result = await gateway({
+      illustrations: { queueCinemaIllustrations, generateMissing },
+    }).requestIllustrations(context);
+
+    expect(result).toEqual({
+      queued: 2,
+      skipped: 1,
+      cinema: { reused: 1, motif: 1, budget: 5 },
+    });
+    expect(queueCinemaIllustrations).toHaveBeenCalledWith({
+      ...scope,
+      correlationId: context.correlationId,
+      requestKey: context.requestKey,
+      oneShotRunId: context.oneShotRunId,
+    });
+    // Slot filling and the v2 pictures are never both paid for.
+    expect(generateMissing).not.toHaveBeenCalled();
+  });
+
+  it("fills decorative slots for every lesson without a v2 design", async () => {
+    for (const skipped of ["design_v1", "no_design", "no_storyboard"]) {
+      const queueCinemaIllustrations = vi
+        .fn()
+        .mockResolvedValue({ queued: [], reused: [], motif: [], budget: 0, skipped });
+      const generateMissing = vi.fn().mockResolvedValue({ queued: 3, skipped: 1 });
+      await expect(
+        gateway({
+          illustrations: { queueCinemaIllustrations, generateMissing },
+        }).requestIllustrations(context),
+      ).resolves.toEqual({ queued: 3, skipped: 1 });
+      expect(generateMissing).toHaveBeenCalledWith(
+        expect.objectContaining({ requestKey: context.requestKey, oneShotRunId: context.oneShotRunId }),
+      );
+    }
+  });
+
+  it("queues the planner with the run's key and authorisation, or reports nothing to plan", async () => {
+    const requestVisualPlan = vi
+      .fn()
+      .mockResolvedValueOnce({ jobId, draftId: "draft-1", draftRevision: 1 })
+      .mockResolvedValueOnce({ skipped: "design_v1" });
+    const subject = gateway({ creativeDesign: { requestVisualPlan } });
+    await expect(subject.requestVisualPlan(context)).resolves.toEqual({ jobId });
+    await expect(subject.requestVisualPlan(context)).resolves.toBeNull();
+    expect(requestVisualPlan).toHaveBeenCalledWith({
+      ...scope,
+      correlationId: context.correlationId,
+      requestKey: context.requestKey,
+      oneShotRunId: context.oneShotRunId,
+    });
+  });
+
+  it("reads how a settled planner job left the design", async () => {
+    await expect(planGateway([]).visualPlan(scope, jobId)).resolves.toEqual({
+      job: null,
+      outcome: null,
+      fallbackReason: null,
+    });
+    await expect(planGateway([job("running")]).visualPlan(scope, jobId)).resolves.toMatchObject({
+      job: { state: "running" },
+      outcome: null,
+    });
+    await expect(
+      planGateway([job("failed", { errorMetadata: { code: "VISUAL_PLAN_FALLBACK_INVALID" } })]).visualPlan(scope, jobId),
+    ).resolves.toMatchObject({
+      job: { state: "failed", errorCode: "VISUAL_PLAN_FALLBACK_INVALID" },
+      outcome: null,
+    });
+    await expect(
+      planGateway([job("succeeded", { resultMetadata: { visualPlan: "model" } })]).visualPlan(scope, jobId),
+    ).resolves.toMatchObject({ outcome: "model", fallbackReason: null });
+    await expect(
+      planGateway([
+        job("succeeded", { resultMetadata: { visualPlan: "authored", fallbackReason: "QUOTA_EXCEEDED" } }),
+      ]).visualPlan(scope, jobId),
+    ).resolves.toMatchObject({ outcome: "authored", fallbackReason: "QUOTA_EXCEEDED" });
+    await expect(
+      planGateway([job("succeeded", { resultMetadata: { visualPlan: "superseded" } })]).visualPlan(scope, jobId),
+    ).resolves.toMatchObject({ outcome: "superseded" });
+    // A result this reader does not know is never reported as a model plan.
+    await expect(planGateway([job("succeeded")]).visualPlan(scope, jobId)).resolves.toMatchObject({
+      outcome: "authored",
+    });
+  });
+
+  it("applies the current draft revision, and keeps the design in use when it no longer fits", async () => {
+    const getDraft = vi.fn().mockResolvedValue({ revision: 4, manifest: {}, applied: false });
+    const apply = vi
+      .fn()
+      .mockResolvedValueOnce({ snapshotId: "snapshot-1", manifestHash: "a".repeat(64) })
+      .mockRejectedValueOnce(new PublicError("validation_failed", "Does not fit.", 422))
+      .mockRejectedValueOnce(new PublicError("edit_conflict", "Changed.", 409));
+    const subject = gateway({ creativeDesign: { getDraft, apply } });
+
+    await expect(subject.applyVisualDesign(context)).resolves.toEqual({
+      applied: true,
+      snapshotId: "snapshot-1",
+    });
+    expect(apply).toHaveBeenCalledWith({ ...scope, expectedRevision: 4 });
+    await expect(subject.applyVisualDesign(context)).resolves.toEqual({ applied: false });
+    // A concurrent edit is for the next tick to re-read, not a fallback.
+    await expect(subject.applyVisualDesign(context)).rejects.toMatchObject({ code: "edit_conflict" });
+  });
+
+  it("reports no design, a v1 design and what a v2 design resolved to", async () => {
+    const design = (value: unknown) => gateway({ creativeDesign: { getDraft: vi.fn().mockResolvedValue(value) } });
+    await expect(design(null).visualDesign(scope)).resolves.toEqual({ release: null, applied: false });
+    await expect(
+      design({ revision: 1, applied: true, manifest: { manifestVersion: "1.0" } }).visualDesign(scope),
+    ).resolves.toEqual({ release: "v1", applied: true });
+    const hero = (origin: string) => ({ assetId: "asset-1", origin, altText: "A picture." });
+    const sceneDesign = (compositionId: string, picture: unknown) => ({
+      compositionId,
+      imagery: { hero: picture, brief: null, motif: "orbit" },
+    });
+    await expect(
+      design({
+        revision: 3,
+        applied: false,
+        manifest: {
+          manifestVersion: "2.0",
+          scenes: {
+            s1: sceneDesign("statement", null),
+            s2: sceneDesign("comparison-split", hero("generated")),
+            s3: sceneDesign("comparison-stacked", hero("source_figure")),
+            s4: sceneDesign("sequence", null),
+          },
+        },
+      }).visualDesign(scope),
+    ).resolves.toEqual({
+      release: "v2",
+      applied: false,
+      summary: { families: "comparison:2,sequence:1,statement:1", pictures: 2, generatedPictures: 1 },
+    });
+  });
+
+  it("counts a v2 design's pictures still generating, whatever the storyboard requires", async () => {
+    const candidate = (status: string) => ({ status, moderationStatus: "pending", selectable: false });
+    const contactSheet = vi.fn().mockResolvedValue({
+      scenes: [
+        {
+          sceneId: "s1",
+          sceneRevision: 0,
+          slots: [
+            {
+              slot: "cinema-hero",
+              visualRole: "decorative",
+              candidates: [candidate("queued"), candidate("generating"), candidate("accepted"), candidate("failed")],
+            },
+          ],
+        },
+      ],
+    });
+    const subject = new ServiceOneShotGateway({
+      database: {
+        select: () => ({ from: () => ({ where: () => Promise.resolve([]) }) }),
+      } as unknown as DatabaseClient,
+      illustrations: { contactSheet },
+      storyboard: { current: vi.fn().mockResolvedValue({ storyboard: { revision: 1 } }) },
+    } as unknown as OneShotGatewayServices);
+
+    await expect(subject.illustrations(scope)).resolves.toEqual({ pending: 2, acceptable: [] });
+  });
+});

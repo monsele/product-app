@@ -121,6 +121,7 @@ describe("ST-105 prompt-to-video runner", () => {
       "outline",
       "narration",
       "storyboard",
+      "visual_plan",
       "illustrations",
       "grounding",
       "audio",

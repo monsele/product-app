@@ -379,8 +379,12 @@ export function HeroVisual({
   const scale = 1 + drift * (identity.packId === "prism" ? 0.05 : 0.03);
   const frame = identity.imageFrame;
   const inset = frame === "rounded" || frame === "paper" || frame === "block" ? 28 : 0;
-  const innerWidth = width - inset * 2;
-  const innerHeight = height - inset * 2;
+  // A real picture is rarely a cutout on white, so multiplying it over the
+  // blob turns it grey. In the blob frame it sits whole and unblended in front
+  // of the blob, which shows around it.
+  const onBlob = frame === "blob" && hero.kind === "image";
+  const innerWidth = (width - inset * 2) * (onBlob ? 0.84 : 1);
+  const innerHeight = (height - inset * 2) * (onBlob ? 0.84 : 1);
   const content: JSX.Element =
     hero.kind === "image" ? (
       <img
@@ -388,10 +392,11 @@ export function HeroVisual({
         data-cinema-hero-image
         src={hero.src}
         style={{
+          borderRadius: onBlob ? identity.radius : 0,
           display: "block",
           height: innerHeight,
           mixBlendMode:
-            identity.lightBackground && frame !== "rule" && frame !== "block"
+            identity.lightBackground && frame !== "rule" && frame !== "block" && !onBlob
               ? "multiply"
               : "normal",
           objectFit: hero.evidence || frame !== "rule" || !bleed ? "contain" : "cover",

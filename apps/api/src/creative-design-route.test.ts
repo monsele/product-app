@@ -54,6 +54,7 @@ describe("ST-097 creative-design routes", () => {
       })),
       alternatives: vi.fn(async () => []),
       upgrade: vi.fn(async () => ({ revision: 3, manifest: {} as never })),
+      requestVisualPlan: vi.fn(async () => ({ skipped: "no_design" as const })),
       apply: vi.fn(async () => ({
         snapshotId: createId(),
         manifestHash: "a".repeat(64),

@@ -70,6 +70,27 @@ describe("toDisplaySteps", () => {
     expect(steps.find((step) => step.id === "visuals")?.state).toBe("running");
   });
 
+  it("ST-112: counts the visual plan as part of Visuals, never as a step of its own", () => {
+    const planning = toDisplaySteps(
+      runView({
+        currentStep: "visual_plan",
+        steps: [
+          ...runView().steps.slice(0, 4),
+          { step: "outline", state: "done", startedAt: at },
+          { step: "narration", state: "done", startedAt: at },
+          { step: "storyboard", state: "done", startedAt: at },
+          { step: "visual_plan", state: "running", startedAt: at },
+        ],
+      }),
+    );
+    expect(planning).toHaveLength(7);
+    expect(currentDisplayStep(planning)?.id).toBe("visuals");
+    expect(displayStepLabelForStage("visual_plan")).toBe("Visuals");
+    expect(wizardLinkForStage(projectId, "visual_plan").label).toBe(
+      "Storyboard",
+    );
+  });
+
   it("shows the stopped step as needing attention", () => {
     const steps = toDisplaySteps(
       runView({

@@ -17,6 +17,7 @@ import type {
   RepairContext,
   SceneRepairStatus,
   ValidationOutcome,
+  VisualDesignState,
 } from "./one-shot-runner.js";
 import type { RepairFinding } from "./one-shot-repair.js";
 
@@ -119,6 +120,20 @@ export class FakePipeline implements OneShotStageGateway {
   };
   /** Every cost the pipeline would meter, summed like the usage records. */
   public cost = 0.42;
+  // ---- ST-112 ------------------------------------------------------------
+  /** The design the storyboard job leaves; `v2` turns the visual plan on. */
+  public designRelease: VisualDesignState["release"] = null;
+  public designApplied = true;
+  public visualPlanJob: OneShotJobStatus | null = null;
+  /** How the worker settles the next visual-plan job. */
+  public visualPlanResult:
+    | { outcome: "model" | "authored" | "superseded"; fallbackReason?: string }
+    | { failed: string } = { outcome: "model" };
+  /** `requestVisualPlan` finds no v2 draft. */
+  public visualPlanUnavailable = false;
+  /** The planned design no longer fits the storyboard. */
+  public designInvalid = false;
+  public cinemaRequest = { queued: 2, reused: 1, motif: 1, budget: 5 };
 
   private maybeThrow(method: string) {
     if (this.throwOn?.method === method) {
@@ -235,13 +250,68 @@ export class FakePipeline implements OneShotStageGateway {
     };
   }
   public async illustrations() {
-    return { pending: this.illustrationPending, acceptable: [...this.acceptable] };
+    return {
+      pending: this.illustrationPending + this.heroPending,
+      acceptable: [...this.acceptable],
+    };
   }
   public async requestIllustrations(context: OneShotCallContext) {
     this.calls.push("requestIllustrations");
     this.keys.push(context.requestKey);
+    if (this.designRelease === "v2") {
+      const { queued, reused, motif, budget } = this.cinemaRequest;
+      this.heroPending = queued;
+      return { queued, skipped: motif, cinema: { reused, motif, budget } };
+    }
     this.illustrationPending = 1;
     return { queued: 1, skipped: 1 };
+  }
+
+  // ---- ST-112 ------------------------------------------------------------
+
+  /** Presentation illustrations of a v2 design still generating. */
+  public heroPending = 0;
+  public heroPinned = 0;
+  public async visualDesign(): Promise<VisualDesignState> {
+    if (this.designRelease !== "v2")
+      return { release: this.designRelease, applied: true };
+    return {
+      release: "v2",
+      applied: this.designApplied,
+      summary: {
+        families: "sequence:1,statement:2",
+        pictures: this.heroPinned,
+        generatedPictures: this.heroPinned,
+      },
+    };
+  }
+  public async requestVisualPlan(context: OneShotCallContext) {
+    this.maybeThrow("requestVisualPlan");
+    this.calls.push("requestVisualPlan");
+    this.keys.push(context.requestKey);
+    if (this.visualPlanUnavailable) return null;
+    this.visualPlanJob = { id: nextId(), state: "queued", errorCode: null };
+    return { jobId: this.visualPlanJob.id };
+  }
+  public async visualPlan(_scope: unknown, jobId: Identifier) {
+    const job = this.visualPlanJob?.id === jobId ? this.visualPlanJob : null;
+    const result = this.visualPlanResult;
+    return {
+      job,
+      outcome:
+        job?.state === "succeeded" && "outcome" in result ? result.outcome : null,
+      fallbackReason:
+        job?.state === "succeeded" && "outcome" in result
+          ? (result.fallbackReason ?? null)
+          : null,
+    };
+  }
+  public async applyVisualDesign(context: OneShotCallContext) {
+    this.calls.push("applyVisualDesign");
+    this.keys.push(context.requestKey);
+    if (this.designInvalid) return { applied: false as const };
+    this.designApplied = true;
+    return { applied: true as const, snapshotId: nextId() };
   }
   public async acceptIllustration(
     _context: OneShotCallContext,
@@ -421,6 +491,22 @@ export class FakePipeline implements OneShotStageGateway {
         board.lessonSpecId = fakeSpecId;
         board.revision = 4;
       }
+    }
+    if (this.visualPlanJob?.state === "queued") {
+      const result = this.visualPlanResult;
+      if ("failed" in result)
+        this.visualPlanJob = { ...this.visualPlanJob, state: "failed", errorCode: result.failed };
+      else {
+        this.visualPlanJob = { ...this.visualPlanJob, state: "succeeded" };
+        // A model plan is a new draft revision, not yet the rendered design.
+        if (result.outcome === "model") this.designApplied = false;
+      }
+    }
+    if (this.heroPending > 0) {
+      // The worker pins each finished picture into the draft.
+      this.heroPinned += this.heroPending;
+      this.heroPending = 0;
+      this.designApplied = false;
     }
     if (this.illustrationPending > 0) {
       this.illustrationPending = 0;

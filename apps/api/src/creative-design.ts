@@ -89,6 +89,22 @@ export interface CreativeDesignService {
   apply(
     input: Scope & { expectedRevision: number },
   ): Promise<{ snapshotId: Identifier; manifestHash: string }>;
+  /**
+   * ST-112: queues the bounded visual planner (ADR-015 §4) for the current
+   * storyboard's v2 draft, between storyboard and illustrations. Idempotent
+   * on the request key and draft revision. A lesson without a v2 draft is
+   * skipped: planning applies to v2 only.
+   */
+  requestVisualPlan(
+    input: Scope & {
+      correlationId: Identifier;
+      requestKey: string;
+      oneShotRunId?: Identifier | undefined;
+    },
+  ): Promise<
+    | { jobId: Identifier; draftId: Identifier; draftRevision: number }
+    | { skipped: "no_design" | "design_v1" | "no_source" }
+  >;
   savePreset(input: Scope & { body: unknown }): Promise<{
     presetId: Identifier;
     versionId: Identifier;
@@ -169,6 +185,11 @@ export function parseStoredCreativeDesignManifest(
   }
   return creativeDesignManifestSchema.parse(value);
 }
+
+const visualPlanModel = "moonshotai/Kimi-K3";
+
+/** Delivery attempts of a visual-plan job; the worker handler's default. */
+export const visualPlanMaxAttempts = 3;
 
 export class PostgresCreativeDesignService implements CreativeDesignService {
   public constructor(
@@ -475,6 +496,9 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
     // while another scene is still being prepared.
     const now = this.now();
     return this.database.transaction(async (tx) => {
+      const spec = await this.currentSpec(tx, input);
+      // The current storyboard's draft: a project whose storyboard was
+      // regenerated also holds the earlier storyboards' drafts.
       const [draft] = await tx
         .select()
         .from(creativeDesignDrafts)
@@ -482,6 +506,7 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
           and(
             eq(creativeDesignDrafts.ownerUserId, input.ownerUserId),
             eq(creativeDesignDrafts.projectId, input.projectId),
+            eq(creativeDesignDrafts.lessonSpecId, spec.id),
           ),
         )
         .limit(1)
@@ -493,12 +518,7 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
           404,
         );
       if (draft.revision !== input.expectedRevision) throw editConflict();
-      const spec = await this.currentSpec(tx, input);
-      if (
-        spec.id !== draft.lessonSpecId ||
-        spec.revision !== draft.lessonSpecRevision
-      )
-        throw editConflict();
+      if (spec.revision !== draft.lessonSpecRevision) throw editConflict();
       const manifest = parseStoredCreativeDesignManifest(draft.manifest);
       const manifestHash = creativeDesignHash(manifest);
       const issues = isCreativeDesignManifestV2(manifest)
@@ -1042,6 +1062,148 @@ export class PostgresCreativeDesignService implements CreativeDesignService {
           deliveryOptions: { maxAttempts: 3, retryDelayMs: 5_000 },
         });
       return { jobId, status: "queued" as const };
+    });
+  }
+
+  public async requestVisualPlan(
+    input: Scope & {
+      correlationId: Identifier;
+      requestKey: string;
+      oneShotRunId?: Identifier | undefined;
+    },
+  ): Promise<
+    | { jobId: Identifier; draftId: Identifier; draftRevision: number }
+    | { skipped: "no_design" | "design_v1" | "no_source" }
+  > {
+    const spec = await this.currentSpec(this.database, input).catch(
+      (error: unknown) => {
+        if (error instanceof PublicError) return undefined;
+        throw error;
+      },
+    );
+    if (spec === undefined) return { skipped: "no_design" };
+    const [draft] = await this.database
+      .select({
+        id: creativeDesignDrafts.id,
+        revision: creativeDesignDrafts.revision,
+        manifest: creativeDesignDrafts.manifest,
+      })
+      .from(creativeDesignDrafts)
+      .where(
+        and(
+          eq(creativeDesignDrafts.ownerUserId, input.ownerUserId),
+          eq(creativeDesignDrafts.projectId, input.projectId),
+          eq(creativeDesignDrafts.lessonSpecId, spec.id),
+        ),
+      )
+      .limit(1);
+    if (draft === undefined) return { skipped: "no_design" };
+    if (
+      !isCreativeDesignManifestV2(
+        parseStoredCreativeDesignManifest(draft.manifest),
+      )
+    )
+      return { skipped: "design_v1" };
+    // The planner reads no source text, but every model call records the
+    // source snapshot it ran under.
+    const [source] = await this.database
+      .select({ id: sourceSnapshots.id })
+      .from(sourceSnapshots)
+      .where(
+        and(
+          eq(sourceSnapshots.ownerUserId, input.ownerUserId),
+          eq(sourceSnapshots.projectId, input.projectId),
+        ),
+      )
+      .orderBy(desc(sourceSnapshots.snapshotVersion))
+      .limit(1);
+    if (source === undefined) return { skipped: "no_source" };
+    const timestamp = this.now();
+    const requestedJobId = createId(timestamp);
+    const payload = modelCallJobPayloadSchema.parse({
+      schemaVersion: 2,
+      operationType: "ai.creative_design",
+      sourceSnapshotId: source.id,
+      promptId: "visual-plan",
+      promptVersion: "v1",
+      model: visualPlanModel,
+      providerApproval: createModelCallProviderApproval({
+        jobId: requestedJobId,
+        model: visualPlanModel,
+        oneShotRunId: input.oneShotRunId,
+      }),
+      params: { draftId: draft.id, draftRevision: draft.revision },
+    });
+    const inputVersion = `visual-plan:${draft.id}:${draft.revision}:v1`;
+    const envelope = createJobEnvelope(modelCallJobPayloadSchema, {
+      jobId: requestedJobId,
+      jobType: "creative-design.visual-plan",
+      projectId: input.projectId,
+      ownerUserId: input.ownerUserId,
+      inputVersion,
+      idempotencyKey: createIdempotencyKey({
+        jobType: "creative-design.visual-plan",
+        projectId: input.projectId,
+        inputVersion,
+        options: { requestKey: input.requestKey },
+      }),
+      correlationId: input.correlationId,
+      payloadVersion: 2,
+      payload,
+      requestedAt: timestamp,
+    });
+    return this.database.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(jobs)
+        .values({
+          id: envelope.jobId,
+          jobType: envelope.jobType,
+          queueName: "pipeline",
+          projectId: envelope.projectId,
+          ownerUserId: envelope.ownerUserId,
+          inputVersion: envelope.inputVersion,
+          idempotencyKey: envelope.idempotencyKey,
+          correlationId: envelope.correlationId,
+          payloadVersion: envelope.payloadVersion,
+          payload: envelope.payload,
+        })
+        .onConflictDoNothing()
+        .returning({ id: jobs.id });
+      const jobId = (created?.id ??
+        (
+          await tx
+            .select({ id: jobs.id })
+            .from(jobs)
+            .where(
+              and(
+                eq(jobs.ownerUserId, input.ownerUserId),
+                eq(jobs.projectId, input.projectId),
+                eq(jobs.idempotencyKey, envelope.idempotencyKey),
+              ),
+            )
+            .limit(1)
+        )[0]?.id) as Identifier | undefined;
+      if (jobId === undefined)
+        throw new Error("Visual-plan job could not be persisted.");
+      if (created !== undefined)
+        await tx.insert(outboxEvents).values({
+          id: createId(timestamp),
+          jobId,
+          eventType: "creative_design.visual_plan_requested.v1",
+          queueName: "pipeline",
+          envelope,
+          // The handler runs its authored fallback on the final attempt, so
+          // this must equal its `maxAttempts`.
+          deliveryOptions: {
+            maxAttempts: visualPlanMaxAttempts,
+            retryDelayMs: 5_000,
+          },
+        });
+      return {
+        jobId,
+        draftId: draft.id as Identifier,
+        draftRevision: draft.revision,
+      };
     });
   }
 
