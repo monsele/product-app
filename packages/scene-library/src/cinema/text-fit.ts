@@ -38,7 +38,7 @@ function relativeAdvance(character: string): number {
   if (/[MWmw@%]/u.test(character)) return 1.45;
   if (/[A-Z]/u.test(character)) return 1.22;
   if (/[fijlrtI.,:;'!|]/u.test(character)) return 0.6;
-  if (/[0-9]/u.test(character)) return 1.02;
+  if (/[0-9]/u.test(character)) return 1.15;
   return 1;
 }
 
@@ -80,6 +80,20 @@ export function estimateLines(
     }
   }
   return lines;
+}
+
+/** Estimated width of text set on one line. */
+export function estimateLineWidth(
+  text: string,
+  fontSize: number,
+  glyphWidth: number,
+  uppercase = false,
+): number {
+  const words = text.trim().split(/\s+/u).filter((word) => word.length > 0);
+  return (
+    words.reduce((total, word) => total + wordAdvance(word, uppercase), 0) * fontSize * glyphWidth * safety +
+    Math.max(0, words.length - 1) * fontSize * 0.28
+  );
 }
 
 /**

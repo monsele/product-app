@@ -2,9 +2,8 @@
  * ST-109 — hero-diagram family.
  *
  * - `hero-annotated`: one hero visual in the centre; callouts are drawn out to
- *   it as each part is named. Labelled-diagram geometry comes from the
- *   existing collision-free callout planner; a definition annotates its
- *   picture with the term, its meaning and its example.
+ *   it as each part is named, to its own part of a native shape drawing or
+ *   to the frame of a picture; a definition annotates its picture with the term, its meaning and its example.
  * - `hero-indexed`: the hero on the left carries numbered markers; a matching
  *   numbered key fills the right (two columns beyond ten parts).
  */
@@ -20,17 +19,19 @@ import {
   SceneHeader,
   type CinemaCompositionProps,
 } from "../frame.js";
-import { planDiagramCallouts } from "../../diagram-layout.js";
 import {
   BodyText,
   Connector,
   HeroVisual,
+  heroFrameInset,
   ItemIcon,
   Kicker,
   NumberBadge,
+  ShapeDiagram,
+  shapePartPoints,
   Surface,
 } from "../primitives.js";
-import { fitText, fitTextGroup } from "../text-fit.js";
+import { estimateLines, estimateLineWidth, fitText, fitTextGroup } from "../text-fit.js";
 
 export function HeroAnnotatedComposition(props: CinemaCompositionProps): JSX.Element {
   return props.scene.template === "definition" ? (
@@ -40,56 +41,169 @@ export function HeroAnnotatedComposition(props: CinemaCompositionProps): JSX.Ele
   );
 }
 
+const calloutColumn = 420;
+const calloutGutter = 80;
+const calloutGap = 14;
+
+/**
+ * Callout cards fill the two margins at the largest type that fits, in the
+ * order of the parts they name. A shapes-only diagram has no picture to
+ * frame, so its drawing is built from the labels and each callout runs to its
+ * own part of the shape. A picture's callouts stop at its frame: a label's
+ * anchor says roughly where its part is, not the exact spot.
+ */
 function AnnotatedDiagram({ scene, design, identity, hero }: CinemaCompositionProps): JSX.Element {
   const beats = useCinemaBeats();
   if (scene.template !== "labelled-diagram")
     throw new Error("The annotated hero presents labelled diagrams and definitions.");
-  const plan = planDiagramCallouts(scene.visual.labels);
-  const rect = plan.diagramRect;
-  const active = beats.activeItem(scene.visual.labels.length);
-  const indexById = new Map(scene.visual.labels.map((label, index) => [label.id, index]));
+  const labels = scene.visual.labels;
+  const shape = hero.kind === "shape" ? hero.shape : undefined;
+  const top = cinemaCanvas.top + headerHeight(identity, design.display.headline, 1400, { maxSize: 56 }) + 24;
+  const box = {
+    x: cinemaCanvas.left + calloutColumn + calloutGutter,
+    y: top,
+    width: cinemaCanvas.right - cinemaCanvas.left - 2 * (calloutColumn + calloutGutter),
+    height: cinemaCanvas.bottom - top,
+  };
+  const points =
+    shape === undefined
+      ? labels.map((label) => {
+          const [fx, fy] = markerPosition[label.anchor];
+          return { x: box.width * fx, y: box.height * fy };
+        })
+      : shapePartPoints(shape, labels.map((label) => label.anchor), box.width, box.height);
+  const middle = box.width / 2;
+
+  // A part left or right of the centre line takes that margin; parts on the
+  // line go to the lighter margin. Then the margins are evened out by moving
+  // the parts nearest the line, so no callout crosses more of the drawing
+  // than it must.
+  const side: ("left" | "right" | undefined)[] = points.map((point) =>
+    point.x < middle - 1 ? "left" : point.x > middle + 1 ? "right" : undefined,
+  );
+  const count = (wanted: "left" | "right") => side.filter((entry) => entry === wanted).length;
+  side.forEach((entry, index) => {
+    if (entry === undefined) side[index] = count("left") <= count("right") ? "left" : "right";
+  });
+  for (const heavy of ["left", "right"] as const) {
+    const light = heavy === "left" ? "right" : "left";
+    while (count(heavy) - count(light) > 1) {
+      const movable = side
+        .map((entry, index) => ({ entry, index, distance: Math.abs(points[index]!.x - middle) }))
+        .filter(({ entry }) => entry === heavy)
+        .sort((a, b) => a.distance - b.distance || b.index - a.index)[0]!;
+      side[movable.index] = light;
+    }
+  }
+
+  const perSide = Math.max(count("left"), count("right"));
+  const padding = 16;
+  const textWidth = calloutColumn - 52;
+  const lineHeight = 1.25;
+  const fit = fitTextGroup(
+    labels.map((label) => label.text),
+    {
+      width: textWidth,
+      maxLines: 4,
+      maxSize: 36,
+      minSize: 24,
+      glyphWidth: identity.bodyWidth,
+      lineHeight,
+      maxHeight: (box.height - calloutGap * (perSide - 1)) / perSide - padding * 2,
+    },
+  );
+  const cardHeight = (text: string) =>
+    Math.ceil(estimateLines(text, fit.fontSize, textWidth, identity.bodyWidth) * fit.fontSize * lineHeight) + padding * 2;
+  const cards = (["left", "right"] as const).flatMap((wanted) => {
+    const stack = labels
+      .map((label, index) => ({ label, index, point: points[index]!, height: cardHeight(label.text) }))
+      .filter(({ index }) => side[index] === wanted)
+      .sort((a, b) => a.point.y - b.point.y || a.index - b.index);
+    // Each card sits level with its part, then moves only as far as it must
+    // to clear its neighbours and stay above the caption band.
+    let cursor = top;
+    const placed = stack.map((card) => {
+      const y = Math.max(cursor, top + card.point.y - card.height / 2);
+      cursor = y + card.height + calloutGap;
+      return { ...card, side: wanted, x: wanted === "left" ? cinemaCanvas.left : cinemaCanvas.right - calloutColumn, y };
+    });
+    let limit: number = cinemaCanvas.bottom;
+    for (let index = placed.length - 1; index >= 0; index -= 1) {
+      const card = placed[index]!;
+      const y = Math.min(card.y, limit - card.height);
+      placed[index] = { ...card, y };
+      limit = y - calloutGap;
+    }
+    return placed;
+  });
+  const active = beats.activeItem(labels.length);
   return (
     <>
       <SceneHeader identity={identity} design={design} scene={scene} x={cinemaCanvas.left} y={cinemaCanvas.top} width={1400} maxSize={56} />
-      <div style={{ ...absolute(rect.x, rect.y, rect.width, rect.height), ...arrival(beats.reveal("image"), "none") }}>
-        <HeroVisual drift={beats.drift * 0.5} hero={hero} identity={identity} height={rect.height} progress={1} width={rect.width} />
+      <div style={{ ...absolute(box.x, box.y, box.width, box.height), ...arrival(beats.reveal("image"), "none") }}>
+        {shape === undefined ? (
+          <HeroVisual drift={beats.drift * 0.5} hero={hero} identity={identity} height={box.height} progress={1} width={box.width} />
+        ) : (
+          <ShapeDiagram
+            identity={identity}
+            shape={shape}
+            width={box.width}
+            height={box.height}
+            progress={1}
+            parts={points.map((point, index) => ({ ...point, reveal: beats.reveal(`item-${index + 1}`), active: active === index + 1 }))}
+          />
+        )}
       </div>
       <svg aria-hidden height={cinemaCanvas.height} style={{ left: 0, position: "absolute", top: 0 }} width={cinemaCanvas.width}>
-        {plan.callouts.map((callout) => {
-          const index = indexById.get(callout.id) ?? 0;
+        {cards.map((card) => {
+          const centre = card.y + card.height / 2;
+          const to =
+            shape === undefined
+              ? { x: card.side === "left" ? box.x : box.x + box.width, y: Math.min(box.y + box.height - 24, Math.max(box.y + 24, centre)) }
+              : { x: box.x + card.point.x, y: box.y + card.point.y };
+          const reveal = beats.reveal(`item-${card.index + 1}`);
+          const isActive = active === card.index + 1;
           return (
-            <Connector
-              key={callout.id}
-              active={active === index + 1}
-              arrow={false}
-              from={{ x: callout.side === "left" ? callout.x + callout.width : callout.x, y: callout.y + callout.height / 2 }}
-              identity={identity}
-              progress={beats.reveal(`item-${index + 1}`)}
-              to={{ x: callout.targetX, y: callout.targetY }}
-            />
+            <g key={card.label.id}>
+              <Connector
+                active={isActive}
+                arrow={false}
+                from={{ x: card.side === "left" ? card.x + calloutColumn : card.x, y: centre }}
+                identity={identity}
+                progress={reveal}
+                to={to}
+              />
+              <circle
+                cx={to.x}
+                cy={to.y}
+                r={isActive ? 12 : 9}
+                fill={isActive ? identity.colors.accent : identity.colors.emphasis}
+                opacity={reveal}
+                stroke={identity.colors.background}
+                strokeWidth={3}
+              />
+            </g>
           );
         })}
       </svg>
-      {plan.callouts.map((callout) => {
-        const index = indexById.get(callout.id) ?? 0;
-        const label = scene.visual.labels[index]!;
-        const isActive = active === index + 1;
+      {cards.map((card) => {
+        const isActive = active === card.index + 1;
         return (
           <Surface
-            key={callout.id}
+            key={card.label.id}
             active={isActive}
-            data-cinema-item={`item-${index + 1}`}
+            data-cinema-item={`item-${card.index + 1}`}
             identity={identity}
             style={{
-              ...absolute(callout.x, callout.y, callout.width, callout.height),
-              ...arrival(beats.reveal(`item-${index + 1}`), callout.side === "left" ? "left" : "right", 20),
+              ...absolute(card.x, card.y, calloutColumn, card.height),
+              ...arrival(beats.reveal(`item-${card.index + 1}`), card.side === "left" ? "left" : "right", 20),
               alignItems: "center",
               display: "flex",
-              padding: `4px ${Math.round(callout.fontSize * 0.55)}px`,
+              padding: "0 20px",
             }}
           >
-            <BodyText identity={identity} fontSize={callout.fontSize} style={{ fontWeight: isActive ? 700 : 600, lineHeight: 1.25 }}>
-              {label.text}
+            <BodyText identity={identity} fontSize={fit.fontSize} style={{ fontWeight: isActive ? 700 : 600, lineHeight }}>
+              {card.label.text}
             </BodyText>
           </Surface>
         );
@@ -114,6 +228,12 @@ function AnnotatedDefinition({ scene, design, identity, hero }: CinemaCompositio
       ? undefined
       : fitText({ text: example, width: column - 48, maxLines: 4, maxSize: 32, minSize: 24, glyphWidth: identity.bodyWidth, lineHeight: 1.3 });
   const termY = top + 40;
+  // The term's connector leaves from where the term ends, and from the
+  // middle of its first line.
+  const termEnd =
+    termFit.lines > 1
+      ? column
+      : Math.min(column, estimateLineWidth(scene.visual.term, termFit.fontSize, identity.displayWidth));
   const definitionY = top + 60;
   const exampleY = cinemaCanvas.bottom - 220;
   return (
@@ -125,10 +245,10 @@ function AnnotatedDefinition({ scene, design, identity, hero }: CinemaCompositio
         <HeroVisual drift={beats.drift} hero={hero} identity={identity} height={heroBox.height} progress={1} width={heroBox.width} />
       </div>
       <svg aria-hidden height={cinemaCanvas.height} style={{ left: 0, position: "absolute", top: 0 }} width={cinemaCanvas.width}>
-        <Connector arrow={false} identity={identity} from={{ x: cinemaCanvas.left + column + 10, y: termY + 50 }} to={{ x: heroBox.x + 60, y: heroBox.y + heroBox.height * 0.3 }} progress={beats.reveal("headline")} />
-        <Connector arrow={false} identity={identity} from={{ x: cinemaCanvas.right - column - 10, y: definitionY + 60 }} to={{ x: heroBox.x + heroBox.width - 60, y: heroBox.y + heroBox.height * 0.45 }} progress={beats.reveal("detail")} />
+        <Connector arrow={false} identity={identity} from={{ x: cinemaCanvas.left + termEnd + 24, y: termY + 43 + termFit.fontSize * 0.54 }} to={{ x: heroBox.x + 60, y: heroBox.y + heroBox.height * 0.3 }} progress={Math.min(beats.reveal("headline"), beats.reveal("image"))} />
+        <Connector arrow={false} identity={identity} from={{ x: cinemaCanvas.right - column - 10, y: definitionY + 60 }} to={{ x: heroBox.x + heroBox.width - 60, y: heroBox.y + heroBox.height * 0.45 }} progress={Math.min(beats.reveal("detail"), beats.reveal("image"))} />
         {example === undefined ? null : (
-          <Connector arrow={false} identity={identity} from={{ x: cinemaCanvas.left + column + 10, y: exampleY + 60 }} to={{ x: heroBox.x + 80, y: heroBox.y + heroBox.height * 0.75 }} progress={beats.reveal("detail")} />
+          <Connector arrow={false} identity={identity} from={{ x: cinemaCanvas.left + column + 10, y: exampleY + 60 }} to={{ x: heroBox.x + 80, y: heroBox.y + heroBox.height * 0.75 }} progress={Math.min(beats.reveal("detail"), beats.reveal("image"))} />
         )}
       </svg>
       <div style={{ ...absolute(cinemaCanvas.left, termY, column), ...arrival(beats.reveal("headline"), "left", 30) }}>
@@ -206,20 +326,43 @@ export function HeroIndexedComposition({ scene, design, identity, hero, itemIcon
   );
   const active = beats.activeItem(entries.length);
   const seen = new Map<string, number>();
+  // A native shape drawing carries its markers on its own parts. Beyond eight
+  // parts they would crowd the drawing, so markers keep to the anchor grid.
+  const inset = heroFrameInset(identity);
+  const anchors = entries.flatMap((entry) => (entry.anchor === undefined ? [] : [entry.anchor]));
+  const shapePoints =
+    hero.kind === "shape" && anchors.length === entries.length && entries.length <= 8
+      ? shapePartPoints(hero.shape, anchors, heroBox.width - inset * 2, heroBox.height - inset * 2)
+      : undefined;
   return (
     <>
       <div style={{ ...absolute(heroBox.x, heroBox.y, heroBox.width, heroBox.height), ...arrival(beats.reveal("image"), "none") }}>
-        <HeroVisual drift={beats.drift} hero={hero} identity={identity} height={heroBox.height} progress={1} width={heroBox.width} />
+        <HeroVisual
+          drift={beats.drift}
+          hero={hero}
+          identity={identity}
+          height={heroBox.height}
+          progress={1}
+          shapeParts={shapePoints?.map((point, index) => ({ ...point, reveal: beats.reveal(`item-${index + 1}`), active: active === index + 1 }))}
+          width={heroBox.width}
+        />
       </div>
       {entries.map((entry, index) => {
         if (entry.anchor === undefined) return null;
         const repeat = seen.get(entry.anchor) ?? 0;
         seen.set(entry.anchor, repeat + 1);
         const [fx, fy] = markerPosition[entry.anchor];
+        const part = shapePoints?.[index];
         // Markers sharing an anchor cluster in rows of four, growing toward
         // the picture's centre so they stay on it.
-        const x = heroBox.x + heroBox.width * fx + (repeat % 4) * 56 * (fx > 0.5 ? -1 : 1) - 26;
-        const y = heroBox.y + heroBox.height * fy + Math.floor(repeat / 4) * 56 * (fy > 0.5 ? -1 : 1) - 26;
+        const x =
+          part === undefined
+            ? heroBox.x + heroBox.width * fx + (repeat % 4) * 56 * (fx > 0.5 ? -1 : 1) - 26
+            : heroBox.x + inset + part.x - 26;
+        const y =
+          part === undefined
+            ? heroBox.y + heroBox.height * fy + Math.floor(repeat / 4) * 56 * (fy > 0.5 ? -1 : 1) - 26
+            : heroBox.y + inset + part.y - 26;
         const reveal = beats.reveal(`item-${index + 1}`);
         return (
           <div key={`m-${index}`} style={{ ...absolute(x, y, 52, 52), opacity: reveal, transform: `scale(${0.5 + reveal * 0.5 + (active === index + 1 ? 0.2 : 0)})` }}>

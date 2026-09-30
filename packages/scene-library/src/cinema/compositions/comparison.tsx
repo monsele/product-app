@@ -137,12 +137,21 @@ function SidePanel({
         );
   const pictureHeight = side.image !== undefined || hero !== undefined ? Math.min(300, height * 0.5) : 0;
   const active = beats.activeItem(40);
+  // A side with nothing but its name is a card the size of that name, level
+  // with the points, rather than a tall empty panel.
+  const nameOnly = side.image === undefined && hero === undefined && side.items === undefined;
+  const panelHeight = nameOnly
+    ? Math.min(
+        height,
+        Math.ceil(labelFit.lines * labelFit.fontSize * 1.08) + (side.caption.length === 0 ? 0 : 52) + 96,
+      )
+    : height;
   return (
     <Surface
       data-cinema-side={target}
       identity={identity}
       style={{
-        ...absolute(x, y, width, height),
+        ...absolute(x, y + (height - panelHeight) / 2, width, panelHeight),
         ...arrival(reveal, target === "left" ? "left" : "right", 50),
         display: "flex",
         flexDirection: "column",
@@ -305,10 +314,10 @@ export function ComparisonSplitComposition({
   // dropping below the readable type floor.
   const panelWidth =
     content.points.length > 4
-      ? ([400, 340, 300].find(
+      ? ([400, 340, 300, 260, 240].find(
           (panel) =>
             pointListFit(identity, content.points, cinemaCanvas.right - cinemaCanvas.left - 2 * (panel + 40), height, columns).fits,
-        ) ?? 300)
+        ) ?? 240)
       : 480;
   const centreX = cinemaCanvas.left + panelWidth + 40;
   const centreWidth = cinemaCanvas.right - cinemaCanvas.left - 2 * (panelWidth + 40);

@@ -37,6 +37,8 @@ const onlyPack = args.get("pack");
 /** Fraction of the scene at which to capture: 1 = every beat has landed. */
 const progressAt = Number(args.get("progress") ?? 1);
 const captionSafeTop = 876;
+// Compositions end their content here, 40px clear of the caption band.
+const contentBottom = 836;
 // Full-screen landscape on a phone (~844 CSS px) shows the canvas at ~0.44x,
 // so 24px here is ~10.5px there: the floor. Normal content sits at 26px+;
 // smallest-text.tsv lists each shot's smallest text for review.
@@ -90,6 +92,47 @@ for (const [name, value] of Object.entries(lib)) {
 }
 for (const [index, scene] of lib.photosynthesisThreeMinuteLesson.scenes.entries())
   scenes.push({ label: `photosynthesis${index + 1}`, scene });
+// Shapes-only diagrams: every native shape, from three short labels to the
+// eight-callout maximum with long labels and a shared anchor.
+const shapeLabels = [
+  ["top", "Top chord — compression"],
+  ["bottom", "Bottom chord — tension"],
+  ["left", "Diagonals carry load to the supports"],
+  ["right", "Vertical posts"],
+  ["top-right", "Joints share the force between members"],
+  ["top-right", "Deck"],
+  ["bottom-left", "Abutment holds the whole span in place"],
+  ["center", "Load path"],
+];
+for (const shape of ["cell", "cycle", "plant", "system"])
+  for (const count of [3, 5, 8])
+    scenes.push({
+      label: `shapes${shape}${count}`,
+      scene: schemas.sceneSpecSchema.parse({
+        ...lib.shapesDiagramFixture,
+        title: "Forces in a bridge truss",
+        visual: {
+          kind: "shapes",
+          shape,
+          labels: shapeLabels.slice(0, count).map(([anchor, text], index) => ({ anchor, id: `part-${index + 1}`, text })),
+        },
+      }),
+    });
+// A hook whose large question, title line, prompt and chips together fill
+// the statement's column (the finance proof lesson's opening).
+scenes.push({
+  label: "fullColumnHook",
+  scene: schemas.sceneSpecSchema.parse({
+    ...lib.maximumDensityHookFixture,
+    title: "Why Two Accounts Grow Apart",
+    visual: {
+      ...lib.maximumDensityHookFixture.visual,
+      question: "Same deposit, same rate. Why does one saver end up richer?",
+      prompt: "Think about how each account earns interest.",
+      supportingElements: ["Same deposit", "Same rate", "Two outcomes"],
+    },
+  }),
+});
 const filtered = scenes.filter(({ scene }) => only === undefined || scene.template === only);
 
 const packs = schemas.creativeDesignPackIds.filter((id) => onlyPack === undefined || id === onlyPack);
@@ -120,7 +163,9 @@ for (const packId of packs) {
     assets[heroId] = { assetId: heroId, altText: "Illustration", source: "library", src: heroSrc };
     for (const composition of schemas.eligibleCinemaCompositions(scene)) {
       // Alternate pinned-picture and motif runs so both paths are exercised.
-      const withHero = (label.length + composition.id.length) % 2 === 0;
+      // A `shapes…` scene always takes the motif run: it is there for the
+      // native drawing.
+      const withHero = !label.startsWith("shapes") && (label.length + composition.id.length) % 2 === 0;
       const manifest = schemas.planCinemaDesign({
         packId,
         scenes: [scene],
@@ -172,7 +217,7 @@ for (const packId of packs) {
         `<!doctype html><html><head><style>${fontCss}</style></head><body style="margin:0;width:1920px;height:1080px">${markup}</body></html>`,
       );
       await page.evaluate(() => document.fonts.ready);
-      const report = await page.locator("[data-cinema-root]").evaluate((root, safeTop) => {
+      const report = await page.locator("[data-cinema-root]").evaluate((root, [safeTop, contentBottom]) => {
         const describe = (element) => {
           const marker = Array.from(element.attributes).map((a) => a.name).find((n) => n.startsWith("data-"));
           const text = (element.textContent ?? "").trim().slice(0, 28);
@@ -180,6 +225,7 @@ for (const packId of packs) {
         };
         const spilling = [];
         const belowCaption = [];
+        const nearCaption = [];
         const offCanvas = [];
         const texts = [];
         const brokenWords = [];
@@ -209,6 +255,7 @@ for (const packId of packs) {
             range.selectNodeContents(element);
             const box = range.getBoundingClientRect();
             if (box.bottom > safeTop) belowCaption.push(describe(element));
+            else if (box.bottom > contentBottom + 4) nearCaption.push(`${describe(element)} ${Math.round(box.bottom)}px`);
             if (box.right > 1920 || box.left < 0 || box.top < 0) offCanvas.push(describe(element));
             texts.push({ box, label: describe(element), element, fontSize: parseFloat(style.fontSize) });
             // A word wrapped mid-word (overflow-wrap: anywhere) means the fit
@@ -249,6 +296,7 @@ for (const packId of packs) {
           smallest: smallest === null ? null : { fontSize: smallest.fontSize, label: smallest.label },
           spilling: spilling.slice(0, 6),
           belowCaption: [...new Set(belowCaption)].slice(0, 6),
+          nearCaption: [...new Set(nearCaption)].slice(0, 6),
           offCanvas: [...new Set(offCanvas)].slice(0, 6),
           overlaps: overlaps.slice(0, 6),
           brokenWords: [...new Set(brokenWords)].slice(0, 4),
@@ -256,10 +304,11 @@ for (const packId of packs) {
           imagesTotal: images.length,
           glyphs: /[●◉◎]/u.test(root.textContent ?? ""),
         };
-      }, captionSafeTop);
+      }, [captionSafeTop, contentBottom]);
       const problems = [];
       if (report.spilling.length > 0) problems.push(`content escapes its box: ${report.spilling.join("; ")}`);
       if (report.belowCaption.length > 0) problems.push(`below caption line: ${report.belowCaption.join("; ")}`);
+      if (report.nearCaption.length > 0) problems.push(`inside the caption margin: ${report.nearCaption.join("; ")}`);
       if (report.offCanvas.length > 0) problems.push(`off canvas: ${report.offCanvas.join("; ")}`);
       if (report.overlaps.length > 0) problems.push(`text overlaps: ${report.overlaps.join("; ")}`);
       if (report.imagesBroken > 0) problems.push(`${report.imagesBroken} broken <img>`);

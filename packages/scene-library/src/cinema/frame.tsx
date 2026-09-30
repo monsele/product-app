@@ -74,6 +74,38 @@ export function headlineRepeatsPrimary(
 }
 
 /**
+ * Whether the planner took the headline word for word from content the scene
+ * already shows, so a secondary line carrying it would only repeat that.
+ */
+export function headlineShownInContent(
+  scene: SceneSpec,
+  design: CinemaSceneDesign,
+): boolean {
+  const plain = (value: string) => value.trim().toLowerCase().replace(/[?.!]$/u, "");
+  const headline = plain(design.display.headline);
+  const shows = (value: unknown): boolean =>
+    typeof value === "string"
+      ? plain(value).includes(headline)
+      : typeof value === "object" && value !== null && Object.values(value).some(shows);
+  return shows(scene.visual);
+}
+
+/**
+ * Whether showing the headline as a secondary line beneath the primary text
+ * would tell the viewer something.
+ */
+export function headlineAddsInformation(
+  scene: SceneSpec,
+  design: CinemaSceneDesign,
+): boolean {
+  return (
+    cinemaPrimaryText(scene, design.display) !== design.display.headline &&
+    !headlineRepeatsPrimary(scene, design) &&
+    !headlineShownInContent(scene, design)
+  );
+}
+
+/**
  * Kicker + headline. When `primary` is set the headline is the scene's
  * primary text and carries the planned emphasis.
  */

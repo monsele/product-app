@@ -75,8 +75,8 @@ function detailHeight(
   if (content.lead !== undefined) height += line(content.lead, size + 4) + 16;
   for (const entry of content.lines)
     height += line(entry.text, size, width - (entry.numbered === undefined ? 0 : 64)) + 14;
-  if (content.chips.length > 0) height += size * 1.3 + 32;
-  if (content.closing !== undefined) height += line(content.closing, size - 2, width - 48) + 44;
+  if (content.chips.length > 0) height += size * 1.3 + 42;
+  if (content.closing !== undefined) height += line(content.closing, size - 2, width - 48) + 48;
   return height;
 }
 

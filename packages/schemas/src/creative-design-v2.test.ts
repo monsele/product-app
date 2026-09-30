@@ -545,6 +545,30 @@ describe("ST-110 visual-plan proposal grounding", () => {
     expect(dropped.map((entry) => entry.field)).toEqual(["emphasis"]);
   });
 
+  it("accepts an emphasised word in another case or form, in the scene's own spelling", () => {
+    const definition = investigatedLesson()[1]!;
+    const grounded = groundCinemaDisplay(definition, { emphasis: ["compound", "Interests"] });
+    expect(grounded.display.emphasis).toEqual(["Compound", "interest"]);
+    expect(grounded.rejected).toEqual([]);
+  });
+
+  it("keeps the authored emphasis when no proposed word is in the primary text", () => {
+    const scenes = investigatedLesson();
+    const definition = scenes[1]!;
+    const grounded = groundCinemaDisplay(definition, { emphasis: ["unicorn"] });
+    expect(grounded.display.emphasis).toEqual(groundCinemaDisplay(definition, {}).display.emphasis);
+    expect(grounded.display.emphasis.length).toBeGreaterThan(0);
+    expect(grounded.rejected).toEqual(["emphasis"]);
+    const { proposal, dropped } = groundVisualPlanProposal(
+      visualPlanProposalSchema.parse({
+        scenes: [{ sceneId: definition.id, compositions: ["statement"], emphasis: ["unicorn"] }],
+      }),
+      scenes,
+    );
+    expect(proposal.scenes[0]!.emphasis).toBeUndefined();
+    expect(dropped.map((entry) => entry.field)).toEqual(["emphasis"]);
+  });
+
   it.each([
     ["a hex colour", "A jar of coins in #ff3366 on white."],
     ["a CSS colour function", "A jar tinted rgb(255, 0, 0)."],

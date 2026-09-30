@@ -2,7 +2,7 @@
 story_id: ST-112
 title: "Integrate V2 Visual Storytelling into Production and Prove It on Three Lessons"
 phase: "11 — Visual Storytelling"
-status: Ready
+status: In Review
 priority: must-have
 epics: ["E11", "E15"]
 prd_user_stories: ["E11-US2", "E15-US2"]
@@ -23,19 +23,87 @@ reviewed at desktop and phone sizes.
 
 ## Acceptance Criteria
 
-- [ ] AC1 The investigated lesson shows ≥6 distinct composition families
+- [x] AC1 The investigated lesson shows ≥6 distinct composition families
       across its eight scenes, with images visible where selected.
 - [ ] AC2 No clipped text, unreadable contrast, caption collisions, or
       obstructive framing in any proof MP4.
-- [ ] AC3 Old snapshots keep their render behaviour; new snapshots have
+- [x] AC3 Old snapshots keep their render behaviour; new snapshots have
       distinct cache identities.
-- [ ] AC4 A run completes without intervention when visual planning or an
+- [x] AC4 A run completes without intervention when visual planning or an
       optional image fails; fallback frequency, composition distribution,
       image use, latency and cost are recorded.
 - [ ] AC5 Reviewed MP4s exist for all three proof lessons.
 
 ## Dev Agent Record
 
-- **Agent:**
-- **Started:**
-- **Completed:**
+- **Agent:** Claude Code (Opus 5.5).
+- **Started:** 2026-09-30.
+- **Completed:** 2026-09-30. Handed off as In Review.
+- **Branch/PR:** `feat/st-107-video-brief-budget-self-repair` (commits
+  852af5d, af971c7, 10bd3a2; the 2026-09-30 visual fixes are uncommitted). No
+  PR.
+- **Migrations:** None (ADR-015: v2 is stored in the existing columns).
+- **Full detail:** [HANDOFF.md](HANDOFF.md).
+
+### Files changed
+
+- `apps/api`: `one-shot-runner.ts` (the `visual_plan` step, v2 illustrations
+  and one design apply per storyboard), `one-shot-gateway.ts`,
+  `creative-design.ts` (`requestVisualPlan`; `apply` takes the current
+  storyboard's draft), `one-shot-budget.ts` (`one-shot-estimate-v3`),
+  lesson validation (`decorativeAssetsOptional` under a v2 snapshot).
+- `packages/config`, `.env.example`: `CREATIVE_DESIGN_V2_DEFAULT`.
+- `docs/prompt-to-video-pilot.md`: stage map and budget.
+- 2026-09-30 visual fixes, in `packages/scene-library/src/cinema/`:
+  - shapes-only labelled diagrams are drawn from their labels: each callout
+    runs to its own part of the shape (`shapePartPoints`), a `system` draws
+    one node per label around a hub, and indexed markers sit on the parts;
+  - annotated-diagram callouts fill the margins at up to 36px, level with
+    their parts (was a fixed 24px stack at the top);
+  - a comparison side with only a name is a card the size of that name;
+  - the statement composition budgets its title line and gaps, so a full
+    column no longer reaches the caption band;
+  - a secondary headline line is dropped when it only repeats shown content;
+  - a definition's connector leaves from the end of its term;
+  - digits are estimated at their real width.
+
+### Commands/tests
+
+- `one-shot-runner-st112.test.ts` (15),
+  `one-shot-visual-design.integration.test.ts` (7, Postgres), plus gateway,
+  validation, budget and web cases.
+- `shoot-cinema.mjs`: 876 pass / 0 fail (2026-09-30), with new shape fixtures,
+  a full-column hook and a caption-margin check.
+- Live run on the mock stack: storyboard → visual plan → pictures → render,
+  with no stop.
+
+### Screenshots/output
+
+- Proof MP4s on real providers, total spend $1.75:
+  `.runtime-logs/st112-investigated.mp4`, `st112-engineering.mp4`,
+  `st112-finance.mp4`, with frames and contact sheets beside them.
+- The investigated lesson shows 7 composition families across 8 scenes.
+
+### Decisions/assumptions
+
+- The code default of `CREATIVE_DESIGN_V2_DEFAULT` stays false until the
+  proof lessons are accepted.
+- Decisions reuse the existing kinds, because ADR-015 allows no migration.
+
+### Deviations
+
+- The engineering run stopped at `BRIEF_PROMISE_UNMET` (146 s against a 180 s
+  brief), which is ST-107's check and unrelated to the visuals; the lesson
+  was then rendered directly.
+
+### Known risks/follow-up
+
+- AC2 and AC5 are open. The three MP4s were reviewed from frames, not watched
+  with sound, and they predate the 2026-09-30 visual fixes. A render is
+  content-addressed, so showing those fixes in the MP4s needs a new plan and
+  a paid re-render.
+- The engineering MP4 still shows white-backed pictures on the dark Systems
+  identity; the brief fix (`cinema-illustration-v2`) needs a paid
+  re-generation to show.
+- After acceptance, flip the default in `packages/config/src/index.ts` and
+  its test.

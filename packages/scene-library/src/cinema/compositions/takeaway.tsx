@@ -15,7 +15,7 @@ import {
   absolute,
   cinemaCanvas,
   headerHeight,
-  headlineRepeatsPrimary,
+  headlineShownInContent,
   PrimaryText,
   SceneHeader,
   type CinemaCompositionProps,
@@ -98,7 +98,7 @@ function CardsTakeaway({ scene, design, identity, hero }: CinemaCompositionProps
             <PrimaryText identity={identity} scene={scene} design={design} fontSize={fit.fontSize} />
           )}
         </div>
-        {isSummary && scene.visual.centralModel !== undefined && !headlineRepeatsPrimary(scene, design) ? (
+        {isSummary && scene.visual.centralModel !== undefined && !headlineShownInContent(scene, design) ? (
           <BodyText identity={identity} fontSize={30} muted style={{ fontWeight: 600 }}>
             {design.display.headline}
           </BodyText>

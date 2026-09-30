@@ -1,13 +1,17 @@
 # Visual storytelling (cinema-reel) — implementation handoff
 
 Source plan: [docs/cinema-reel.md](../../docs/cinema-reel.md). Architecture: [ADR-015](../../docs/adr/ADR-015-v2-composition-planning-and-pre-approval-asset-substitution.md).
-Stories: ST-108 and ST-109 In Progress; ST-110, ST-111 and ST-112 Ready. STORY_INDEX.md is **not yet updated**.
+Stories: ST-108 to ST-112 are all In Review, with Dev Agent Records written and rows added to STORY_INDEX.md.
 
-Steps 1–5 were committed by the user (852af5d, branch `feat/st-107-video-brief-budget-self-repair`). Steps 6–8 are **uncommitted**. Ask the user before committing or branching.
+Steps 1–9 are committed on `feat/st-107-video-brief-budget-self-repair` (852af5d, af971c7, 10bd3a2). The 2026-09-30 visual fixes and step 10 are **uncommitted**. Ask the user before committing or branching.
 
-## Resume here (as of 2026-09-30)
-- **Steps 1–9 are committed**, including the three proof MP4s on real providers and the fixes they led to. The user watched some of the MP4s and found the changes impressive, but has not yet said to flip the code default of `CREATIVE_DESIGN_V2_DEFAULT`.
-- **Next (user's request, 2026-09-30):** fix the shape-diagram weakness first, then the other "Open visual findings" listed under step 9, plus any other improvements. After that, step 10 (bookkeeping). Ask the user before any paid provider call and before committing.
+## Resume here (as of 2026-09-30, second session)
+- **All ten steps are done.** Steps 1–9 are committed. The visual fixes listed under step 9 ("Fixed on 2026-09-30") and the step 10 bookkeeping are uncommitted.
+- **What is left needs the user:**
+  - Watch the three proof MP4s with sound at desktop and phone size and decide whether they pass (ST-112 AC2 and AC5). They predate the 2026-09-30 visual fixes.
+  - To see those fixes in an MP4, a lesson needs a new plan and a paid re-render (a render is content-addressed). The engineering lesson would also get its pictures re-generated for the dark identity. Ask before any paid provider call.
+  - After acceptance, flip the code default of `CREATIVE_DESIGN_V2_DEFAULT` in `packages/config/src/index.ts` and its test, and move the stories to Done.
+  - Commit the uncommitted work when the user says so.
 - **Decisions (2026-09-29):**
   - The leftover `avlp_test_*` databases were dropped (10). Only `postgres` and `visual_learning` remain.
   - The `creative-design.interpret` envelope entry is kept.
@@ -15,7 +19,7 @@ Steps 1–5 were committed by the user (852af5d, branch `feat/st-107-video-brief
 - **Known unrelated failures:** web `cross-screen-quality.playwright.test.tsx`, 5 cases ("React is not defined": auth, password reset and project board).
 - **Local environment:** Docker containers all exited mid-session. Only `product-app-postgres-1` was restarted; Redis and MinIO are still stopped (start them for `run-app`).
 - **Review tools:**
-  - `node .claude/skills/inspect-render/shoot-cinema.mjs` checks 708 renders, including the 24px phone floor and broken words.
+  - `node .claude/skills/inspect-render/shoot-cinema.mjs` checks 876 renders, including the 24px phone floor, broken words and content inside the 40px margin above the caption band. It adds shapes-only diagrams (every shape at 3, 5 and 8 labels) and a full-column hook to the exported fixtures.
   - `render-cinema-mp4.mjs --pack <id>` renders the photosynthesis MP4.
   - `watch-video.mjs --file <mp4> --every 2 --out <dir>` cuts it into frames.
 - **Integration tests:** run them with `TEST_DATABASE_URL=<DATABASE_URL from .env>` and `--hookTimeout=180000`.
@@ -158,12 +162,24 @@ The v1 manifest ("1.0") and v1 scene components stay **frozen**, so approved vid
      - A definition's own text appeared for about two seconds: the model anchored `detail` to the last sentence, and the headline to the second. `groundCinemaBeats` now brings `headline` in with sentence 0 and `detail` by mid-narration, and keeps beats in narration order.
      - The hook showed the planner's headline twice when it equalled the scene's own prompt (`TitleLine`).
      - On the dark Systems identity, generated pictures came back on white. The illustration brief now names the identity's surface colour (`cinema-illustration-v2`). Not yet re-generated: the engineering MP4 still shows the white-backed pictures.
-   - **Open visual findings (not fixed):**
-     - A labelled diagram in `shapes` mode draws generic boxes with small (24 px) callouts whose lines stop short of the shapes; it reads as a placeholder (engineering 72 s, finance 80 s, investigated 216 s).
-     - `comparison-split` side panels are large and nearly empty when the sides have no picture.
-     - The planner's emphasis words were dropped as ungrounded in most scenes, because they must be words of the composition's primary text.
-     - The engineering summary repeats its takeaway as a muted second line; the annotated definition draws the term's connector line from far right of a short term.
-     - Finance hook: the chips sit about 10 px above the caption band.
-     - Because a render is content-addressed, a renderer fix cannot re-render an unchanged lesson version; the two re-renders needed a new plan to get a new design.
+   - **Fixed on 2026-09-30 (uncommitted), all in `packages/scene-library/src/cinema/` unless noted:**
+     - **Shape diagrams.** A shapes-only labelled diagram is now drawn from its labels. `shapePartPoints` (`primitives.tsx`) gives each label a part of the shape in its anchor's direction and moves crowded parts apart. A `system` draws one node per label around a hub, in place of three fixed boxes. Each callout runs to a dot on its own part.
+     - **Annotated-diagram callouts**, for pictures too: cards fill the two margins at the largest type that fits (up to 36px, floor 24px), level with their parts. They were a fixed 24px stack at the top, laid out by the v1 planner. A picture's callouts still stop at its frame, because an anchor says only roughly where a part is. The cinema path no longer uses `diagram-layout.ts`; v1 still does, unchanged.
+     - **Indexed hero:** with a shape and up to eight labels, the numbered markers sit on the shape's parts.
+     - **`comparison-split`:** a side with only a name is a card the size of that name, level with the points. Dense comparisons may narrow the side panels to 240px.
+     - **Emphasis (schemas, `groundEmphasis`):** a proposed word in another case or form ("Weight", "triangles") is accepted in the primary text's own spelling. When no proposed word is in the primary text, the authored emphasis stands; before, the scene had none.
+     - **Statement composition (the finance hook):** the statement's size budget now counts the title line, the rule and the gaps, so a full column stays clear of the caption band. The chip and closing-line height estimates in `detail.tsx` were low and are corrected.
+     - **Secondary headline line:** dropped when the headline only repeats content the scene already shows (`headlineShownInContent`, `headlineAddsInformation` in `frame.tsx`); this covers the summary's muted second line.
+     - **Annotated definition:** the term's connector leaves from the end of the term (`estimateLineWidth`).
+     - **Digits** are estimated at their real width (1.15 of the average glyph, was 1.02). The new caption-margin check found dense numeric comparison points running 28px past the content line.
+     - **Checks:** harness 876 pass / 0 fail. Schemas: typecheck, lint, 452 tests. Scene-library: typecheck, lint, `cinema.test.tsx` 20 and `timing-parity` 4 pass. Worker `visual-plan-job.test.ts` 5 and provider-adapters 84 pass.
+   - **Engineering re-render (2026-09-30, user-approved; spend $0.035 for one plan call):** `.runtime-logs/st112-engineering-v2.mp4`, frames every 6 s in `.runtime-logs/st112-frames-engineering-v2/`. New plan (draft revision 7) → apply → new version → render, completed and passed render review. No picture was re-generated. The shape diagram (78 s) and the compact comparison sides (36 s) show as intended. The project's owner is `01a0e363…`, not the driver's default: set `PROOF_OWNER` as well as `PROOF_PROJECT`.
+     - Seen in it and fixed afterwards (so not in this MP4): an annotated definition drew its term's connector before the picture arrived; connectors now wait for the picture.
+     - Seen and not fixed: a planner kicker that wraps to two lines ("Rope vs. squashed spring") pushes the term down.
+     - The plan call still reported dropped emphasis for six scenes; those scenes now keep the authored emphasis.
+   - **Still open:**
+     - The engineering MP4 still shows white-backed pictures on the dark Systems identity (needs a paid re-generation).
+     - Because a render is content-addressed, a renderer fix cannot re-render an unchanged lesson version; the proof MP4s do not show the 2026-09-30 fixes.
+     - The visual-plan prompt still says "exact words from the headline or the scene's main text" for emphasis. The grounding now tolerates what the model sends; naming the primary text per scene in the prompt input would need a `visual-plan@v2`.
    - **Still open for ST-112:** watch the three MP4s with sound at desktop and phone size and decide whether they pass; only then flip the code default of `CREATIVE_DESIGN_V2_DEFAULT`.
-10. **Bookkeeping:** update the Dev Agent Records and STORY_INDEX.md, then run `graphify update .`.
+10. ~~**Bookkeeping.**~~ Done, uncommitted. Dev Agent Records written for ST-108 to ST-112, all set to In Review; rows 108–112 added to STORY_INDEX.md; `graphify update .` run. Unticked acceptance criteria: ST-108 AC3 (reviewed from screenshots, no test), ST-112 AC2 and AC5 (the user's review of the MP4s).

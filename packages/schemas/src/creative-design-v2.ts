@@ -1020,6 +1020,37 @@ export function authoredCinemaDisplay(scene: AnyScene): CinemaSceneDisplay {
   });
 }
 
+const bareWord = (word: string): string =>
+  word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "");
+
+/**
+ * Maps proposed emphasis onto the primary text's own words. The same word in
+ * another case or form counts ("Weight", "triangles"), and the primary's
+ * spelling is what is kept, because the renderer matches it exactly.
+ * `complete` is false when any proposed word is not in the primary text.
+ */
+function groundEmphasis(
+  primary: string,
+  proposed: readonly string[],
+): Readonly<{ words: string[]; complete: boolean }> {
+  const available = primary.split(/\s+/u).map(bareWord).filter((word) => word.length > 0);
+  const wanted = proposed
+    .flatMap((entry) => entry.trim().split(/\s+/u))
+    .map(bareWord)
+    .filter((word) => word.length > 0);
+  const matched = wanted.map((word) => {
+    if (word.length > 40) return undefined;
+    const lower = word.toLowerCase();
+    return (
+      available.find((candidate) => candidate === word) ??
+      available.find((candidate) => candidate.toLowerCase() === lower) ??
+      available.find((candidate) => stem(candidate.toLowerCase()) === stem(lower))
+    );
+  });
+  const words = [...new Set(matched.filter((word): word is string => word !== undefined))];
+  return { words: words.slice(0, 3), complete: words.length <= 3 && !matched.includes(undefined) };
+}
+
 /** Keeps each proposed display field only if it is grounded. */
 export function groundCinemaDisplay(
   scene: AnyScene,
@@ -1051,23 +1082,15 @@ export function groundCinemaDisplay(
   if (proposal.kicker !== undefined && kicker !== proposal.kicker.trim().toLowerCase())
     rejected.push("kicker");
   const primary = cinemaPrimaryText(scene, { headline });
-  const primaryWords = new Set(
-    primary
-      .split(/\s+/u)
-      .map((word) => word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "")),
-  );
+  const proposed =
+    proposal.emphasis === undefined ? undefined : groundEmphasis(primary, proposal.emphasis);
+  // A proposal with no word of the primary text keeps the authored emphasis
+  // rather than leaving the scene with none.
   const emphasis =
-    proposal.emphasis === undefined
+    proposed === undefined || (proposed.words.length === 0 && (proposal.emphasis?.length ?? 0) > 0)
       ? authoredEmphasis(scene, primary)
-      : proposal.emphasis
-          .map((word) => word.trim())
-          .filter((word) => word.length <= 40 && primaryWords.has(word))
-          .slice(0, 3);
-  if (
-    proposal.emphasis !== undefined &&
-    emphasis.length !== proposal.emphasis.length
-  )
-    rejected.push("emphasis");
+      : proposed.words;
+  if (proposed !== undefined && !proposed.complete) rejected.push("emphasis");
   return Object.freeze({
     display: cinemaSceneDisplaySchema.parse({ headline, emphasis, kicker }),
     rejected: Object.freeze(rejected),
@@ -1581,10 +1604,9 @@ export function groundVisualPlanProposal(
       const primary = cinemaPrimaryText(scene, {
         headline: headline ?? authoredCinemaDisplay(scene).headline,
       });
-      const words = new Set(
-        primary.split(/\s+/u).map((word) => word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "")),
-      );
-      emphasis = emphasis.map((word) => word.trim()).filter((word) => words.has(word)).slice(0, 3);
+      const kept = groundEmphasis(primary, emphasis).words;
+      // Nothing left to emphasise: the authored emphasis stands instead.
+      emphasis = kept.length === 0 ? undefined : kept;
     }
     let illustration = entry.illustration;
     if (

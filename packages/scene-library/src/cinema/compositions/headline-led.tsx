@@ -14,7 +14,7 @@ import { arrival, useCinemaBeats } from "../beats.js";
 import {
   absolute,
   cinemaCanvas,
-  headlineRepeatsPrimary,
+  headlineAddsInformation,
   PrimaryText,
   type CinemaCompositionProps,
 } from "../frame.js";
@@ -34,13 +34,7 @@ function TitleLine({
   design,
   width,
 }: Pick<CinemaCompositionProps, "identity" | "scene" | "design"> & Readonly<{ width: number }>): JSX.Element | null {
-  const primary = cinemaPrimaryText(scene, design.display);
-  if (primary === design.display.headline || headlineRepeatsPrimary(scene, design)) return null;
-  // A headline the planner took word for word from the scene's own content
-  // is already on screen in the detail below.
-  const headline = design.display.headline.trim().toLowerCase();
-  const shown = Object.values(scene.visual as Record<string, unknown>).flat();
-  if (shown.some((value) => typeof value === "string" && value.trim().toLowerCase() === headline)) return null;
+  if (!headlineAddsInformation(scene, design)) return null;
   return (
     <BodyText identity={identity} fontSize={30} muted style={{ fontWeight: 600, width }}>
       {design.display.headline}
@@ -117,7 +111,15 @@ export function StatementComposition({
   const detailWidth = Math.min(width, 1300);
   const detailSize = detailFontSize(identity, scene, detailWidth, 300, 38);
   const detailHeight = estimatedDetailHeight(identity, scene, detailWidth, detailSize);
-  const available = cinemaCanvas.bottom - cinemaCanvas.top - 60 - detailHeight - 70;
+  // Everything in the centred column but the statement: the kicker, the
+  // rule, the title line and the detail, with the gap after each.
+  const gap = 30;
+  const others =
+    32 + gap +
+    Math.max(4, identity.stroke) + gap +
+    (headlineAddsInformation(scene, design) ? 40 + gap : 0) +
+    (detailHeight > 0 ? detailHeight + gap : 0);
+  const available = cinemaCanvas.bottom - cinemaCanvas.top - 30 - others;
   const fit = primaryFit(identity, primary, width, 5, 168, 40, Math.min(520, available));
   return (
     <>
@@ -136,7 +138,7 @@ export function StatementComposition({
           ...absolute(cinemaCanvas.left, cinemaCanvas.top + 30, width, cinemaCanvas.bottom - cinemaCanvas.top - 30),
           display: "flex",
           flexDirection: "column",
-          gap: 30,
+          gap,
           justifyContent: "center",
         }}
       >

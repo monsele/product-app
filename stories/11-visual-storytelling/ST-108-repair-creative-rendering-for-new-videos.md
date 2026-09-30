@@ -2,7 +2,7 @@
 story_id: ST-108
 title: "Repair Creative Rendering: Complete Identity Tokens, Rendered Imagery, Optional Framing, and Style Names"
 phase: "11 — Visual Storytelling"
-status: In Progress
+status: In Review
 priority: must-have
 epics: ["E11", "E15"]
 prd_user_stories: ["E11-US2", "E15-US2"]
@@ -55,14 +55,14 @@ human-readable name. Historical v1 snapshots render exactly as before.
 
 ## Acceptance Criteria
 
-- [ ] AC1 Every identity resolves every token; no v2 primitive reads
+- [x] AC1 Every identity resolves every token; no v2 primitive reads
       `videoTheme.colors`.
-- [ ] AC2 A bound, resolved image renders as an `<img>` in every v2 slot;
+- [x] AC2 A bound, resolved image renders as an `<img>` in every v2 slot;
       no glyph placeholder exists in the v2 path.
 - [ ] AC3 No v2 scene draws a border unless its composition declares one.
-- [ ] AC4 Style names appear in configuration, preview and delivery; legacy
+- [x] AC4 Style names appear in configuration, preview and delivery; legacy
       label only when no manifest exists.
-- [ ] AC5 A v1 manifest renders byte-identical frames before and after.
+- [x] AC5 A v1 manifest renders byte-identical frames before and after.
 
 ## Required Tests
 
@@ -76,16 +76,51 @@ human-readable name. Historical v1 snapshots render exactly as before.
 
 ## Dev Agent Record
 
-- **Agent:** Claude (Opus 5.5)
-- **Started:** 2026-09-29
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:** None
-- **Commands/tests:**
-- **Screenshots/output:**
-- **Decisions/assumptions:** v1 renderer frozen per ADR-015; repairs land in
-  the v2 path only.
-- **Deviations:** The v2 manifest envelope needed by the gate is introduced
-  alongside ST-109's contract work.
-- **Known risks/follow-up:**
+- **Agent:** Claude Code (Opus 5.5).
+- **Started:** 2026-09-29.
+- **Completed:** 2026-09-30. Handed off as In Review.
+- **Branch/PR:** `feat/st-107-video-brief-budget-self-repair` (commits
+  852af5d, af971c7, 10bd3a2; the 2026-09-30 visual fixes are uncommitted). No
+  PR.
+- **Migrations:** None (ADR-015: v2 is stored in the existing columns).
+- **Full detail:** [HANDOFF.md](HANDOFF.md).
+
+### Files changed
+
+- `packages/scene-library/src/cinema/`: `identity.ts` (every token resolved
+  per pack; muted text guarded against background and surface), `primitives.tsx`
+  (text, surfaces, connectors, `HeroVisual`, `ItemIcon`, authored `Motif`,
+  `ShapeDiagram`, `SourceTable`), `content.ts` (picture resolution: pinned
+  illustration, then the scene's own slot, then an authored motif).
+- Style names, one source (`creativeDesignPackNames`, `creativeDesignStyleLabel`):
+  web configuration, preview subtitle, render panel and comparison;
+  `renderStatusResponseSchema.styleLabel` and `PostgresRenderService.response()`.
+
+### Commands/tests
+
+- `src/cinema/cinema.test.tsx`: identity contrast for the defaults and 120
+  seeded palettes × 6 identities; picture resolution (render refuses a missing
+  pinned or bound picture, preview falls back to the motif).
+- `node .claude/skills/inspect-render/shoot-cinema.mjs`: 876 pass / 0 fail on
+  2026-09-30; it fails on a broken `<img>` or a placeholder glyph.
+- API `renders.test.ts` (style label), web vitest.
+
+### Decisions/assumptions
+
+- The v1 renderer is frozen (ADR-015); repairs land in the v2 path only.
+- Accent text is held to 3:1 because it is only ever used for large text.
+
+### Deviations
+
+- The v2 manifest envelope the gate needs arrived with ST-109's contract work.
+- AC3 (no border unless the composition declares one) was reviewed from
+  screenshots, not asserted by a test, so it is left unticked.
+- AC5: the three v1 pixel-snapshot tests (`summary-scene-render`,
+  `scene-preview-render-smoke`, `full-lesson-render`) fail on this Windows
+  machine at the baseline commit and at HEAD with identical hashes. The
+  committed hashes were recorded on Linux CI. v1 output is unchanged; do not
+  refresh the baselines on Windows.
+
+### Known risks/follow-up
+
+- CI status was not checked (`gh` is not installed locally).

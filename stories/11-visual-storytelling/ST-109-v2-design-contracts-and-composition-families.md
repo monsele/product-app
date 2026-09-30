@@ -2,7 +2,7 @@
 story_id: ST-109
 title: "Add the V2 Creative-Design Manifest, Visual-Plan Contract, and Eight Composition Families"
 phase: "11 — Visual Storytelling"
-status: In Progress
+status: In Review
 priority: must-have
 epics: ["E11", "E15"]
 prd_user_stories: ["E11-US2", "E15-US2"]
@@ -47,15 +47,15 @@ compositions; v1 is unchanged.
 
 ## Acceptance Criteria
 
-- [ ] AC1 v1 manifests parse and render unchanged; v2 manifests have a
+- [x] AC1 v1 manifests parse and render unchanged; v2 manifests have a
       distinct canonical hash and render identity.
-- [ ] AC2 Every scene type has ≥2 compatible compositions that differ in
+- [x] AC2 Every scene type has ≥2 compatible compositions that differ in
       placement and hierarchy (asserted structurally, reviewed visually).
-- [ ] AC3 The selector is deterministic for a seed, differs across seeds, and
+- [x] AC3 The selector is deterministic for a seed, differs across seeds, and
       honours the family-run rule.
-- [ ] AC4 Every semantic type × six identities × each compatible composition
+- [x] AC4 Every semantic type × six identities × each compatible composition
       renders a valid frame with no overflow.
-- [ ] AC5 Model-proposed display wording with a new word or number is rejected
+- [x] AC5 Model-proposed display wording with a new word or number is rejected
       in favour of the authored display.
 
 ## Required Tests
@@ -71,14 +71,54 @@ compositions; v1 is unchanged.
 
 ## Dev Agent Record
 
-- **Agent:** Claude (Opus 5.5)
-- **Started:** 2026-09-29
-- **Completed:**
-- **Branch/PR:**
-- **Files changed:**
-- **Migrations:** None
-- **Commands/tests:**
-- **Screenshots/output:**
-- **Decisions/assumptions:**
-- **Deviations:**
-- **Known risks/follow-up:**
+- **Agent:** Claude Code (Opus 5.5).
+- **Started:** 2026-09-29.
+- **Completed:** 2026-09-30. Handed off as In Review.
+- **Branch/PR:** `feat/st-107-video-brief-budget-self-repair` (commits
+  852af5d, af971c7, 10bd3a2; the 2026-09-30 visual fixes are uncommitted). No
+  PR.
+- **Migrations:** None (ADR-015: v2 is stored in the existing columns).
+- **Full detail:** [HANDOFF.md](HANDOFF.md).
+
+### Files changed
+
+- `packages/schemas/src/creative-design-v2.ts` (new): the "2.0" manifest, the
+  catalogue of 10 compositions in 8 families, eligibility, grounded display
+  wording, the seeded whole-video selection, `planCinemaDesign`,
+  `validateCreativeDesignManifestV2`, `carryForwardCinemaDesign`,
+  `visualPlanProposalSchema`. `index.ts` re-exports it and
+  `previewManifestSchema.creativeDesign` accepts either release.
+- `packages/scene-library/src/cinema/`: `frame.tsx`, `text-fit.ts`,
+  `cinema-scene.tsx` and `compositions/` (headline-led, sequence, comparison,
+  connected, hero, takeaway, detail). `full-lesson.tsx` and
+  `scene-preview.tsx` render `CinemaScene` for v2.
+- API, worker and web support for v2: preview manifest, renders, lesson
+  versions, carry-forward (`packages/database/src/creative-design-carry-forward.ts`),
+  the design service (`upgrade`, alternatives, apply), the storyboard job flag
+  `CREATIVE_DESIGN_V2_DEFAULT`, and the web design panel.
+
+### Commands/tests
+
+- `creative-design-v2.test.ts` (schemas: 452 tests pass in the package).
+- `cinema-render.test.ts`: Remotion stills for all six packs.
+- `shoot-cinema.mjs`: identity × fixture × eligible composition, 876 pass /
+  0 fail, including the 24px phone floor, broken words and (new on
+  2026-09-30) content inside the 40px caption margin.
+- `creative-design-v2.integration.test.ts` (API, Postgres) and
+  `creative-design-carry-forward.test.ts`.
+
+### Decisions/assumptions
+
+- v1 stays frozen and is read through `anyCreativeDesignManifestSchema`.
+- The selection never puts three scenes of one family in a row.
+
+### Deviations
+
+- Found and fixed while integrating: carry-forward parsed only v1, so a v2
+  design was replanned as v1 on every storyboard edit; and the validator
+  refused an untitled scene's authored fallback headline.
+- 2026-09-30 visual fixes after the proof lessons (see ST-112).
+
+### Known risks/follow-up
+
+- Presets and "describe a style" are still v1-only.

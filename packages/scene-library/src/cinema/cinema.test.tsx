@@ -30,7 +30,9 @@ import {
   resolveCinemaItemIcons,
   resolveCinemaSubjectImages,
 } from "./content.js";
+import { headlineAddsInformation, headlineShownInContent } from "./frame.js";
 import { resolveCinemaIdentity, surfaceFill } from "./identity.js";
+import { shapePartPoints } from "./primitives.js";
 import { estimateLines, fitText, fitTextGroup } from "./text-fit.js";
 
 const seed = "0123456789abcdef";
@@ -292,5 +294,60 @@ describe("ST-108 picture resolution", () => {
       motif: unpinned.imagery.motif,
     });
     expect(resolveCinemaHero({ scene, design: unpinned, assets: boundAssets, mode: "render" }).kind).toBe("image");
+  });
+});
+
+describe("ST-112 native shape drawings", () => {
+  const anchors = ["top", "bottom", "left", "right", "top-right", "top-right", "top-right", "center"] as const;
+
+  it.each(["cell", "cycle", "plant", "system"] as const)(
+    "gives every labelled part of a %s its own place inside the drawing",
+    (shape) => {
+      const points = shapePartPoints(shape, anchors, 680, 560);
+      expect(points).toEqual(shapePartPoints(shape, anchors, 680, 560));
+      for (const point of points) {
+        expect(point.x).toBeGreaterThan(0);
+        expect(point.x).toBeLessThan(680);
+        expect(point.y).toBeGreaterThan(0);
+        expect(point.y).toBeLessThan(560);
+      }
+      for (let one = 0; one < points.length; one += 1)
+        for (let two = one + 1; two < points.length; two += 1)
+          expect(
+            Math.hypot(points[one]!.x - points[two]!.x, points[one]!.y - points[two]!.y),
+          ).toBeGreaterThan(40);
+    },
+  );
+
+  it("places a part in its anchor's direction", () => {
+    const [top, left, centre] = shapePartPoints("cycle", ["top", "left", "center"], 680, 560);
+    expect(top!.x).toBeCloseTo(340);
+    expect(top!.y).toBeLessThan(280);
+    expect(left!.x).toBeLessThan(340);
+    expect(left!.y).toBeCloseTo(280);
+    expect(centre).toEqual({ x: 340, y: 280 });
+  });
+});
+
+describe("ST-112 secondary headline line", () => {
+  const summary = photosynthesisThreeMinuteLesson.scenes.find(
+    (scene): scene is Extract<SceneSpec, { template: "summary" }> => scene.template === "summary",
+  )!;
+  const hook = photosynthesisThreeMinuteLesson.scenes.find((scene) => scene.template === "hook")!;
+  const designFor = (scene: SceneSpec, headline: string) => {
+    const design = planCinemaDesign({ packId: "everyday", scenes: [scene], seed }).scenes[scene.id]!;
+    return { ...design, display: { ...design.display, headline } };
+  };
+
+  it("is dropped when the headline only repeats content the scene shows", () => {
+    const repeated = designFor(summary, summary.visual.takeaways[0]!.text);
+    expect(headlineShownInContent(summary, repeated)).toBe(true);
+    expect(headlineShownInContent(summary, designFor(summary, "A title of its own"))).toBe(false);
+  });
+
+  it("is kept beneath a different primary text only when it adds something", () => {
+    expect(headlineAddsInformation(hook, designFor(hook, "A title of its own"))).toBe(true);
+    if (hook.template !== "hook") throw new Error("Expected a hook.");
+    expect(headlineAddsInformation(hook, designFor(hook, hook.visual.question))).toBe(false);
   });
 });

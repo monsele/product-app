@@ -8,6 +8,7 @@
  */
 import type {
   CinemaMotifKind,
+  DiagramAnchor,
   SourceTableVisual,
 } from "@avlp/schemas";
 import type { CSSProperties, JSX, ReactNode } from "react";
@@ -22,7 +23,7 @@ export type CinemaHero =
       evidence: boolean;
     }>
   | Readonly<{ kind: "table"; table: SourceTableVisual; alt: string }>
-  | Readonly<{ kind: "shape"; shape: "cell" | "cycle" | "plant" | "system" }>
+  | Readonly<{ kind: "shape"; shape: CinemaShape }>
   | Readonly<{ kind: "motif"; motif: CinemaMotifKind }>;
 
 export type CinemaIcon = Readonly<{ src: string; alt: string }>;
@@ -354,9 +355,17 @@ export function ItemIcon({
   );
 }
 
+/** Padding the identity's image frame keeps around its content. */
+export function heroFrameInset(identity: CinemaIdentity): number {
+  const frame = identity.imageFrame;
+  return frame === "rounded" || frame === "paper" || frame === "block" ? 28 : 0;
+}
+
 /**
  * The scene's hero visual inside the identity's image frame. `drift` gives a
  * restrained slow push-in over the scene; `progress` is its arrival.
+ * `shapeParts` are the labelled parts of a native shape drawing, in the box
+ * left inside `heroFrameInset`.
  */
 export function HeroVisual({
   hero,
@@ -366,6 +375,7 @@ export function HeroVisual({
   progress,
   drift,
   bleed = false,
+  shapeParts,
 }: Readonly<{
   hero: CinemaHero;
   identity: CinemaIdentity;
@@ -374,11 +384,12 @@ export function HeroVisual({
   progress: number;
   drift: number;
   bleed?: boolean;
+  shapeParts?: readonly ShapePart[] | undefined;
 }>): JSX.Element {
   const { colors } = identity;
   const scale = 1 + drift * (identity.packId === "prism" ? 0.05 : 0.03);
   const frame = identity.imageFrame;
-  const inset = frame === "rounded" || frame === "paper" || frame === "block" ? 28 : 0;
+  const inset = heroFrameInset(identity);
   // A real picture is rarely a cutout on white, so multiplying it over the
   // blob turns it grey. In the blob frame it sits whole and unblended in front
   // of the blob, which shows around it.
@@ -408,7 +419,7 @@ export function HeroVisual({
     ) : hero.kind === "table" ? (
       <SourceTable identity={identity} table={hero.table} width={innerWidth} height={innerHeight} />
     ) : hero.kind === "shape" ? (
-      <ShapeDiagram identity={identity} shape={hero.shape} width={innerWidth} height={innerHeight} progress={progress} />
+      <ShapeDiagram identity={identity} shape={hero.shape} width={innerWidth} height={innerHeight} progress={progress} parts={shapeParts} />
     ) : (
       <Motif identity={identity} kind={hero.motif} width={innerWidth} height={innerHeight} progress={progress} drift={drift} />
     );
@@ -640,24 +651,119 @@ export function Motif({
   );
 }
 
-/** A native drawing for shapes-only labelled diagrams. */
+export type CinemaShape = "cell" | "cycle" | "plant" | "system";
+
+/** A labelled part of a native shape drawing, in the drawing's own box. */
+export type ShapePart = Readonly<{ x: number; y: number; reveal: number; active: boolean }>;
+
+const anchorDirection: Readonly<Record<DiagramAnchor, readonly [number, number]>> = {
+  "top-left": [-1, -1],
+  top: [0, -1],
+  "top-right": [1, -1],
+  right: [1, 0],
+  "bottom-right": [1, 1],
+  bottom: [0, 1],
+  "bottom-left": [-1, 1],
+  left: [-1, 0],
+  center: [0, 0],
+};
+
+const shapeRadius = (width: number, height: number): number => Math.min(width, height) * 0.42;
+
+/**
+ * Moves angles apart until neighbours on the circle are at least `minGap`
+ * apart, keeping their order. Deterministic: ties keep declaration order.
+ */
+function spreadAngles(angles: readonly number[], minGap: number): readonly number[] {
+  const order = angles
+    .map((angle, index) => ({ angle, index }))
+    .sort((a, b) => a.angle - b.angle || a.index - b.index);
+  const count = order.length;
+  if (count > 1 && count * minGap <= Math.PI * 2)
+    for (let pass = 0; pass < 80; pass += 1) {
+      let moved = false;
+      for (let at = 0; at < count; at += 1) {
+        const one = order[at]!;
+        const two = order[(at + 1) % count]!;
+        const gap = two.angle + (at === count - 1 ? Math.PI * 2 : 0) - one.angle;
+        if (gap >= minGap - 1e-6) continue;
+        one.angle -= (minGap - gap) / 2;
+        two.angle += (minGap - gap) / 2;
+        moved = true;
+      }
+      if (!moved) break;
+    }
+  const result = angles.slice();
+  for (const entry of order) result[entry.index] = entry.angle;
+  return result;
+}
+
+/**
+ * Where each label's part sits on a native shape drawing of the given box,
+ * so a callout or marker can land on the drawing itself. A part sits in its
+ * anchor's direction; parts that would crowd each other move apart.
+ */
+export function shapePartPoints(
+  shape: CinemaShape,
+  anchors: readonly DiagramAnchor[],
+  width: number,
+  height: number,
+): readonly Readonly<{ x: number; y: number }>[] {
+  const cx = width / 2;
+  const cy = height / 2;
+  const r = shapeRadius(width, height);
+  const [ex, ey] =
+    shape === "cell"
+      ? [r * 0.95, r * 0.72]
+      : shape === "cycle"
+        ? [r, r]
+        : shape === "plant"
+          ? [r * 0.62, r * 0.8]
+          : [r * 1.05, r * 0.74];
+  const around = anchors.flatMap((anchor, index) => (anchor === "center" ? [] : [index]));
+  const angles = spreadAngles(
+    around.map((index) => {
+      const [dx, dy] = anchorDirection[anchors[index]!];
+      return Math.atan2(dy, dx);
+    }),
+    shape === "system" ? 0.5 : 0.3,
+  );
+  const angleOf = new Map(around.map((index, at) => [index, angles[at]!]));
+  let centred = 0;
+  return anchors.map((_, index) => {
+    const angle = angleOf.get(index);
+    if (angle === undefined) {
+      const spread = Math.ceil(centred / 2) * (centred % 2 === 0 ? -1 : 1);
+      centred += 1;
+      return { x: cx + spread * r * 0.45, y: cy };
+    }
+    return { x: cx + Math.cos(angle) * ex, y: cy + Math.sin(angle) * ey };
+  });
+}
+
+/**
+ * A native drawing for shapes-only labelled diagrams. Given `parts`, a
+ * `system` is drawn from them: one node per labelled part around a hub.
+ */
 export function ShapeDiagram({
   identity,
   shape,
   width,
   height,
   progress,
+  parts,
 }: Readonly<{
   identity: CinemaIdentity;
-  shape: "cell" | "cycle" | "plant" | "system";
+  shape: CinemaShape;
   width: number;
   height: number;
   progress: number;
+  parts?: readonly ShapePart[] | undefined;
 }>): JSX.Element {
   const { colors } = identity;
   const cx = width / 2;
   const cy = height / 2;
-  const r = Math.min(width, height) * 0.42;
+  const r = shapeRadius(width, height);
   const stroke = identity.stroke + 2;
   let body: JSX.Element;
   if (shape === "cell")
@@ -699,7 +805,32 @@ export function ShapeDiagram({
         <path d={`M ${cx - r * 0.6} ${cy + r} Q ${cx} ${cy + r * 0.8} ${cx + r * 0.6} ${cy + r}`} fill="none" stroke={colors.line} strokeWidth={stroke} />
       </>
     );
-  else
+  else if (parts !== undefined && parts.length > 0) {
+    const nodeWidth = r * 0.4;
+    const nodeHeight = r * 0.26;
+    body = (
+      <>
+        {parts.map((part, index) => (
+          <line key={`l-${index}`} x1={cx} y1={cy} x2={part.x} y2={part.y} stroke={colors.line} strokeWidth={stroke} opacity={part.reveal} />
+        ))}
+        <circle cx={cx} cy={cy} r={r * 0.16} fill={colors.softAccent} stroke={colors.accent} strokeWidth={stroke} />
+        {parts.map((part, index) => (
+          <rect
+            key={`n-${index}`}
+            x={part.x - nodeWidth / 2}
+            y={part.y - nodeHeight / 2}
+            width={nodeWidth}
+            height={nodeHeight}
+            rx={Math.min(identity.radius, 16)}
+            fill={part.active ? colors.softAccent : colors.softEmphasis}
+            stroke={part.active ? colors.accent : colors.emphasis}
+            strokeWidth={stroke}
+            opacity={part.reveal}
+          />
+        ))}
+      </>
+    );
+  } else
     body = (
       <>
         {[
