@@ -73914,7 +73914,7 @@
         "story_id": "ST-108",
         "title": "Repair Creative Rendering: Complete Identity Tokens, Rendered Imagery, Optional Framing, and Style Names",
         "phase": "11 \u2014 Visual Storytelling",
-        "status": "In Review",
+        "status": "Done",
         "priority": "must-have",
         "epics": "[&quot;E11&quot;, &quot;E15&quot;]",
         "prd_user_stories": "[&quot;E11-US2&quot;, &quot;E15-US2&quot;]",
@@ -73936,7 +73936,7 @@
         "story_id": "ST-109",
         "title": "Add the V2 Creative-Design Manifest, Visual-Plan Contract, and Eight Composition Families",
         "phase": "11 \u2014 Visual Storytelling",
-        "status": "In Review",
+        "status": "Done",
         "priority": "must-have",
         "epics": "[&quot;E11&quot;, &quot;E15&quot;]",
         "prd_user_stories": "[&quot;E11-US2&quot;, &quot;E15-US2&quot;]",
@@ -73958,7 +73958,7 @@
         "story_id": "ST-110",
         "title": "Add a Bounded Visual-Planning Job and Consistent, Purposeful Illustration",
         "phase": "11 \u2014 Visual Storytelling",
-        "status": "In Review",
+        "status": "Done",
         "priority": "must-have",
         "epics": "[&quot;E11&quot;, &quot;E15&quot;]",
         "prd_user_stories": "[&quot;E11-US2&quot;, &quot;E15-US2&quot;]",
@@ -73980,7 +73980,7 @@
         "story_id": "ST-111",
         "title": "Make Motion Follow the Narration with Anchored Visual Beats",
         "phase": "11 \u2014 Visual Storytelling",
-        "status": "In Review",
+        "status": "Done",
         "priority": "must-have",
         "epics": "[&quot;E11&quot;, &quot;E15&quot;]",
         "prd_user_stories": "[&quot;E11-US2&quot;, &quot;E15-US2&quot;]",
@@ -74002,7 +74002,7 @@
         "story_id": "ST-112",
         "title": "Integrate V2 Visual Storytelling into Production and Prove It on Three Lessons",
         "phase": "11 \u2014 Visual Storytelling",
-        "status": "In Review",
+        "status": "Done",
         "priority": "must-have",
         "epics": "[&quot;E11&quot;, &quot;E15&quot;]",
         "prd_user_stories": "[&quot;E11-US2&quot;, &quot;E15-US2&quot;]",
@@ -95464,7 +95464,7 @@
       "node_kind": "heading",
       "norm_label": "done",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L30"
+      "source_location": "L32"
     },
     {
       "id": "stories_11_visual_storytelling_st_109_v2_design_contracts_and_composition_families_files_changed",
@@ -112923,7 +112923,7 @@
       "node_kind": "heading",
       "norm_label": "deviations",
       "source_file": "stories/11-visual-storytelling/ST-112-production-integration-and-acceptance.md",
-      "source_location": "L93"
+      "source_location": "L94"
     },
     {
       "id": "stories_11_visual_storytelling_st_112_production_integration_and_acceptance_files_changed",
@@ -112947,7 +112947,7 @@
       "node_kind": "heading",
       "norm_label": "known risks/follow-up",
       "source_file": "stories/11-visual-storytelling/ST-112-production-integration-and-acceptance.md",
-      "source_location": "L99"
+      "source_location": "L100"
     },
     {
       "id": "stories_11_visual_storytelling_st_112_production_integration_and_acceptance_screenshots_output",
@@ -117825,7 +117825,7 @@
       "node_kind": "heading",
       "norm_label": "key decision",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L27"
+      "source_location": "L29"
     },
     {
       "id": "stories_11_visual_storytelling_handoff_next_steps_in_order",
@@ -117837,17 +117837,17 @@
       "node_kind": "heading",
       "norm_label": "next steps (in order)",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L52"
+      "source_location": "L54"
     },
     {
-      "id": "stories_11_visual_storytelling_handoff_resume_here_as_of_2026_09_30_second_session",
-      "label": "Resume here (as of 2026-09-30, second session)",
+      "id": "stories_11_visual_storytelling_handoff_resume_here_as_of_2026_09_30_closed",
+      "label": "Resume here (as of 2026-09-30, closed)",
       "_origin": "ast",
       "community": 373,
       "community_name": "Next steps (in order)",
       "file_type": "document",
       "node_kind": "heading",
-      "norm_label": "resume here (as of 2026-09-30, second session)",
+      "norm_label": "resume here (as of 2026-09-30, closed)",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
       "source_location": "L8"
     },
@@ -455128,7 +455128,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L27",
+      "source_location": "L29",
       "weight": 1.0
     },
     {
@@ -455139,7 +455139,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L30",
+      "source_location": "L32",
       "weight": 1.0
     },
     {
@@ -455150,12 +455150,12 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L52",
+      "source_location": "L54",
       "weight": 1.0
     },
     {
       "source": "stories_11_visual_storytelling_handoff_visual_storytelling_cinema_reel_implementation_handoff",
-      "target": "stories_11_visual_storytelling_handoff_resume_here_as_of_2026_09_30_second_session",
+      "target": "stories_11_visual_storytelling_handoff_resume_here_as_of_2026_09_30_closed",
       "relation": "contains",
       "_origin": "ast",
       "confidence": "EXTRACTED",
@@ -455738,6 +455738,17 @@
     },
     {
       "source": "stories_11_visual_storytelling_st_112_production_integration_and_acceptance_dev_agent_record",
+      "target": "stories_11_visual_storytelling_st_112_production_integration_and_acceptance_known_risks_follow_up",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "stories/11-visual-storytelling/ST-112-production-integration-and-acceptance.md",
+      "source_location": "L100",
+      "weight": 1.0
+    },
+    {
+      "source": "stories_11_visual_storytelling_st_112_production_integration_and_acceptance_dev_agent_record",
       "target": "stories_11_visual_storytelling_st_112_production_integration_and_acceptance_files_changed",
       "relation": "contains",
       "_origin": "ast",
@@ -455788,18 +455799,7 @@
       "confidence": "EXTRACTED",
       "confidence_score": 1.0,
       "source_file": "stories/11-visual-storytelling/ST-112-production-integration-and-acceptance.md",
-      "source_location": "L93",
-      "weight": 1.0
-    },
-    {
-      "source": "stories_11_visual_storytelling_st_112_production_integration_and_acceptance_dev_agent_record",
-      "target": "stories_11_visual_storytelling_st_112_production_integration_and_acceptance_known_risks_follow_up",
-      "relation": "contains",
-      "_origin": "ast",
-      "confidence": "EXTRACTED",
-      "confidence_score": 1.0,
-      "source_file": "stories/11-visual-storytelling/ST-112-production-integration-and-acceptance.md",
-      "source_location": "L99",
+      "source_location": "L94",
       "weight": 1.0
     },
     {
@@ -473759,7 +473759,7 @@
       "confidence_score": 0.95,
       "context": "CinemaScene",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L43",
+      "source_location": "L45",
       "weight": 1.0
     },
     {
@@ -473771,7 +473771,7 @@
       "confidence_score": 0.95,
       "context": "CinemaScene",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L135",
+      "source_location": "L137",
       "weight": 1.0
     },
     {
@@ -474611,7 +474611,7 @@
       "confidence_score": 0.95,
       "context": "HeroVisual",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L161",
+      "source_location": "L163",
       "weight": 1.0
     },
     {
@@ -474695,7 +474695,7 @@
       "confidence_score": 0.95,
       "context": "IllustrationGenerationService.queueCinemaIllustrations",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L128",
+      "source_location": "L130",
       "weight": 1.0
     },
     {
@@ -476867,7 +476867,7 @@
       "confidence_score": 0.95,
       "context": "PostgresRenderService.response()",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L79",
+      "source_location": "L81",
       "weight": 1.0
     },
     {
@@ -477923,7 +477923,7 @@
       "confidence_score": 0.95,
       "context": "SceneSpec",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L90",
+      "source_location": "L92",
       "weight": 1.0
     },
     {
@@ -478475,7 +478475,7 @@
       "confidence_score": 0.95,
       "context": "TitleLine",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L163",
+      "source_location": "L165",
       "weight": 1.0
     },
     {
@@ -479027,7 +479027,7 @@
       "confidence_score": 0.95,
       "context": "assertPinnedCaptionsUnchanged",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L135",
+      "source_location": "L137",
       "weight": 1.0
     },
     {
@@ -479051,7 +479051,7 @@
       "confidence_score": 0.95,
       "context": "assertRestorable",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L88",
+      "source_location": "L90",
       "weight": 1.0
     },
     {
@@ -480527,7 +480527,7 @@
       "confidence_score": 0.95,
       "context": "buildLessonVersionSnapshot",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L134",
+      "source_location": "L136",
       "weight": 1.0
     },
     {
@@ -480635,7 +480635,7 @@
       "confidence_score": 0.95,
       "context": "captionMsToFrame",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L132",
+      "source_location": "L134",
       "weight": 1.0
     },
     {
@@ -480683,7 +480683,7 @@
       "confidence_score": 0.95,
       "context": "carryForwardCinemaDesign",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L37",
+      "source_location": "L39",
       "weight": 1.0
     },
     {
@@ -480695,7 +480695,7 @@
       "confidence_score": 0.95,
       "context": "carryForwardCinemaDesign",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L90",
+      "source_location": "L92",
       "weight": 1.0
     },
     {
@@ -480767,7 +480767,7 @@
       "confidence_score": 0.95,
       "context": "cinemaArtDirectionBrief",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L37",
+      "source_location": "L39",
       "weight": 1.0
     },
     {
@@ -480779,7 +480779,7 @@
       "confidence_score": 0.95,
       "context": "cinemaArtDirectionBrief",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L125",
+      "source_location": "L127",
       "weight": 1.0
     },
     {
@@ -480791,7 +480791,7 @@
       "confidence_score": 0.95,
       "context": "cinemaCaptionsSha256",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L133",
+      "source_location": "L135",
       "weight": 1.0
     },
     {
@@ -480803,7 +480803,7 @@
       "confidence_score": 0.95,
       "context": "cinemaHeroSlotBinding",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L124",
+      "source_location": "L126",
       "weight": 1.0
     },
     {
@@ -480827,7 +480827,7 @@
       "confidence_score": 0.95,
       "context": "cinemaIllustrationBudget",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L125",
+      "source_location": "L127",
       "weight": 1.0
     },
     {
@@ -480851,7 +480851,7 @@
       "confidence_score": 0.95,
       "context": "cinemaIllustrationKey",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L125",
+      "source_location": "L127",
       "weight": 1.0
     },
     {
@@ -480875,7 +480875,7 @@
       "confidence_score": 0.95,
       "context": "cinemaIllustrationPrompt",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L125",
+      "source_location": "L127",
       "weight": 1.0
     },
     {
@@ -480899,7 +480899,7 @@
       "confidence_score": 0.95,
       "context": "cinemaSceneBeatFrames",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L135",
+      "source_location": "L137",
       "weight": 1.0
     },
     {
@@ -480911,7 +480911,7 @@
       "confidence_score": 0.95,
       "context": "cinemaSceneDurationInFrames",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L133",
+      "source_location": "L135",
       "weight": 1.0
     },
     {
@@ -480923,7 +480923,7 @@
       "confidence_score": 0.95,
       "context": "cinemaSceneHasEvidencePicture",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L124",
+      "source_location": "L126",
       "weight": 1.0
     },
     {
@@ -481019,7 +481019,7 @@
       "confidence_score": 0.95,
       "context": "comparisonStyleLabel",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L82",
+      "source_location": "L84",
       "weight": 1.0
     },
     {
@@ -481163,7 +481163,7 @@
       "confidence_score": 0.95,
       "context": "createCinemaIllustrationJobHandler",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L127",
+      "source_location": "L129",
       "weight": 1.0
     },
     {
@@ -481319,7 +481319,7 @@
       "confidence_score": 0.95,
       "context": "createTestDatabase",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L106",
+      "source_location": "L108",
       "weight": 1.0
     },
     {
@@ -481331,7 +481331,7 @@
       "confidence_score": 0.95,
       "context": "createVisualPlanJobHandler",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L113",
+      "source_location": "L115",
       "weight": 1.0
     },
     {
@@ -481343,7 +481343,7 @@
       "confidence_score": 0.95,
       "context": "creativeDesignAssetIds",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L37",
+      "source_location": "L39",
       "weight": 1.0
     },
     {
@@ -481355,7 +481355,7 @@
       "confidence_score": 0.95,
       "context": "creativeDesignAssetIds",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L86",
+      "source_location": "L88",
       "weight": 1.0
     },
     {
@@ -481379,7 +481379,7 @@
       "confidence_score": 0.95,
       "context": "creativeDesignStyleLabel",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L37",
+      "source_location": "L39",
       "weight": 1.0
     },
     {
@@ -481391,7 +481391,7 @@
       "confidence_score": 0.95,
       "context": "creativeDesignStyleLabel",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L74",
+      "source_location": "L76",
       "weight": 1.0
     },
     {
@@ -481535,7 +481535,7 @@
       "confidence_score": 0.95,
       "context": "detailFontSize",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L56",
+      "source_location": "L58",
       "weight": 1.0
     },
     {
@@ -481571,7 +481571,7 @@
       "confidence_score": 0.95,
       "context": "edgeEnds",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L53",
+      "source_location": "L55",
       "weight": 1.0
     },
     {
@@ -481631,7 +481631,7 @@
       "confidence_score": 0.95,
       "context": "eligibleCinemaCompositions",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L97",
+      "source_location": "L99",
       "weight": 1.0
     },
     {
@@ -481691,7 +481691,7 @@
       "confidence_score": 0.95,
       "context": "estimateLineWidth",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L173",
+      "source_location": "L175",
       "weight": 1.0
     },
     {
@@ -481739,7 +481739,7 @@
       "confidence_score": 0.95,
       "context": "evaluateLessonValidation",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L147",
+      "source_location": "L149",
       "weight": 1.0
     },
     {
@@ -481763,7 +481763,7 @@
       "confidence_score": 0.95,
       "context": "exitPoint",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L53",
+      "source_location": "L55",
       "weight": 1.0
     },
     {
@@ -481859,7 +481859,7 @@
       "confidence_score": 0.95,
       "context": "fitText",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L56",
+      "source_location": "L58",
       "weight": 1.0
     },
     {
@@ -481895,7 +481895,7 @@
       "confidence_score": 0.95,
       "context": "generateCandidateIllustration",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L127",
+      "source_location": "L129",
       "weight": 1.0
     },
     {
@@ -481955,7 +481955,7 @@
       "confidence_score": 0.95,
       "context": "generateMissing",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L144",
+      "source_location": "L146",
       "weight": 1.0
     },
     {
@@ -482207,7 +482207,7 @@
       "confidence_score": 0.95,
       "context": "groundCinemaBeats",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L162",
+      "source_location": "L164",
       "weight": 1.0
     },
     {
@@ -482219,7 +482219,7 @@
       "confidence_score": 0.95,
       "context": "groundEmphasis",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L170",
+      "source_location": "L172",
       "weight": 1.0
     },
     {
@@ -482243,7 +482243,7 @@
       "confidence_score": 0.95,
       "context": "grownRects",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L53",
+      "source_location": "L55",
       "weight": 1.0
     },
     {
@@ -482279,7 +482279,7 @@
       "confidence_score": 0.95,
       "context": "headerHeight",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L58",
+      "source_location": "L60",
       "weight": 1.0
     },
     {
@@ -482291,7 +482291,7 @@
       "confidence_score": 0.95,
       "context": "headlineAddsInformation",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L172",
+      "source_location": "L174",
       "weight": 1.0
     },
     {
@@ -482303,7 +482303,7 @@
       "confidence_score": 0.95,
       "context": "headlineShownInContent",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L172",
+      "source_location": "L174",
       "weight": 1.0
     },
     {
@@ -482351,7 +482351,7 @@
       "confidence_score": 0.95,
       "context": "hydrateProductionComposition",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L87",
+      "source_location": "L89",
       "weight": 1.0
     },
     {
@@ -482591,7 +482591,7 @@
       "confidence_score": 0.95,
       "context": "loadSceneCaptionsMs",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L134",
+      "source_location": "L136",
       "weight": 1.0
     },
     {
@@ -482639,7 +482639,7 @@
       "confidence_score": 0.95,
       "context": "loadState",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L134",
+      "source_location": "L136",
       "weight": 1.0
     },
     {
@@ -483095,7 +483095,7 @@
       "confidence_score": 0.95,
       "context": "mutedText",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L71",
+      "source_location": "L73",
       "weight": 1.0
     },
     {
@@ -483455,7 +483455,7 @@
       "confidence_score": 0.95,
       "context": "parseStoredCreativeDesignManifest",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L95",
+      "source_location": "L97",
       "weight": 1.0
     },
     {
@@ -483491,7 +483491,7 @@
       "confidence_score": 0.95,
       "context": "persistDraft",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L96",
+      "source_location": "L98",
       "weight": 1.0
     },
     {
@@ -483539,7 +483539,7 @@
       "confidence_score": 0.95,
       "context": "persistLessonStoryboard",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L101",
+      "source_location": "L103",
       "weight": 1.0
     },
     {
@@ -483635,7 +483635,7 @@
       "confidence_score": 0.95,
       "context": "planCinemaDesign",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L37",
+      "source_location": "L39",
       "weight": 1.0
     },
     {
@@ -483647,7 +483647,7 @@
       "confidence_score": 0.95,
       "context": "planCinemaDesign",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L101",
+      "source_location": "L103",
       "weight": 1.0
     },
     {
@@ -483671,7 +483671,7 @@
       "confidence_score": 0.95,
       "context": "planCinemaIllustrations",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L125",
+      "source_location": "L127",
       "weight": 1.0
     },
     {
@@ -484283,7 +484283,7 @@
       "confidence_score": 0.95,
       "context": "resolveAssets()",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L86",
+      "source_location": "L88",
       "weight": 1.0
     },
     {
@@ -484295,7 +484295,7 @@
       "confidence_score": 0.95,
       "context": "resolveCinemaBeatFrames",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L36",
+      "source_location": "L38",
       "weight": 1.0
     },
     {
@@ -484463,7 +484463,7 @@
       "confidence_score": 0.95,
       "context": "sceneCaptionCues",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L43",
+      "source_location": "L45",
       "weight": 1.0
     },
     {
@@ -484475,7 +484475,7 @@
       "confidence_score": 0.95,
       "context": "sceneCaptionCues",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L136",
+      "source_location": "L138",
       "weight": 1.0
     },
     {
@@ -484559,7 +484559,7 @@
       "confidence_score": 0.95,
       "context": "sceneSpecs()",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L95",
+      "source_location": "L97",
       "weight": 1.0
     },
     {
@@ -484631,7 +484631,7 @@
       "confidence_score": 0.95,
       "context": "selectedLayoutName",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L103",
+      "source_location": "L105",
       "weight": 1.0
     },
     {
@@ -484643,7 +484643,7 @@
       "confidence_score": 0.95,
       "context": "sequence",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L62",
+      "source_location": "L64",
       "weight": 1.0
     },
     {
@@ -484655,7 +484655,7 @@
       "confidence_score": 0.95,
       "context": "shapePartPoints",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L166",
+      "source_location": "L168",
       "weight": 1.0
     },
     {
@@ -484979,7 +484979,7 @@
       "confidence_score": 0.95,
       "context": "superseded",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L118",
+      "source_location": "L120",
       "weight": 1.0
     },
     {
@@ -485135,7 +485135,7 @@
       "confidence_score": 0.95,
       "context": "validateCreativeDesignManifestV2",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L37",
+      "source_location": "L39",
       "weight": 1.0
     },
     {
@@ -485147,7 +485147,7 @@
       "confidence_score": 0.95,
       "context": "validateCreativeDesignManifestV2",
       "source_file": "stories/11-visual-storytelling/HANDOFF.md",
-      "source_location": "L93",
+      "source_location": "L95",
       "weight": 1.0
     },
     {
@@ -485450,5 +485450,5 @@
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "10bd3a26b8185ae16b7f9c6a408524d2904cf6f3"
+  "built_at_commit": "bf91b0f44507ef3526d987eea0ce729be1a6750d"
 }

@@ -1,17 +1,19 @@
 # Visual storytelling (cinema-reel) — implementation handoff
 
 Source plan: [docs/cinema-reel.md](../../docs/cinema-reel.md). Architecture: [ADR-015](../../docs/adr/ADR-015-v2-composition-planning-and-pre-approval-asset-substitution.md).
-Stories: ST-108 to ST-112 are all In Review, with Dev Agent Records written and rows added to STORY_INDEX.md.
+Stories: ST-108 to ST-112 are all Done, with Dev Agent Records written and rows added to STORY_INDEX.md.
 
-Steps 1–9 are committed on `feat/st-107-video-brief-budget-self-repair` (852af5d, af971c7, 10bd3a2). The 2026-09-30 visual fixes and step 10 are **uncommitted**. Ask the user before committing or branching.
+Steps 1–9 are committed on `feat/st-107-video-brief-budget-self-repair` (852af5d, af971c7, 10bd3a2). The 2026-09-30 visual fixes and step 10 are committed as bf91b0f. Ask the user before committing or branching.
 
-## Resume here (as of 2026-09-30, second session)
-- **All ten steps are done.** Steps 1–9 are committed. The visual fixes listed under step 9 ("Fixed on 2026-09-30") and the step 10 bookkeeping are uncommitted.
-- **What is left needs the user:**
-  - Watch the three proof MP4s with sound at desktop and phone size and decide whether they pass (ST-112 AC2 and AC5). They predate the 2026-09-30 visual fixes.
-  - To see those fixes in an MP4, a lesson needs a new plan and a paid re-render (a render is content-addressed). The engineering lesson would also get its pictures re-generated for the dark identity. Ask before any paid provider call.
-  - After acceptance, flip the code default of `CREATIVE_DESIGN_V2_DEFAULT` in `packages/config/src/index.ts` and its test, and move the stories to Done.
-  - Commit the uncommitted work when the user says so.
+## Resume here (as of 2026-09-30, closed)
+- **The work is finished.** All ten steps are committed (last: bf91b0f). The user accepted the proof on 2026-09-30, so the code default of `CREATIVE_DESIGN_V2_DEFAULT` is now **true** and ST-108 to ST-112 are Done. That flip and the Done statuses are uncommitted until the user says to commit.
+- **Optional follow-ups, none blocking:**
+  - Regenerate the engineering lesson's pictures for the dark Systems identity (paid image calls).
+  - Re-render the finance and investigated lessons to see the 2026-09-30 fixes in them (one plan call each).
+  - A planner kicker that wraps to two lines pushes an annotated definition's term down.
+  - A `visual-plan@v2` prompt that names each scene's primary text, so fewer emphasis words are dropped.
+  - ST-108 AC3 (no border unless declared) was reviewed from screenshots and has no test.
+  - The local `.env` already had the flag on; nothing changes locally.
 - **Decisions (2026-09-29):**
   - The leftover `avlp_test_*` databases were dropped (10). Only `postgres` and `visual_learning` remain.
   - The `creative-design.interpret` envelope entry is kept.

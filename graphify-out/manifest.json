@@ -2502,15 +2502,15 @@
     "semantic_hash": ""
   },
   "packages/config/src/index.test.ts": {
-    "mtime": 1790713619.0190456,
-    "seen": 1790714371.5107691,
-    "ast_hash": "45a96cfa38a6be2a3414971aa92652a1",
+    "mtime": 1790766146.3926883,
+    "seen": 1790766439.0162425,
+    "ast_hash": "6443fbc3afe02e1167b33e452518eea6",
     "semantic_hash": ""
   },
   "packages/config/src/index.ts": {
-    "mtime": 1790713237.9633634,
-    "seen": 1790714371.5107715,
-    "ast_hash": "2f093b7b84592d7c3e33c18deefb2aa0",
+    "mtime": 1790766136.8863008,
+    "seen": 1790766439.0162454,
+    "ast_hash": "8bea4566a83001c2aacc4c054dbe6bb0",
     "semantic_hash": ""
   },
   "packages/config/tsconfig.json": {
@@ -5004,9 +5004,9 @@
     "semantic_hash": ""
   },
   "STORY_INDEX.md": {
-    "mtime": 1790762514.4851964,
-    "seen": 1790762893.5486588,
-    "ast_hash": "0f106c1c6b11ae4ec448f27301e02d87",
+    "mtime": 1790766345.2125082,
+    "seen": 1790766439.1116736,
+    "ast_hash": "bb0d8d510d79f7faf7d1931b908d3b21",
     "semantic_hash": ""
   },
   "STORY_TEMPLATE.md": {
@@ -7752,9 +7752,9 @@
     "semantic_hash": ""
   },
   "packages/scene-library/src/cinema/compositions/hero.tsx": {
-    "mtime": 1790762004.4503794,
-    "seen": 1790762893.5007684,
-    "ast_hash": "9883650a9c0983f15137fa51e970d8c7",
+    "mtime": 1790763913.8535426,
+    "seen": 1790766439.063055,
+    "ast_hash": "79d45b33fd7c6157a1a3bcb6c72ba430",
     "semantic_hash": ""
   },
   "packages/scene-library/src/cinema/compositions/sequence.tsx": {
@@ -7842,39 +7842,39 @@
     "semantic_hash": ""
   },
   "stories/11-visual-storytelling/HANDOFF.md": {
-    "mtime": 1790762760.7501497,
-    "seen": 1790762893.597125,
-    "ast_hash": "b243057023dbbe699840073ff9ded701",
+    "mtime": 1790766345.2291725,
+    "seen": 1790766439.1613076,
+    "ast_hash": "4874e30f614ce09ae2291e6c25722b8b",
     "semantic_hash": ""
   },
   "stories/11-visual-storytelling/ST-108-repair-creative-rendering-for-new-videos.md": {
-    "mtime": 1790762623.0068927,
-    "seen": 1790762893.597128,
-    "ast_hash": "b7ab302c8308a98bcb6523817a2f1a66",
+    "mtime": 1790766345.0943024,
+    "seen": 1790766439.1613102,
+    "ast_hash": "002eab420fd527b3b3584f736133e597",
     "semantic_hash": ""
   },
   "stories/11-visual-storytelling/ST-109-v2-design-contracts-and-composition-families.md": {
-    "mtime": 1790762623.0079126,
-    "seen": 1790762893.5971303,
-    "ast_hash": "e8a5fcacf8c6c2e14a404f58aa5755a9",
+    "mtime": 1790766345.1289961,
+    "seen": 1790766439.1613126,
+    "ast_hash": "20e44dcff3f723a17dc2251aa13e148f",
     "semantic_hash": ""
   },
   "stories/11-visual-storytelling/ST-110-visual-planning-and-purposeful-imagery.md": {
-    "mtime": 1790762623.0099108,
-    "seen": 1790762893.597132,
-    "ast_hash": "a432cabedae446f0263f5b9dea81d410",
+    "mtime": 1790766345.1384366,
+    "seen": 1790766439.1613142,
+    "ast_hash": "bacff38d54dd528478d62eda8b5189a0",
     "semantic_hash": ""
   },
   "stories/11-visual-storytelling/ST-111-narration-led-motion.md": {
-    "mtime": 1790762623.0109084,
-    "seen": 1790762893.5971339,
-    "ast_hash": "04d51dc51d02fd4e2fa740fe84cbff2a",
+    "mtime": 1790766345.1754842,
+    "seen": 1790766439.1613162,
+    "ast_hash": "a8725107d1152590a7b139492aa3df39",
     "semantic_hash": ""
   },
   "stories/11-visual-storytelling/ST-112-production-integration-and-acceptance.md": {
-    "mtime": 1790762623.01191,
-    "seen": 1790762893.5971353,
-    "ast_hash": "e0e0bef69b18df4dceb24d3a102ee76a",
+    "mtime": 1790766345.1900527,
+    "seen": 1790766439.1613178,
+    "ast_hash": "8fff700ede43a8e602278e8a96aa0471",
     "semantic_hash": ""
   },
   ".runtime-logs/cinema-everyday-frames/t0000s.png": {
@@ -8091,1158 +8091,6 @@
     "mtime": 1790694619.3691907,
     "seen": 1790696073.293253,
     "ast_hash": "62596cb7da42862281703ed93e056e93",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__chapter__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762663.191704,
-    "seen": 1790762893.6435463,
-    "ast_hash": "57032f860353fefb8f4da46bcf640aa0",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__chapter__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762663.5983388,
-    "seen": 1790762893.6435485,
-    "ast_hash": "7d9f562e9b01f5e84fd3776c8d24f0c1",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__chapter__generatedAnalogyFixture.png": {
-    "mtime": 1790762664.9867299,
-    "seen": 1790762893.6435525,
-    "ast_hash": "9c804f37c37dd85a0780cf5325743577",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__chapter__maximumDensityHookFixture.png": {
-    "mtime": 1790762666.8284762,
-    "seen": 1790762893.643555,
-    "ast_hash": "33ee5e2f1ec183e0937e7f6453770f8a",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__comparison-split__asymmetricIpoFixture.png": {
-    "mtime": 1790762664.1349905,
-    "seen": 1790762893.6435564,
-    "ast_hash": "0f65b9ffe53e223891536107ac910350",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__comparison-split__generatedAnalogyFixture.png": {
-    "mtime": 1790762665.141838,
-    "seen": 1790762893.6435587,
-    "ast_hash": "aad758518401a7b3bbb36cdc6f592dfe",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__comparison-split__imageAssistedComparisonFixture.png": {
-    "mtime": 1790762665.9332438,
-    "seen": 1790762893.6435606,
-    "ast_hash": "e89678a59a7114d79caf96656a1c9b0b",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__comparison-stacked__generatedAnalogyFixture.png": {
-    "mtime": 1790762665.2680573,
-    "seen": 1790762893.6435628,
-    "ast_hash": "871d1b7ea2c1f44363c706689ea6c94d",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__comparison-stacked__imageAssistedComparisonFixture.png": {
-    "mtime": 1790762666.1571681,
-    "seen": 1790762893.6435647,
-    "ast_hash": "363180b81028b37e2612745cdac792cd",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__connected__asymmetricIpoFixture.png": {
-    "mtime": 1790762664.2449324,
-    "seen": 1790762893.6435664,
-    "ast_hash": "073e4c1d130ca76a3948f70930074e21",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__connected__branchingCauseEffectFixture.png": {
-    "mtime": 1790762664.3406925,
-    "seen": 1790762893.643568,
-    "ast_hash": "3e47ce7adb9400f110e180cf452735b0",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__connected__branchingProcessGraphFixture.png": {
-    "mtime": 1790762664.4880283,
-    "seen": 1790762893.6435695,
-    "ast_hash": "cffca5b167f8d1097c7b5b973b515b4a",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__hero-annotated__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762663.3410723,
-    "seen": 1790762893.6435711,
-    "ast_hash": "34b15398ba7c2c9e795cac7cd238460f",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__hero-annotated__assetDiagramFixture.png": {
-    "mtime": 1790762663.8997548,
-    "seen": 1790762893.643573,
-    "ast_hash": "0702d4448a8bef3af8bf6b765f3eba88",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__hero-indexed__assetDiagramFixture.png": {
-    "mtime": 1790762664.0227275,
-    "seen": 1790762893.6435745,
-    "ast_hash": "f8ef56decc48dc81da230b45ea1046dc",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__hero-indexed__iconAssistedProcessFixture.png": {
-    "mtime": 1790762665.7946186,
-    "seen": 1790762893.6435766,
-    "ast_hash": "dbeec95375ccf5ed007350adccfe9ae4",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__illustrated-headline__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762662.8889766,
-    "seen": 1790762893.6435778,
-    "ast_hash": "89714e1785c8319040826a61bdea5539",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__illustrated-headline__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762663.4736462,
-    "seen": 1790762893.643581,
-    "ast_hash": "2d7aa0a3b8c28f7ab112430bfc98e3f2",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__illustrated-headline__generatedAnalogyFixture.png": {
-    "mtime": 1790762664.7297282,
-    "seen": 1790762893.6435833,
-    "ast_hash": "1920ea18a566364cb7ee4e1b64363da5",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__illustrated-headline__maximumDensityHookFixture.png": {
-    "mtime": 1790762666.646417,
-    "seen": 1790762893.643585,
-    "ast_hash": "20ee6215f354b977e0506a6c3fd9871c",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__sequence__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762663.7087984,
-    "seen": 1790762893.6435866,
-    "ast_hash": "8aec4333e132761396537eaacd938bbc",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__sequence__genericIpoFixture.png": {
-    "mtime": 1790762665.375312,
-    "seen": 1790762893.6435885,
-    "ast_hash": "1cfa24886c2e91d75a3ff7915ce42215",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__sequence__iconAssistedProcessFixture.png": {
-    "mtime": 1790762665.598598,
-    "seen": 1790762893.6435905,
-    "ast_hash": "ec7f5056149a91cb404dea4489636d6c",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__sequence__nonNumericalWorkedExampleFixture.png": {
-    "mtime": 1790762667.6541023,
-    "seen": 1790762893.6435916,
-    "ast_hash": "6d65620ce1e18b7cdfd1c7dc6d88a5d7",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__sequence__simpleCauseEffectFixture.png": {
-    "mtime": 1790762668.2503998,
-    "seen": 1790762893.6435933,
-    "ast_hash": "e5fa6ebc4779336120202af2eae442b8",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__statement__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762663.0322351,
-    "seen": 1790762893.643595,
-    "ast_hash": "0114cbd52f88b7ee31161dc8396e10ff",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__statement__generatedAnalogyFixture.png": {
-    "mtime": 1790762664.8622773,
-    "seen": 1790762893.6435962,
-    "ast_hash": "ca2501c2a1a4526538a6d111f254b3f3",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__statement__maximumDensityHookFixture.png": {
-    "mtime": 1790762666.7237244,
-    "seen": 1790762893.6435978,
-    "ast_hash": "82c3f5a6384d3118034f6236a46ee89c",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__statement__textOnlySummaryFixture.png": {
-    "mtime": 1790762669.0690582,
-    "seen": 1790762893.643599,
-    "ast_hash": "061bb79cf190c340911abcc3a99dfa9c",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__takeaway__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762663.7991412,
-    "seen": 1790762893.6436014,
-    "ast_hash": "7bb0a5636fa25b0c5b29d2b64c375d69",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__takeaway__maximumDensityHookFixture.png": {
-    "mtime": 1790762666.9090993,
-    "seen": 1790762893.6436028,
-    "ast_hash": "30ee263ac8e32e5596a053042092b62b",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/editorial__takeaway__maximumWorkedExampleFixture.png": {
-    "mtime": 1790762667.3623767,
-    "seen": 1790762893.6436045,
-    "ast_hash": "5974e13e3cc4d8016c4011153f742d1d",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__chapter__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762653.2162979,
-    "seen": 1790762893.6436057,
-    "ast_hash": "33e7563634452611de07f7b83ef6e3ab",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__chapter__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762653.681989,
-    "seen": 1790762893.6436076,
-    "ast_hash": "7f4c02cd77e551f2adad0d788e4eaad5",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__chapter__generatedAnalogyFixture.png": {
-    "mtime": 1790762655.2544336,
-    "seen": 1790762893.6436098,
-    "ast_hash": "1a39d2136168b89f130f76ac87958e9a",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__chapter__maximumDensityHookFixture.png": {
-    "mtime": 1790762657.011793,
-    "seen": 1790762893.6436117,
-    "ast_hash": "608ea880efc4626e04d3328f7e613eb7",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__comparison-split__asymmetricIpoFixture.png": {
-    "mtime": 1790762654.3900871,
-    "seen": 1790762893.643613,
-    "ast_hash": "f59bee0aadfc0bae1179967b787943bd",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__comparison-split__generatedAnalogyFixture.png": {
-    "mtime": 1790762655.353852,
-    "seen": 1790762893.6436157,
-    "ast_hash": "f3210fadcc8c08da2359ea114a9c272b",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__comparison-split__imageAssistedComparisonFixture.png": {
-    "mtime": 1790762656.1017194,
-    "seen": 1790762893.643618,
-    "ast_hash": "67b0e7291a5a3bf049470e6f7af9b49b",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__comparison-stacked__generatedAnalogyFixture.png": {
-    "mtime": 1790762655.4786403,
-    "seen": 1790762893.6436205,
-    "ast_hash": "01cdc0079dcf703be04cdac5cd17de68",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__comparison-stacked__imageAssistedComparisonFixture.png": {
-    "mtime": 1790762656.252401,
-    "seen": 1790762893.6436224,
-    "ast_hash": "5aad2319cd59b4a83357889e83af5df8",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__connected__asymmetricIpoFixture.png": {
-    "mtime": 1790762654.5315135,
-    "seen": 1790762893.6436243,
-    "ast_hash": "40d5385429728af2e4371f0ad32b1250",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__connected__branchingCauseEffectFixture.png": {
-    "mtime": 1790762654.662742,
-    "seen": 1790762893.6436257,
-    "ast_hash": "b50555c89e7b93a5bcc6af04f590dd4d",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__connected__branchingProcessGraphFixture.png": {
-    "mtime": 1790762654.7994688,
-    "seen": 1790762893.643627,
-    "ast_hash": "3dbd18c95844c7ed040c9dbd616d5558",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__hero-annotated__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762653.3737805,
-    "seen": 1790762893.6436284,
-    "ast_hash": "0cadedd82c9eba7b557aa435987520b5",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__hero-annotated__assetDiagramFixture.png": {
-    "mtime": 1790762654.0921211,
-    "seen": 1790762893.6436296,
-    "ast_hash": "80b11a4c342ee6bdf1e6b78f5d23dbb9",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__hero-indexed__assetDiagramFixture.png": {
-    "mtime": 1790762654.2418585,
-    "seen": 1790762893.6436317,
-    "ast_hash": "8596f9075f21216b75449d5b4b9c5e16",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__hero-indexed__iconAssistedProcessFixture.png": {
-    "mtime": 1790762655.9500763,
-    "seen": 1790762893.6436331,
-    "ast_hash": "531be59f940813c739504632576ebd07",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__illustrated-headline__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762652.9121518,
-    "seen": 1790762893.6436348,
-    "ast_hash": "973eb28ff0418ceee4ec0ee8abd17b55",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__illustrated-headline__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762653.5461907,
-    "seen": 1790762893.6436362,
-    "ast_hash": "b01e48713de26b41db8cd2f6590be06f",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__illustrated-headline__generatedAnalogyFixture.png": {
-    "mtime": 1790762655.04612,
-    "seen": 1790762893.6436381,
-    "ast_hash": "9b8c65ac875c0550c617fa376e727e5d",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__illustrated-headline__maximumDensityHookFixture.png": {
-    "mtime": 1790762656.789009,
-    "seen": 1790762893.6436396,
-    "ast_hash": "351add08fc10ca5498d57be8638d3c3f",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__sequence__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762653.8115873,
-    "seen": 1790762893.6436412,
-    "ast_hash": "307d51e4f6fd0a2e47c0eb1f4b2771d4",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__sequence__genericIpoFixture.png": {
-    "mtime": 1790762655.5629938,
-    "seen": 1790762893.6436431,
-    "ast_hash": "89a07db4d15c00c6a6df28d0cc0f5d9f",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__sequence__iconAssistedProcessFixture.png": {
-    "mtime": 1790762655.7679455,
-    "seen": 1790762893.6436446,
-    "ast_hash": "d930728548c98bfe8d1ecceb77069da7",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__sequence__nonNumericalWorkedExampleFixture.png": {
-    "mtime": 1790762657.9992547,
-    "seen": 1790762893.6436465,
-    "ast_hash": "c49a08510a69ffb4ebe4299b948571bf",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__sequence__simpleCauseEffectFixture.png": {
-    "mtime": 1790762658.4842825,
-    "seen": 1790762893.6436481,
-    "ast_hash": "66f60de116bf7907e1f544aec76889b0",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__statement__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762653.0651672,
-    "seen": 1790762893.6436496,
-    "ast_hash": "0e02c08bc5968fc4659de70fd87f6863",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__statement__generatedAnalogyFixture.png": {
-    "mtime": 1790762655.1490095,
-    "seen": 1790762893.643651,
-    "ast_hash": "372219f153bbbedbaddf62bed480b34b",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__statement__maximumDensityHookFixture.png": {
-    "mtime": 1790762656.895659,
-    "seen": 1790762893.6436536,
-    "ast_hash": "2e410ae76af3cec5d2050a46b2218859",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__statement__textOnlySummaryFixture.png": {
-    "mtime": 1790762659.34887,
-    "seen": 1790762893.6436558,
-    "ast_hash": "a2a7f8ff1138e8cd6238ed904056d929",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__takeaway__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762653.940768,
-    "seen": 1790762893.6436574,
-    "ast_hash": "a5546d3d78076493464a65e728692dc3",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__takeaway__maximumDensityHookFixture.png": {
-    "mtime": 1790762657.1133535,
-    "seen": 1790762893.6436596,
-    "ast_hash": "4d85820b17e84692bdf29f0ad45941a3",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/essential__takeaway__maximumWorkedExampleFixture.png": {
-    "mtime": 1790762657.7503161,
-    "seen": 1790762893.6436617,
-    "ast_hash": "0bbfdbe5f275eefeec2d5abe632ec1d6",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__chapter__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762672.5883696,
-    "seen": 1790762893.6436632,
-    "ast_hash": "efe2042a96231590b90f44f5eec83d69",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__chapter__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762673.0090325,
-    "seen": 1790762893.6436646,
-    "ast_hash": "1fca1cd0a9c8469046f2e1e182338e50",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__chapter__generatedAnalogyFixture.png": {
-    "mtime": 1790762674.4535744,
-    "seen": 1790762893.6436665,
-    "ast_hash": "9fb8a251f5a010d0c811dd4bf8333fef",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__chapter__maximumDensityHookFixture.png": {
-    "mtime": 1790762676.326924,
-    "seen": 1790762893.6436682,
-    "ast_hash": "82f4a815a765627decf9873b6fde8cee",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__comparison-split__asymmetricIpoFixture.png": {
-    "mtime": 1790762673.6553214,
-    "seen": 1790762893.64367,
-    "ast_hash": "26adb6a7bc56b12743cac3c96b7f2759",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__comparison-split__generatedAnalogyFixture.png": {
-    "mtime": 1790762674.6056888,
-    "seen": 1790762893.6436715,
-    "ast_hash": "c7abddd9c1574eb5a3cbd1a9387da590",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__comparison-split__imageAssistedComparisonFixture.png": {
-    "mtime": 1790762675.3092096,
-    "seen": 1790762893.6436732,
-    "ast_hash": "a4e91c230fb26f698eba54afae103316",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__comparison-stacked__generatedAnalogyFixture.png": {
-    "mtime": 1790762674.7256823,
-    "seen": 1790762893.6436749,
-    "ast_hash": "1b71a4ba4348041da320d3874e1939d2",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__comparison-stacked__imageAssistedComparisonFixture.png": {
-    "mtime": 1790762675.4395463,
-    "seen": 1790762893.6436768,
-    "ast_hash": "9b6d759603ad9aa474bc8587bdd44322",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__connected__asymmetricIpoFixture.png": {
-    "mtime": 1790762673.7616239,
-    "seen": 1790762893.6436782,
-    "ast_hash": "afdeaab7b460c458a1d7df48da9554b8",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__connected__branchingCauseEffectFixture.png": {
-    "mtime": 1790762673.855293,
-    "seen": 1790762893.6436803,
-    "ast_hash": "2bbc6aa9871dde6e613de7e539e8b093",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__connected__branchingProcessGraphFixture.png": {
-    "mtime": 1790762673.969685,
-    "seen": 1790762893.6436818,
-    "ast_hash": "4dd7d971a31846f6e0b97210c07bf231",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__hero-annotated__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762672.7182794,
-    "seen": 1790762893.6436834,
-    "ast_hash": "702aa897696dc1202b48764d43754fd0",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__hero-annotated__assetDiagramFixture.png": {
-    "mtime": 1790762673.4314904,
-    "seen": 1790762893.6436849,
-    "ast_hash": "acfe3e74566f2643fb28e84f81856805",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__hero-indexed__assetDiagramFixture.png": {
-    "mtime": 1790762673.5523546,
-    "seen": 1790762893.643687,
-    "ast_hash": "03885bacc69ce4f1b456715f6367d6d7",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__hero-indexed__iconAssistedProcessFixture.png": {
-    "mtime": 1790762675.1843865,
-    "seen": 1790762893.6436892,
-    "ast_hash": "afab248a4ec0d1931a981cee032a1ff5",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__illustrated-headline__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762672.3722608,
-    "seen": 1790762893.643691,
-    "ast_hash": "e9a82f5c4d12453222f35e8d96d7b998",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__illustrated-headline__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762672.843235,
-    "seen": 1790762893.643693,
-    "ast_hash": "ffce7e9e9bb158f45d7a1fde5d8cc0a9",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__illustrated-headline__generatedAnalogyFixture.png": {
-    "mtime": 1790762674.1375227,
-    "seen": 1790762893.6436954,
-    "ast_hash": "656abc7bf9c9764af9ada20561f56c5d",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__illustrated-headline__maximumDensityHookFixture.png": {
-    "mtime": 1790762676.115237,
-    "seen": 1790762893.6436973,
-    "ast_hash": "180448d34173b3e77097f38e3dbfbef4",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__sequence__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762673.1538353,
-    "seen": 1790762893.6436985,
-    "ast_hash": "e71f1bfb53dbb9ce57b06aca236f26df",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__sequence__genericIpoFixture.png": {
-    "mtime": 1790762674.8346665,
-    "seen": 1790762893.6437004,
-    "ast_hash": "8961ab282af8cf3b98c0c78c319940bb",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__sequence__iconAssistedProcessFixture.png": {
-    "mtime": 1790762675.043211,
-    "seen": 1790762893.6437018,
-    "ast_hash": "02d7d12c623f2c16459d2a7cdcd55039",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__sequence__nonNumericalWorkedExampleFixture.png": {
-    "mtime": 1790762677.1728435,
-    "seen": 1790762893.6437032,
-    "ast_hash": "556c413425fc99d425191821a54e33e2",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__sequence__simpleCauseEffectFixture.png": {
-    "mtime": 1790762677.7014244,
-    "seen": 1790762893.6437047,
-    "ast_hash": "e29226131c18fcb1acd91e5eda3e662f",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__statement__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762672.4580913,
-    "seen": 1790762893.643706,
-    "ast_hash": "6dc0bf4c425b3054a7103848d46d0a95",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__statement__generatedAnalogyFixture.png": {
-    "mtime": 1790762674.3045228,
-    "seen": 1790762893.6437073,
-    "ast_hash": "7590e8dbbaf1adba158122b3e7b2bfa0",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__statement__maximumDensityHookFixture.png": {
-    "mtime": 1790762676.2139935,
-    "seen": 1790762893.6437092,
-    "ast_hash": "4bf107deaac5d5e9962802d4c1c375ca",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__statement__textOnlySummaryFixture.png": {
-    "mtime": 1790762678.424735,
-    "seen": 1790762893.6437104,
-    "ast_hash": "180f559b4afcfb5c87e16781b01889fd",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__takeaway__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762673.2946544,
-    "seen": 1790762893.6437123,
-    "ast_hash": "0dea6aeb049a4467042abd6ea40c833a",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__takeaway__maximumDensityHookFixture.png": {
-    "mtime": 1790762676.4235277,
-    "seen": 1790762893.6437137,
-    "ast_hash": "b3f524a86bbf857e25f78bdb67da28f9",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/everyday__takeaway__maximumWorkedExampleFixture.png": {
-    "mtime": 1790762676.872588,
-    "seen": 1790762893.6437151,
-    "ast_hash": "28309aabdeb8a69efb08bbfb159c72c9",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__chapter__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762690.1394584,
-    "seen": 1790762893.6437168,
-    "ast_hash": "f177c941cc038282395f5f4049dc655c",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__chapter__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762690.5368874,
-    "seen": 1790762893.643719,
-    "ast_hash": "3f5e0396c0c8caaea270e35742d3ae37",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__chapter__generatedAnalogyFixture.png": {
-    "mtime": 1790762691.904506,
-    "seen": 1790762893.6437204,
-    "ast_hash": "0fe064bf95d0771cce3688a24a9fe828",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__chapter__maximumDensityHookFixture.png": {
-    "mtime": 1790762693.7960067,
-    "seen": 1790762893.6437223,
-    "ast_hash": "bbead16889280108c6da352df242e55b",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__comparison-split__asymmetricIpoFixture.png": {
-    "mtime": 1790762691.0506115,
-    "seen": 1790762893.643724,
-    "ast_hash": "8cbf2398abffeace63ffabe534a0adc4",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__comparison-split__generatedAnalogyFixture.png": {
-    "mtime": 1790762692.018186,
-    "seen": 1790762893.6437256,
-    "ast_hash": "b894d6253d14005a2ee275c32755796f",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__comparison-split__imageAssistedComparisonFixture.png": {
-    "mtime": 1790762692.7845755,
-    "seen": 1790762893.6437273,
-    "ast_hash": "5a65a4697f82ec68a8598bae12f22b38",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__comparison-stacked__generatedAnalogyFixture.png": {
-    "mtime": 1790762692.131183,
-    "seen": 1790762893.643729,
-    "ast_hash": "721034e266433b4b7cadf39c55dbd137",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__comparison-stacked__imageAssistedComparisonFixture.png": {
-    "mtime": 1790762692.9473345,
-    "seen": 1790762893.6437304,
-    "ast_hash": "4227ac4eec8b04eefb34fcc82440f821",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__connected__asymmetricIpoFixture.png": {
-    "mtime": 1790762691.1498365,
-    "seen": 1790762893.6437323,
-    "ast_hash": "de9395c2079c34a8b83a247164635a7a",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__connected__branchingCauseEffectFixture.png": {
-    "mtime": 1790762691.29219,
-    "seen": 1790762893.6437342,
-    "ast_hash": "83e5e35f50f7f1e9e245d7b55d7fe960",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__connected__branchingProcessGraphFixture.png": {
-    "mtime": 1790762691.434835,
-    "seen": 1790762893.6437361,
-    "ast_hash": "e52a9328537b44185bc00c497c42e5f5",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__hero-annotated__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762690.2844567,
-    "seen": 1790762893.6437376,
-    "ast_hash": "13e8c326792b62c9282d99ff5ff6175b",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__hero-annotated__assetDiagramFixture.png": {
-    "mtime": 1790762690.831271,
-    "seen": 1790762893.6437392,
-    "ast_hash": "476b0b7f6660b72209075dbf9c03e542",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__hero-indexed__assetDiagramFixture.png": {
-    "mtime": 1790762690.9380627,
-    "seen": 1790762893.6437407,
-    "ast_hash": "d3e44442a1b2021c3ebe0f163ee1ec38",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__hero-indexed__iconAssistedProcessFixture.png": {
-    "mtime": 1790762692.6300783,
-    "seen": 1790762893.6437423,
-    "ast_hash": "b69afc44eea8b6a13859444eea76715c",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__illustrated-headline__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762689.8683765,
-    "seen": 1790762893.6437438,
-    "ast_hash": "34953f5e4c797c6d2c0c32a0f487f86e",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__illustrated-headline__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762690.4175735,
-    "seen": 1790762893.6437464,
-    "ast_hash": "eb818606dba8de12d68409c8538199fc",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__illustrated-headline__generatedAnalogyFixture.png": {
-    "mtime": 1790762691.6599412,
-    "seen": 1790762893.6437485,
-    "ast_hash": "de6c94af4e9f6e4392dcdaec43e0cf2c",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__illustrated-headline__maximumDensityHookFixture.png": {
-    "mtime": 1790762693.586507,
-    "seen": 1790762893.6437504,
-    "ast_hash": "95a954be3c748f6785545043ca209c33",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__sequence__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762690.6412067,
-    "seen": 1790762893.643752,
-    "ast_hash": "52f76aa11df290f0f4d14d737ea1c0b5",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__sequence__genericIpoFixture.png": {
-    "mtime": 1790762692.2261248,
-    "seen": 1790762893.6437538,
-    "ast_hash": "84d9a5408bbfb6edc06ba4fb277419c0",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__sequence__iconAssistedProcessFixture.png": {
-    "mtime": 1790762692.4599545,
-    "seen": 1790762893.6437552,
-    "ast_hash": "afea43b453964a77c0dceb60d1aae1ce",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__sequence__nonNumericalWorkedExampleFixture.png": {
-    "mtime": 1790762694.5779588,
-    "seen": 1790762893.643757,
-    "ast_hash": "5882b0a753c92533e442d4649f66a2dc",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__sequence__simpleCauseEffectFixture.png": {
-    "mtime": 1790762695.171347,
-    "seen": 1790762893.6437585,
-    "ast_hash": "0db0b0eda0a2bee3ed3a0f38ea3b8a55",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__statement__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762689.9881337,
-    "seen": 1790762893.6437604,
-    "ast_hash": "97da8ed71546b161972b3c07e48772ba",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__statement__generatedAnalogyFixture.png": {
-    "mtime": 1790762691.775028,
-    "seen": 1790762893.643762,
-    "ast_hash": "dab56b07dd365d87d0db83ca08d21806",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__statement__maximumDensityHookFixture.png": {
-    "mtime": 1790762693.6816828,
-    "seen": 1790762893.643765,
-    "ast_hash": "4fd49a5154256b1661b8611d6b08750b",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__statement__textOnlySummaryFixture.png": {
-    "mtime": 1790762696.0659182,
-    "seen": 1790762893.6437669,
-    "ast_hash": "6f710d092c91fcae89e3f4d417e46561",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__takeaway__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762690.7336614,
-    "seen": 1790762893.6437685,
-    "ast_hash": "f2cb5f5161b86b3023e3e342416a2b47",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__takeaway__maximumDensityHookFixture.png": {
-    "mtime": 1790762693.8918557,
-    "seen": 1790762893.6437697,
-    "ast_hash": "59c29f302cbaa6d0fc78904dec256528",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/field-notes__takeaway__maximumWorkedExampleFixture.png": {
-    "mtime": 1790762694.2506883,
-    "seen": 1790762893.6437716,
-    "ast_hash": "44144993219d0da791880f2fa1069855",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__chapter__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762699.494808,
-    "seen": 1790762893.643773,
-    "ast_hash": "00dc4bc2b054876342e8e4cdc614fc4c",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__chapter__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762699.8313215,
-    "seen": 1790762893.6437747,
-    "ast_hash": "b8fc4ece0d9ef63af7396246ca736da7",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__chapter__generatedAnalogyFixture.png": {
-    "mtime": 1790762701.270672,
-    "seen": 1790762893.643776,
-    "ast_hash": "bcb3fa8399b205d2cbb3fa7b0815c9a5",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__chapter__maximumDensityHookFixture.png": {
-    "mtime": 1790762703.1578033,
-    "seen": 1790762893.6437778,
-    "ast_hash": "0e5a73de647bc49f25f04af93e2e3194",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__comparison-split__asymmetricIpoFixture.png": {
-    "mtime": 1790762700.4152546,
-    "seen": 1790762893.6437795,
-    "ast_hash": "b84dcb59cc608dd2c971dd54920349d1",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__comparison-split__generatedAnalogyFixture.png": {
-    "mtime": 1790762701.3819847,
-    "seen": 1790762893.6437814,
-    "ast_hash": "c87f54c3627089fec39122724116aac4",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__comparison-split__imageAssistedComparisonFixture.png": {
-    "mtime": 1790762702.1927319,
-    "seen": 1790762893.6437829,
-    "ast_hash": "4ad23b02bce8ead7464bf72fcc8883be",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__comparison-stacked__generatedAnalogyFixture.png": {
-    "mtime": 1790762701.4899871,
-    "seen": 1790762893.6437852,
-    "ast_hash": "b2a3b5f0bb4c62bb289b034a0ca81154",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__comparison-stacked__imageAssistedComparisonFixture.png": {
-    "mtime": 1790762702.3418336,
-    "seen": 1790762893.6437879,
-    "ast_hash": "26612fff6ea8f237064652268b46c17a",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__connected__asymmetricIpoFixture.png": {
-    "mtime": 1790762700.5515423,
-    "seen": 1790762893.6437895,
-    "ast_hash": "63a6d7f287fa663772fc870afc2095ab",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__connected__branchingCauseEffectFixture.png": {
-    "mtime": 1790762700.7104979,
-    "seen": 1790762893.643791,
-    "ast_hash": "c53ce9104985dd711063cf7cd4836851",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__connected__branchingProcessGraphFixture.png": {
-    "mtime": 1790762700.841954,
-    "seen": 1790762893.6437924,
-    "ast_hash": "7bfd8ba8ec306ac7cef3ee99a251ef02",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__hero-annotated__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762699.6108477,
-    "seen": 1790762893.6437938,
-    "ast_hash": "3a6dabb46585d72047becb440f8c40ac",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__hero-annotated__assetDiagramFixture.png": {
-    "mtime": 1790762700.1672893,
-    "seen": 1790762893.6437957,
-    "ast_hash": "ac5e31d9765b8af216eca7fc6857d334",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__hero-indexed__assetDiagramFixture.png": {
-    "mtime": 1790762700.2863925,
-    "seen": 1790762893.6437974,
-    "ast_hash": "84ed914de34a0b35964271476bca4118",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__hero-indexed__iconAssistedProcessFixture.png": {
-    "mtime": 1790762702.0377705,
-    "seen": 1790762893.643799,
-    "ast_hash": "8acf19d510228e5d1ab994d256a920a2",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__illustrated-headline__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762699.2539394,
-    "seen": 1790762893.6438007,
-    "ast_hash": "b9812045f535cd6ceccd0d7131d2687f",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__illustrated-headline__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762699.7112737,
-    "seen": 1790762893.6438034,
-    "ast_hash": "5749617c1fdb73ccacfb6a3895b6db23",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__illustrated-headline__generatedAnalogyFixture.png": {
-    "mtime": 1790762701.0408592,
-    "seen": 1790762893.6438048,
-    "ast_hash": "1c90824c4a52ef256722d585ae2f88f6",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__illustrated-headline__maximumDensityHookFixture.png": {
-    "mtime": 1790762702.9504402,
-    "seen": 1790762893.6438062,
-    "ast_hash": "4d7e5058cc81cde7b4a73f022ba00c6f",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__sequence__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762699.9224677,
-    "seen": 1790762893.6438076,
-    "ast_hash": "2d0b260395cead2a8532933eefaac74d",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__sequence__genericIpoFixture.png": {
-    "mtime": 1790762701.6252694,
-    "seen": 1790762893.643809,
-    "ast_hash": "27902612f55a45388d7e947900f71e66",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__sequence__iconAssistedProcessFixture.png": {
-    "mtime": 1790762701.8623605,
-    "seen": 1790762893.6438105,
-    "ast_hash": "78a59db7990aa6bc113d385f8bfc96b8",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__sequence__nonNumericalWorkedExampleFixture.png": {
-    "mtime": 1790762703.9893353,
-    "seen": 1790762893.6438127,
-    "ast_hash": "443610a3321cd11182b885c7acd6cefb",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__sequence__simpleCauseEffectFixture.png": {
-    "mtime": 1790762704.6359804,
-    "seen": 1790762893.643814,
-    "ast_hash": "49b4ae585b78cff1fe92467391957800",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__statement__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762699.3693755,
-    "seen": 1790762893.6438155,
-    "ast_hash": "e18703912f13a3a76bf4733127c2db9c",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__statement__generatedAnalogyFixture.png": {
-    "mtime": 1790762701.1622226,
-    "seen": 1790762893.6438167,
-    "ast_hash": "e4926bf51402dd342a38ef416684908f",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__statement__maximumDensityHookFixture.png": {
-    "mtime": 1790762703.0518124,
-    "seen": 1790762893.6438181,
-    "ast_hash": "0b708211799dbcd88623b40164c15f1c",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__statement__textOnlySummaryFixture.png": {
-    "mtime": 1790762705.4639647,
-    "seen": 1790762893.6438203,
-    "ast_hash": "dcd48fde6ba88916c04b87fefc3a1fd9",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__takeaway__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762700.0528076,
-    "seen": 1790762893.6438222,
-    "ast_hash": "121b1f04ffd72c30124ebe04ee158f66",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__takeaway__maximumDensityHookFixture.png": {
-    "mtime": 1790762703.253165,
-    "seen": 1790762893.6438236,
-    "ast_hash": "2ef924e552437ab464c7c556c31dc81d",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/prism__takeaway__maximumWorkedExampleFixture.png": {
-    "mtime": 1790762703.6561341,
-    "seen": 1790762893.643825,
-    "ast_hash": "d2fc27d9e4c43b14014baf8aa22e27e4",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__chapter__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762681.7182837,
-    "seen": 1790762893.6438265,
-    "ast_hash": "3642afd1c56668370a739f168796061d",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__chapter__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762682.0545897,
-    "seen": 1790762893.6438277,
-    "ast_hash": "74fee8e070244f549611019ccdce86c6",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__chapter__generatedAnalogyFixture.png": {
-    "mtime": 1790762683.1648,
-    "seen": 1790762893.643829,
-    "ast_hash": "8cce26e3bcb5039cdbaf91ef2578fb15",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__chapter__maximumDensityHookFixture.png": {
-    "mtime": 1790762684.583928,
-    "seen": 1790762893.6438303,
-    "ast_hash": "5662fba380100b0dd66709aea758dac1",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__comparison-split__asymmetricIpoFixture.png": {
-    "mtime": 1790762682.501296,
-    "seen": 1790762893.6438315,
-    "ast_hash": "82bc057f6b7b0271bcaa44acec6c8d67",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__comparison-split__generatedAnalogyFixture.png": {
-    "mtime": 1790762683.2768016,
-    "seen": 1790762893.6438332,
-    "ast_hash": "d5a792e56dec6a523a62a922a9c36644",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__comparison-split__imageAssistedComparisonFixture.png": {
-    "mtime": 1790762683.8299675,
-    "seen": 1790762893.6438346,
-    "ast_hash": "7cea32a52a9422908cb883d887ff3ad0",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__comparison-stacked__generatedAnalogyFixture.png": {
-    "mtime": 1790762683.3800635,
-    "seen": 1790762893.643836,
-    "ast_hash": "3496474b8c0efb0b392eb77de8c5cb59",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__comparison-stacked__imageAssistedComparisonFixture.png": {
-    "mtime": 1790762683.927678,
-    "seen": 1790762893.6438377,
-    "ast_hash": "880ca85bfd9f3699915ecf2fedfb5618",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__connected__asymmetricIpoFixture.png": {
-    "mtime": 1790762682.5972161,
-    "seen": 1790762893.643839,
-    "ast_hash": "b45b5a18cb027407bd151317bb722fa4",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__connected__branchingCauseEffectFixture.png": {
-    "mtime": 1790762682.6952956,
-    "seen": 1790762893.643841,
-    "ast_hash": "fa7e8545089f8e99530354c0fb15932d",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__connected__branchingProcessGraphFixture.png": {
-    "mtime": 1790762682.7863286,
-    "seen": 1790762893.6438427,
-    "ast_hash": "849a1dc12a159f2a20510fe722067120",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__hero-annotated__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762681.852702,
-    "seen": 1790762893.6438441,
-    "ast_hash": "b796dfb64e701f29f7b962b6e0f6dd50",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__hero-annotated__assetDiagramFixture.png": {
-    "mtime": 1790762682.3130586,
-    "seen": 1790762893.6438453,
-    "ast_hash": "7efca483989c57fc269e6d7b489f967c",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__hero-indexed__assetDiagramFixture.png": {
-    "mtime": 1790762682.3984652,
-    "seen": 1790762893.6438477,
-    "ast_hash": "0ab461452d6cd0accce814b3d4a27675",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__hero-indexed__iconAssistedProcessFixture.png": {
-    "mtime": 1790762683.7304282,
-    "seen": 1790762893.6438503,
-    "ast_hash": "937862bb002cc74030e8d4722a65fafe",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__illustrated-headline__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762681.524159,
-    "seen": 1790762893.643852,
-    "ast_hash": "965ac8d22d2b0666573b1634f8714377",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__illustrated-headline__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762681.9486418,
-    "seen": 1790762893.6438544,
-    "ast_hash": "1e9d2184d08df24640b04369b6334929",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__illustrated-headline__generatedAnalogyFixture.png": {
-    "mtime": 1790762682.9531422,
-    "seen": 1790762893.6438563,
-    "ast_hash": "26931aa3765ca674a738b0704d0a7e70",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__illustrated-headline__maximumDensityHookFixture.png": {
-    "mtime": 1790762684.315752,
-    "seen": 1790762893.6438577,
-    "ast_hash": "0a73bc8f4387e67188d50913498eeac9",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__sequence__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762682.1463332,
-    "seen": 1790762893.6438591,
-    "ast_hash": "91dea8842d6462ea2b69f3db1465757c",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__sequence__genericIpoFixture.png": {
-    "mtime": 1790762683.4559739,
-    "seen": 1790762893.6438608,
-    "ast_hash": "055b4734f588643051a94c54a0401adb",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__sequence__iconAssistedProcessFixture.png": {
-    "mtime": 1790762683.6238978,
-    "seen": 1790762893.6438622,
-    "ast_hash": "e3b64f111b8b26442e4f41511418586e",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__sequence__nonNumericalWorkedExampleFixture.png": {
-    "mtime": 1790762685.1629453,
-    "seen": 1790762893.6438646,
-    "ast_hash": "a4722d82a0aa2543157110d1bf70161f",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__sequence__simpleCauseEffectFixture.png": {
-    "mtime": 1790762685.823266,
-    "seen": 1790762893.643866,
-    "ast_hash": "e6fea10c037bc21bc7dbdc7d48211eb9",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__statement__assetAssistedDefinitionFixture.png": {
-    "mtime": 1790762681.6107392,
-    "seen": 1790762893.6438682,
-    "ast_hash": "7b90e590d8b592df3f8b853df593ad30",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__statement__generatedAnalogyFixture.png": {
-    "mtime": 1790762683.05355,
-    "seen": 1790762893.6438694,
-    "ast_hash": "5cf8daf482de57f6d73a6110cf1653d7",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__statement__maximumDensityHookFixture.png": {
-    "mtime": 1790762684.392282,
-    "seen": 1790762893.643871,
-    "ast_hash": "50458665ff3cc570da56e0e61d6cbc64",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__statement__textOnlySummaryFixture.png": {
-    "mtime": 1790762686.4876776,
-    "seen": 1790762893.6438725,
-    "ast_hash": "dd99335665b11445f143988400fabf2c",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__takeaway__assetAssistedSummaryFixture.png": {
-    "mtime": 1790762682.2285342,
-    "seen": 1790762893.643874,
-    "ast_hash": "dcc0db1b84d1d9bf889f32ebd4676fb3",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__takeaway__maximumDensityHookFixture.png": {
-    "mtime": 1790762684.6545048,
-    "seen": 1790762893.6438754,
-    "ast_hash": "faea987639df099b6b971d474d151687",
-    "semantic_hash": ""
-  },
-  ".runtime-logs/cinema-shots/systems__takeaway__maximumWorkedExampleFixture.png": {
-    "mtime": 1790762684.923867,
-    "seen": 1790762893.6438768,
-    "ast_hash": "0b8dcc13c9fb0445fc2e39bc756da6f3",
     "semantic_hash": ""
   },
   ".runtime-logs/narration-repair-after.png": {
@@ -14481,6 +13329,162 @@
     "mtime": 1790762724.708069,
     "seen": 1790762893.6367009,
     "ast_hash": "69708ab0b7f00b4a813715085b9e5adb",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0000s.png": {
+    "mtime": 1790763886.54956,
+    "seen": 1790766439.3479977,
+    "ast_hash": "3f6f6493628f547c66d9e1a8229df8fe",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0006s.png": {
+    "mtime": 1790763886.8561685,
+    "seen": 1790766439.3480003,
+    "ast_hash": "de773158fa970147fc91fe1eb8cd4da5",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0012s.png": {
+    "mtime": 1790763887.0757952,
+    "seen": 1790766439.348002,
+    "ast_hash": "eb761dddef69c7ae6eb194e5f6e3334e",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0018s.png": {
+    "mtime": 1790763887.3571486,
+    "seen": 1790766439.348004,
+    "ast_hash": "82cd674fd24ed94da524f34904540af5",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0024s.png": {
+    "mtime": 1790763887.6063933,
+    "seen": 1790766439.3480053,
+    "ast_hash": "349db3743ea6e0fadc02193d621c6e8d",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0030s.png": {
+    "mtime": 1790763887.829388,
+    "seen": 1790766439.3480074,
+    "ast_hash": "1f39bed0994d342db2fde9024cec04a9",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0036s.png": {
+    "mtime": 1790763888.1779358,
+    "seen": 1790766439.3480098,
+    "ast_hash": "c62611c118e06423ef4fae2f0ec1c83b",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0042s.png": {
+    "mtime": 1790763888.468114,
+    "seen": 1790766439.3480117,
+    "ast_hash": "e9e186bacc284049326afbc28709c339",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0048s.png": {
+    "mtime": 1790763888.7664661,
+    "seen": 1790766439.3480132,
+    "ast_hash": "f2136069119689c648cbf395089f0963",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0054s.png": {
+    "mtime": 1790763888.9575338,
+    "seen": 1790766439.3480148,
+    "ast_hash": "5b2c263f1649ad394bc6411ab7439c1d",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0060s.png": {
+    "mtime": 1790763889.2895432,
+    "seen": 1790766439.3480165,
+    "ast_hash": "56692230ecf84b6bc0a1d50b434956d3",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0066s.png": {
+    "mtime": 1790763889.4444075,
+    "seen": 1790766439.3480182,
+    "ast_hash": "b550395d98c76527bcda3fd30390d5af",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0072s.png": {
+    "mtime": 1790763889.7230487,
+    "seen": 1790766439.34802,
+    "ast_hash": "804da02c29c078e115a5ab22786b27cc",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0078s.png": {
+    "mtime": 1790763889.9556847,
+    "seen": 1790766439.3480227,
+    "ast_hash": "c238a2df66b6567134b321b6f2d3bf47",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0084s.png": {
+    "mtime": 1790763890.1519558,
+    "seen": 1790766439.3480244,
+    "ast_hash": "fce865464ad1849a128557d54c81c0c2",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0090s.png": {
+    "mtime": 1790763890.3297882,
+    "seen": 1790766439.3480265,
+    "ast_hash": "df10e4ede4aa916ed64f4b8d2421f98f",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0096s.png": {
+    "mtime": 1790763890.6338198,
+    "seen": 1790766439.348028,
+    "ast_hash": "0921cee7d599f9ecf0be74109beed60d",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0102s.png": {
+    "mtime": 1790763890.878171,
+    "seen": 1790766439.3480296,
+    "ast_hash": "ced53881e58c97285b1858bb2d539792",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0108s.png": {
+    "mtime": 1790763891.0790217,
+    "seen": 1790766439.3480315,
+    "ast_hash": "0ef81d511f15d2fadf95f5dd0ecf0417",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0114s.png": {
+    "mtime": 1790763891.2416992,
+    "seen": 1790766439.3480334,
+    "ast_hash": "1716a7bf1a77e9ac52804c6334086c41",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0120s.png": {
+    "mtime": 1790763891.4137113,
+    "seen": 1790766439.3480353,
+    "ast_hash": "247f571a9867af09bb5db8412d27505c",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0126s.png": {
+    "mtime": 1790763891.753707,
+    "seen": 1790766439.3480368,
+    "ast_hash": "a736665da1d5e1b97f450517e32fb522",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0132s.png": {
+    "mtime": 1790763892.000257,
+    "seen": 1790766439.3480384,
+    "ast_hash": "f313df0674fab9fcb2d7c4031c4e3188",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0138s.png": {
+    "mtime": 1790763892.2717547,
+    "seen": 1790766439.3480399,
+    "ast_hash": "aae5d7e1d190f315f73d4d37e194f250",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-frames-engineering-v2/t0144s.png": {
+    "mtime": 1790763892.5042825,
+    "seen": 1790766439.3480413,
+    "ast_hash": "55f4ac1977eac42dac2e71dfe7f789a9",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/st112-engineering-v2.mp4": {
+    "mtime": 1790763884.0,
+    "seen": 1790766439.3886766,
+    "ast_hash": "cedfbea32f6f25a2a590d8027ea61e8b",
     "semantic_hash": ""
   }
 }

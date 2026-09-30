@@ -141,13 +141,13 @@ describe("parseEnvironment", () => {
     expect(parseWorkerEnvironment({})).toMatchObject({
       MAX_PROVIDER_CALLS_PER_HOUR: 60,
       MAX_REGENERATIONS_PER_HOUR: 10,
-      // ST-112: v2 designs stay off until explicitly enabled.
-      CREATIVE_DESIGN_V2_DEFAULT: false,
+      // ST-112: v2 designs are the default since the proof lessons passed.
+      CREATIVE_DESIGN_V2_DEFAULT: true,
     });
     expect(
-      parseWorkerEnvironment({ CREATIVE_DESIGN_V2_DEFAULT: "true" })
+      parseWorkerEnvironment({ CREATIVE_DESIGN_V2_DEFAULT: "false" })
         .CREATIVE_DESIGN_V2_DEFAULT,
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("exports reusable database, Redis, and storage schemas", () => {

@@ -2,7 +2,7 @@
 story_id: ST-109
 title: "Add the V2 Creative-Design Manifest, Visual-Plan Contract, and Eight Composition Families"
 phase: "11 — Visual Storytelling"
-status: In Review
+status: Done
 priority: must-have
 epics: ["E11", "E15"]
 prd_user_stories: ["E11-US2", "E15-US2"]
@@ -73,7 +73,7 @@ compositions; v1 is unchanged.
 
 - **Agent:** Claude Code (Opus 5.5).
 - **Started:** 2026-09-29.
-- **Completed:** 2026-09-30. Handed off as In Review.
+- **Completed:** 2026-09-30. Accepted by the user the same day; Done.
 - **Branch/PR:** `feat/st-107-video-brief-budget-self-repair` (commits
   852af5d, af971c7, 10bd3a2; the 2026-09-30 visual fixes are uncommitted). No
   PR.

@@ -621,7 +621,7 @@ export const workerEnvironmentSchema = baseEnvironmentSchema
        * ST-112 (ADR-015): new storyboards get a v2 composition-planned
        * design. Off by default until the proof lessons are reviewed.
        */
-      CREATIVE_DESIGN_V2_DEFAULT: environmentBooleanSchema.default(false),
+      CREATIVE_DESIGN_V2_DEFAULT: environmentBooleanSchema.default(true),
     }),
   )
   .superRefine((value, context) => {
