@@ -5004,9 +5004,9 @@
     "semantic_hash": ""
   },
   "STORY_INDEX.md": {
-    "mtime": 1790790696.862716,
-    "seen": 1790869415.568204,
-    "ast_hash": "4457d59b05ba66f4b4e73eddd0e0ac13",
+    "mtime": 1790766345.2125082,
+    "seen": 1790766439.1116736,
+    "ast_hash": "bb0d8d510d79f7faf7d1931b908d3b21",
     "semantic_hash": ""
   },
   "STORY_TEMPLATE.md": {
@@ -7182,9 +7182,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/one-shot-brief.ts": {
-    "mtime": 1790868706.7042973,
-    "seen": 1790869415.385641,
-    "ast_hash": "b5318e9ec428c6eb7cbdeccf0bfe68c4",
+    "mtime": 1790548136.3502278,
+    "seen": 1790579890.624321,
+    "ast_hash": "e224e00003d309922085711d486914bc",
     "semantic_hash": ""
   },
   "apps/api/src/one-shot-budget.test.ts": {
@@ -7218,9 +7218,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/one-shot-st107.integration.test.ts": {
-    "mtime": 1790868889.6942434,
-    "seen": 1790869415.387646,
-    "ast_hash": "74cced0f293444257b569eea3d5b6542",
+    "mtime": 1790752402.2973068,
+    "seen": 1790754703.424832,
+    "ast_hash": "87cb5ed3fb38d2405038b8cb24a0913d",
     "semantic_hash": ""
   },
   "apps/api/src/one-shot-test-brief.ts": {
@@ -15285,12 +15285,6 @@
     "mtime": 1790776048.0,
     "seen": 1790790130.3711984,
     "ast_hash": "053e18f09c588165bf6be020227d22e9",
-    "semantic_hash": ""
-  },
-  "stories/11-visual-storytelling/ST-113-curated-illustration-library-fallback.md": {
-    "mtime": 1790790680.908351,
-    "seen": 1790869415.6163933,
-    "ast_hash": "8b484560de46dad1de457190c911029f",
     "semantic_hash": ""
   }
 }

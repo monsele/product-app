@@ -25,6 +25,7 @@ import {
 } from "@avlp/config";
 import {
   contentBlocks,
+  jobs,
   parsedSections,
   soundBedTracks,
   type DatabaseClient,
@@ -68,7 +69,7 @@ import {
   type OneShotAudience,
   type OneShotBriefOutput,
 } from "@avlp/schemas/one-shot";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { createModelCallProviderApproval } from "./model-call-approval.js";
 import { findLatestProjectParsedDocument } from "./project-parsed-document.js";
 
@@ -106,7 +107,8 @@ export type PreparedBrief = {
 
 export interface OneShotBriefGenerator {
   /**
-   * Refuses (409, retryable) while the document has not been read yet. Called
+   * Refuses (409, retryable) while the document has not been read yet, and
+   * (422, not retryable) once reading it has failed. Called
    * before a brief call is counted, so waiting for ingestion never uses up
    * one of the run's brief calls.
    */
@@ -408,13 +410,34 @@ export class ProviderOneShotBriefService implements OneShotBriefGenerator {
       ownerUserId,
       projectId,
     });
-    if (document === undefined)
+    if (document === undefined) {
+      // A failed read never produces a parsed document, so waiting for one
+      // would never end; say so instead of "still being read".
+      const [ingestion] = await this.options.database
+        .select({ state: jobs.state })
+        .from(jobs)
+        .where(
+          and(
+            eq(jobs.ownerUserId, ownerUserId),
+            eq(jobs.projectId, projectId),
+            eq(jobs.jobType, "document.ingestion"),
+          ),
+        )
+        .orderBy(desc(jobs.createdAt))
+        .limit(1);
+      if (ingestion?.state === "failed")
+        throw new PublicError(
+          "bad_request",
+          "We could not read your document, so the brief cannot be prepared. Upload the document again in a new project.",
+          422,
+        );
       throw new PublicError(
         "bad_request",
         "Your document is still being read. Try preparing the brief again in a moment.",
         409,
         true,
       );
+    }
     const sections = await this.options.database
       .select({ id: parsedSections.id, heading: parsedSections.heading })
       .from(parsedSections)

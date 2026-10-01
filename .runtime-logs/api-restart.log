@@ -1,0 +1,14 @@
+
+> @avlp/api@0.0.0 dev D:\Eronmonsele\Documents\SoundMinds\product-app\apps\api
+> tsx watch --env-file=../../.env src/main.ts
+
+{"level":30,"time":1790869601582,"pid":28140,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1790869601583,"pid":28140,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://192.168.0.193:3001"}
+{"level":30,"time":1790869601583,"pid":28140,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.29.0.1:3001"}
+{"level":30,"time":1790869601583,"pid":28140,"hostname":"DESKTOP-HQ6B2T1","msg":"Server listening at http://172.30.0.1:3001"}
+{"level":30,"time":1790870009892,"pid":28140,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":54126},"msg":"incoming request"}
+{"timestamp":"2026-10-01T15:53:29.898Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0f82b-b826-7912-bb69-3af2b1c7b744","method":"GET","route":"undefined","service":"api"}}
+{"level":30,"time":1790870009906,"pid":28140,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-1","res":{"statusCode":404},"responseTime":12.080799999996088,"msg":"request completed"}
+{"level":30,"time":1790870035613,"pid":28140,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2","req":{"method":"GET","url":"[REDACTED]","host":"localhost:3001","remoteAddress":"127.0.0.1","remotePort":64892},"msg":"incoming request"}
+{"timestamp":"2026-10-01T15:53:55.615Z","level":"info","event":"api.request_received","fields":{"correlationId":"01a0f82c-1c9e-72c1-8445-d2ea8536157b","method":"GET","route":"/health","service":"api"}}
+{"level":30,"time":1790870035699,"pid":28140,"hostname":"DESKTOP-HQ6B2T1","reqId":"req-2","res":{"statusCode":200},"responseTime":85.07540000003064,"msg":"request completed"}

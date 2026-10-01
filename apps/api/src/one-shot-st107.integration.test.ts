@@ -422,6 +422,43 @@ describeWithPostgres("ST-107 brief, budget, self-repair and decisions (Postgres)
     expect(await database!.client.select().from(usageRecords)).toHaveLength(1);
   });
 
+  it("tells a document still being read apart from one that could not be read, counting no brief call", async () => {
+    const client = database!.client;
+    await client.delete(contentBlocks);
+    await client.delete(parsedSections);
+    await client.delete(parsedDocuments);
+    const ingestionJobId = "019ffc60-2222-7000-8000-000000000107" as Identifier;
+    await client.insert(jobs).values({
+      id: ingestionJobId,
+      jobType: "document.ingestion",
+      queueName: "pipeline",
+      ownerUserId,
+      projectId,
+      inputVersion: `source-document:${sourceDocumentId}`,
+      idempotencyKey: `document.ingestion:${projectId}:${sourceDocumentId}`,
+      correlationId,
+      payloadVersion: 1,
+      payload: {},
+      state: "running",
+    });
+
+    await expect(brief("brief-1")).rejects.toMatchObject({
+      statusCode: 409,
+      retryable: true,
+      message: expect.stringContaining("still being read"),
+    });
+
+    await client.update(jobs).set({ state: "failed" }).where(eq(jobs.id, ingestionJobId));
+    await expect(brief("brief-1")).rejects.toMatchObject({
+      statusCode: 422,
+      retryable: false,
+      message: expect.stringContaining("could not read your document"),
+    });
+
+    expect(await client.select().from(oneShotRuns)).toHaveLength(0);
+    expect(await client.select().from(modelCalls)).toHaveLength(0);
+  });
+
   it("allows at most the configured number of brief calls and rejects confirming a stale revision", async () => {
     await brief("brief-1");
     const second = await brief("brief-2", { ...briefBody, focusPrompt: "Explain why triangles are rigid" });
