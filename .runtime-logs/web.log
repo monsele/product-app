@@ -11,3 +11,29 @@
  ○ Compiling / ...
  ✓ Compiled / in 24.1s (10486 modules)
  GET / 200 in 3654ms
+ GET / 200 in 389ms
+ GET / 200 in 231ms
+ ○ Compiling /sign-in ...
+ ✓ Compiled /sign-in in 8.6s (10534 modules)
+ GET /sign-in 200 in 10870ms
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 1341ms (158 modules)
+ ○ Compiling /workspace ...
+ ✓ Compiled /workspace in 10.8s (10854 modules)
+ GET /workspace 200 in 13881ms
+ ○ Compiling /api/projects/[projectId]/delete ...
+ ✓ Compiled /api/projects/[projectId]/delete in 9.1s (10871 modules)
+ POST /api/projects/01a0f7f7-5b73-731d-a927-3fdf0e6a946e/delete 303 in 20074ms
+ GET /workspace?done=delete 200 in 1625ms
+ ○ Compiling /api/projects ...
+ ✓ Compiled /api/projects in 5.3s (10873 modules)
+ POST /api/projects 303 in 5826ms
+ ○ Compiling /workspace/[projectId]/one-shot ...
+ ✓ Compiled /workspace/[projectId]/one-shot in 18.3s (14093 modules)
+ GET /workspace/01a0f833-3115-7134-a74f-b8d10cf6bac8/one-shot 200 in 24479ms
+ ○ Compiling /workspace/[projectId]/preview ...
+ ✓ Compiled /workspace/[projectId]/preview in 11.4s (14082 modules)
+ GET /workspace/01a0f833-3115-7134-a74f-b8d10cf6bac8/preview 200 in 30956ms
+ ○ Compiling /workspace/[projectId]/storyboard ...
+ ✓ Compiled /workspace/[projectId]/storyboard in 21.1s (14133 modules)
+ GET /workspace/01a0f833-3115-7134-a74f-b8d10cf6bac8/storyboard 200 in 24593ms

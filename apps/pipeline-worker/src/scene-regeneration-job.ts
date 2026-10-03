@@ -390,6 +390,7 @@ export function assertSceneRegenerationChecks(
   const layoutScene = sceneSpecSchema.parse({
     id: operationContext.currentScene.scene.id,
     order: operationContext.currentScene.scene.order,
+    title: output.scene.title,
     narration: operationContext.currentScene.scene.narration,
     durationSeconds: operationContext.currentScene.durationSeconds,
     onScreenText: output.scene.onScreenText,
@@ -406,7 +407,7 @@ export function assertSceneRegenerationChecks(
   if (overflow !== undefined)
     throw new SceneRegenerationDeterministicCheckError(
       "SCENE_TEXT_OVERFLOW",
-      `${overflow.fieldPath} exceeds the readable layout capacity.`,
+      `${overflow.fieldPath}: ${overflow.message} ${overflow.suggestedCorrection}`,
     );
   if (
     output.scene.estimatedSeconds < storyboardSceneMinimumSeconds ||

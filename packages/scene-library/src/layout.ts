@@ -24,6 +24,12 @@ export type SceneContentMeasurement = Readonly<{
   estimatedHeight: number;
   fits: boolean;
   firstOverflowPath?: string;
+  /**
+   * `block`: one text block is too long on its own. `total`: every block fits
+   * on its own but the stack is taller than the body area; `firstOverflowPath`
+   * is then only the block where the space ran out, not the culprit.
+   */
+  overflowScope?: "block" | "total";
 }>;
 
 const averageCharacterWidthRatio = 0.55;
@@ -88,12 +94,17 @@ export function measureSceneContent(
     if (!measurement.fits && firstOverflowPath === undefined)
       firstOverflowPath = block.path;
   }
-  if (estimatedHeight > availableHeight && firstOverflowPath === undefined)
+  let overflowScope: "block" | "total" | undefined =
+    firstOverflowPath === undefined ? undefined : "block";
+  if (estimatedHeight > availableHeight && firstOverflowPath === undefined) {
     firstOverflowPath = blocks.at(-1)?.path;
+    overflowScope = "total";
+  }
   return Object.freeze({
     availableHeight,
     estimatedHeight,
     fits: firstOverflowPath === undefined,
     ...(firstOverflowPath === undefined ? {} : { firstOverflowPath }),
+    ...(overflowScope === undefined ? {} : { overflowScope }),
   });
 }

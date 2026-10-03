@@ -32,6 +32,7 @@ import {
   type DatabaseExecutor,
 } from "@avlp/database";
 import { createIdempotencyKey, createJobEnvelope } from "@avlp/jobs";
+import { validateScene } from "@avlp/scene-library";
 import { createModelCallProviderApproval } from "./model-call-approval.js";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
@@ -1216,6 +1217,18 @@ export class PostgresStoryboardService implements StoryboardService {
         )
       )
         throw incompatibleSceneAssetSlot();
+      // Reject only an edit that introduces overflow: a scene that already
+      // overflows must stay saveable so the teacher can trim it step by step.
+      const overflow = validateScene(parsed.scene).find(
+        (issue) => issue.code === "text_overflow",
+      );
+      if (
+        overflow !== undefined &&
+        !validateScene(current.scene).some(
+          (issue) => issue.code === "text_overflow",
+        )
+      )
+        throw sceneTextOverflow(overflow);
       if (
         JSON.stringify(parsed.scene.assetBindings) !==
         JSON.stringify(current.scene.assetBindings)
@@ -3248,6 +3261,23 @@ function immutableSceneFields(): PublicError {
     false,
     {
       scene: "Edit only teacher-controlled scene fields.",
+    },
+  );
+}
+
+function sceneTextOverflow(issue: {
+  fieldPath: string;
+  message: string;
+  suggestedCorrection: string;
+}): PublicError {
+  return new PublicError(
+    "validation_failed",
+    "This change would not fit on screen.",
+    400,
+    false,
+    {
+      [issue.fieldPath === "scene" ? "scene" : `scene.${issue.fieldPath}`]:
+        `${issue.message} ${issue.suggestedCorrection}`,
     },
   );
 }

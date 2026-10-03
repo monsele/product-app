@@ -865,6 +865,58 @@ describe("PostgresStoryboardService scene editor", () => {
     ).rejects.toMatchObject({ code: "validation_failed", statusCode: 400 });
   });
 
+  it("rejects an edit that pushes the scene's text past the layout budget", async () => {
+    const { database, updates } = fakeDatabase();
+    const { service } = createService(database);
+    const current = storyboardPayload().scenes[0]!.scene;
+    await expect(
+      service.updateScene({
+        ownerUserId,
+        projectId,
+        sceneId: sceneA,
+        body: {
+          expectedRevision: 0,
+          scene: {
+            ...current,
+            onScreenText: Array.from({ length: 12 }, () => "Key"),
+          },
+        },
+        correlationId: createId(),
+      }),
+    ).rejects.toMatchObject({
+      code: "validation_failed",
+      statusCode: 400,
+      fieldErrors: {
+        scene: expect.stringMatching(/readable layout capacity/),
+      },
+    });
+    expect(updates.some((update) => update.table === scenes)).toBe(false);
+  });
+
+  it("still saves edits to a scene that already overflowed", async () => {
+    const payload = storyboardPayload();
+    const first = payload.scenes[0]!;
+    const overflowing = { ...first.scene, onScreenText: Array.from({ length: 12 }, () => "Key") };
+    const { database } = fakeDatabase({
+      storyboard: lessonStoryboardSchema.parse({
+        ...payload,
+        scenes: [{ ...first, scene: overflowing }, ...payload.scenes.slice(1)],
+      }),
+    });
+    const { service } = createService(database);
+    const result = await service.updateScene({
+      ownerUserId,
+      projectId,
+      sceneId: sceneA,
+      body: {
+        expectedRevision: 0,
+        scene: { ...overflowing, onScreenText: overflowing.onScreenText.slice(2) },
+      },
+      correlationId: createId(),
+    });
+    expect(result.scene.scene.onScreenText).toHaveLength(10);
+  });
+
   it("rejects a scene update from a stale concurrent revision", async () => {
     const { database } = fakeDatabase({ revision: 2 });
     const { service } = createService(database);

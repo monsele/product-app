@@ -454,6 +454,7 @@ export function assertStoryboardDeterministicChecks(
     const layoutScene = sceneSpecSchema.parse({
       id: "019ffbf1-ffff-7000-8000-000000000099",
       order: sceneIndex + 1,
+      title: scene.title,
       narration: "Layout check.",
       durationSeconds: storyboardSceneMinimumSeconds,
       onScreenText: scene.onScreenText,
@@ -470,7 +471,7 @@ export function assertStoryboardDeterministicChecks(
     if (overflow !== undefined)
       throw new StoryboardDeterministicCheckError(
         "SCENE_TEXT_OVERFLOW",
-        `scenes[${sceneIndex}] ${overflow.fieldPath} exceeds the readable layout capacity.`,
+        `scenes[${sceneIndex}] ${overflow.fieldPath}: ${overflow.message} ${overflow.suggestedCorrection}`,
       );
   }
   if (assigned.length !== orderedBlockIds.length)

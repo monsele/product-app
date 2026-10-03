@@ -25,6 +25,7 @@ import {
   measureSceneContent,
   measureSceneText,
   type LayoutMeasurement,
+  type SceneContentMeasurement,
   type SceneTextBlock,
 } from "./layout.js";
 import { HookScene } from "./hook-scene.js";
@@ -875,17 +876,7 @@ export function validateScene(
       values.filter((value) => !value.path.startsWith("visual.")),
     );
     if (!chrome.fits)
-      return [
-        Object.freeze({
-          code: "text_overflow" as const,
-          fieldPath: chrome.firstOverflowPath ?? "title",
-          message: "Text exceeds the readable layout capacity.",
-          sceneId: parsed.data.id,
-          severity: "error" as const,
-          suggestedCorrection:
-            "Shorten this text or split it into another scene.",
-        }),
-      ];
+      return [textOverflowIssue(chrome, parsed.data.id, "title")];
     const graphNodes = parsed.data.visual.nodes as ReadonlyArray<{
       id: string;
       label: string;
@@ -961,16 +952,38 @@ export function validateScene(
                 )
               : measureSceneContent(values);
   if (measurement.fits) return [];
-  return [
-    Object.freeze({
+  return [textOverflowIssue(measurement, parsed.data.id, "visual")];
+}
+
+/**
+ * When no single block is too long but the stack is too tall, the last block
+ * measured is only where the space ran out; blaming it misleads the teacher,
+ * so the issue names the scene as a whole and the fields that can be trimmed.
+ */
+function textOverflowIssue(
+  measurement: SceneContentMeasurement,
+  sceneId: string,
+  fallbackPath: string,
+): SceneValidationIssue {
+  if (measurement.overflowScope === "total")
+    return Object.freeze({
       code: "text_overflow" as const,
-      fieldPath: measurement.firstOverflowPath ?? "visual",
-      message: "Text exceeds the readable layout capacity.",
-      sceneId: parsed.data.id,
+      fieldPath: "scene",
+      message:
+        "The title, on-screen text, and visual text together exceed the readable layout capacity.",
+      sceneId,
       severity: "error" as const,
-      suggestedCorrection: "Shorten this text or split it into another scene.",
-    }),
-  ];
+      suggestedCorrection:
+        "Remove on-screen text lines, shorten the title, or cut items from the visual.",
+    });
+  return Object.freeze({
+    code: "text_overflow" as const,
+    fieldPath: measurement.firstOverflowPath ?? fallbackPath,
+    message: "Text exceeds the readable layout capacity.",
+    sceneId,
+    severity: "error" as const,
+    suggestedCorrection: "Shorten this text or split it into another scene.",
+  });
 }
 
 export function measureSceneLayout(text: string): LayoutMeasurement {

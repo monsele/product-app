@@ -444,6 +444,32 @@ describe("assertStoryboardDeterministicChecks", () => {
     ).toThrow(/readable layout capacity/);
   });
 
+  it("counts the scene title in the layout budget", () => {
+    // Fits without the title; the preview renders the title, so it overflows.
+    const stacked = {
+      onScreenText: [
+        "God gives power to get wealth",
+        "Growth expected from every steward",
+      ],
+    };
+    const steps = {
+      steps: ["Budgeting", "Protection", "Savings", "Investment", "Debt management"],
+    };
+    const untitled = validOutput();
+    untitled.scenes[0] = sceneOutput([blockA], "process", steps, stacked);
+    expect(() =>
+      assertStoryboardDeterministicChecks(untitled, pkg, context),
+    ).not.toThrow(/readable layout capacity/);
+    const titled = validOutput();
+    titled.scenes[0] = sceneOutput([blockA], "process", steps, {
+      ...stacked,
+      title: "Stewardship Truths and the Five Pillars",
+    });
+    expect(() =>
+      assertStoryboardDeterministicChecks(titled, pkg, context),
+    ).toThrow(/scenes\[0\] scene: .*readable layout capacity/);
+  });
+
   it("rejects an ungrounded scene", () => {
     const output = validOutput();
     output.scenes[1] = sceneOutput(

@@ -660,9 +660,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/storyboard-scene-editor.test.ts": {
-    "mtime": 1790928882.0650012,
-    "seen": 1790929355.1898825,
-    "ast_hash": "a5e0a40339ed2995d5306dc365784f43",
+    "mtime": 1789564790.844394,
+    "seen": 1790461247.7226152,
+    "ast_hash": "2fc69be5331bf8681bb5862c16659f98",
     "semantic_hash": ""
   },
   "apps/api/src/storyboard-scene-regeneration-service.test.ts": {
@@ -690,9 +690,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/storyboard.ts": {
-    "mtime": 1790928890.8234663,
-    "seen": 1790929355.1907158,
-    "ast_hash": "68ec3001ca260c3bf4821809d6bb0c6f",
+    "mtime": 1790704411.21777,
+    "seen": 1790714371.4349635,
+    "ast_hash": "7fd7f77162ec9edef29a0b99bb8d6050",
     "semantic_hash": ""
   },
   "apps/api/src/voice-configuration.test.ts": {
@@ -1026,21 +1026,21 @@
     "semantic_hash": ""
   },
   "apps/pipeline-worker/src/scene-regeneration-job.ts": {
-    "mtime": 1790928149.8062313,
-    "seen": 1790929355.203744,
-    "ast_hash": "ca15ea43662e86b88edff4dd37d4794f",
+    "mtime": 1790610925.7874534,
+    "seen": 1790611707.0900624,
+    "ast_hash": "e502fe3f81572b363de00ee89b810d89",
     "semantic_hash": ""
   },
   "apps/pipeline-worker/src/storyboard-job.test.ts": {
-    "mtime": 1790928834.0729456,
-    "seen": 1790929355.203746,
-    "ast_hash": "db8beefc1b39a5de487881f437b9830d",
+    "mtime": 1790713571.5954216,
+    "seen": 1790714371.4537334,
+    "ast_hash": "eb39486086e389d96775928d121a3987",
     "semantic_hash": ""
   },
   "apps/pipeline-worker/src/storyboard-job.ts": {
-    "mtime": 1790928151.0172076,
-    "seen": 1790929355.2037475,
-    "ast_hash": "ace3ba43ff8c5ca61e00a837cf1caa6a",
+    "mtime": 1790713263.0573423,
+    "seen": 1790714371.4537365,
+    "ast_hash": "247962f8d31052f3e6b37fc785f4a1fe",
     "semantic_hash": ""
   },
   "apps/pipeline-worker/src/together-alignment.test.ts": {
@@ -4050,9 +4050,9 @@
     "semantic_hash": ""
   },
   "packages/scene-library/src/layout.ts": {
-    "mtime": 1790928112.1872,
-    "seen": 1790929355.3424706,
-    "ast_hash": "657a3f59048db2627091d998ac3134b0",
+    "mtime": 1788567956.0,
+    "seen": 1790461247.723188,
+    "ast_hash": "0667c277f1e96eeddc2636776b007d3f",
     "semantic_hash": ""
   },
   "packages/scene-library/src/preview-playback.fixture.tsx": {
@@ -4116,9 +4116,9 @@
     "semantic_hash": ""
   },
   "packages/scene-library/src/scene-registry.tsx": {
-    "mtime": 1790928138.609424,
-    "seen": 1790929355.3448808,
-    "ast_hash": "732c43b9953aa528b0fa036e6e4c5171",
+    "mtime": 1790627520.7223985,
+    "seen": 1790627749.470168,
+    "ast_hash": "84d2d78c3e971be5cf346432978d8216",
     "semantic_hash": ""
   },
   "packages/scene-library/src/sound-bed.test.tsx": {
@@ -15291,12 +15291,6 @@
     "mtime": 1790790680.908351,
     "seen": 1790869415.6163933,
     "ast_hash": "8b484560de46dad1de457190c911029f",
-    "semantic_hash": ""
-  },
-  "packages/scene-library/src/text-overflow.test.ts": {
-    "mtime": 1790929114.8901174,
-    "seen": 1790929355.3580794,
-    "ast_hash": "89b1d345851b761674f4d02f1568cc8c",
     "semantic_hash": ""
   }
 }

@@ -52,3 +52,4 @@ INFO:     127.0.0.1:51347 - "POST /v1/ingestion-jobs HTTP/1.1" 401 Unauthorized
 [ingest FAILED] code=TEMPORARY_INFRASTRUCTURE classification=retryable
 INFO:     127.0.0.1:51348 - "POST /v1/ingestion-jobs HTTP/1.1" 422 Unprocessable Content
 Loading weights:   0%|          | 0/770 [00:00<?, ?it/s]Loading weights:  26%|##6       | 202/770 [00:00<00:00, 1980.81it/s]Loading weights:  52%|#####2    | 401/770 [00:00<00:00, 1161.40it/s]Loading weights:  70%|######9   | 536/770 [00:00<00:00, 1187.51it/s]Loading weights:  86%|########6 | 666/770 [00:00<00:00, 1206.85it/s]Loading weights: 100%|##########| 770/770 [00:00<00:00, 1324.74it/s]
+INFO:     127.0.0.1:62615 - "POST /v1/ingestion-jobs HTTP/1.1" 200 OK

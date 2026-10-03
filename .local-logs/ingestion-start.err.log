@@ -1,0 +1,6 @@
+INFO:     Loading environment from 'D:\Eronmonsele\Documents\SoundMinds\product-app/.env'
+INFO:     Started server process [25076]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+Loading weights:   0%|          | 0/770 [00:00<?, ?it/s]Loading weights:  44%|####3     | 335/770 [00:00<00:00, 3344.37it/s]Loading weights: 100%|##########| 770/770 [00:00<00:00, 4254.66it/s]
