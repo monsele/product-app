@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { IconButton } from "./icon-button";
 import { X } from "@phosphor-icons/react";
 
@@ -31,7 +31,26 @@ export const Drawer: React.FC<DrawerProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
+  // Stay mounted through the exit so the panel leaves along the path it came
+  // in on. Transitions (not keyframes) let a reopen reverse from the live
+  // on-screen position.
+  const [mounted, setMounted] = useState(isOpen);
+  const [shown, setShown] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setMounted(true);
+      const frame = requestAnimationFrame(() => setShown(true));
+      return () => cancelAnimationFrame(frame);
+    }
+    setShown(false);
+    const timer = window.setTimeout(() => setMounted(false), 360);
+    return () => window.clearTimeout(timer);
+  }, [isOpen]);
+
+  if (!mounted) return null;
+
+  const offscreen = position === "right" ? "translateX(100%)" : "translateX(-100%)";
 
   return (
     <div
@@ -45,6 +64,9 @@ export const Drawer: React.FC<DrawerProps> = ({
         display: "flex",
         justifyContent: position === "right" ? "flex-end" : "flex-start",
         backgroundColor: "rgba(0, 0, 0, 0.4)",
+        opacity: shown ? 1 : 0,
+        pointerEvents: shown ? "auto" : "none",
+        transition: "opacity var(--motion-standard) var(--motion-easing)",
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -62,6 +84,7 @@ export const Drawer: React.FC<DrawerProps> = ({
           boxShadow: "var(--shadow-elevation)",
           display: "flex",
           flexDirection: "column",
+          transform: shown ? "none" : offscreen,
           transition: "transform var(--motion-standard) var(--motion-easing)",
         }}
       >

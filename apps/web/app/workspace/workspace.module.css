@@ -543,13 +543,28 @@
 
 .featuredCard,
 .projectCard {
+  position: relative;
+  isolation: isolate;
   background-color: var(--color-surface-raised);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
   transition:
     border-color var(--motion-quick) var(--motion-easing),
-    box-shadow var(--motion-quick) var(--motion-easing),
     transform var(--motion-quick) var(--motion-easing);
+}
+
+/* The hover shadow lives on a pseudo-element and fades by opacity, so the
+   card never repaints a box-shadow mid-transition. */
+.projectCard::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  box-shadow: var(--shadow-elevation);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--motion-quick) var(--motion-easing);
 }
 
 /* The featured lesson carries a faint brand wash in its leading corner so it
@@ -581,13 +596,25 @@
 .projectCard:hover,
 .projectCard:focus-within {
   border-color: var(--color-brand-line);
-  box-shadow: var(--shadow-elevation);
   transform: translateY(-2px);
+}
+
+.projectCard:hover::after,
+.projectCard:focus-within::after {
+  opacity: 1;
+}
+
+/* Press: respond on pointer-down, then settle back. */
+.projectCard:active {
+  transform: scale(0.992);
+  transition-duration: var(--motion-instant);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .projectCard:hover,
-  .projectCard:focus-within {
+  .projectCard:focus-within,
+  .projectCard:active,
+  .actionLinkPrimary:hover svg {
     transform: none;
   }
 }
