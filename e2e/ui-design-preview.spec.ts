@@ -8,7 +8,9 @@ test.describe("ST-072 Product UI Design Preview & Visual Test Harness", () => {
 
     // Verify page title
     await expect(
-      page.getByRole("heading", { name: "Product UI Design System Preview & Harness" })
+      page.getByRole("heading", {
+        name: "Product UI Design System Preview & Harness",
+      }),
     ).toBeVisible();
 
     // Verify primary buttons are visible and enabled
@@ -30,7 +32,9 @@ test.describe("ST-072 Product UI Design Preview & Visual Test Harness", () => {
     await expect(page.locator(".theme-studio-daylight")).toBeVisible();
 
     // Test Modal Dialog
-    const dialogTrigger = page.getByRole("button", { name: "Open Modal Dialog" });
+    const dialogTrigger = page.getByRole("button", {
+      name: "Open Modal Dialog",
+    });
     await dialogTrigger.click();
 
     const dialog = page.getByRole("dialog", { name: "Confirm Lesson Render" });
@@ -41,7 +45,9 @@ test.describe("ST-072 Product UI Design Preview & Visual Test Harness", () => {
     await expect(dialog).not.toBeVisible();
   });
 
-  test("captures visual snapshot baselines across viewports", async ({ page }) => {
+  test("captures visual snapshot baselines across viewports", async ({
+    page,
+  }) => {
     const viewports = [
       { name: "desktop-1440", width: 1440, height: 900 },
       { name: "tablet-1024", width: 1024, height: 768 },
@@ -54,8 +60,48 @@ test.describe("ST-072 Product UI Design Preview & Visual Test Harness", () => {
 
       // Verify header and page content fit without breaking
       await expect(
-        page.getByRole("heading", { name: "Product UI Design System Preview & Harness" })
+        page.getByRole("heading", {
+          name: "Product UI Design System Preview & Harness",
+        }),
       ).toBeVisible();
     }
   });
+});
+
+test("dialog contains focus and restores its trigger after dismissal", async ({
+  page,
+}) => {
+  await page.goto("/ui-design-preview");
+  const trigger = page.getByRole("button", { name: "Open Modal Dialog" });
+  await trigger.click();
+  const dialog = page.getByRole("dialog", { name: "Confirm Lesson Render" });
+  const close = dialog.getByRole("button", { name: "Close dialog" });
+  await expect(close).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect
+    .poll(() =>
+      dialog.evaluate((element) => element.contains(document.activeElement)),
+    )
+    .toBe(true);
+  await page.keyboard.press("Tab");
+  await expect(close).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(trigger).toBeFocused();
+});
+
+test("tabs support arrow navigation and retain focus with reduced motion", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/ui-design-preview");
+  const first = page.getByRole("tab", { name: "UI Primitives" });
+  await first.focus();
+  await page.keyboard.press("ArrowRight");
+  const next = page.getByRole("tab", { name: "Interaction & Status States" });
+  await expect(next).toBeFocused();
+  await expect(next).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("Home");
+  await expect(first).toBeFocused();
+  await expect(first).toHaveAttribute("aria-selected", "true");
 });

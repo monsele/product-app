@@ -36,6 +36,7 @@ export const SegmentedControl: React.FC<SegmentedControlProps> = ({
         borderRadius: "var(--radius-control)",
         border: "1px solid var(--color-border)",
         gap: "4px",
+        flexWrap: "wrap",
       }}
     >
       {options.map((opt) => {
@@ -49,16 +50,17 @@ export const SegmentedControl: React.FC<SegmentedControlProps> = ({
             disabled={opt.disabled}
             onClick={() => onChange(opt.value)}
             style={{
-              padding: "6px 14px",
+              padding: "8px 14px",
+              minHeight: "36px",
               fontSize: "13px",
               fontWeight: isSelected ? 600 : 400,
               color: isSelected ? "var(--color-text)" : "var(--color-text-muted)",
               backgroundColor: isSelected ? "var(--color-surface-raised)" : "transparent",
               borderRadius: "calc(var(--radius-control) - 2px)",
               border: isSelected ? "1px solid var(--color-border)" : "1px solid transparent",
-              boxShadow: isSelected ? "var(--shadow-elevation)" : "none",
+              boxShadow: isSelected ? "0 1px 4px rgb(20 10 40 / 0.08)" : "none",
               cursor: opt.disabled ? "not-allowed" : "pointer",
-              transition: "all var(--motion-quick) var(--motion-easing)",
+              transition: "background-color var(--motion-quick) ease, color var(--motion-quick) ease, box-shadow var(--motion-quick) ease",
             }}
           >
             {opt.label}

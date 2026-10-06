@@ -300,7 +300,7 @@ export function FullLessonPreview({
         display: "flex",
         flexDirection: "column",
         gap: "24px",
-        padding: "24px 16px 64px",
+        padding: "8px 0 48px",
         width: "100%",
         maxWidth: "1440px",
         margin: "0 auto",
@@ -329,7 +329,7 @@ export function FullLessonPreview({
               alignItems: "center",
               gap: "8px",
               padding: "8px 14px",
-              borderRadius: "8px",
+              borderRadius: "var(--radius-control)",
               backgroundColor: "rgba(255, 255, 255, 0.06)",
               border: "1px solid var(--color-border, #3A3046)",
               color: "var(--color-text, #F4F1F8)",
@@ -346,10 +346,10 @@ export function FullLessonPreview({
             <h1
               style={{
                 margin: 0,
-                fontSize: "20px",
-                fontWeight: 700,
+                font: "var(--text-page-title)",
+                fontWeight: 650,
                 color: "var(--color-text, #F4F1F8)",
-                letterSpacing: "-0.01em",
+                letterSpacing: "-0.035em",
               }}
             >
               Lesson preview
@@ -383,7 +383,7 @@ export function FullLessonPreview({
               color: "var(--color-text-muted, #BDB5C7)",
               backgroundColor: "rgba(255, 255, 255, 0.04)",
               padding: "6px 12px",
-              borderRadius: "8px",
+              borderRadius: "var(--radius-control)",
               border: "1px solid var(--color-border, #3A3046)",
             }}
           >
@@ -420,7 +420,7 @@ export function FullLessonPreview({
               alignItems: "center",
               gap: "6px",
               padding: "8px 14px",
-              borderRadius: "8px",
+              borderRadius: "var(--radius-control)",
               backgroundColor: "rgba(255, 255, 255, 0.06)",
               border: "1px solid var(--color-border, #3A3046)",
               color: "var(--color-text, #F4F1F8)",
@@ -442,13 +442,13 @@ export function FullLessonPreview({
                 alignItems: "center",
                 gap: "6px",
                 padding: "8px 18px",
-                borderRadius: "8px",
+                borderRadius: "var(--radius-control)",
                 backgroundColor: "var(--color-brand, #A883FF)",
                 color: "var(--color-on-brand, #1B1027)",
                 textDecoration: "none",
                 fontSize: "13px",
                 fontWeight: 600,
-                boxShadow: "0 2px 10px rgba(168, 131, 255, 0.3)",
+                boxShadow: "0 2px 4px rgb(8 4 14 / 0.18)",
               }}
             >
               Render lesson →
@@ -468,7 +468,7 @@ export function FullLessonPreview({
               type="button"
               style={{
                 padding: "8px 18px",
-                borderRadius: "8px",
+                borderRadius: "var(--radius-control)",
                 backgroundColor: "rgba(255, 255, 255, 0.08)",
                 color: "var(--color-text-muted, #BDB5C7)",
                 border: "1px solid var(--color-border, #3A3046)",
@@ -489,7 +489,7 @@ export function FullLessonPreview({
         <div
           style={{
             padding: "10px 16px",
-            borderRadius: "8px",
+            borderRadius: "var(--radius-control)",
             backgroundColor: "rgba(168, 131, 255, 0.1)",
             border: "1px solid rgba(168, 131, 255, 0.2)",
             fontSize: "13px",
@@ -515,7 +515,7 @@ export function FullLessonPreview({
           style={{
             margin: 0,
             padding: "12px 16px",
-            borderRadius: "8px",
+            borderRadius: "var(--radius-control)",
             backgroundColor: "rgba(239, 68, 68, 0.15)",
             border: "1px solid rgba(239, 68, 68, 0.3)",
             color: "#FCA5A5",
@@ -691,7 +691,7 @@ export function FullLessonPreview({
                   gap: "8px",
                   padding: "12px 14px",
                   backgroundColor: "var(--color-surface-raised, #292035)",
-                  borderRadius: "8px",
+                  borderRadius: "var(--radius-control)",
                   border: `1px solid ${
                     isStale
                       ? "rgba(245, 158, 11, 0.4)"
@@ -848,7 +848,7 @@ export function FullLessonPreview({
         <div
           style={{
             padding: "12px 16px",
-            borderRadius: "8px",
+            borderRadius: "var(--radius-control)",
             backgroundColor:
               isStaleValidation
                 ? "rgba(138, 75, 8, 0.15)"
@@ -973,7 +973,7 @@ export function FullLessonPreview({
                       key={issue.id}
                       style={{
                         padding: "10px 14px",
-                        borderRadius: "8px",
+                        borderRadius: "var(--radius-control)",
                         backgroundColor: "var(--color-surface-raised, #292035)",
                         border: "1px solid var(--color-border, #3A3046)",
                         fontSize: "13px",

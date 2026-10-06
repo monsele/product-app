@@ -854,7 +854,7 @@ function RequestForm({
             throw error;
           setReading(true);
           await new Promise((resolve) =>
-            setTimeout(resolve, DOCUMENT_READ_RETRY_MS),
+            window.setTimeout(resolve, DOCUMENT_READ_RETRY_MS),
           );
         }
       }

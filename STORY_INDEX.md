@@ -148,3 +148,10 @@ Original story statuses are unchanged; live end-to-end verification is outstandi
 Maintenance 2026-09-29: ST-103 narration pauses are advisory under ADR-014/render-review-v2. Newly generated PCM narration exposes early storyboard notes; grounding shows scene-specific reasons and stale checks, with contradictory support marked Needs review. See ST-103's maintenance Dev Agent Record for tests and recovery evidence. Story status remains Done.
 
 Maintenance 2026-09-29: ST-048 narration repair now patches only failed sentences, preserves valid content and citations, and sends complete correction context. Regression and real-provider checks recovered the reported prompt-to-video run through Narration into Visuals. See ST-048's maintenance Dev Agent Record for tests, screenshots and remaining bounded-repair limitations. Story status remains Done.
+
+
+Maintenance 2026-10-06: ST-083 received the owner-requested premium interface pass
+using apple-design. Presentation and shared interaction changes span the existing
+teacher workflow and authentication/public surfaces. See the
+[implementation and validation record](docs/premium-app-design-review.md).
+Historical story status remains Done; broader test limitations are recorded separately.

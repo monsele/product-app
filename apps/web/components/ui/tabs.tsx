@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useRef } from "react";
+import styles from "./tabs.module.css";
 
 export interface TabItem {
   id: string;
@@ -21,23 +22,48 @@ export const Tabs: React.FC<TabsProps> = ({
   onChange,
   ariaLabel = "Navigation tabs",
 }) => {
+  const listRef = useRef<HTMLDivElement>(null);
   return (
     <div
+      ref={listRef}
+      className={styles.list}
       role="tablist"
       aria-label={ariaLabel}
       style={{
         display: "flex",
-        gap: "2px",
-        borderBottom: "1px solid var(--color-border)",
+        gap: "4px",
+        borderBottom: "1px solid var(--color-border-soft)",
         width: "100%",
       }}
     >
-      {tabs.map((tab) => {
+      {tabs.map((tab, index) => {
         const isActive = activeTab === tab.id;
         return (
           <button
             key={tab.id}
+            type="button"
             role="tab"
+            className={styles.tab}
+            tabIndex={isActive ? 0 : -1}
+            onKeyDown={(event) => {
+              let next: number;
+              if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
+              else if (event.key === "ArrowLeft")
+                next = (index - 1 + tabs.length) % tabs.length;
+              else if (event.key === "Home") next = 0;
+              else if (event.key === "End") next = tabs.length - 1;
+              else return;
+              event.preventDefault();
+              const nextTab = tabs[next];
+              if (nextTab) {
+                onChange(nextTab.id);
+                const buttons =
+                  listRef.current?.querySelectorAll<HTMLButtonElement>(
+                    '[role="tab"]',
+                  );
+                buttons?.[next]?.focus();
+              }
+            }}
             aria-selected={isActive}
             aria-controls={`tabpanel-${tab.id}`}
             id={`tab-${tab.id}`}
@@ -46,10 +72,14 @@ export const Tabs: React.FC<TabsProps> = ({
               padding: "10px 16px",
               fontSize: "14px",
               fontWeight: isActive ? 600 : 500,
-              color: isActive ? "var(--color-brand)" : "var(--color-text-muted)",
+              color: isActive
+                ? "var(--color-brand)"
+                : "var(--color-text-muted)",
               background: "none",
               border: "none",
-              borderBottom: isActive ? "2px solid var(--color-brand)" : "2px solid transparent",
+              borderBottom: isActive
+                ? "2px solid var(--color-brand)"
+                : "2px solid transparent",
               cursor: "pointer",
               display: "inline-flex",
               alignItems: "center",
@@ -68,7 +98,9 @@ export const Tabs: React.FC<TabsProps> = ({
                   backgroundColor: isActive
                     ? "var(--color-surface-brand)"
                     : "var(--color-surface-subtle)",
-                  color: isActive ? "var(--color-brand)" : "var(--color-text-muted)",
+                  color: isActive
+                    ? "var(--color-brand)"
+                    : "var(--color-text-muted)",
                 }}
               >
                 {tab.count}

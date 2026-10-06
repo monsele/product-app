@@ -16,11 +16,14 @@ export const InformationRail: React.FC<InformationRailProps> = ({
   return (
     <aside
       aria-label={title}
+      className="layout-information-rail"
       style={{
         width,
-        minWidth: width,
+        minWidth: 0,
+        maxWidth: "100%",
+        flexShrink: 0,
         backgroundColor: "var(--color-surface)",
-        borderLeft: "1px solid var(--color-border)",
+        borderLeft: "1px solid var(--color-border-soft)",
         padding: "20px",
         display: "flex",
         flexDirection: "column",

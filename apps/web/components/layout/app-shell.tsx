@@ -43,6 +43,7 @@ export const AppShell: React.FC<AppShellProps> = ({
 
   return (
     <div
+      data-app-shell
       className={
         mode === "focus-studio" ? "theme-focus-studio" : "theme-studio-daylight"
       }
@@ -54,6 +55,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         flexDirection: "column",
       }}
     >
+      <a className="skip-link" href="#main-content">Skip to content</a>
       <AppHeader
         focusStudio={mode === "focus-studio"}
         projectTitle={projectTitle}
@@ -96,7 +98,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           </aside>
         )}
 
-        <main style={{ flex: 1, minWidth: 0 }}>
+        <main id="main-content" tabIndex={-1} style={{ flex: 1, minWidth: 0 }}>
           <PageContainer maxWidth={maxWidth}>{children}</PageContainer>
         </main>
       </div>

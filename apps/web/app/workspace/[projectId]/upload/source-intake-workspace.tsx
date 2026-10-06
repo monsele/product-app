@@ -19,14 +19,7 @@ export const SourceIntakeWorkspace: React.FC<SourceIntakeWorkspaceProps> = ({
   };
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-        gap: "32px",
-        alignItems: "start",
-      }}
-    >
+    <div className="source-intake-grid">
       {/* Main Intake & Processing Region (Flexible 70% region) */}
       <div
         style={{

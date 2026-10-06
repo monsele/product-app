@@ -1,0 +1,22 @@
+.list {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  padding: 4px 0;
+}
+.tab {
+  flex: 0 0 auto;
+  min-height: 44px;
+  white-space: nowrap;
+  border-radius: 8px 8px 0 0;
+}
+.tab:hover {
+  background-color: var(--color-surface-subtle) !important;
+}
+.tab:active {
+  transform: scale(0.98);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tab:active {
+    transform: none;
+  }
+}

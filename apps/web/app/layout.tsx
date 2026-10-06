@@ -4,6 +4,7 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { ToastProvider } from "../components/ui/toast-provider";
 import { NavigationProgressBar } from "../components/layout/navigation-progress-bar";
+import { MotionPreferences } from "../components/ui/motion-preferences";
 import "./globals.css";
 
 export const metadata: Metadata = { title: "AI Visual Learning Platform" };
@@ -17,7 +18,9 @@ export default function RootLayout({
         <Suspense fallback={null}>
           <NavigationProgressBar />
         </Suspense>
-        <ToastProvider>{children}</ToastProvider>
+        <MotionPreferences>
+          <ToastProvider>{children}</ToastProvider>
+        </MotionPreferences>
       </body>
     </html>
   );

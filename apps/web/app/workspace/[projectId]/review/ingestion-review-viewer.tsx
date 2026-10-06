@@ -955,7 +955,7 @@ export function IngestionReviewViewer({
         className="review-workspace-grid"
         style={{
           display: "grid",
-          gridTemplateColumns: "300px minmax(0, 1fr) 340px",
+          gridTemplateColumns: "224px minmax(0, 1fr) 280px",
           gap: "20px",
           alignItems: "start",
           minHeight: "650px",
@@ -1718,9 +1718,9 @@ export function IngestionReviewViewer({
       </div>
 
       <style jsx global>{`
-        @media (max-width: 1023px) and (min-width: 768px) {
+        @media (max-width: 1279px) and (min-width: 768px) {
           .review-workspace-grid {
-            grid-template-columns: 280px minmax(0, 1fr) !important;
+            grid-template-columns: 224px minmax(0, 1fr) !important;
           }
           .tablet-inspector-toggle {
             display: inline-flex !important;

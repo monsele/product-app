@@ -1,5 +1,7 @@
 "use client";
 
+import React from "react";
+
 import Image from "next/image";
 import { motion } from "motion/react";
 import styles from "./auth.module.css";

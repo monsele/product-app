@@ -326,13 +326,13 @@ export function RenderPanel({
 
   return (
     <div
+      className="delivery-layout"
       style={{
         display: "flex",
-        flexDirection: "row",
         gap: "32px",
-        minHeight: "calc(100vh - 80px)",
+        minHeight: "calc(100dvh - 80px)",
         boxSizing: "border-box",
-        padding: "24px 0",
+        padding: "8px 0 48px",
       }}
     >
       {/* Main Delivery Board Column */}
@@ -367,8 +367,8 @@ export function RenderPanel({
               <h1
                 id="render-heading"
                 style={{
-                  fontSize: "24px",
-                  fontWeight: 700,
+                  font: "var(--text-page-title)",
+                  fontWeight: 650,
                   color: "var(--color-text)",
                   margin: 0,
                   letterSpacing: "-0.02em",
@@ -417,7 +417,7 @@ export function RenderPanel({
             border: "1px solid var(--color-border)",
             borderRadius: "var(--radius-card)",
             padding: "24px",
-            boxShadow: "var(--shadow-elevation)",
+            boxShadow: "var(--shadow-surface)",
             display: "flex",
             flexDirection: "column",
             gap: "20px",
@@ -1114,7 +1114,7 @@ export function RenderPanel({
             border: "1px solid var(--color-border)",
             borderRadius: "var(--radius-card)",
             padding: "24px",
-            boxShadow: "var(--shadow-elevation)",
+            boxShadow: "var(--shadow-surface)",
             display: "flex",
             flexDirection: "column",
             gap: "16px",
@@ -1638,7 +1638,7 @@ export function RenderPanel({
             border: "1px solid var(--color-border)",
             borderRadius: "var(--radius-card)",
             padding: "24px",
-            boxShadow: "var(--shadow-elevation)",
+            boxShadow: "var(--shadow-surface)",
             display: "flex",
             flexDirection: "column",
             gap: "16px",
@@ -1850,7 +1850,7 @@ export function RenderPanel({
             border: "1px solid var(--color-border)",
             borderRadius: "var(--radius-card)",
             padding: "24px",
-            boxShadow: "var(--shadow-elevation)",
+            boxShadow: "var(--shadow-surface)",
             display: "flex",
             flexDirection: "column",
             gap: "16px",

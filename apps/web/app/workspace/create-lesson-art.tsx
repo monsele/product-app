@@ -1,5 +1,7 @@
 "use client";
 
+import React from "react";
+
 import Image from "next/image";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowRight, FilePdf, Play } from "@phosphor-icons/react";

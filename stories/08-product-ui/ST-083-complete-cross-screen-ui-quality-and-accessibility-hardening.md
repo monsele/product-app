@@ -201,3 +201,13 @@ Do not start this story until every dependency is marked **Done** in
   - Strict linting and TypeScript strict mode maintained monorepo-wide.
 - **Known risks or follow-up:** None. Phase 08 (Product UI) is complete.
 - **Deviations from story or technical guide:** None.
+
+
+### Maintenance - 6 October 2026: premium interface refinement
+
+Owner requested an app-wide visual and interaction pass using the apple-design
+skill. Shared chrome, typography, elevation, pipeline, controls and responsive
+reading/canvas compositions were refined. Dialog/drawer keyboard focus behavior,
+menu/tab navigation and reduced-motion handling were improved. See the complete
+[file, validation, screenshot, migration, contract and risk record](../../docs/premium-app-design-review.md).
+This maintenance entry leaves the historical story status unchanged.

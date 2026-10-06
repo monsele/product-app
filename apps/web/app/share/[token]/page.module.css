@@ -9,7 +9,7 @@
   min-height: 100dvh;
   background: var(--focus-canvas);
   color: var(--focus-text);
-  font-family: Arial, sans-serif;
+  font-family: var(--font-family-sans);
 }
 
 .theater {
@@ -29,6 +29,8 @@
   margin: 0 0 16px;
   font-size: clamp(1.5rem, 3vw, 2.25rem);
   line-height: 1.2;
+  font-weight: 650;
+  letter-spacing: -0.035em;
 }
 
 .player {
@@ -43,7 +45,7 @@
   width: 100%;
   max-height: calc(100dvh - 144px);
   aspect-ratio: 16 / 9;
-  background: #000;
+  background: #0b0810;
   border: 1px solid var(--focus-border);
   border-radius: 16px;
   box-shadow: 0 20px 60px rgb(8 4 14 / 0.36);

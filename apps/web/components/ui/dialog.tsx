@@ -1,9 +1,10 @@
 "use client";
-
-import React, { useEffect } from "react";
+import React, { useId } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { IconButton } from "./icon-button";
 import { X } from "@phosphor-icons/react";
-
+import { useModalFocus } from "./use-modal-focus";
+import styles from "./overlay.module.css";
 export interface DialogProps {
   isOpen: boolean;
   onClose: () => void;
@@ -13,7 +14,6 @@ export interface DialogProps {
   footer?: React.ReactNode;
   maxWidth?: string;
 }
-
 export const Dialog: React.FC<DialogProps> = ({
   isOpen,
   onClose,
@@ -23,107 +23,68 @@ export const Dialog: React.FC<DialogProps> = ({
   footer,
   maxWidth = "520px",
 }) => {
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
-
-  if (!isOpen) return null;
-
+  const id = useId();
+  const reduced = useReducedMotion();
+  const panelRef = useModalFocus(isOpen, onClose);
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="dialog-title"
-      aria-describedby={description ? "dialog-description" : undefined}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 1000,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "rgba(0, 0, 0, 0.4)",
-        padding: "20px",
-        backdropFilter: "blur(2px)",
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        style={{
-          width: "100%",
-          maxWidth,
-          backgroundColor: "var(--color-surface)",
-          color: "var(--color-text)",
-          borderRadius: "var(--radius-card)",
-          border: "1px solid var(--color-border)",
-          boxShadow: "var(--shadow-elevation)",
-          display: "flex",
-          flexDirection: "column",
-          maxHeight: "90vh",
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "20px 24px",
-            borderBottom: "1px solid var(--color-border)",
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className={styles.backdrop}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.16 }}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) onClose();
           }}
         >
-          <div>
-            <h2
-              id="dialog-title"
-              style={{ margin: 0, fontSize: "18px", fontWeight: 600, color: "var(--color-text)" }}
-            >
-              {title}
-            </h2>
-            {description && (
-              <p
-                id="dialog-description"
-                style={{ margin: "4px 0 0", fontSize: "14px", color: "var(--color-text-muted)" }}
-              >
-                {description}
-              </p>
-            )}
-          </div>
-          <IconButton
-            aria-label="Close dialog"
-            icon={<X weight="bold" />}
-            variant="tertiary"
-            size="compact"
-            onClick={onClose}
-          />
-        </div>
-
-        {children && (
-          <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1 }}>{children}</div>
-        )}
-
-        {footer && (
-          <div
-            style={{
-              padding: "16px 24px",
-              borderTop: "1px solid var(--color-border)",
-              backgroundColor: "var(--color-surface-subtle)",
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: "12px",
+          <motion.div
+            ref={panelRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`${id}-title`}
+            aria-describedby={description ? `${id}-description` : undefined}
+            className={styles.panel}
+            style={{ maxWidth }}
+            initial={{
+              opacity: 0,
+              scale: reduced ? 1 : 0.97,
+              y: reduced ? 0 : 8,
             }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: reduced ? 1 : 0.97, y: reduced ? 0 : 8 }}
+            transition={
+              reduced
+                ? { duration: 0.12 }
+                : { type: "spring", bounce: 0, visualDuration: 0.25 }
+            }
           >
-            {footer}
-          </div>
-        )}
-      </div>
-    </div>
+            <div className={styles.header}>
+              <div>
+                <h2 id={`${id}-title`} className={styles.title}>
+                  {title}
+                </h2>
+                {description && (
+                  <p id={`${id}-description`} className={styles.description}>
+                    {description}
+                  </p>
+                )}
+              </div>
+              <IconButton
+                aria-label="Close dialog"
+                icon={<X />}
+                variant="tertiary"
+                size="compact"
+                onClick={onClose}
+              />
+            </div>
+            {children && <div className={styles.body}>{children}</div>}
+            {footer && <div className={styles.footer}>{footer}</div>}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };

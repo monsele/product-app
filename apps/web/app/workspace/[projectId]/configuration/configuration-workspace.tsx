@@ -568,7 +568,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
           display: "flex",
           flexDirection: "column",
           gap: "16px",
-          padding: "32px 24px",
+          padding: "8px 0 48px",
           maxWidth: "1140px",
           margin: "0 auto",
         }}
@@ -576,7 +576,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
         <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
           <h1
             id="configuration-heading"
-            style={{ fontSize: "24px", fontWeight: 600, margin: 0 }}
+            style={{ font: "var(--text-page-title)", fontWeight: 600, margin: 0 }}
           >
             Lesson & voice setup
           </h1>
@@ -598,14 +598,14 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
           display: "flex",
           flexDirection: "column",
           gap: "20px",
-          padding: "32px 24px",
+          padding: "8px 0 48px",
           maxWidth: "760px",
           margin: "0 auto",
         }}
       >
         <h1
           id="configuration-heading"
-          style={{ fontSize: "24px", fontWeight: 600, margin: 0 }}
+          style={{ font: "var(--text-page-title)", fontWeight: 600, margin: 0 }}
         >
           Lesson & voice setup
         </h1>
@@ -645,7 +645,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
       style={{
         maxWidth: "1200px",
         margin: "0 auto",
-        padding: "24px 20px 80px 20px",
+        padding: "8px 0 64px",
       }}
     >
       {/* Page Header */}
@@ -670,11 +670,11 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
             <h1
               id="configuration-heading"
               style={{
-                fontSize: "24px",
-                fontWeight: 700,
+                font: "var(--text-page-title)",
+                fontWeight: 650,
                 color: "var(--color-text)",
                 margin: 0,
-                letterSpacing: "-0.01em",
+                letterSpacing: "-0.035em",
               }}
             >
               Lesson & voice setup
@@ -774,7 +774,6 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
           gap: "32px",
           alignItems: "start",
         }}
@@ -2152,7 +2151,7 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
           aria-label="Setup summary"
           style={{
             position: "sticky",
-            top: "24px",
+            top: "88px",
             display: "flex",
             flexDirection: "column",
             gap: "20px",

@@ -6,8 +6,8 @@
 .header {
   height: 64px;
   max-height: 80px;
-  background-color: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  background-color: var(--color-glass);
+  border-bottom: 1px solid var(--color-border-soft);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -16,6 +16,9 @@
   position: sticky;
   top: 0;
   z-index: 100;
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  box-shadow: 0 4px 20px rgb(20 10 40 / 0.025);
 }
 
 @media (max-width: 767px) {
@@ -108,7 +111,8 @@
   line-height: 18px;
   font-weight: 600;
   cursor: pointer;
-  padding: 4px 8px;
+  padding: 8px 12px;
+  min-height: 36px;
   border-radius: var(--radius-control);
   white-space: nowrap;
   flex-shrink: 0;
@@ -127,7 +131,7 @@
 .focusStudio {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  background-color: var(--color-surface);
+  background-color: var(--color-glass);
   border-bottom-color: var(--color-border);
   box-shadow: 0 8px 28px rgb(8 4 14 / 0.16);
 }
@@ -210,4 +214,12 @@
     margin: 0;
     padding: 7px 0 7px 8px;
   }
+}
+
+@media (max-width: 1023px) {
+  .header:not(.focusStudio) .projectGroup { display: none; }
+  .accountGroup { gap: 8px; }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .header { backdrop-filter: none; -webkit-backdrop-filter: none; }
 }

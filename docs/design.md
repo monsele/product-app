@@ -899,3 +899,24 @@ These decisions require explicit product-owner approval before implementation:
 - Whether a user-selectable dark mode is needed outside Focus Studio routes.
 
 Until those decisions are made, follow this guide without inventing answers.
+
+
+## 18. Interface craft conventions (6 October 2026)
+
+The premium interface maintenance pass retains the approved brand and page modes.
+Resting panels use `--shadow-surface` and `--color-border-soft`; dialogs and temporary
+layers keep stronger elevation. `--color-glass` is reserved for sticky headers and
+drawers, with solid fallbacks for reduced transparency and increased contrast.
+Do not extend translucency to reading surfaces or stack glass panels.
+
+Shared type roles use rem units and optical sizing, with 650-weight major headings,
+negative heading tracking, and normal body tracking. Page titles scale to the editor
+size on phones. Geist remains the approved product typeface.
+
+Shared motion honours the user's reduced-motion preference through MotionConfig as
+well as CSS. Overlays use zero-bounce springs, symmetric paths, focus containment,
+scroll locking and focus restoration. Every primary control has a 44px touch target;
+compact controls remain at least 36px. Keep hover feedback distinct from keyboard
+focus and preserve existing task labels.
+
+See [the implementation and verification record](premium-app-design-review.md).

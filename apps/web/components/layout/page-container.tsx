@@ -22,7 +22,6 @@ export const PageContainer: React.FC<PageContainerProps> = ({
         width: "100%",
         maxWidth,
         margin: "0 auto",
-        padding: "24px",
         boxSizing: "border-box",
         minWidth: 0,
         ...style,
