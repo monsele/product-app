@@ -17,7 +17,9 @@ test.describe("Authenticated Application Shell UI", () => {
       },
     ]);
     await page.goto("/workspace");
-    await expect(page.getByText("AI Visual Learning Platform")).toBeVisible();
+    await expect(
+      page.getByRole("banner").getByRole("img", { name: "PageMotion" }),
+    ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Teacher workspace" }),
     ).toBeVisible();

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef, useTransition, useCallback } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { CircleNotch } from "@phosphor-icons/react";
+import { OnionSkinLoader } from "../brand/onion-skin-loader";
 import styles from "./navigation-progress-bar.module.css";
 
 /** Fired by buttons that navigate with `router.push` instead of an anchor. */
@@ -155,9 +155,7 @@ export function NavigationProgressBar(): React.JSX.Element | null {
 
       {showBadge && (
         <div className={styles.loadingBadge} role="status" aria-live="polite">
-          <span className={`ui-spinner ${styles.spinner}`}>
-            <CircleNotch size={14} weight="bold" />
-          </span>
+          <OnionSkinLoader size={18} />
           <span>Loading page…</span>
         </div>
       )}

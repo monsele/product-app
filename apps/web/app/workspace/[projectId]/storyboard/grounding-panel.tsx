@@ -11,6 +11,7 @@ import {
   groundingReviewStatus,
   groundingStatusLabel,
 } from "./grounding-input";
+import { OnionSkinLoader } from "../../../../components/brand/onion-skin-loader";
 
 export function GroundingClaimExplanation({
   text,
@@ -152,7 +153,15 @@ export function SceneGrounding({
   }, [state, sceneId]);
 
   if (state.kind === "loading")
-    return <p role="status">Loading grounding status…</p>;
+    return (
+      <p
+        role="status"
+        style={{ display: "flex", alignItems: "center", gap: "8px" }}
+      >
+        <OnionSkinLoader size={18} />
+        Loading grounding status…
+      </p>
+    );
 
   if (state.kind === "failed")
     return (

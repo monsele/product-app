@@ -18,6 +18,7 @@ import { AppHeader } from "../../components/layout/app-header";
 import { ProjectPipelineRail } from "../../components/layout/project-pipeline-rail";
 import { InformationRail } from "../../components/layout/information-rail";
 import { EditorShell } from "../../components/layout/editor-shell";
+import { BrandPreview } from "./brand-preview";
 
 import { Plus, Trash, Play, Gear, Sparkle } from "@phosphor-icons/react";
 
@@ -79,6 +80,7 @@ export default function UIDesignPreviewPage() {
             { id: "states", label: "Interaction & Status States" },
             { id: "layouts", label: "Layout Primitives" },
             { id: "editor-preview", label: "Editor Shell Preview" },
+            { id: "brand", label: "Brand and loading" },
           ]}
           activeTab={activeTab}
           onChange={setActiveTab}
@@ -317,6 +319,8 @@ export default function UIDesignPreviewPage() {
               </InformationRail>
             </div>
           )}
+
+          {activeTab === "brand" && <BrandPreview />}
 
           {activeTab === "editor-preview" && (
             <div style={{ height: "500px", border: "1px solid var(--color-border)", borderRadius: "var(--radius-card)", overflow: "hidden" }}>

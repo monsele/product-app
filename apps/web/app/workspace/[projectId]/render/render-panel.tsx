@@ -14,6 +14,7 @@ import { StatusLabel } from "../../../../components/ui/status-label";
 import { Notice } from "../../../../components/ui/notice";
 import { Dialog } from "../../../../components/ui/dialog";
 import { InformationRail } from "../../../../components/layout/information-rail";
+import { BrandMark } from "../../../../components/brand/brand-mark";
 import { toast } from "../../../../components/ui/toast-provider";
 import { useTaskStatusNotification } from "../../../../lib/use-task-notification";
 import {
@@ -914,29 +915,35 @@ export function RenderPanel({
                   alignItems: "center",
                 }}
               >
-                <div>
-                  <h3
-                    style={{
-                      fontSize: "15px",
-                      fontWeight: 600,
-                      color: "var(--color-text)",
-                      margin: 0,
-                    }}
-                  >
-                    {latestRender.status === "rendering"
-                      ? "Rendering video frames…"
-                      : "Queued for rendering worker…"}
-                  </h3>
-                  <p
-                    style={{
-                      fontSize: "13px",
-                      color: "var(--color-text-muted)",
-                      margin: "4px 0 0",
-                    }}
-                  >
-                    Synthesizing motion animations, voice audio, and timing
-                    cues.
-                  </p>
+                <div
+                  style={{ display: "flex", alignItems: "center", gap: "14px" }}
+                >
+                  {/* The mark folds only while this render job is active. */}
+                  <BrandMark size={40} working />
+                  <div>
+                    <h3
+                      style={{
+                        fontSize: "15px",
+                        fontWeight: 600,
+                        color: "var(--color-text)",
+                        margin: 0,
+                      }}
+                    >
+                      {latestRender.status === "rendering"
+                        ? "Rendering video frames…"
+                        : "Queued for rendering worker…"}
+                    </h3>
+                    <p
+                      style={{
+                        fontSize: "13px",
+                        color: "var(--color-text-muted)",
+                        margin: "4px 0 0",
+                      }}
+                    >
+                      Synthesizing motion animations, voice audio, and timing
+                      cues.
+                    </p>
+                  </div>
                 </div>
                 <div
                   style={{

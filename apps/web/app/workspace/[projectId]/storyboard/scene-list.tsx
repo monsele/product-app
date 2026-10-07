@@ -11,14 +11,14 @@ import React, {
   type KeyboardEvent,
 } from "react";
 import type { StoryboardSceneListEntry } from "@avlp/schemas";
-import { CaretDown, CaretUp } from "@phosphor-icons/react";
-import styles from "./storyboard.module.css";
 import {
-  sceneAssetStatusLabel,
-  sceneAudioStatusLabel,
-  sceneCaptionStatusLabel,
-  sceneValidationStatusLabel,
-} from "./storyboard-input";
+  CaretDown,
+  CaretUp,
+  CheckCircle,
+  WarningCircle,
+} from "@phosphor-icons/react";
+import styles from "./storyboard.module.css";
+import { sceneAttentionLabels, sceneTemplateLabel } from "./storyboard-input";
 
 /** Fixed row height used by the windowing math. */
 export const sceneRowHeight = 88;
@@ -252,6 +252,7 @@ export function SceneList({
         const selected = scene.sceneId === selectedSceneId;
         const sceneStale = scene.status.stale || stale;
         const isDragging = dragIndex === index;
+        const attention = sceneAttentionLabels(scene.status);
 
         return (
           <li
@@ -284,7 +285,7 @@ export function SceneList({
                 <p
                   className={`${styles.sceneTitle} ${selected ? styles.sceneTitleSelected : ""}`}
                 >
-                  {scene.title ?? scene.template}
+                  {scene.title ?? sceneTemplateLabel(scene.template)}
                 </p>
               </div>
 
@@ -314,16 +315,23 @@ export function SceneList({
             </div>
 
             <p className={styles.sceneSummary}>
-              <span>{scene.template}</span>
+              <span>{sceneTemplateLabel(scene.template)}</span>
               <span className="tabular-nums">{scene.durationSeconds}s</span>
               <span>{scene.narrationSummary}</span>
             </p>
 
             <p className={styles.sceneMeta}>
-              {sceneAssetStatusLabel(scene.status.assets)} ·{" "}
-              {sceneAudioStatusLabel(scene.status.audio)} ·{" "}
-              {sceneCaptionStatusLabel(scene.status.captions)} ·{" "}
-              {sceneValidationStatusLabel(scene.status.validation)}
+              {attention.length === 0 ? (
+                <span className={styles.sceneReady}>
+                  <CheckCircle size={12} weight="fill" aria-hidden />
+                  Ready
+                </span>
+              ) : (
+                <span className={styles.sceneAttention}>
+                  <WarningCircle size={12} weight="fill" aria-hidden />
+                  {attention.join(" · ")}
+                </span>
+              )}
               {sceneStale ? (
                 <span role="status" className={styles.staleFlag}>
                   {" "}

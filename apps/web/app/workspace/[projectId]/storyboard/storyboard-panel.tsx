@@ -26,6 +26,7 @@ import {
 } from "@avlp/schemas";
 import {
   isGenerating,
+  previewBlockersSentence,
   sceneRegenerationFailureMessage,
   storyboardFailureMessage,
   storyboardGenerationStateLabel,
@@ -44,6 +45,7 @@ import {
 } from "./storyboard-scene-query";
 import { buildScenePreviewInput, canPreviewScene } from "./scene-preview-input";
 import { SceneList } from "./scene-list";
+import { SceneTimeline } from "./scene-timeline";
 import { CreativeDesignPanel } from "./creative-design-panel";
 import {
   SceneDetailPanel,
@@ -56,9 +58,13 @@ import {
   ArrowRight as ArrowRightIcon,
   CaretDown as CaretDownIcon,
   Copy as CopyIcon,
-  FilmStrip as FilmStripIcon,
   Plus as PlusIcon,
 } from "@phosphor-icons/react";
+import {
+  OnionSkinLoader,
+  PageLoading,
+} from "../../../../components/brand/onion-skin-loader";
+import { LoadingImage } from "../../../../components/brand/loading-image";
 import styles from "./storyboard.module.css";
 
 type ViewState =
@@ -1026,7 +1032,7 @@ export function StoryboardPanel({
         className={styles.stateShell}
       >
         <h2 id="storyboard-heading">Storyboard</h2>
-        <p role="status">Loading the storyboard…</p>
+        <PageLoading message="Loading the storyboard…" />
       </section>
     );
 
@@ -1054,10 +1060,6 @@ export function StoryboardPanel({
     <div className={styles.panel}>
       <header className={styles.header}>
         <div className={styles.headerIdentity}>
-          <span className={styles.headerKicker}>
-            <FilmStripIcon size={16} aria-hidden />
-            Focus Studio
-          </span>
           <h1 id="storyboard-heading" className={styles.title}>
             Storyboard
           </h1>
@@ -1184,6 +1186,14 @@ export function StoryboardPanel({
         </div>
       </header>
 
+      {storyboard !== null && listScenes.length > 0 ? (
+        <SceneTimeline
+          scenes={listScenes}
+          selectedSceneId={selectedSceneId}
+          onSelect={selectScene}
+        />
+      ) : null}
+
       {(storyboard !== null && !canOpenPreview) || warnings.length > 0 ? (
         <div className={styles.readinessRow}>
           {storyboard !== null && !canOpenPreview ? (
@@ -1197,7 +1207,12 @@ export function StoryboardPanel({
                 missingAssetCount === 0 &&
                 invalidSceneCount === 0
                   ? "Run final checks to enable Preview lesson."
-                  : `To preview: ${missingAudioCount} scene audio, ${missingCaptionCount} caption tracks, ${missingAssetCount} required assets, and ${invalidSceneCount} invalid scenes remaining.`}
+                  : previewBlockersSentence({
+                      audio: missingAudioCount,
+                      captions: missingCaptionCount,
+                      assets: missingAssetCount,
+                      invalid: invalidSceneCount,
+                    })}
               </span>
             </div>
           ) : null}
@@ -1427,9 +1442,10 @@ export function StoryboardPanel({
                       Select a scene to see its detail.
                     </p>
                   ) : detail.kind === "loading" ? (
-                    <p role="status" className={styles.canvasNote}>
-                      Loading scene preview…
-                    </p>
+                    <div role="status" className={styles.loadingNote}>
+                      <OnionSkinLoader size={56} />
+                      <p className={styles.canvasNote}>Loading scene preview…</p>
+                    </div>
                   ) : detail.kind === "failed" ? (
                     <div className={styles.canvasFallback}>
                       <p role="alert" className={styles.stateError}>
@@ -1445,9 +1461,11 @@ export function StoryboardPanel({
                     </div>
                   ) : teacherReplacement !== undefined ? (
                     <figure className={styles.replacementFigure}>
-                      <img
+                      <LoadingImage
                         alt="Selected teacher replacement in scene preview"
                         src={teacherReplacement.previewUrl}
+                        frameClassName={styles.replacementFrame}
+                        loaderSize={48}
                       />
                       <figcaption>Teacher replacement preview</figcaption>
                     </figure>
@@ -1463,6 +1481,12 @@ export function StoryboardPanel({
                       role="status"
                       className={styles.canvasFallback}
                     >
+                      {previewManifestError ? null : (
+                        <OnionSkinLoader
+                          size={48}
+                          className={styles.fallbackLoader}
+                        />
+                      )}
                       <h4>Preview unavailable</h4>
                       <p>
                         {previewManifestError
@@ -1522,7 +1546,11 @@ export function StoryboardPanel({
                   <p>Select a scene to see its detail.</p>
                 </div>
               ) : detail.kind === "loading" ? (
-                <div role="status" className={styles.inspectorState}>
+                <div
+                  role="status"
+                  className={`${styles.inspectorState} ${styles.loadingNote}`}
+                >
+                  <OnionSkinLoader size={40} />
                   <p>Loading the selected scene…</p>
                 </div>
               ) : detail.kind === "failed" ? (

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   isGenerating,
+  previewBlockersSentence,
+  sceneAttentionLabels,
+  sceneTemplateLabel,
   sceneAssetStatusLabel,
   sceneAudioStatusLabel,
   sceneCandidateStatusLabel,
@@ -140,5 +143,66 @@ describe("scene status projections", () => {
     expect(sceneValidationStatusLabel("ok")).toBe("Valid");
     expect(sceneValidationStatusLabel("warning")).toBe("Needs attention");
     expect(sceneValidationStatusLabel("error")).toBe("Invalid");
+  });
+});
+
+describe("scene template label", () => {
+  it("names templates for teachers instead of showing identifiers", () => {
+    expect(sceneTemplateLabel("cause-effect")).toBe("Cause and effect");
+    expect(sceneTemplateLabel("input-process-output")).toBe(
+      "Inputs and outputs",
+    );
+    expect(sceneTemplateLabel("hook")).toBe("Hook");
+  });
+});
+
+describe("scene attention labels", () => {
+  it("returns nothing for a ready scene", () => {
+    expect(
+      sceneAttentionLabels({
+        assets: "resolved",
+        audio: "ready",
+        captions: "ready",
+        validation: "ok",
+      }),
+    ).toEqual([]);
+  });
+
+  it("lists only the statuses that need action", () => {
+    expect(
+      sceneAttentionLabels({
+        assets: "planned",
+        audio: "not_generated",
+        captions: "ready",
+        validation: "warning",
+      }),
+    ).toEqual(["No audio generated", "Needs attention"]);
+    expect(
+      sceneAttentionLabels({
+        assets: "missing_required",
+        audio: "ready",
+        captions: "pending",
+        validation: "ok",
+      }),
+    ).toEqual(["Required asset missing", "Captions pending"]);
+  });
+});
+
+describe("preview blockers sentence", () => {
+  it("names only the remaining work, with plurals", () => {
+    expect(
+      previewBlockersSentence({ audio: 0, captions: 3, assets: 0, invalid: 0 }),
+    ).toBe("To preview, generate captions for 3 scenes.");
+    expect(
+      previewBlockersSentence({ audio: 1, captions: 2, assets: 1, invalid: 0 }),
+    ).toBe(
+      "To preview, generate audio for 1 scene, generate captions for 2 scenes and add 1 required asset.",
+    );
+  });
+
+  it("points to final checks when nothing is missing", () => {
+    expect(
+      previewBlockersSentence({ audio: 0, captions: 0, assets: 0, invalid: 0 }),
+    ).toBe("Run final checks to enable Preview lesson.");
   });
 });

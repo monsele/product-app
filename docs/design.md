@@ -120,11 +120,28 @@ results. Reading, reviewing, and editing surfaces remain quieter and denser.
 Do not hide citations, validation issues, costs, processing states, or failures.
 Truth and provenance are part of the design, not secondary metadata.
 
-### 4.4 Product naming
+### 4.4 Product name and logo
 
-No public product name or logo is approved in the repository. Until one is
-approved, use `AI Visual Learning Platform` in metadata and formal contexts. Do
-not invent a wordmark, startup-style name, mascot, or logo during screen work.
+The product owner approved the name **PageMotion** and its logo on 7 October
+2026. Brand idea: *clarity taking shape, pages in motion*. Tagline:
+`Clarity taking shape.`
+
+- **Mark (Page P):** a P drawn as a page whose top corner folds. The symbol
+  carries the page; the wordmark carries the motion.
+- **Wordmark:** `Page` in Geist SemiBold and `Motion` in Geist SemiBold Italic,
+  outlined so the italic does not depend on the loaded font.
+- **In the app:** use `BrandLogo` and `BrandMark` from
+  `apps/web/components/brand`. Do not retype the name as styled text or
+  redraw the mark. Colours follow the theme tokens (`--color-brand`,
+  `--color-brand-mark-flap`).
+- **Motion:** the corner may fold (`BrandMark working`) only while a real job
+  runs, such as a render. It stays still under reduced motion.
+- **Source files and usage rules** (clear space, minimum sizes, misuse) live in
+  `brand/pagemotion/` beside this repository; see its `README.md`.
+
+Legal trademark clearance for the name is still pending. Product requirement
+documents keep their original working title until they are revised. Do not
+invent mascots, alternative marks, or taglines during screen work.
 
 ### 4.5 Voice and copy
 
@@ -426,7 +443,7 @@ Do not put separate forms and multiple action links inside every project card.
 
 ### 8.5 Status and progress
 
-Use skeletons that match the expected content for short loading states. For
+Use the Onion Skin loader for short loading states (section 11). For
 background work, show the actual job state, a plain-language explanation, and
 the next available action. Do not invent percentage progress when the backend
 does not provide it.
@@ -528,7 +545,10 @@ action, and one secondary action. Keep the hero within the initial viewport.
 
 Use a two-part composition at desktop. The form occupies a calm, narrow column.
 The supporting region shows a real lesson transformation or an approved visual
-asset. On small screens, remove the supporting region and keep the form first.
+asset. It currently uses `LessonReel`: real frames from the photosynthesis
+sample lesson, stacked as onion-skin pages, with the front scene turning every
+few seconds (still under reduced motion). Do not replace it with clip art or
+generic illustration. On small screens, remove the reel and keep the form first.
 
 - Keep forms between `400px` and `460px` wide.
 - Use one page title, one short explanation, and the form.
@@ -739,10 +759,15 @@ Every screen implementation includes all relevant states before it is complete.
 
 ### Loading
 
-- Match skeleton geometry to the expected final content.
+- Use the Onion Skin loader from `apps/web/components/brand` for every route,
+  panel and image load: `PageLoading` for a route or panel, `OnionSkinLoader`
+  beside a short inline message, and `LoadingImage` for images and frames.
+  Do not add other spinners.
+- Pair the loader with a sentence naming what is loading. Never show placeholder
+  account details, guessed stage statuses or invented content while loading.
 - Keep previously usable content visible during background refreshes.
-- Use a spinner only inside a compact button or control when no structural
-  skeleton is appropriate.
+- Real job progress (render, audio, ingestion) keeps its actual state and
+  percentage; the loader never stands in for a known percentage.
 
 ### Empty
 
@@ -890,8 +915,7 @@ If a screen cannot answer these points, it is not ready for implementation.
 
 These decisions require explicit product-owner approval before implementation:
 
-- Public product name.
-- Logo and wordmark.
+- Trademark clearance for the approved name, PageMotion (see section 4.4).
 - Licensed or self-hosted final brand font asset.
 - Whether the public marketing site launches in the MVP.
 - Whether the default generated lesson theme will eventually adopt the violet

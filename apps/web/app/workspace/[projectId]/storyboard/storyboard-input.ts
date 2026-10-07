@@ -1,6 +1,7 @@
 import type {
   SceneCandidate,
   SceneRegenerationMode,
+  SceneTemplate,
   StoryboardGenerationState,
   StoryboardSceneAssetStatus,
   StoryboardSceneAudioStatus,
@@ -9,6 +10,88 @@ import type {
   StoryboardValidation,
 } from "@avlp/schemas";
 export type { StoryboardValidation };
+
+function countOf(count: number, singular: string, plural: string): string {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+/**
+ * Plain sentence naming only the work left before preview, e.g.
+ * "To preview, generate captions for 3 scenes." Zero counts are left out.
+ */
+export function previewBlockersSentence(counts: {
+  audio: number;
+  captions: number;
+  assets: number;
+  invalid: number;
+}): string {
+  const steps: string[] = [];
+  if (counts.audio > 0)
+    steps.push(`generate audio for ${countOf(counts.audio, "scene", "scenes")}`);
+  if (counts.captions > 0)
+    steps.push(
+      `generate captions for ${countOf(counts.captions, "scene", "scenes")}`,
+    );
+  if (counts.assets > 0)
+    steps.push(
+      `add ${countOf(counts.assets, "required asset", "required assets")}`,
+    );
+  if (counts.invalid > 0)
+    steps.push(`fix ${countOf(counts.invalid, "invalid scene", "invalid scenes")}`);
+  if (steps.length === 0) return "Run final checks to enable Preview lesson.";
+  const list =
+    steps.length === 1
+      ? steps[0]
+      : `${steps.slice(0, -1).join(", ")} and ${steps[steps.length - 1]}`;
+  return `To preview, ${list}.`;
+}
+
+/** Teacher-facing name for a scene template, in place of its identifier. */
+export function sceneTemplateLabel(template: SceneTemplate): string {
+  switch (template) {
+    case "hook":
+      return "Hook";
+    case "definition":
+      return "Definition";
+    case "process":
+      return "Process";
+    case "input-process-output":
+      return "Inputs and outputs";
+    case "comparison":
+      return "Comparison";
+    case "cause-effect":
+      return "Cause and effect";
+    case "labelled-diagram":
+      return "Labelled diagram";
+    case "analogy":
+      return "Analogy";
+    case "worked-example":
+      return "Worked example";
+    case "summary":
+      return "Summary";
+  }
+}
+
+/**
+ * The scene statuses a teacher needs to act on. An empty list means the scene
+ * is ready, so the list can show one quiet "Ready" instead of four labels.
+ */
+export function sceneAttentionLabels(status: {
+  assets: StoryboardSceneAssetStatus;
+  audio: StoryboardSceneAudioStatus;
+  captions: StoryboardSceneCaptionStatus;
+  validation: StoryboardSceneValidationStatus;
+}): string[] {
+  const labels: string[] = [];
+  if (status.assets === "missing_required")
+    labels.push(sceneAssetStatusLabel(status.assets));
+  if (status.audio !== "ready") labels.push(sceneAudioStatusLabel(status.audio));
+  if (status.captions !== "ready")
+    labels.push(sceneCaptionStatusLabel(status.captions));
+  if (status.validation !== "ok")
+    labels.push(sceneValidationStatusLabel(status.validation));
+  return labels;
+}
 
 /** Human-readable label for a scene asset-readiness projection. */
 export function sceneAssetStatusLabel(

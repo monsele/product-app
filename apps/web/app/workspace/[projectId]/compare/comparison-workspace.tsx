@@ -43,6 +43,7 @@ import {
 } from "@avlp/schemas/demonstration-pilot";
 import type { VideoApproach } from "@avlp/schemas";
 import { comparisonStyleLabel } from "./comparison-style";
+import { PageLoading } from "../../../../components/brand/onion-skin-loader";
 
 const fps = 30;
 
@@ -328,7 +329,7 @@ export function ComparisonWorkspace({ projectId }: { projectId: string }) {
   );
 
   if (state.kind === "loading")
-    return <p style={{ padding: "24px" }}>Loading comparisons…</p>;
+    return <PageLoading message="Loading comparisons…" />;
   if (state.kind === "failed")
     return (
       <p

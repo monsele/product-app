@@ -1,0 +1,36 @@
+
+> @avlp/web@0.0.0 dev D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web
+> next dev
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.192:3000
+   - Experiments (use with caution):
+     · optimizePackageImports
+
+ ✓ Starting...
+ ✓ Ready in 6.2s
+ ○ Compiling /sign-in ...
+ ✓ Compiled /sign-in in 28.3s (1632 modules)
+ GET /sign-in 200 in 30395ms
+ GET /sign-in 200 in 536ms
+ GET /sign-in 200 in 304ms
+ ○ Compiling /register ...
+ ✓ Compiled /register in 1444ms (1548 modules)
+ GET /register 200 in 2559ms
+ ✓ Compiled in 1437ms (1548 modules)
+ ○ Compiling /ui-design-preview ...
+ ✓ Compiled /ui-design-preview in 4.4s (1815 modules)
+ GET /ui-design-preview 200 in 5653ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 965ms (1747 modules)
+ GET /lesson-frames/does-not-exist.jpg 404 in 1845ms
+ ✓ Compiled in 2.9s (1747 modules)
+ ✓ Compiled in 2.3s (1752 modules)
+ ✓ Compiled in 1363ms (1752 modules)
+ GET /ui-design-preview 200 in 1208ms
+ GET /sign-in 200 in 415ms
+ ○ Compiling /register ...
+ ✓ Compiled /register in 3.1s (973 modules)
+ GET /register 200 in 6052ms
+ GET /ui-design-preview 200 in 727ms

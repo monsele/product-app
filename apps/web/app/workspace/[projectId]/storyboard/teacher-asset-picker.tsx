@@ -10,6 +10,7 @@ import {
   uploadTeacherAsset,
 } from "./storyboard-scene-query";
 import styles from "./storyboard.module.css";
+import { LoadingImage } from "../../../../components/brand/loading-image";
 
 /** Private-image selector kept separate from the immutable approved catalog. */
 export function TeacherAssetPicker({
@@ -158,10 +159,12 @@ export function TeacherAssetPicker({
         </button>
       </div>
       {assets.find((asset) => asset.assetId === selectedId) !== undefined ? (
-        <img
+        <LoadingImage
           alt="Selected teacher uploaded asset preview"
           src={assets.find((asset) => asset.assetId === selectedId)?.previewUrl}
           className={styles.teacherAssetPreview}
+          frameStyle={{ minHeight: 96, borderRadius: 10 }}
+          loaderSize={36}
         />
       ) : null}
       {message === undefined ? null : <p className={styles.assetPickerStatus} role="status">{message}</p>}

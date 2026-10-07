@@ -40,7 +40,7 @@ export function CreateLessonArt() {
 
       <motion.div className={styles.artFrame} {...enter(0.45, { scale: 0.94, y: 8 })}>
         <Image
-          src="/catalog/plant-cycle.svg"
+          src="/lesson-frames/photosynthesis-hook.jpg"
           alt=""
           fill
           sizes="260px"

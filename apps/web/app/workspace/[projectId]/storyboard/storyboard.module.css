@@ -57,20 +57,6 @@
   min-width: 0;
 }
 
-.headerKicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin-bottom: 4px;
-  color: var(--color-brand);
-  font: var(--text-supporting);
-  font-weight: 650;
-}
-
-.headerKicker svg {
-  flex: none;
-}
-
 .title {
   font: var(--text-editor-title);
   margin: 0;
@@ -545,9 +531,31 @@
 
 .replacementFigure img {
   display: block;
-  max-height: 85%;
-  max-width: 90%;
+  max-height: 100%;
+  max-width: 100%;
   object-fit: contain;
+}
+
+.replacementFrame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 90%;
+  height: 85%;
+  border-radius: var(--radius-control);
+}
+
+/* Onion Skin loader with its message (components/brand). */
+.loadingNote {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.fallbackLoader {
+  margin-bottom: 14px;
 }
 
 .replacementFigure figcaption {
@@ -887,6 +895,108 @@
 .staleFlag {
   color: var(--color-warning-text);
   font-weight: 600;
+}
+
+/* Scene timeline: one segment per scene, width proportional to duration. */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.timelineTrack {
+  display: flex;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timelineItem {
+  flex-basis: 0;
+  min-width: 22px;
+}
+
+.timelineSegment {
+  width: 100%;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  border: 1px solid var(--color-border);
+  border-bottom-width: 3px;
+  border-radius: 6px;
+  background-color: var(--color-surface-raised);
+  color: var(--color-text-muted);
+  font: var(--text-supporting);
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    background-color var(--motion-quick, 200ms) var(--motion-easing, ease),
+    border-color var(--motion-quick, 200ms) var(--motion-easing, ease);
+}
+
+.timelineSegment:hover {
+  background-color: var(--color-surface-subtle);
+  color: var(--color-text);
+}
+
+.timelineSegment:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+/* Scene names show wherever the segment is wide enough, then truncate. */
+.timelineName {
+  min-width: 0;
+  margin-left: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Needs attention: warning edge plus the label in the accessible name. */
+.timelineSegmentAttention {
+  border-bottom-color: var(--color-warning-text);
+}
+
+.timelineSegmentSelected,
+.timelineSegmentSelected:hover {
+  background-color: var(--color-brand);
+  border-color: var(--color-brand);
+  color: var(--color-on-brand);
+  font-weight: 650;
+}
+
+.timelineScale {
+  display: flex;
+  justify-content: space-between;
+  margin: 0;
+  font: var(--text-supporting);
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+/* Scene readiness: one quiet "Ready", or only what needs attention. */
+.sceneReady,
+.sceneAttention {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+}
+
+.sceneReady {
+  color: var(--color-success-text);
+}
+
+.sceneAttention {
+  color: var(--color-warning-text);
+}
+
+.sceneReady svg,
+.sceneAttention svg {
+  flex-shrink: 0;
 }
 
 .sceneListEmpty {

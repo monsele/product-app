@@ -1,25 +1,25 @@
-# Graph Report - product-app  (2026-10-02)
+# Graph Report - product-app  (2026-10-07)
 
 ## Corpus Check
-- 1237 files · ~10,704,730 words
+- 1252 files · ~10,767,581 words
 - Verdict: corpus is large enough that graph structure adds value.
-- Unclassified: 204 file(s) not represented in the graph (top: .log 171, .css 13, .tsv 7)
+- Unclassified: 214 file(s) not represented in the graph (top: .log 172, .css 21, .tsv 7)
 
 ## Summary
-- 13734 nodes · 27766 edges · 611 communities (534 shown, 77 thin omitted)
-- Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 1214 edges (avg confidence: 0.93)
+- 13791 nodes · 27930 edges · 621 communities (537 shown, 84 thin omitted)
+- Extraction: 96% EXTRACTED · 4% INFERRED · 0% AMBIGUOUS · INFERRED: 1220 edges (avg confidence: 0.93)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `512a8630`
+- Built from commit: `1f2ec6dc`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
 ## Community Hubs (Navigation)
 - schemas/src/index.ts
-- pipeline-worker/src/cinema-lesson.fixture.ts
+- packages_config_dist_index_createid
 - renderer/src/main.ts
-- vitest
+- packages_config_dist_index
 - Req
 - schema.ts
 - app.ts
@@ -27,13 +27,13 @@
 - scene-editor-form.tsx
 - OneShotStageGateway
 - scene-library/src/index.test.ts
-- scene-detail-panel.tsx
+- scene-narration-editor.tsx
 - demonstration-proof.ts
 - render-worker.ts
 - next
-- demonstration-proof/validation.ts
-- createApp
-- outline.ts
+- state.ts
+- packages_schemas_dist_index
+- source-snapshot.ts
 - style-proof-contract.test.ts
 - PostgresLessonValidationService
 - diagram-layout.ts
@@ -42,10 +42,10 @@
 - PostgresNarrationService
 - creative-design-v2.ts
 - schemas/src/creative-design.ts
-- demonstration-integration.test.ts
-- storyboard-panel.tsx
+- packages_schemas_dist_demonstration_proof
+- storyboard-input.ts
 - toast-provider.tsx
-- ref_react
+- ui-design-preview/page.tsx
 - schemas/src/storyboard.test.ts
 - LessonSpec
 - resolver.ts
@@ -59,12 +59,12 @@
 - render-review.ts
 - narration-panel.tsx
 - workspace-mock-api.mjs
-- Dev Agent Record
-- [token]/page.tsx
+- one-shot-views.tsx
+- one-shot-runner.ts
 - package.json
 - demonstration-proof/fixtures.ts
 - pilot-bindings.ts
-- together-alignment.ts
+- together-tts.ts
 - config/src/index.ts
 - motion.ts
 - PostgresCreativeDesignService
@@ -77,13 +77,13 @@
 - project-access.ts
 - mvp-plan.md
 - style-proof/index.ts
-- render-worker.test.ts
+- MemoryStorage
 - PostgresOutlineService
 - gateway.ts
 - plan-builder.ts
-- observability/src/contracts.ts
+- projects.ts
 - telemetry.ts
-- ST-084 — Reconcile Scene Durations With Measured Audio Before Real TTS Adoption
+- Dev Agent Record
 - sound-bed.ts
 - Reconciled OpenMontage Learnings and Video-Quality Roadmap
 - 8. Epic Implementation Specifications
@@ -92,9 +92,9 @@
 - PostgresDemonstrationPilotService
 - ST-085 — Introduce Visual Role and Enforce Provenance at Asset Binding
 - outline-panel.tsx
-- lesson-versions.ts
-- Next steps (in order)
-- ref_remotion
+- api/src/creative-design.ts
+- ST-113 — Curated Illustration Library Fallback
+- creative-design-v2.test.ts
 - creative-design-panel.tsx
 - ref_zod
 - ST-034 — Normalize Docling Output into NormalizedDocument v1
@@ -105,11 +105,11 @@
 - docling-normalizer.ts
 - illustration-contact-sheet.tsx
 - README.md
-- focus-audience.test.ts
+- schemas/src/objectives.test.ts
 - PostgresStoryboardService
 - 2. Architecture Principles
 - prompts/index.ts
-- observability/src/repository.ts
+- observability/src/contracts.ts
 - savings.tsx
 - lease-reaper.ts
 - lesson-spec.test.ts
@@ -120,16 +120,16 @@
 - s3-compatible.ts
 - web/package.json
 - AI Visual Learning Platform — MVP Feature List
-- one-shot-runner.ts
+- one-shot-runner-st112.test.ts
 - full-lesson.tsx
-- TRACEABILITY_MATRIX.md
+- main
 - ST-052 — Resolve and Display Scene Source Citations
-- STORY_INDEX.md
+- ST-094 — Prove Three Distinct Video Style Packs
 - Distinct creative styles: technical research
 - jobs/src/repository.ts
 - worker.test.ts
 - demonstration-proof/index.ts
-- source-snapshot.ts
+- creative-design-render.test.ts
 - api/src/runtime.ts
 - What You Must Do When Invoked
 - generate-tracks.mjs
@@ -142,9 +142,9 @@
 - jobs/package.json
 - ./process-scene.js
 - mvp-acceptance.ts
-- ST-032 — Detect Duplicate Source Uploads and Reuse Safe Ingestion Results
+- lesson-configuration-input.ts
 - .updateScene
-- style-proof/validation.ts
+- document-ingestion-job.ts
 - client.ts
 - ingestion-status-panel.tsx
 - Apple Design
@@ -157,10 +157,10 @@
 - dynamic-mock-provider.ts
 - properties
 - ST-096 — Select and Compare Standard and Demonstration Videos
-- packages_schemas_dist_index
-- HANDOFF.md
+- grounding-check-job.test.ts
+- STORY_INDEX.md
 - ingestion-review-viewer.tsx
-- ref_node_path
+- runner.ts
 - schemas/src/one-shot.ts
 - database/package.json
 - database.integration.test.ts
@@ -181,25 +181,25 @@
 - pipeline-worker/package.json
 - Run the app
 - measureSceneContent
-- scene-audio-panel.tsx
+- render-panel.tsx
 - Demonstration-led animation: proof evaluation (ST-095)
-- ST-038 — Let Teachers Rename, Include, Exclude, and Reorder Source Sections
-- scene-library/src/index.ts
+- .build
+- scene-detail-panel.tsx
 - evals/package.json
 - ST-005 — Build the Job, Outbox, Retry, and Idempotency Platform
-- ST-093 - Use Approved Source Figures and Tables in Storyboard Scenes
+- Dev Agent Record
 - visual-role.test.ts
 - ST-018 — Implement the Labelled Diagram Scene Template
 - ST-015 — Implement the Input–Process–Output Scene Template
 - S3CompatibleObjectStorage
 - keys.ts
-- Dev Agent Record
+- .assertAuthorizedAssetBindings
 - FX-001 — Refresh the Storyboard Revision After Audio Duration Reconciliation
-- .update
+- content-block-corrections.ts
 - PostgresDemonstrationTestLessonService
 - NormalizedDocument
 - outline-editor.test.ts
-- packages_config_dist_index_createid
+- narration-editor.test.ts
 - ST-054 — Build Storyboard Scene List, Selection, and Navigation
 - ST-025 — Implement Email Registration, Sign-In, Sign-Out, and Session Protection
 - provider-adapters/package.json
@@ -224,7 +224,7 @@
 - Decision (proposed)
 - Video Style Templates and User Personalisation
 - config/package.json
-- one-shot-gateway.ts
+- demonstration-proof/validation.ts
 - ST-023 — Assemble a Manual Three-Minute LessonSpec and Full Composition
 - ST-024 — Implement the Initial Remotion Render Worker and MP4 Smoke Test
 - ST-026 — Implement Secure Password Reset
@@ -248,14 +248,14 @@
 - ST-072 - Establish Product UI Foundations and Visual Test Harness
 - ST-073 - Build the Application Shell and Authentication UI
 - ST-074 - Build the Teacher Workspace Project Board
-- demonstration-proof-preview/gallery.tsx
+- one-shot-mock.mjs
 - ST-080 - Build the Focus Studio Storyboard Workspace
 - resolveSnapshotSourceRefs
 - comparison-workspace.tsx
 - tasks
 - ST-056 — Implement Schema-Driven Scene Editing and Template Switching
 - StoryboardService
-- ref_node_url
+- ref_node_crypto
 - IngestionServiceTests
 - DefaultDoclingAdapter
 - style-proof-tokens.ts
@@ -264,7 +264,7 @@
 - ST-003 — Establish PostgreSQL and Drizzle Database Foundations
 - ST-075 - Restyle Source Intake and Ingestion Status
 - ST-029 — Duplicate and Delete Projects with Cleanup Scheduling
-- SceneAudioService
+- PostgresGroundingService
 - ST-033 — Run Docling Ingestion in an Isolated Python Worker
 - ST-108 — Repair Creative Rendering for New Videos
 - ST-037 — Build the Ingestion Review Document Viewer
@@ -274,12 +274,12 @@
 - ST-042 — Create Approved Source Snapshots and Bounded AI Source Packages
 - ST-043 — Implement AI Provider Adapters, Prompt Registry, Structured Output, and Model-Call Logging
 - ST-045 — Edit, Reorder, Regenerate, and Approve Learning Objectives
-- .build
+- ST-001 — Bootstrap the TypeScript Monorepo and Engineering Tooling
 - ST-049 — Edit or Regenerate Individual Narration Blocks with Dependency Invalidation
-- scene-preview-input.ts
+- storyboard-panel.tsx
 - ST-051 — Regenerate One Storyboard Scene Without Altering Neighboring Teacher Edits
 - ST-098 — Verify Controlled and Reproducible Rendering Across Video Features
-- provider-adapters/src/index.ts
+- quota.ts
 - E2. Teacher Workspace and Project Management
 - ST-059 — Generate Limited Scene Illustrations with Review and Cost Controls
 - ST-028 — Create and List Teacher Projects with Workspace Status
@@ -288,27 +288,27 @@
 - loadState
 - ST-077 - Restyle Lesson and Voice Configuration
 - ST-078 - Build Objectives and Outline Review Editors
-- ST-081 - Build the Lesson Preview and Preflight Experience
+- src/narration.ts
 - ST-104 — Add the Prompt-to-Video ADR, Focus and Audience Contracts, and Focus-Aware Prompts
 - tasteskill: Anti-Slop Frontend Skill
 - Appendix B - Canonical Sources (read these before reinventing)
 - ST-004 — Implement Private Object Storage and Signed-URL Abstractions
-- ST-008 — Define NormalizedDocument v1 and Provenance Contracts
+- TRACEABILITY_MATRIX.md
 - tasteskill: Anti-Slop Frontend Skill
 - Appendix B - Canonical Sources (read these before reinventing)
 - ST-020 — Implement the Worked Example Scene Template
 - shoot-scenes.mjs
 - demonstration-proof/primitives.tsx
-- illustration-candidate-panel.tsx
+- ref_react
 - 10. Screen-by-screen direction
 - test_app.py
-- ST-035 — Extract and Persist Figures, Captions, and Tables
+- OpenMontage Learnings — Final Consolidated Plan
 - Creative styles proof: evaluation
-- beats.tsx
-- ST-082 - Build Render, Delivery, and Public Playback UI
+- cinema.test.tsx
+- Next steps (in order)
 - dependencies
 - ST-027 — Enforce Project Resource Authorization and Tenant Isolation
-- E21. Observability, Security, and Cost Controls
+- jobs/src/contracts.ts
 - ST-092 - Explain Blocked Lesson-Version Saves and Guide Recovery
 - ST-090 — Constrain Provider Adapters per Job and Forbid Silent Fallback
 - ST-105 — Orchestrate Prompt-to-Video Runs Server-Side behind a Pilot Cohort
@@ -317,10 +317,10 @@
 - create_app
 - ST-103 — Add a Ducked Background Sound Bed and Post-Render Self-Review
 - fitText
-- Decision
+- Dev Agent Record
 - ST-055 — Reorder, Add, Duplicate, and Delete Storyboard Scenes
 - Decision
-- ST-010 — Create the MVP Video Design System and Motion Tokens
+- together-alignment.ts
 - PostgresProjectRepository
 - 5. Visual identity
 - Epic E1: Authentication and Access Control
@@ -331,7 +331,7 @@
 - Video Quality Strategy: Remotion vs. Generative Video
 - AuthGateway
 - PostgresShareLinkService
-- watch-video.mjs
+- PostgresVoiceConfigurationService
 - E5. Ingestion Review
 - document-validation.ts
 - _worker_main
@@ -339,20 +339,20 @@
 - focus-prompts.test.ts
 - exports
 - cause-effect-scene.tsx
-- normalized-document.test.ts
+- Contracts and Persistence
 - voice
 - E7. Learning Objective Generation
 - objectives-editor.test.ts
 - compilerOptions
 - 4. DESIGN ENGINEERING DIRECTIVES (Bias Correction)
-- ProviderOneShotBriefService
+- one-shot-st107.integration.test.ts
 - ST-011 — Implement the Scene Registry, Runtime Contract, and Layout Validation
 - ST-088 — Add Editorial Scene-Monotony Validation as a Versioned Advisory Rule
 - 4. DESIGN ENGINEERING DIRECTIVES (Bias Correction)
 - Decision
-- ST-076 - Build the Ingestion Review Workspace
+- E9. Narration Generation
 - cinema/primitives.tsx
-- ProjectRepository
+- lesson-versions.ts
 - ingestion-quality.ts
 - ST-007 — Define LessonSpec v1 and Scene Discriminated Unions
 - E8. Lesson Outline Generation
@@ -363,18 +363,18 @@
 - creative-design-carry-forward.ts
 - st107-drive.mjs
 - E3. Document Upload and Validation
-- E6. Lesson Configuration
-- CreativeDesignService
+- identity.ts
+- ST-110 — Visual Planning and Purposeful Imagery
 - packages_config_dist_index_identifierschema
 - dependencies
 - job-envelope.ts
 - dependencies
 - scripts
 - properties
-- IngestionReviewViewer
+- captions.ts
 - DemonstrationPilotService
 - PostgresSoundBedService
-- Dev Agent Record
+- SourceSnapshotService
 - ST-047 — Edit, Reorder, Link, and Approve the Lesson Outline
 - Product Brand and Interface Design Guide
 - 4.3 Brand principles
@@ -394,12 +394,12 @@
 - .generate
 - style-proof/font-assets.d.ts
 - audience
-- caption-export.ts
-- The prompt-to-video pilot (runner and API)
+- ST-035 — Extract and Persist Figures, Captions, and Tables
+- ST-081 - Build the Lesson Preview and Preflight Experience
 - 10. REFERENCE VOCABULARY (Pattern Names the Agent Should Know)
 - OutlineService
-- ipo-scene.tsx
-- ST-087 — Pilot Graph-Based Deterministic Motion for Process and Cause-Effect Scenes
+- PasswordResetEmailSender
+- ST-084 — Reconcile Scene Durations With Measured Audio Before Real TTS Adoption
 - ST-096 — comparison pilot evidence
 - .update
 - grounding-panel.tsx
@@ -407,23 +407,23 @@
 - graphify reference: extra exports and benchmark
 - ST-106 — Build the Prompt-to-Video Screens
 - Epic E11: Visual Scene Template Library
-- error-filter.ts
-- Dev Agent Record
+- groundCinemaDisplay
+- ST-076 - Build the Ingestion Review Workspace
 - items
 - ST-099 - Compose Creative Styles with Demonstration-Led Explanation
 - E15. Scene and Lesson Preview
-- ref_node_fs
-- ST-071 MVP acceptance
+- render-demonstration-proof.mjs
+- CreativeDesignService
 - compilerOptions
-- video-theme.ts
+- Dev Agent Record
 - scripts
 - E12. Storyboard Editor
-- `@avlp/jobs`
+- cost.ts
 - ST-091 — Structured Node and Edge Editor for Graph Process and Cause-Effect Scenes
 - 9. AI TELLS (Forbidden Patterns)
-- creative-style-packs.ts
-- Dev Agent Record
-- dependencies
+- .acceptCandidate
+- LessonVersionsService
+- scene-library/src/index.ts
 - IngestionStatusService
 - approved-assets.ts
 - 9. AI TELLS (Forbidden Patterns)
@@ -439,10 +439,10 @@
 - Epic E9: Narration Generation
 - Epic E10: Storyboard Generation
 - ST-107 — Add a Video Brief, Run Budget Ledger, Bounded Self-Repair and Decision Log to Prompt-to-Video
-- auth/src/index.ts
+- InMemoryAuthRateLimiter
 - design-system/tsconfig.json
-- ProjectAssetService
-- video-design-preview/page.tsx
+- cinema/index.ts
+- Premium interface refinement - 6 October 2026
 - devDependencies
 - scene-library/tsconfig.json
 - LessonSpec
@@ -452,10 +452,10 @@
 - 3. DEFAULT ARCHITECTURE & CONVENTIONS
 - 6. PERFORMANCE & ACCESSIBILITY GUARDRAILS
 - narration-pauses.ts
-- main
+- ST-083 - Complete Cross-Screen UI Quality and Accessibility Hardening
 - pipeline-worker/tsconfig.json
 - renderer/tsconfig.json
-- render-cinema-mp4.mjs
+- ref_node_fs
 - APPENDICES - Real Source-Backed Reference Material
 - 11. REDESIGN PROTOCOL
 - 3. DEFAULT ARCHITECTURE & CONVENTIONS
@@ -467,7 +467,7 @@
 - Workspace UI Review
 - auth/tsconfig.json
 - config/tsconfig.json
-- groundingState
+- SceneAudioService
 - database/tsconfig.json
 - evals/tsconfig.json
 - jobs/tsconfig.json
@@ -480,7 +480,7 @@
 - test-fixtures/tsconfig.json
 - Next Story
 - Sound bed catalog — license records (ST-103)
-- cinema.test.tsx
+- cinema-scene.tsx
 - graphify reference: query, path, explain
 - Next Story
 - Controlled Rendering Verification Report
@@ -501,18 +501,18 @@
 - Product Code Review
 - ADR-010 — Expand the registered standard-video style-pack catalogue
 - ADR-011 — Design snapshots do not require render readiness
-- 11. Loading, empty, error, and success states
-- 9. Motion system
+- one-shot-preview.tsx
+- ADR-005: Versioned style packs for multi-style video
 - Runbook: storage cleanup
 - Migration 0029 — model_calls and ai.grounding usage operation
 - Migration 0030 — learning_objective_sets and learning_objectives
-- source-figure-controls.ts
+- comparison.tsx
 - scripts
 - blocks
 - schemas/src/citations.test.ts
 - lesson-version.test.ts
 - 7. DIAL DEFINITIONS (Technical Reference)
-- RenderService
+- createSceneAudioGenerationJobHandler
 - duplicate/route.ts
 - 7. DIAL DEFINITIONS (Technical Reference)
 - graphify reference: add a URL and watch a folder
@@ -597,33 +597,39 @@
 - low-quality.md
 - process.md
 - style-proof/ffprobe-static.d.ts
-- video-preview-composition.tsx
+- ref_remotion
 - schemas/src/voice-configuration.test.ts
-- storyboard-scene-editor.test.ts
+- duration-reconciliation.integration.test.ts
 - 0068 focus prompt and audience compatibility
-- ref_react_dom
-- comparison-scene.tsx
-- generate
+- cross-screen-quality.playwright.test.tsx
+- PostgresSourceVisualsService
+- video-approach-selector.playwright.test.tsx
 - E13. Asset Management
-- ST-102 — Add Creative Style Pack Selection to Lesson Configuration
+- Runbook: render diagnostics
 - ProviderLessonIntentService
-- InMemoryProjectRepository
-- Dev Agent Record
+- packages_design_system_dist_style_proof_tokens
+- E6. Lesson Configuration
 - 0069 one-shot runs compatibility
 - packages_schemas_dist_creative_design_creativedesignmanifest
-- SceneSpec
+- RenderService
 - packages_schemas_dist_creative_design_creativedesignmanifestschema
 - project-route-authorization.ts
-- design-system/src/index.ts
+- frame.tsx
 - packages_schemas_dist_one_shot_oneshotestimateinputschema
-- videoTheme
-- PostgresGenerationQuotaGuard
 - Dev Agent Record
-- Scope
+- NarrationService
+- .regenerateBlock
 - ST-109 — V2 Contracts and Composition Families
 - delete/route.ts
-- projects/route.ts
-- Local MinIO
+- s3-compatible.test.ts
+- comparison-scene.tsx
+- detail.tsx
+- Scope
+- Dev Agent Record
+- `@avlp/jobs`
+- ./telemetry
+- test-fixtures/src/index.ts
+- normalizedDocumentSchema
 - ADR-014: Narration pauses are advisory
 
 ## God Nodes (most connected - your core abstractions)
@@ -653,23 +659,23 @@
 ## Import Cycles
 - None detected.
 
-## Communities (611 total, 77 thin omitted)
+## Communities (621 total, 84 thin omitted)
 
 ### Community 0 - "schemas/src/index.ts"
 Cohesion: 0.00
 Nodes (614): packages_config_dist_identifiers_identifier, AnalogyMappingPair, analogyMappingPairSchema, AssetAspectRatio, assetAspectRatioSchema, assetAspectRatioValues, AssetBindingRoleViolation, assetBindingRoleViolationValues (+606 more)
 
-### Community 1 - "pipeline-worker/src/cinema-lesson.fixture.ts"
-Cohesion: 0.04
-Nodes (62): key, png, puddle, seedBriefs(), artifactId, authoredDesign(), blockA, definitionScene (+54 more)
+### Community 1 - "packages_config_dist_index_createid"
+Cohesion: 0.03
+Nodes (62): Context, operationType, ADR-0013, createModelCallProviderApproval(), maximumCostEstimateUsdByModel, maximumModelCallCostUsd(), jobId, runId (+54 more)
 
 ### Community 2 - "renderer/src/main.ts"
 Cohesion: 0.29
 Nodes (6): bootstrap(), bootstrap(), health(), bootstrap(), packages_observability_dist_telemetry, packages_observability_dist_telemetry_starttelemetry
 
-### Community 3 - "vitest"
+### Community 3 - "packages_config_dist_index"
 Cohesion: 0.02
-Nodes (176): escapePdfText(), Scope, SeedIds, sourcePdf(), wrapPdfLine(), approvalStatus, contentHash, validBody (+168 more)
+Nodes (204): escapePdfText(), Scope, SeedIds, sourcePdf(), wrapPdfLine(), approvalStatus, contentHash, validBody (+196 more)
 
 ### Community 4 - "Req"
 Cohesion: 0.06
@@ -681,15 +687,15 @@ Nodes (120): ADR-0010, auditActorType, auditActorTypeValues, auditEvents, auditE
 
 ### Community 6 - "app.ts"
 Cohesion: 0.02
-Nodes (120): ApiDatabaseConnection, AppModule, AUTH_GATEWAY, AUTH_RATE_LIMITER, CITATION_SERVICE, closedDemonstrationPilotCohort, closedOneShotEligibility, CONTENT_BLOCK_CORRECTION_SERVICE (+112 more)
+Nodes (118): ApiDatabaseConnection, AppModule, AUTH_GATEWAY, AUTH_RATE_LIMITER, CITATION_SERVICE, closedDemonstrationPilotCohort, closedOneShotEligibility, CONTENT_BLOCK_CORRECTION_SERVICE (+110 more)
 
 ### Community 7 - "lib/one-shot.ts"
-Cohesion: 0.04
-Nodes (119): OneShotDelivery(), apps_web_app_workspace_projectid_one_shot_one_shot_module, views, ApprovalActions(), AttentionCard(), BriefCard(), BriefCardProps, BudgetCapCard() (+111 more)
+Cohesion: 0.07
+Nodes (69): ApprovalActions(), AttentionCard(), DecisionsState, NotCoveredCard(), RunProgressCard(), RunSteps(), announcementFor(), BriefStage() (+61 more)
 
 ### Community 8 - "scene-editor-form.tsx"
-Cohesion: 0.11
-Nodes (31): ApprovedAssetPicker(), asset, assetIdForSlot(), assetRole(), canAddGraphEdge(), cloneScene(), editorFieldsForScene(), fieldValue() (+23 more)
+Cohesion: 0.10
+Nodes (34): ApprovedAssetPicker(), asset, assetIdForSlot(), assetRole(), canAddGraphEdge(), cloneScene(), editorFieldsForScene(), fieldValue() (+26 more)
 
 ### Community 9 - "OneShotStageGateway"
 Cohesion: 0.07
@@ -697,47 +703,47 @@ Nodes (27): checkBriefPromises(), nextRepairRound(), PlannedRepair, advanceOneSh
 
 ### Community 10 - "scene-library/src/index.test.ts"
 Cohesion: 0.03
-Nodes (90): packages_design_system_dist_index_motionpreset, packages_design_system_dist_index_safearea, branchingCauseEffectFixture, graphCauseEffectFixture, maximumDensityCauseEffectFixture, simpleCauseEffectFixture, imageAssistedComparisonFixture, maximumDensityComparisonFixture (+82 more)
+Nodes (79): packages_design_system_dist_index_motionpreset, packages_design_system_dist_index_safearea, branchingCauseEffectFixture, graphCauseEffectFixture, maximumDensityCauseEffectFixture, simpleCauseEffectFixture, assetAssistedDefinitionFixture, maximumDensityDefinitionFixture (+71 more)
 
-### Community 11 - "scene-detail-panel.tsx"
-Cohesion: 0.10
-Nodes (27): apiUrl(), extractErrorMessage(), InspectorTab, SceneCandidates(), SceneDetailPanel(), teacherReplacementPreviewForScene(), teacherAsset, visualSummary() (+19 more)
+### Community 11 - "scene-narration-editor.tsx"
+Cohesion: 0.17
+Nodes (15): claimReasons(), claimText(), sceneGroundingCodes, sceneGroundingFlags(), SceneNarrationEditor(), run(), updateStoryboardScene(), groupValidationIssues() (+7 more)
 
 ### Community 12 - "demonstration-proof.ts"
 Cohesion: 0.02
 Nodes (91): ADR-0006, ADR-0007, canonicalDemonstrationJson(), canonicalize(), DemonstrationAction, demonstrationActionSchema, demonstrationActionValues, demonstrationAdvancePeriodEventSchema (+83 more)
 
 ### Community 13 - "render-worker.ts"
-Cohesion: 0.05
-Nodes (72): assertFixtureIntegrity(), assertProductionManifestIntegrity(), createFixtureRenderPayload(), emptyFixtureAssetManifest, isSupportedRenderImplementation(), manualLessonFixtureId, mutableEmptyFixtureAssetManifest, productionVisualAssetSchema (+64 more)
+Cohesion: 0.03
+Nodes (97): assertFixtureIntegrity(), assertProductionManifestIntegrity(), createFixtureRenderPayload(), emptyFixtureAssetManifest, isSupportedRenderImplementation(), manualLessonFixtureId, mutableEmptyFixtureAssetManifest, productionVisualAssetSchema (+89 more)
 
 ### Community 14 - "next"
 Cohesion: 0.05
-Nodes (70): CreateLessonArt(), EASE, DeleteProjectDialog(), ContextualInformationRail(), ContextualInformationRailProps, PROCESSING_STAGES, SOURCE_REQUIREMENTS, apiUrl() (+62 more)
+Nodes (72): ContextualInformationRail(), ContextualInformationRailProps, PROCESSING_STAGES, SOURCE_REQUIREMENTS, apiUrl(), WorkspacePage(), formatRelativeTimestamp(), getBaseStageDetails() (+64 more)
 
-### Community 15 - "demonstration-proof/validation.ts"
-Cohesion: 0.07
-Nodes (53): DemonstrationCaptionAtFrame(), DemonstrationComposition(), demonstrationCompositionIds, demonstrationDurationInFrames(), DemonstrationSceneAtFrame(), DemonstrationStill(), demonstrationTimeline(), DemonstrationTimelineSegment (+45 more)
+### Community 15 - "state.ts"
+Cohesion: 0.09
+Nodes (30): DemonstrationComposition(), DemonstrationSceneAtFrame(), DemonstrationStill(), presentationStyle(), allPlans, evaporationPlans, savingsPlans, mountPoint() (+22 more)
 
-### Community 16 - "createApp"
-Cohesion: 0.04
-Nodes (90): createApp(), sessionCookieName, api(), gateway(), user, LessonSpecRow, api(), sampleResponse (+82 more)
+### Community 16 - "packages_schemas_dist_index"
+Cohesion: 0.03
+Nodes (117): createApp(), sessionCookieName, api(), gateway(), user, api(), sampleResponse, api() (+109 more)
 
-### Community 17 - "outline.ts"
+### Community 17 - "source-snapshot.ts"
 Cohesion: 0.02
-Nodes (119): requestActor(), ownerUserId, runId, ADR-0013, CorrectionOverlayState, EffectiveContentBlockInput, assertExpectedVersion(), ConfigRow (+111 more)
+Nodes (86): requestActor(), ownerUserId, runId, ADR-0013, GroundingService, JobState, LessonSpecRow, GenerationJobState (+78 more)
 
 ### Community 18 - "style-proof-contract.test.ts"
-Cohesion: 0.04
-Nodes (64): assetsFor(), buildFixture(), captionsForScenes(), conductionAssetsByPack, conductionDurationInFrames, conductionDurationSeconds, conductionFactInventory, conductionProofFixtures (+56 more)
+Cohesion: 0.05
+Nodes (58): assetsFor(), buildFixture(), captionsForScenes(), conductionAssetsByPack, conductionDurationInFrames, conductionDurationSeconds, conductionFactInventory, conductionScenes (+50 more)
 
 ### Community 19 - "PostgresLessonValidationService"
-Cohesion: 0.25
-Nodes (8): canonicalize(), hashValidationArtifact(), isValidationRunStale(), parseRunBoundary(), PostgresLessonValidationService, validationInputHash(), SceneTemplate, Dev Agent Record
+Cohesion: 0.20
+Nodes (11): canonicalize(), groundingFindings(), groundingState(), hashValidationArtifact(), isRecord(), isValidationRunStale(), parseRunBoundary(), PostgresLessonValidationService (+3 more)
 
 ### Community 20 - "diagram-layout.ts"
-Cohesion: 0.05
-Nodes (52): 4.2 Visual roles, 4.3 Diagram callout collisions block the render today, 4.4 Correction to an earlier Claude claim, 4.5 Contact-sheet UX, 4.7 Asset path resolution, 4. Corrections and new findings from verification, anchorSide(), anchorVerticalBias() (+44 more)
+Cohesion: 0.04
+Nodes (64): 4.2 Visual roles, 4.3 Diagram callout collisions block the render today, 4.4 Correction to an earlier Claude claim, 4.5 Contact-sheet UX, 4.7 Asset path resolution, 4. Corrections and new findings from verification, anchorSide(), anchorVerticalBias() (+56 more)
 
 ### Community 21 - "schemas/src/demonstration-pilot.ts"
 Cohesion: 0.04
@@ -748,52 +754,52 @@ Cohesion: 0.03
 Nodes (58): canonicalize(), canonicalStyleProofJson(), JsonValue, StyleProofAsset, styleProofAssetSchema, StyleProofAssetSlot, styleProofAssetSlotSchema, StyleProofCaptionCue (+50 more)
 
 ### Community 23 - "PostgresNarrationService"
-Cohesion: 0.07
-Nodes (24): canonicalHash(), countWords(), createService(), errorDetails(), inFlight(), jobErrorCode(), narrationApprovalInFlight(), narrationBlockNotFound() (+16 more)
+Cohesion: 0.13
+Nodes (10): createService(), inFlight(), jobErrorCode(), narrationApprovalInFlight(), narrationNotApprovable(), narrationNothingToApprove(), narrationStaleForApproval(), outlineItemsContentHash() (+2 more)
 
 ### Community 24 - "creative-design-v2.ts"
 Cohesion: 0.03
-Nodes (131): creativeDesignSceneTypes, AnyCreativeDesignManifest, anyCreativeDesignManifestSchema, AnyScene, authoredCinemaBeats(), authoredCinemaDisplay(), authoredEmphasis(), bareWord() (+123 more)
+Nodes (76): AnyCreativeDesignManifest, AnyScene, briefPresentationPattern, capacityRank, CinemaArtDirection, cinemaArtDirectionSchema, CinemaBeat, cinemaBeatSchema (+68 more)
 
 ### Community 25 - "schemas/src/creative-design.ts"
 Cohesion: 0.04
 Nodes (63): packages_config_dist_index_sha256, canonicalCreativeDesignJson(), canonicalCreativeDesignValue(), carryForwardCreativeDesignManifest(), createDefaultCreativeDesignManifest(), creativeDesignApplyPresetInputSchema, creativeDesignApproachSchema, creativeDesignCapability() (+55 more)
 
-### Community 26 - "demonstration-integration.test.ts"
-Cohesion: 0.10
-Nodes (22): Integration contract for ST-096, One limitation this evaluation reported that ST-096 had to lift, What ST-096 still had to decide, and what it decided, demonstrationAssetBytes, demonstrationAssetLibrary, DemonstrationRenderComposition(), TenantLessonRecord, track (+14 more)
+### Community 26 - "packages_schemas_dist_demonstration_proof"
+Cohesion: 0.14
+Nodes (16): Integration contract for ST-096, One limitation this evaluation reported that ST-096 had to lift, What ST-096 still had to decide, and what it decided, demonstrationAssetBytes, DemonstrationRenderComposition(), buildDemonstrationManifest(), demonstrationFontFaces, demonstrationImplementationVersion (+8 more)
 
-### Community 27 - "storyboard-panel.tsx"
-Cohesion: 0.08
-Nodes (46): reorderSceneIds(), SceneList(), sceneRowHeight, visibleSceneRange(), isGenerating(), sceneAssetStatusLabel(), sceneAudioStatusLabel(), sceneCaptionStatusLabel() (+38 more)
+### Community 27 - "storyboard-input.ts"
+Cohesion: 0.13
+Nodes (26): reorderSceneIds(), SceneList(), sceneRowHeight, visibleSceneRange(), SceneTimeline(), SceneTimelineProps, countOf(), isGenerating() (+18 more)
 
 ### Community 28 - "toast-provider.tsx"
-Cohesion: 0.07
-Nodes (27): AuthAside(), AuthForm(), AuthMode, apps_web_app_auth_module, ForgotPasswordForm(), ResetPasswordForm(), ICON_CLASSES, ICONS (+19 more)
+Cohesion: 0.06
+Nodes (32): AuthAside(), AuthForm(), AuthMode, apps_web_app_auth_module, ForgotPasswordForm(), ResetPasswordForm(), FRAMES, LessonReel() (+24 more)
 
-### Community 29 - "ref_react"
-Cohesion: 0.03
-Nodes (100): DeleteProjectDialogProps, SKELETON_STAGES, focusCoverageNotice(), isGenerating(), objectiveFailureMessage(), objectiveGenerationStateLabel(), objectiveGroundingLabel(), apiUrl() (+92 more)
+### Community 29 - "ui-design-preview/page.tsx"
+Cohesion: 0.05
+Nodes (43): CreateLessonArt(), EASE, DeleteProjectDialog(), DeleteProjectDialogProps, createIdempotencyKey(), mapBadgeStatus(), ProjectBoardClient(), ProjectBoardClientProps (+35 more)
 
 ### Community 30 - "schemas/src/storyboard.test.ts"
 Cohesion: 0.04
 Nodes (49): snapshot(), currentSceneRegenerationCompatibility, LessonStoryboard, LessonStoryboardScene, lessonStoryboardSceneSchema, lessonStoryboardSchema, SceneCandidate, sceneCandidateDecisionInputSchema (+41 more)
 
 ### Community 31 - "LessonSpec"
-Cohesion: 0.05
-Nodes (45): ADR-003: Draft Storyboard Scene Schema Relaxation, Alternatives Considered, Context, Decision, Implementation, Related, Status, 1. Keep the semantic model; version the presentation around it (+37 more)
+Cohesion: 0.06
+Nodes (35): ADR-003: Draft Storyboard Scene Schema Relaxation, Alternatives Considered, Context, Decision, Implementation, Related, Status, ADR-008 — Resolved creative-design manifests for the bounded personalisation pilot (+27 more)
 
 ### Community 32 - "resolver.ts"
-Cohesion: 0.11
-Nodes (25): byId, containVector, coverRaster, findStyleProofTreatment(), StyleProofContentLimits, StyleProofTreatmentMetadata, styleProofTreatments, treatmentForPackAndSceneType() (+17 more)
+Cohesion: 0.10
+Nodes (26): byId, containVector, coverRaster, findStyleProofTreatment(), slot(), StyleProofContentLimits, StyleProofTreatmentMetadata, styleProofTreatments (+18 more)
 
 ### Community 33 - "api/src/demonstration-pilot.ts"
 Cohesion: 0.06
-Nodes (32): demonstrationCreativePackIds, DemonstrationPilotCohort, EligibilityOutcome, isDemonstrationCreativePack(), presentationFromBaseline(), profileForIdentity, registeredBeats(), registeredProvenance() (+24 more)
+Nodes (34): demonstrationCreativePackIds, DemonstrationPilotCohort, EligibilityOutcome, installDemonstrationNarrationRegistry(), isDemonstrationCreativePack(), presentationFromBaseline(), profileForIdentity, recipesOf() (+26 more)
 
 ### Community 34 - "storyboard-scene-query.ts"
-Cohesion: 0.10
-Nodes (38): addStoryboardScene(), apiUrl(), cachedStoryboardSceneList(), cacheStoryboardSceneList(), clearStoryboardSceneListCache(), completeTeacherAssetUpload(), deleteStoryboardScene(), deleteTeacherAsset() (+30 more)
+Cohesion: 0.09
+Nodes (43): apiUrl(), IllustrationContactSheetView(), StoryboardPanel(), addStoryboardScene(), apiUrl(), cachedStoryboardSceneList(), cacheStoryboardSceneList(), clearStoryboardSceneListCache() (+35 more)
 
 ### Community 35 - "design-system/package.json"
 Cohesion: 0.04
@@ -801,7 +807,7 @@ Nodes (48): dependencies, @fontsource/atkinson-hyperlegible, @fontsource/inter, 
 
 ### Community 36 - "scene-registry.tsx"
 Cohesion: 0.05
-Nodes (52): LayoutMeasurement, SceneContentMeasurement, SceneTextBlock, createDefaultScene(), CreativeScenePresentation, defaults, isLoopbackHost(), isSafeDiagramImageSource() (+44 more)
+Nodes (52): LayoutMeasurement, SceneContentMeasurement, SceneTextBlock, TextFitOptions, createDefaultScene(), CreativeScenePresentation, defaults, isLoopbackHost() (+44 more)
 
 ### Community 37 - "FakePipeline"
 Cohesion: 0.06
@@ -816,20 +822,24 @@ Cohesion: 0.09
 Nodes (21): 10. Gesture design details (the "feel" checklist), 11. Frame-level smoothness, 12. Materials & depth — translucency conveys hierarchy, 13. Multimodal feedback — motion + sound + haptics, 14. Reduced motion & accessibility, 15. Typography — optical sizing, tracking, leading, 16. Design foundations — the eight principles, 17. Process (+13 more)
 
 ### Community 40 - "render-review.ts"
-Cohesion: 0.05
-Nodes (60): credits(), versionExportManifest(), hdRenderProfile, blackSpansFromFlags(), classifyRenderReview(), ContactSheetFrame, corrections, FfmpegRenderInspector (+52 more)
+Cohesion: 0.06
+Nodes (46): hdRenderProfile, blackSpansFromFlags(), classifyRenderReview(), ContactSheetFrame, corrections, FfmpegRenderInspector, finding(), frameRate() (+38 more)
 
 ### Community 41 - "narration-panel.tsx"
-Cohesion: 0.13
-Nodes (26): isGenerating(), narrationBudgetStatusLabel(), narrationCandidateStatusLabel(), narrationFailureMessage(), narrationGenerationStateLabel(), narrationTransformModeLabel(), narrationValidationWarnings(), apiUrl() (+18 more)
+Cohesion: 0.08
+Nodes (38): isGenerating(), narrationBudgetStatusLabel(), narrationCandidateStatusLabel(), narrationFailureMessage(), narrationGenerationStateLabel(), narrationTransformModeLabel(), narrationValidationWarnings(), apiUrl() (+30 more)
 
 ### Community 42 - "workspace-mock-api.mjs"
-Cohesion: 0.07
-Nodes (54): briefEstimate(), briefFor(), briefResponse(), briefSections, conflict(), decision(), delay(), eligibilityFor() (+46 more)
+Cohesion: 0.14
+Nodes (30): configurationResponse(), configurations, narrationBlock(), narrationCandidates(), narrationResponse(), narrationSet(), narrationState, narrationTarget() (+22 more)
 
-### Community 43 - "Dev Agent Record"
-Cohesion: 0.29
-Nodes (7): Commands and tests run, Dev Agent Record, Deviations from the story or technical guide, Known risks and follow-up, Migrations, Public contract changes, Screenshots and representative output
+### Community 43 - "one-shot-views.tsx"
+Cohesion: 0.07
+Nodes (45): views, BriefCard(), BriefCardProps, BudgetCapCard(), CoverageGapNotice(), CoverageNotice(), DecisionPanel(), EstimatePanel() (+37 more)
+
+### Community 44 - "one-shot-runner.ts"
+Cohesion: 0.06
+Nodes (36): ApprovalStageState, approvalTarget, AudioState, ConfigurationState, GroundingState, IngestionState, ledgerOrder, OneShotJobState (+28 more)
 
 ### Community 45 - "package.json"
 Cohesion: 0.05
@@ -837,19 +847,19 @@ Nodes (43): devDependencies, eslint, @eslint/js, @playwright/test, pngjs, pretti
 
 ### Community 46 - "demonstration-proof/fixtures.ts"
 Cohesion: 0.06
-Nodes (40): Measurement, subjects, browserExecutable, cases, execFileAsync, probe(), buildScene(), captionsForSubject() (+32 more)
+Nodes (35): Measurement, subjects, fixtures, ADR-0004, buildScene(), captionsForSubject(), evaporationDemonstrationFixture, evaporationEscapeScene (+27 more)
 
 ### Community 47 - "pilot-bindings.ts"
 Cohesion: 0.09
-Nodes (30): adaptTenantRecord(), ADR-0004, demonstrationSubjects, evaporationStandardScenes, evaporationTrackIds, savingsStandardScenes, savingsTrackIds, demonstrationNarrationRecord() (+22 more)
+Nodes (28): ADR-0004, demonstrationSubjects, evaporationStandardScenes, evaporationTrackIds, savingsStandardScenes, savingsTrackIds, demonstrationNarrationRecord(), assetsFor() (+20 more)
 
-### Community 48 - "together-alignment.ts"
-Cohesion: 0.06
-Nodes (47): alignSentences(), CaptionCue, clean(), normalizeCaptionTiming(), pad(), segmentCaptions(), serializeSrt(), serializeVtt() (+39 more)
+### Community 48 - "together-tts.ts"
+Cohesion: 0.15
+Nodes (16): SceneAudioSynthesis, SceneAudioTtsProvider, ascii(), diagnosticString(), FetchLike, parseOptions(), pronunciationDictionary(), providerError() (+8 more)
 
 ### Community 49 - "config/src/index.ts"
-Cohesion: 0.06
-Nodes (51): initialHash, randomBytes(), rotateRight(), roundConstants, sha256(), Identifier, identifierSchema, apiEnvironmentSchema (+43 more)
+Cohesion: 0.05
+Nodes (55): initialHash, randomBytes(), rotateRight(), roundConstants, sha256(), Identifier, identifierSchema, apiEnvironmentSchema (+47 more)
 
 ### Community 50 - "motion.ts"
 Cohesion: 0.16
@@ -864,28 +874,28 @@ Cohesion: 0.05
 Nodes (41): dependencies, @avlp/config, @avlp/database, @avlp/jobs, @avlp/observability, @avlp/scene-library, @avlp/schemas, @avlp/storage (+33 more)
 
 ### Community 53 - "schemas/src/narration.test.ts"
-Cohesion: 0.06
-Nodes (40): currentNarrationGenerationCompatibility, currentNarrationTransformCompatibility, LessonNarrationBlock, lessonNarrationBlockSchema, LessonNarrationSet, lessonNarrationSetSchema, NarrationBlockCandidate, narrationBlockCandidateSchema (+32 more)
+Cohesion: 0.05
+Nodes (41): currentNarrationGenerationCompatibility, currentNarrationTransformCompatibility, lessonConfigurationInputSchema, lessonConfigurationSchema, LessonNarrationBlock, lessonNarrationBlockSchema, LessonNarrationSet, lessonNarrationSetSchema (+33 more)
 
 ### Community 54 - "PostgresObjectivesService"
-Cohesion: 0.11
-Nodes (17): atLeastOneObjectiveRequired(), canonicalHash(), errorDetails(), jobErrorCode(), nextRevision(), nothingToApprove(), nothingToEdit(), objectiveConflict() (+9 more)
+Cohesion: 0.10
+Nodes (19): generate(), objectivesService(), atLeastOneObjectiveRequired(), canonicalHash(), errorDetails(), jobErrorCode(), nextRevision(), nothingToApprove() (+11 more)
 
 ### Community 55 - "worker.ts"
-Cohesion: 0.07
-Nodes (38): packages_config_dist_index_utctimestamp, packages_config_dist_index_utctimestampschema, CreateJobEnvelopeInput, DeliveryOptions, deliveryOptionsSchema, JobEnvelope, jobEnvelopeSchema(), jobEnvelopeVersion (+30 more)
+Cohesion: 0.12
+Nodes (21): 5. Orchestration hosting (built in ST-105), jobEnvelopeSchema(), jobErrorMetadataSchema, payloadVersionSchema, retryPolicySchema, classifyJobError(), JobExecutionError, packages_jobs_src_index_classifyjoberror (+13 more)
 
 ### Community 56 - "provider-adapters/src/contracts.ts"
-Cohesion: 0.11
-Nodes (28): illustrationRequestSchema, illustrationResponseSchema, LanguageModelProvider, ProviderCompletionRequest, providerCompletionRequestSchema, ProviderCompletionResponse, providerCompletionResponseSchema, ProviderMessage (+20 more)
+Cohesion: 0.09
+Nodes (31): IllustrationRequest, illustrationRequestSchema, IllustrationResponse, illustrationResponseSchema, LanguageModelProvider, ProviderCompletionRequest, providerCompletionRequestSchema, ProviderCompletionResponse (+23 more)
 
 ### Community 57 - "ST-053 — Recheck Grounding After Teacher Edits and Preserve Citation History"
 Cohesion: 0.12
 Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
 
 ### Community 58 - "project-access.ts"
-Cohesion: 0.17
-Nodes (14): Authentication package, Project authorization, defaultProjectAccessPolicy, OwnedProject, OwnerScopedProjectRepository, ProjectAccessPolicy, projectAccessPolicySchema, ProjectAccessScope (+6 more)
+Cohesion: 0.14
+Nodes (15): Application API, Owned components, Project authorization, defaultProjectAccessPolicy, OwnedProject, OwnerScopedProjectRepository, ProjectAccessPolicy, projectAccessPolicySchema (+7 more)
 
 ### Community 59 - "mvp-plan.md"
 Cohesion: 0.05
@@ -893,43 +903,39 @@ Nodes (38): AI, AI Pipeline, AI Visual Learning Platform — MVP Product and Eng
 
 ### Community 60 - "style-proof/index.ts"
 Cohesion: 0.11
-Nodes (18): styleProofAssetBytes, styleProofAssetLibrary, packages_scene_library_src_style_proof_composition_js, packages_scene_library_src_style_proof_fonts_js, buildStyleProofManifest(), hashStyleProofInput(), styleProofImplementationVersion, styleProofOutputProfile (+10 more)
-
-### Community 61 - "render-worker.test.ts"
-Cohesion: 0.06
-Nodes (25): renderJobResultSchema, DownloadArtifact, temporaryDirectoryIsAbsent(), attempt(), context(), downloader(), MemoryStorage, MemoryUsageMeter (+17 more)
+Nodes (21): styleProofAssetBytes, styleProofAssetLibrary, packages_scene_library_src_style_proof_composition_js, packages_scene_library_src_style_proof_fonts_js, buildStyleProofManifest(), hashStyleProofInput(), styleProofImplementationVersion, styleProofOutputProfile (+13 more)
 
 ### Community 62 - "PostgresOutlineService"
-Cohesion: 0.13
-Nodes (12): createService(), errorDetails(), jobErrorCode(), outlineConflict(), outlineGenerationInFlight(), outlineItemNotFound(), outlineNothingToApprove(), outlineNothingToEdit() (+4 more)
+Cohesion: 0.15
+Nodes (6): createService(), outlineConflict(), outlineItemNotFound(), parseBoundary(), PostgresOutlineService, Dev Agent Record
 
 ### Community 63 - "gateway.ts"
-Cohesion: 0.13
+Cohesion: 0.14
 Nodes (24): AuthContext, authenticatedUserSchema, AuthResult, DuplicateEmailError, InvalidPasswordResetTokenError, LoginInput, loginInputSchema, PasswordResetConfirmInput (+16 more)
 
 ### Community 64 - "plan-builder.ts"
-Cohesion: 0.11
-Nodes (20): codesFor(), savingsTrack, DemonstrationContentProfile, DemonstrationEventDraft, DemonstrationPlanBuildResult, DemonstrationPlanDraft, DemonstrationSupportReason, DemonstrationSupportResult (+12 more)
+Cohesion: 0.09
+Nodes (32): demonstrationAssetLibrary, DemonstrationCaptionAtFrame(), codesFor(), savingsTrack, adaptTenantRecord(), TenantLessonRecord, track, workingModel (+24 more)
 
-### Community 65 - "observability/src/contracts.ts"
-Cohesion: 0.11
-Nodes (16): packages_database_dist_index_auditactortypevalues, packages_database_dist_index_auditeventtypevalues, packages_database_dist_index_usageoperationtypevalues, packages_database_dist_index_usagestatusvalues, AuditActor, auditActorSchema, auditActorTypeSchema, auditEventTypeSchema (+8 more)
+### Community 65 - "projects.ts"
+Cohesion: 0.05
+Nodes (37): assertExpectedVersion(), ConfigRow, configurationConflict(), configurationNotFound(), DemonstrationApproachEligibility, LessonConfigurationService, parseBoundary(), PostgresLessonConfigurationService (+29 more)
 
 ### Community 66 - "telemetry.ts"
 Cohesion: 0.08
 Nodes (26): @avlp/config, @avlp/database, @avlp/provider-adapters, @avlp/schemas, drizzle-orm, zod, name, private (+18 more)
 
-### Community 67 - "ST-084 — Reconcile Scene Durations With Measured Audio Before Real TTS Adoption"
-Cohesion: 0.06
-Nodes (33): advanceOrRetry(), advanceProjectMediaStage(), reconciledLessonDurationToleranceSeconds(), reconcileSceneDurations(), sceneAudioFitToleranceMs, sceneDurationReconciliationSchema, sceneEditInvalidation(), storyboardSceneMaximumSeconds (+25 more)
+### Community 67 - "Dev Agent Record"
+Cohesion: 0.10
+Nodes (21): advanceOrRetry(), advanceProjectMediaStage(), reconciledLessonDurationToleranceSeconds(), reconcileSceneDurations(), sceneAudioFitToleranceMs, sceneDurationReconciliationSchema, sceneEditInvalidation(), storyboardSceneMaximumSeconds (+13 more)
 
 ### Community 68 - "sound-bed.ts"
 Cohesion: 0.04
 Nodes (49): report(), ADR-0008, packages_config_dist_identifiers, packages_config_dist_identifiers_identifierschema, packages_schemas_src_index_pinnedsoundbedschema, packages_schemas_src_index_pinsoundbed, packages_schemas_src_index_readpinnedsoundbed, packages_schemas_src_index_readsoundbedchoice (+41 more)
 
 ### Community 69 - "Reconciled OpenMontage Learnings and Video-Quality Roadmap"
-Cohesion: 0.07
-Nodes (28): 10. Deferred decisions requiring product-owner input, 11. Non-negotiable cross-cutting implementation requirements, 12. Story-authoring checklist, 13. Sources, 1. Purpose, 2. Reconciled conclusion, 3. What AVLP should preserve, 4.1 Adopt (+20 more)
+Cohesion: 0.06
+Nodes (34): 10. Deferred decisions requiring product-owner input, 11. Non-negotiable cross-cutting implementation requirements, 12. Story-authoring checklist, 13. Sources, 1. Purpose, 2. Reconciled conclusion, 3. What AVLP should preserve, 4.1 Adopt (+26 more)
 
 ### Community 70 - "8. Epic Implementation Specifications"
 Cohesion: 0.06
@@ -937,83 +943,83 @@ Nodes (30): 11.1 Route structure, 11.2 Server state, 11.3 Schema-driven forms, 1
 
 ### Community 71 - "PostgresOneShotService"
 Cohesion: 0.15
-Nodes (11): conflict(), service(), isUniqueViolation(), OneShotPilotCohort, OneShotRenderGate, parseBody(), PostgresOneShotService, requestHash() (+3 more)
+Nodes (11): conflict(), insertDecisions(), service(), isUniqueViolation(), loadConfirmedBrief(), OneShotPilotCohort, OneShotRenderGate, parseBody() (+3 more)
 
 ### Community 72 - "schemas/package.json"
 Cohesion: 0.05
 Nodes (37): default, types, default, types, default, types, dependencies, @avlp/config (+29 more)
 
 ### Community 73 - "PostgresDemonstrationPilotService"
-Cohesion: 0.17
-Nodes (8): ineligible(), notFound(), parse(), PostgresDemonstrationPilotService, recipesOf(), renderImplementationVersionOf(), renderMediaIdentityHash(), variantStatus()
+Cohesion: 0.18
+Nodes (6): ineligible(), notFound(), parse(), PostgresDemonstrationPilotService, renderImplementationVersionOf(), renderMediaIdentityHash()
 
 ### Community 74 - "ST-085 — Introduce Visual Role and Enforce Provenance at Asset Binding"
 Cohesion: 0.08
-Nodes (28): IllustrationGenerationService, reviewableCandidateNotFound(), illustrationPrompt(), 4.1 Generated imagery can currently fill a grounding-critical slot, 5. Delivery order, Immediate mitigation, ahead of story 1, Story 1 — Visual Role Contract and Binding Enforcement, Story 2 — Dynamic Labelled-Diagram Callout Layout (+20 more)
+Nodes (27): IllustrationGenerationService, reviewableCandidateNotFound(), illustrationPrompt(), 4.1 Generated imagery can currently fill a grounding-critical slot, 5. Delivery order, Story 1 — Visual Role Contract and Binding Enforcement, Story 2 — Dynamic Labelled-Diagram Callout Layout, Story 3 — Graph Motion for Process and Cause-Effect (+19 more)
 
 ### Community 75 - "outline-panel.tsx"
-Cohesion: 0.14
-Nodes (23): isGenerating(), outlineDurationStatusLabel(), outlineFailureMessage(), outlineGenerationStateLabel(), outlineItemKindLabel(), apps_web_app_workspace_projectid_outline_outline_input_outlinevalidation, outlineValidationWarnings(), apiUrl() (+15 more)
+Cohesion: 0.07
+Nodes (45): focusCoverageNotice(), isGenerating(), objectiveFailureMessage(), objectiveGenerationStateLabel(), objectiveGroundingLabel(), apiUrl(), citationSummary(), EditingState (+37 more)
 
-### Community 76 - "lesson-versions.ts"
+### Community 76 - "api/src/creative-design.ts"
 Cohesion: 0.02
-Nodes (127): analogyScene, design(), hookScene, kettle, lesson, puddle, sceneSpecs, seedLesson() (+119 more)
+Nodes (165): analogyScene, design(), hookScene, kettle, lesson, puddle, sceneSpecs, seedLesson() (+157 more)
 
-### Community 77 - "Next steps (in order)"
+### Community 77 - "ST-113 — Curated Illustration Library Fallback"
+Cohesion: 0.17
+Nodes (11): CinemaMotifReason, Acceptance Criteria, Background, Decisions for the product owner, Dev Agent Record, Out of Scope, Outcome, Required Tests (+3 more)
+
+### Community 78 - "creative-design-v2.test.ts"
 Cohesion: 0.09
-Nodes (31): assertPinnedCaptionsUnchanged(), captionMsToFrame(), cinemaArtDirectionBrief(), cinemaCaptionsSha256(), cinemaHeroSlotBinding(), cinemaIllustrationBudget(), cinemaIllustrationKey(), cinemaIllustrationPrompt() (+23 more)
-
-### Community 78 - "ref_remotion"
-Cohesion: 0.22
-Nodes (9): packages_design_system_dist_style_proof_tokens_styleprooffontfaces, packages_design_system_dist_video_theme_videofont, DemonstrationFontGate(), demonstrationRequiredFontSpecifiers, waitForDemonstrationFonts(), StyleProofFontGate(), styleProofRequiredFontSpecifiers, waitForProofFonts() (+1 more)
+Nodes (42): creativeDesignSceneTypes, anyCreativeDesignManifestSchema, authoredCinemaBeats(), carryForwardCinemaDesign(), cinemaBeatRevealFrames, cinemaBeatTargets(), cinemaComposition(), cinemaCompositionCatalogue (+34 more)
 
 ### Community 79 - "creative-design-panel.tsx"
-Cohesion: 0.16
-Nodes (17): creativeDesignColorIssues(), CreativeDesignColors, Alternative, api(), creativeDesignApplyBlockers(), creativeDesignErrorMessage(), CreativeDesignPanel(), creativeDesignPlanExpectedRevision() (+9 more)
+Cohesion: 0.10
+Nodes (22): creativeStylePackOptions, CreativeStylePackSelector(), ADR-0005, creativeDesignColorIssues(), CreativeDesignColors, Alternative, api(), creativeDesignApplyBlockers() (+14 more)
 
 ### Community 80 - "ref_zod"
 Cohesion: 0.02
-Nodes (258): createCreativeDesignInterpretationJobHandler(), unsupportedRequestParts(), allocateDurationsToTarget(), aggregateResponseLatency(), aggregateResponses(), ApprovedSourceSnapshotResult, buildSucceededRecord(), createAuditWriter() (+250 more)
+Nodes (259): allocateDurationsToTarget(), aggregateResponseLatency(), aggregateResponses(), ApprovedSourceSnapshotResult, buildSucceededRecord(), createAuditWriter(), createModelCallGenerationHandler(), defaultMaxDeterministicRepairs (+251 more)
 
 ### Community 81 - "ST-034 — Normalize Docling Output into NormalizedDocument v1"
 Cohesion: 0.12
 Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
 
 ### Community 82 - "together-provider.ts"
-Cohesion: 0.07
-Nodes (43): lessonVersionContentHash(), 3.1 Most of the proposed asset-generation work is already shipped, 3.1 What exists, IllustrationProvider, IllustrationRequest, IllustrationResponse, ProviderCallError, MockIllustrationProvider (+35 more)
+Cohesion: 0.08
+Nodes (36): ProviderCallError, applyChunk(), ChatPayload, classifyHttpFailure(), delayMs(), FetchLike, handleEvent(), jsonObject() (+28 more)
 
 ### Community 83 - "storyboard.ts"
-Cohesion: 0.04
-Nodes (52): atLeastOneSceneRequired(), canonicalHash(), GenerationJobState, immutableSceneFields(), invalidIllustrationCandidateMedia(), jobErrorCode(), LessonSpecRow, NarrationSetRow (+44 more)
+Cohesion: 0.05
+Nodes (45): atLeastOneSceneRequired(), canonicalHash(), GenerationJobState, immutableSceneFields(), invalidIllustrationCandidateMedia(), jobErrorCode(), LessonSpecRow, NarrationSetRow (+37 more)
 
 ### Community 84 - "schemas/src/grounding.test.ts"
-Cohesion: 0.06
-Nodes (30): ADR-002: Citation-History Snapshot Writer Lives in ST-053, Wired to Versions in ST-060, Consequences, Context, Decision, Status, now, testId, CitationHistorySnapshot (+22 more)
+Cohesion: 0.07
+Nodes (33): PostgresCitationHistoryService, ADR-002: Citation-History Snapshot Writer Lives in ST-053, Wired to Versions in ST-060, Consequences, Context, Decision, Status, now, testId (+25 more)
 
 ### Community 85 - "OpenMontage Learnings: Asset Generation Discovery"
 Cohesion: 0.07
 Nodes (27): 10. Decisions that need product-owner input before VG-001, 11. Recommended sequencing, 12. Review checklist before story kickoff, 1. Purpose, 2. Product and architecture decision, 3. What OpenMontage demonstrates, 4. Licensing constraint, 6. Proposed workflow (+19 more)
 
 ### Community 86 - "docling-normalizer.ts"
-Cohesion: 0.12
-Nodes (32): Candidate, CanonicalRecord, canonicalSchema, containerKinds, deterministicId(), doclingNormalizerVersion, extractDoclingFigureAssets(), ExtractedFigureAsset (+24 more)
+Cohesion: 0.13
+Nodes (30): Candidate, CanonicalRecord, canonicalSchema, containerKinds, deterministicId(), doclingNormalizerVersion, extractDoclingFigureAssets(), ExtractedFigureAsset (+22 more)
 
 ### Community 87 - "illustration-contact-sheet.tsx"
 Cohesion: 0.09
-Nodes (24): apiUrl(), IllustrationContactSheetView(), LoadState, buttonStyle(), CandidateCard(), ContactSheetAdvisory, ContactSheetCandidate, ContactSheetDecision (+16 more)
+Nodes (22): LoadState, buttonStyle(), CandidateCard(), ContactSheetAdvisory, ContactSheetCandidate, ContactSheetDecision, ContactSheetScene, ContactSheetSlot (+14 more)
 
 ### Community 88 - "README.md"
 Cohesion: 0.07
 Nodes (25): AGENTS.md — AI Visual Learning Platform, Engineering rules, Purpose, Required completion report, Source hierarchy, Story execution rules, Before coding, During implementation (+17 more)
 
-### Community 89 - "focus-audience.test.ts"
-Cohesion: 0.06
-Nodes (34): ids, legacyLesson, outputV1, LearningObjectiveSet, learningObjectiveSetSchema, legacyAudienceLessonSpecVersion, lessonAgeBandValues, lessonConfigurationInputSchema (+26 more)
+### Community 89 - "schemas/src/objectives.test.ts"
+Cohesion: 0.08
+Nodes (23): payload(), Migration 0028 compatibility notes, buildSourcePackage(), LearningObjectiveSet, learningObjectiveSetSchema, objectiveApproveInputSchema, objectiveCreateInputSchema, objectiveGenerationParamsSchema (+15 more)
 
 ### Community 90 - "PostgresStoryboardService"
-Cohesion: 0.22
-Nodes (5): PostgresStoryboardService, projectSceneMediaStatuses(), createService(), createService(), createService()
+Cohesion: 0.16
+Nodes (8): PostgresStoryboardService, projectSceneMediaStatuses(), createService(), createService(), sceneConfigurationMissing(), sceneNarrationMissing(), sceneSourceSnapshotMismatch(), createService()
 
 ### Community 91 - "2. Architecture Principles"
 Cohesion: 0.07
@@ -1021,71 +1027,71 @@ Nodes (30): 1. Product Boundary, 2.1 `LessonSpec` is the central contract, 2.2 H
 
 ### Community 92 - "prompts/index.ts"
 Cohesion: 0.08
-Nodes (34): byVersionDescending(), creativeDesignPromptV1, groundingPromptV1, groundingPromptV2, lessonIntentPromptV1, ADR-0013, narrationBlockPromptV1, narrationPromptV1 (+26 more)
+Nodes (36): computeGenerationInputVersion(), creativeDesignPromptV1, groundingPromptV1, groundingPromptV2, repositoryPrompts, lessonIntentPromptV1, ADR-0013, narrationBlockPromptV1 (+28 more)
 
-### Community 93 - "observability/src/repository.ts"
-Cohesion: 0.14
-Nodes (13): UsageMeasurement, writeAuditEventSchema, aggregateProjectUsage(), aggregateUserUsage(), canonicalMetadata(), investigateCorrelation(), listProjectAuditEvents(), metadataRecord() (+5 more)
+### Community 93 - "observability/src/contracts.ts"
+Cohesion: 0.12
+Nodes (15): packages_database_dist_index_auditactortypevalues, packages_database_dist_index_auditeventtypevalues, packages_database_dist_index_usageoperationtypevalues, packages_database_dist_index_usagestatusvalues, AuditActor, auditActorSchema, auditActorTypeSchema, auditEventTypeSchema (+7 more)
 
 ### Community 94 - "savings.tsx"
 Cohesion: 0.13
-Nodes (29): 1. Model the subject as objects and events, not as a motion script, Cause precedes consequence, packages_design_system_dist_video_theme_video_height, packages_design_system_dist_video_theme_video_width, centerOf(), demonstrationCanvas, demonstrationContentBottom, demonstrationContentTop (+21 more)
+Nodes (28): 1. Model the subject as objects and events, not as a motion script, Cause precedes consequence, packages_design_system_dist_video_theme_video_height, packages_design_system_dist_video_theme_video_width, centerOf(), demonstrationCanvas, demonstrationContentBottom, demonstrationContentTop (+20 more)
 
 ### Community 95 - "lease-reaper.ts"
-Cohesion: 0.18
+Cohesion: 0.19
 Nodes (9): jobLogFields(), runStaleJobReaper(), safelyNotify(), StaleJobReaper, StaleJobRepository, StaleJobTelemetry, StructuredStaleJobTelemetry, JobRow (+1 more)
 
 ### Community 96 - "lesson-spec.test.ts"
-Cohesion: 0.10
-Nodes (28): analogyVisualSchema, boundedText(), causeEffectVisualSchema, comparisonVisualSchema, definitionVisualSchema, diagramVisualSchema, initialLessonSpecVersion, ipoVisualSchema (+20 more)
+Cohesion: 0.06
+Nodes (43): ids, legacyLesson, outputV1, analogyVisualSchema, boundedText(), causeEffectVisualSchema, comparisonVisualSchema, definitionVisualSchema (+35 more)
 
 ### Community 97 - "authorized-project-storage.ts"
-Cohesion: 0.10
-Nodes (23): VersionExportManifest, AuthorizedProjectStorage, projectObjectKey(), ProjectObjectLocator, projectObjectLocatorSchema, projectObjectRequestSchema, ProjectStorageAuthorizer, ProjectUploadObjectLocator (+15 more)
+Cohesion: 0.11
+Nodes (20): AuthorizedProjectStorage, projectObjectKey(), ProjectObjectLocator, projectObjectLocatorSchema, projectObjectRequestSchema, ProjectStorageAuthorizer, ProjectUploadObjectLocator, projectUploadObjectLocatorSchema (+12 more)
 
 ### Community 98 - "ST-095 — Build and Prove Demonstration-Led Animation"
-Cohesion: 0.09
-Nodes (21): Acceptance Criteria, Audio and timing, Definition of Done, Dependencies and Boundary, Evaporation: explanatory state change, Event and object model, Implementation Checklist, Integration Contract for ST-096 (+13 more)
+Cohesion: 0.07
+Nodes (28): Acceptance Criteria, Audio and timing, Commands and tests run, Definition of Done, Dependencies and Boundary, Dev Agent Record, Deviations from the story or technical guide, Evaporation: explanatory state change (+20 more)
 
 ### Community 99 - "style-proof-preview/gallery.tsx"
-Cohesion: 0.08
-Nodes (23): boundaryCases, StyleProofGallery, StyleProofGalleryLoader(), packIds, panel, SubjectId, subjects, packages_design_system_dist_style_proof_tokens_styleproofpacks (+15 more)
+Cohesion: 0.04
+Nodes (41): Approach, DemonstrationProofGallery(), formatNaira(), DemonstrationProofGallery, DemonstrationProofGalleryLoader(), panel, SubjectId, subjectIds (+33 more)
 
 ### Community 100 - "generate-style-proof-assets.mjs"
 Cohesion: 0.18
 Nodes (15): assets, body, desertPhoto(), drawIceCube(), drawMeltPool(), fernPhoto(), makeRandom(), metalSurfacePhoto() (+7 more)
 
 ### Community 101 - "s3-compatible.ts"
-Cohesion: 0.10
-Nodes (26): containsControlCharacter(), CopyObjectRequest, copyObjectRequestSchema, lifecycleRuleSchema, Sha256Checksum, signedDownloadRequestSchema, signedUploadRequestSchema, storageKeySchema (+18 more)
+Cohesion: 0.11
+Nodes (24): containsControlCharacter(), CopyObjectRequest, copyObjectRequestSchema, lifecycleRuleSchema, Sha256Checksum, sha256ChecksumSchema, SignedDownloadRequest, signedDownloadRequestSchema (+16 more)
 
 ### Community 102 - "web/package.json"
-Cohesion: 0.08
-Nodes (25): devDependencies, @avlp/test-fixtures, axe-core, @types/react, @types/react-dom, @avlp/config, @avlp/design-system, @avlp/scene-library (+17 more)
+Cohesion: 0.05
+Nodes (36): dependencies, @avlp/config, @avlp/design-system, @avlp/scene-library, @avlp/schemas, geist, motion, next (+28 more)
 
 ### Community 103 - "AI Visual Learning Platform — MVP Feature List"
 Cohesion: 0.07
 Nodes (26): 10. Storyboard Generation, 11. Reusable Visual Scene Templates, 12. Storyboard Editor, 13. Asset Generation and Management, 14. Voice-Over Generation, 15. Caption Generation, 16. Scene Preview, 17. Full Lesson Preview (+18 more)
 
-### Community 104 - "one-shot-runner.ts"
-Cohesion: 0.03
-Nodes (70): approvalTarget, ConfigurationState, emptyOneShotRepairState, GroundingState, IngestionState, ledgerOrder, OneShotJobState, oneShotMaxSentenceRemovalRounds (+62 more)
+### Community 104 - "one-shot-runner-st112.test.ts"
+Cohesion: 0.05
+Nodes (37): emptyOneShotRepairState, OneShotRunState, oneShotStepTimeoutMs, OneShotTickResult, resumedStatus(), apply(), correlationId, coverage (+29 more)
 
 ### Community 105 - "full-lesson.tsx"
 Cohesion: 0.05
-Nodes (44): 6. The proof is isolated, exactly as ST-094's was, panelStyle, calculateLessonTimeline(), formatFrameAsTime(), FullLessonCaptionCue, fullLessonCaptionCueSchema, FullLessonComposition(), FullLessonCompositionProps (+36 more)
+Nodes (42): panelStyle, calculateLessonTimeline(), formatFrameAsTime(), FullLessonCaptionCue, fullLessonCaptionCueSchema, FullLessonComposition(), FullLessonCompositionProps, fullLessonCompositionPropsSchema (+34 more)
 
-### Community 106 - "TRACEABILITY_MATRIX.md"
-Cohesion: 0.11
-Nodes (16): Acceptance Criteria, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome, Required Reading (+8 more)
+### Community 106 - "main"
+Cohesion: 0.10
+Nodes (21): loadCommittedCatalog(), main(), registerSoundBeds(), Provenance, Acceptance Criteria, Definition of Done, Dependencies, Dev Agent Record (+13 more)
 
 ### Community 107 - "ST-052 — Resolve and Display Scene Source Citations"
 Cohesion: 0.12
 Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
 
-### Community 108 - "STORY_INDEX.md"
-Cohesion: 0.08
-Nodes (24): ADR-004: Measured narration controls playback duration, Consequences, Context, Decision, Status, Audio-first storyboard repair ? 2026-09-10, Files changed, Risks and limits (+16 more)
+### Community 108 - "ST-094 — Prove Three Distinct Video Style Packs"
+Cohesion: 0.07
+Nodes (28): Acceptance Criteria, Assets, fonts, and layout, Commands and tests run, Compatibility and reproducibility, Contracts and selection, Decisions and assumptions, Definition of Done, Dependencies (+20 more)
 
 ### Community 109 - "Distinct creative styles: technical research"
 Cohesion: 0.08
@@ -1096,20 +1102,20 @@ Cohesion: 0.09
 Nodes (13): packages_database_dist_index_intransaction, Transaction and dispatch flow, RetryPolicy, AdministrativeJobCommand, administrativeJobCommandSchema, CreateJobCommand, CreateJobResult, envelopeFromJob() (+5 more)
 
 ### Community 111 - "worker.test.ts"
-Cohesion: 0.12
-Nodes (11): createJobEnvelope(), JobErrorMetadata, packages_jobs_src_index_executejobdelivery, packages_jobs_src_index_joberrormetadata, JobExecutionRepository, JobLease, ProjectJobIdentity, envelopeFor() (+3 more)
+Cohesion: 0.11
+Nodes (11): JobErrorMetadata, packages_jobs_src_index_executejobdelivery, packages_jobs_src_index_joberrormetadata, JobExecutionRepository, JobLease, ProjectJobIdentity, MemoryJobRepository, packages_observability_dist_index_correlationidfromheader (+3 more)
 
 ### Community 112 - "demonstration-proof/index.ts"
-Cohesion: 0.10
-Nodes (23): packages_scene_library_src_demonstration_proof_composition_js, registeredNarration(), fixtures, ADR-0004, packages_scene_library_src_demonstration_proof_fonts_js, mountPoint(), paint(), Window (+15 more)
+Cohesion: 0.20
+Nodes (12): packages_scene_library_src_demonstration_proof_composition_js, packages_scene_library_src_demonstration_proof_fonts_js, demonstrationNarrationLibrary, DemonstrationNarrationRecord, demonstrationNarrationTrackIds, demonstrationTimingProvenance, packages_scene_library_src_demonstration_proof_preview_player_js, packages_scene_library_src_demonstration_proof_primitives_js (+4 more)
 
-### Community 113 - "source-snapshot.ts"
-Cohesion: 0.06
-Nodes (29): BlockCorrectionOverlayState, EffectiveBlockInput, EffectiveFigureInput, EffectiveSectionInput, EffectiveSourceInput, EffectiveTableInput, FigureInclusionOverlayState, SnapshotRow (+21 more)
+### Community 113 - "creative-design-render.test.ts"
+Cohesion: 0.09
+Nodes (26): apps_api_src_creative_design_canonicalcreativedesignjson, apps_api_src_creative_design_createdefaultcreativedesignmanifest, apps_api_src_creative_design_creativedesignhash, hasCreativeDesignDraftEditConflict(), execFileAsync, packIds, analogyScene, comparisonScene (+18 more)
 
 ### Community 114 - "api/src/runtime.ts"
 Cohesion: 0.02
-Nodes (142): installDemonstrationSeedNarration(), createTeacherAssetThumbnail(), inspectTeacherImage(), projectAssetDeletionRetentionMs, ADR-0013, catalogFileSchema, CatalogStorage, soundBedSignedUrlTtlSeconds (+134 more)
+Nodes (114): createEnvironmentPilotCohort(), installDemonstrationSeedNarration(), createTeacherAssetThumbnail(), extensionFor(), inspectTeacherImage(), parseBoundary(), ProjectAssetService, validation() (+106 more)
 
 ### Community 115 - "What You Must Do When Invoked"
 Cohesion: 0.07
@@ -1117,7 +1123,7 @@ Nodes (26): usage(), For /graphify add and --watch, For /graphify query, For the
 
 ### Community 116 - "generate-tracks.mjs"
 Cohesion: 0.09
-Nodes (24): addNote(), aMinor, bell, catalog, catalogPath, chordPad(), cMajor, ffmpeg (+16 more)
+Nodes (22): addNote(), aMinor, bell, catalog, catalogPath, chordPad(), cMajor, ffmpeg (+14 more)
 
 ### Community 117 - "ST-089 — Add Contact-Sheet Candidate Review for Generated Illustrations"
 Cohesion: 0.12
@@ -1128,8 +1134,8 @@ Cohesion: 0.12
 Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
 
 ### Community 119 - "ServiceOneShotGateway"
-Cohesion: 0.08
-Nodes (14): jobStatus(), sceneBlockIds(), ServiceOneShotGateway, gateway(), oneShotCostSoFar(), ApprovalStageState, AudioState, IllustrationState (+6 more)
+Cohesion: 0.12
+Nodes (6): jobStatus(), sceneBlockIds(), ServiceOneShotGateway, gateway(), IllustrationState, OneShotScope
 
 ### Community 120 - "mvp-prd.md"
 Cohesion: 0.08
@@ -1140,48 +1146,48 @@ Cohesion: 0.08
 Nodes (23): dependencies, @avlp/config, @avlp/database, @avlp/observability, drizzle-orm, @node-rs/argon2, zod, exports (+15 more)
 
 ### Community 122 - "logging.ts"
-Cohesion: 0.13
-Nodes (17): packages_config_dist_index_correlationcontext, packages_config_dist_index_getcorrelationid, SafeMetadata, safeMetadataSchema, correlationHeader, correlationStorage, currentCorrelationId(), withCorrelationContext() (+9 more)
+Cohesion: 0.12
+Nodes (19): packages_config_dist_index_correlationcontext, packages_config_dist_index_getcorrelationid, SafeMetadata, safeMetadataSchema, SafeMetadataValue, correlationHeader, correlationStorage, currentCorrelationId() (+11 more)
 
 ### Community 123 - "jobs/package.json"
-Cohesion: 0.09
-Nodes (22): dependencies, @avlp/config, @avlp/database, @avlp/observability, bullmq, drizzle-orm, zod, exports (+14 more)
+Cohesion: 0.08
+Nodes (23): dependencies, @avlp/config, @avlp/database, @avlp/observability, bullmq, drizzle-orm, zod, exports (+15 more)
 
 ### Community 124 - "./process-scene.js"
 Cohesion: 0.13
-Nodes (20): measureTextLayout(), ./process-scene.js, availableStepsHeight(), blendMetrics(), contentWidth(), getProcessSceneFrameState(), getProcessStepMetrics(), measureHeaderHeight() (+12 more)
+Nodes (19): ./process-scene.js, availableStepsHeight(), blendMetrics(), contentWidth(), getProcessSceneFrameState(), getProcessStepMetrics(), measureHeaderHeight(), ProcessLayout (+11 more)
 
 ### Community 125 - "mvp-acceptance.ts"
-Cohesion: 0.15
-Nodes (19): packages_schemas_dist_index_lessonspecschema, packages_schemas_dist_index_normalizeddocumentschema, packages_schemas_dist_index_packageboundary, workspaceImportSmoke(), blockId(), canonicalFivePageScienceDocument, canonicalScienceLesson, canonicalSciencePreview (+11 more)
+Cohesion: 0.19
+Nodes (16): packages_schemas_dist_index_normalizeddocumentschema, blockId(), canonicalFivePageScienceDocument, canonicalScienceLesson, canonicalSciencePreview, mvpHappyPathEvidence, mvpHappyPathStages, mvpMetricCatalog (+8 more)
 
-### Community 126 - "ST-032 — Detect Duplicate Source Uploads and Reuse Safe Ingestion Results"
-Cohesion: 0.12
-Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
+### Community 126 - "lesson-configuration-input.ts"
+Cohesion: 0.11
+Nodes (31): apiUrl(), extractErrorMessage(), LessonConfigurationForm(), SaveState, State, ageBandLabels, ageBandOptions, buildConfigurationSaveInput() (+23 more)
 
 ### Community 127 - ".updateScene"
 Cohesion: 0.29
 Nodes (8): designScenes(), incompatibleSceneAssetSlot(), parseBoundary(), parseStoryboard(), sceneCandidateNotFound(), sceneCandidateNotPending(), sceneConflict(), sceneNotFound()
 
-### Community 128 - "style-proof/validation.ts"
-Cohesion: 0.13
-Nodes (20): packages_design_system_dist_style_proof_tokens, packages_design_system_dist_style_proof_tokens_styleproofcanvas, packages_design_system_dist_style_proof_tokens_styleproofcaptionfamily, packages_design_system_dist_style_proof_tokens_styleproofcaptionregion, panelStyle, formatSourceLine(), ProofCaption(), ProofImage() (+12 more)
+### Community 128 - "document-ingestion-job.ts"
+Cohesion: 0.10
+Nodes (26): DoclingIngestionClient, DoclingIngestionError, failureResponseSchema, HttpDoclingIngestionClient, identifier, request, artifactKeys(), createDocumentIngestionJobHandler() (+18 more)
 
 ### Community 129 - "client.ts"
-Cohesion: 0.16
-Nodes (14): createDatabaseConnection(), DatabaseClient, DatabaseConnection, DatabaseConnectionOptions, DatabaseTransaction, validatePostgresUrl(), migrateDatabase(), migrationsFolder (+6 more)
+Cohesion: 0.14
+Nodes (16): createDatabaseConnection(), DatabaseClient, DatabaseConnection, DatabaseConnectionOptions, DatabaseTransaction, inTransaction(), validatePostgresUrl(), migrateDatabase() (+8 more)
 
 ### Community 130 - "ingestion-status-panel.tsx"
-Cohesion: 0.07
-Nodes (33): apps_web_app_globals, metadata, activeJobStates, apiUrl(), elapsedLabel(), findingLabels, FindingSummary, getIngestionStatusBadge() (+25 more)
+Cohesion: 0.08
+Nodes (33): activeJobStates, apiUrl(), elapsedLabel(), findingLabels, FindingSummary, getIngestionStatusBadge(), ingestionProgressPercent(), ingestionStatusMessage() (+25 more)
 
 ### Community 131 - "Apple Design"
-Cohesion: 0.09
+Cohesion: 0.10
 Nodes (21): 10. Gesture design details (the "feel" checklist), 11. Frame-level smoothness, 12. Materials & depth — translucency conveys hierarchy, 13. Multimodal feedback — motion + sound + haptics, 14. Reduced motion & accessibility, 15. Typography — optical sizing, tracking, leading, 16. Design foundations — the eight principles, 17. Process (+13 more)
 
 ### Community 132 - "runApi"
-Cohesion: 0.17
-Nodes (13): installDemonstrationNarrationRegistry(), createLanguageModelProvider(), runApi(), atLeastOneSectionRequired(), computeSourceSnapshotHash(), toSnapshot(), materializeEffectiveSource(), parseSnapshot() (+5 more)
+Cohesion: 0.18
+Nodes (12): createLanguageModelProvider(), runApi(), atLeastOneSectionRequired(), computeSourceSnapshotHash(), toSnapshot(), materializeEffectiveSource(), parseSnapshot(), PostgresSourceSnapshotService (+4 more)
 
 ### Community 133 - "scene-library/package.json"
 Cohesion: 0.09
@@ -1192,12 +1198,12 @@ Cohesion: 0.12
 Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
 
 ### Community 135 - "ST-100 — Extend Composition Variety to the Remaining Semantic Scene Types"
-Cohesion: 0.09
-Nodes (25): summary(), Persistence model, 0070 one-shot brief, budget and decisions compatibility, Enum additions, New tables, `one_shot_runs` (new columns), chain(), CreativeDesignCandidate (+17 more)
+Cohesion: 0.10
+Nodes (24): summary(), 0070 one-shot brief, budget and decisions compatibility, Enum additions, New tables, `one_shot_runs` (new columns), chain(), CreativeDesignCandidate, Acceptance Criteria (+16 more)
 
 ### Community 136 - "ParsedDocumentRepository"
-Cohesion: 0.15
-Nodes (8): ParsedDocumentRepository, mapContentBlock(), ParsedDocumentReviewService, PostgresParsedDocumentReviewService, projectEffectiveFigures(), Dev Agent Record, Dev Agent Record, Dev Agent Record
+Cohesion: 0.16
+Nodes (7): ParsedDocumentRepository, mapContentBlock(), ParsedDocumentReviewService, PostgresParsedDocumentReviewService, projectEffectiveFigures(), Dev Agent Record, Dev Agent Record
 
 ### Community 137 - "ST-006 — Add Structured Observability, Audit Events, and Usage Metering"
 Cohesion: 0.10
@@ -1215,21 +1221,21 @@ Nodes (22): properties, altText, blockId, blockIds, captionBlockId, code, column
 Cohesion: 0.04
 Nodes (46): Identity, caching and cost, Known limitations, The demonstration-led video pilot, Turning it on, What a tester does, What "controlled" means, and when a pair stops being one, What it is, What it is not (+38 more)
 
-### Community 141 - "packages_schemas_dist_index"
-Cohesion: 0.03
-Nodes (98): PostgresCitationHistoryService, contentHash, createService(), fakeDatabase(), lessonSpecPayload(), lessonSpecRow(), now, canonicalHash() (+90 more)
+### Community 141 - "grounding-check-job.test.ts"
+Cohesion: 0.09
+Nodes (40): assertGroundingChecks(), citedBlockIds(), claimIdFor(), collectPackageBlockIds(), createGroundingCheckJobHandler(), GroundingCheckDeterministicError, GroundingCheckOperationContext, groundingContextError() (+32 more)
 
-### Community 142 - "HANDOFF.md"
+### Community 142 - "STORY_INDEX.md"
 Cohesion: 0.05
-Nodes (36): ADR-015 — V2 composition planning and pre-approval asset substitution, Alternatives rejected, Consequences, Context, Decision, 1. Outcome and scope, 2. Rendering and composition, 3. Visual planning, imagery, and motion (+28 more)
+Nodes (36): ADR-004: Measured narration controls playback duration, Consequences, Context, Decision, Status, ADR-015 — V2 composition planning and pre-approval asset substitution, Alternatives rejected, Consequences (+28 more)
 
 ### Community 143 - "ingestion-review-viewer.tsx"
-Cohesion: 0.11
-Nodes (15): ApprovalState, IngestionReviewViewerProps, InspectorDetails(), SectionState, SelectedItem, selectionFor(), State, buildSectionUpdateInput() (+7 more)
+Cohesion: 0.07
+Nodes (30): apiUrl(), ApprovalState, IngestionReviewViewer(), IngestionReviewViewerProps, InspectorDetails(), SectionState, SelectedItem, selectionFor() (+22 more)
 
-### Community 144 - "ref_node_path"
-Cohesion: 0.05
-Nodes (48): EvaluationCase, evaluationCaseSchema, EvaluationResult, evaluationResultSchema, RubricDimension, rubricDimensionSchema, buildEvaluationReport(), EvaluationReport (+40 more)
+### Community 144 - "runner.ts"
+Cohesion: 0.08
+Nodes (34): EvaluationCase, evaluationCaseSchema, EvaluationResult, evaluationResultSchema, RubricDimension, rubricDimensionSchema, buildEvaluationReport(), EvaluationReport (+26 more)
 
 ### Community 145 - "schemas/src/one-shot.ts"
 Cohesion: 0.02
@@ -1240,12 +1246,12 @@ Cohesion: 0.07
 Nodes (26): dependencies, @avlp/schemas, drizzle-orm, postgres, devDependencies, drizzle-kit, tsx, exports (+18 more)
 
 ### Community 147 - "database.integration.test.ts"
-Cohesion: 0.14
-Nodes (13): inTransaction(), nextRevision(), OptimisticConcurrencyDetails, OptimisticConcurrencyError, requireOptimisticUpdate(), packages_database_src_index_intransaction, packages_database_src_index_migratedatabase, packages_database_src_index_nextrevision (+5 more)
+Cohesion: 0.16
+Nodes (11): nextRevision(), OptimisticConcurrencyDetails, OptimisticConcurrencyError, requireOptimisticUpdate(), packages_database_src_index_intransaction, packages_database_src_index_migratedatabase, packages_database_src_index_nextrevision, packages_database_src_index_requireoptimisticupdate (+3 more)
 
 ### Community 148 - "render-style-proof.mjs"
-Cohesion: 0.06
-Nodes (24): browserExecutable, execFileAsync, measurements, outputDir, probe(), probes, repoRoot, require (+16 more)
+Cohesion: 0.07
+Nodes (21): packages_scene_library_dist_style_proof_index, browserExecutable, excerptDir, excerpts, key, outputDir, packIds, repoRoot (+13 more)
 
 ### Community 149 - "dependencies"
 Cohesion: 0.10
@@ -1257,23 +1263,23 @@ Nodes (23): BriefPromiseInput, BriefPromiseResult, classifyFindings(), clip(), c
 
 ### Community 151 - "api/src/one-shot.ts"
 Cohesion: 0.04
-Nodes (72): activeStatuses, BriefRow, briefStatuses, budgetCapUsd(), estimateOneShotBrief(), ledgerEstimates(), ledgerStepByEstimateItem, ledgerStepForOperation() (+64 more)
+Nodes (67): activeStatuses, BriefRow, briefStatuses, budgetCapUsd(), estimateOneShotBrief(), ledgerEstimates(), ledgerStepByEstimateItem, ledgerStepForOperation() (+59 more)
 
 ### Community 152 - "ST-039 — Implement Corrected-Text Overlays and Restore Original Text"
-Cohesion: 0.12
-Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
+Cohesion: 0.11
+Nodes (17): projectEffectiveContentBlocks(), Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Dev Agent Record, Implementation Checklist, Interfaces (+9 more)
 
 ### Community 153 - "api/package.json"
-Cohesion: 0.08
-Nodes (24): devDependencies, tsx, @avlp/config, @avlp/database, @avlp/jobs, @avlp/observability, @avlp/provider-adapters, @avlp/scene-library (+16 more)
+Cohesion: 0.06
+Nodes (30): devDependencies, tsx, @avlp/config, @avlp/database, @avlp/jobs, @avlp/observability, @avlp/provider-adapters, @avlp/scene-library (+22 more)
 
 ### Community 154 - "connected.tsx"
-Cohesion: 0.26
-Nodes (11): centre(), ConnectedComposition(), connectedGraph(), crossesRect(), edgeEnds(), exitPoint(), grownRects(), NodeKind (+3 more)
+Cohesion: 0.23
+Nodes (12): centre(), ConnectedComposition(), connectedGraph(), crossesRect(), edgeEnds(), exitPoint(), grownRects(), NodeKind (+4 more)
 
 ### Community 155 - "metrics.ts"
-Cohesion: 0.14
-Nodes (10): Persistence model, StructuredLogger, boundedJobTypeLabel(), boundedJobTypeSchema, jobErrorLabelSchema, JobMetricContext, jobStateLabelSchema, JobTelemetry (+2 more)
+Cohesion: 0.13
+Nodes (11): Persistence model, StructuredLogger, boundedJobTypeLabel(), boundedJobTypeSchema, jobErrorLabelSchema, JobMetricContext, jobStateLabelSchema, JobTelemetry (+3 more)
 
 ### Community 156 - "dispatcher.ts"
 Cohesion: 0.12
@@ -1288,12 +1294,12 @@ Cohesion: 0.10
 Nodes (19): dependencies, @avlp/config, @aws-sdk/client-s3, @aws-sdk/s3-request-presigner, zod, exports, @avlp/config, zod (+11 more)
 
 ### Community 159 - "style-proof/composition.tsx"
-Cohesion: 0.12
-Nodes (21): packages_design_system_dist_style_proof_tokens_getstyleproofpack, classifySchemaIssue(), correctionFor(), prepareStyleProofComposition(), sceneIdForPath(), StyleProofComposition(), styleProofCompositionIds, styleProofDurationInFrames() (+13 more)
+Cohesion: 0.09
+Nodes (32): packages_design_system_dist_style_proof_tokens_styleproofcaptionfamily, packages_design_system_dist_style_proof_tokens_styleproofcaptionregion, classifySchemaIssue(), correctionFor(), prepareStyleProofComposition(), sceneIdForPath(), StyleProofComposition(), styleProofCompositionIds (+24 more)
 
 ### Community 160 - "E1. Authentication and Access Control"
-Cohesion: 0.12
-Nodes (14): Application API, API and command surface, Covered user stories, E1. Authentication and Access Control, Epic completion gate, Failure, security, and idempotency behavior, Important design decisions, Owned components (+6 more)
+Cohesion: 0.18
+Nodes (11): API and command surface, Covered user stories, E1. Authentication and Access Control, Epic completion gate, Failure, security, and idempotency behavior, Important design decisions, Persistence model, Recommended AI-agent execution order (+3 more)
 
 ### Community 161 - "E11. Visual Scene Template Library"
 Cohesion: 0.17
@@ -1308,24 +1314,24 @@ Cohesion: 0.11
 Nodes (17): 0. Preconditions, 1. Infrastructure, 2. Rebuild workspace packages — do not skip, 3. Migrations, 4. Node services, 5. Docling ingestion service, API, Browser (+9 more)
 
 ### Community 164 - "measureSceneContent"
-Cohesion: 0.06
-Nodes (42): 1.1 What OpenMontage is, 1.2 Theming — we are ahead on discipline, behind on extensibility, 1.3 Asset path resolution, 1.4 Stage gates — the real transferable idea, 1.5 Two smaller manifest ideas, Open questions for the author, OpenMontage Comparative Findings and Candidate Stories, Part 1 — Findings (+34 more)
+Cohesion: 0.05
+Nodes (50): 1.1 What OpenMontage is, 1.2 Theming — we are ahead on discipline, behind on extensibility, 1.3 Asset path resolution, 1.4 Stage gates — the real transferable idea, 1.5 Two smaller manifest ideas, Open questions for the author, OpenMontage Comparative Findings and Candidate Stories, Part 1 — Findings (+42 more)
 
-### Community 165 - "scene-audio-panel.tsx"
-Cohesion: 0.16
-Nodes (17): apiUrl(), errorMessage(), isSceneAudioGenerationDisabled(), sceneAudioFailureMessage(), SceneAudioPanel(), sceneAudioStatusLabel(), shouldPollSceneAudio(), loadedEntries (+9 more)
+### Community 165 - "render-panel.tsx"
+Cohesion: 0.08
+Nodes (34): OneShotDelivery(), mockCompletedRender, mockFailedRender, mockRenderingRender, api(), formatBytes(), renderBlocker(), RenderPanel() (+26 more)
 
 ### Community 166 - "Demonstration-led animation: proof evaluation (ST-095)"
 Cohesion: 0.11
 Nodes (18): Accuracy review, Clip review, Commands run, Demonstration-led animation: proof evaluation (ST-095), Evaporation, FFprobe postflight, How the timing was obtained, Limitations (+10 more)
 
-### Community 167 - "ST-038 — Let Teachers Rename, Include, Exclude, and Reorder Source Sections"
-Cohesion: 0.12
-Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
-
-### Community 168 - "scene-library/src/index.ts"
+### Community 167 - ".build"
 Cohesion: 0.06
-Nodes (45): packages_design_system_dist_index, packages_design_system_dist_index_transitionpresets, packages_design_system_dist_index_videotheme, assets, generatedAnalogyFixture, maximumDensityAnalogyFixture, sourcedAnalogyFixture, packages_scene_library_src_analogy_scene_js (+37 more)
+Nodes (41): CaptionExportCue, CaptionExportFormat, serializeCaptionExport(), srt(), time(), vtt(), credits(), ExportFormat (+33 more)
+
+### Community 168 - "scene-detail-panel.tsx"
+Cohesion: 0.15
+Nodes (17): apiUrl(), extractErrorMessage(), InspectorTab, SceneCandidates(), SceneDetailPanel(), teacherReplacementPreviewForScene(), teacherAsset, visualSummary() (+9 more)
 
 ### Community 169 - "evals/package.json"
 Cohesion: 0.11
@@ -1335,9 +1341,9 @@ Nodes (18): dependencies, @avlp/schemas, zod, devDependencies, tsx, @avlp/schema
 Cohesion: 0.10
 Nodes (18): JobErrorClassification, JobMetadata, Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Dev Agent Record, Implementation Checklist (+10 more)
 
-### Community 171 - "ST-093 - Use Approved Source Figures and Tables in Storyboard Scenes"
-Cohesion: 0.12
-Nodes (15): table(), Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope (+7 more)
+### Community 171 - "Dev Agent Record"
+Cohesion: 0.11
+Nodes (19): SourceVisualPicker(), fetchSourceVisuals(), TableVisual(), table(), Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies (+11 more)
 
 ### Community 172 - "visual-role.test.ts"
 Cohesion: 0.11
@@ -1352,44 +1358,44 @@ Cohesion: 0.11
 Nodes (18): IpoItem, IpoVisual, Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Dev Agent Record, Implementation Checklist (+10 more)
 
 ### Community 175 - "S3CompatibleObjectStorage"
-Cohesion: 0.20
-Nodes (8): StorageKey, StorageObjectMetadata, StorageObjectNotFoundError, isNotFoundError(), S3CompatibleObjectStorage, checksum, createHarness(), key
+Cohesion: 0.29
+Nodes (4): StorageKey, StorageObjectMetadata, isNotFoundError(), S3CompatibleObjectStorage
 
 ### Community 176 - "keys.ts"
-Cohesion: 0.11
+Cohesion: 0.12
 Nodes (14): AssetKey, AssetPrefixKey, AudioKey, DemonstrationAssetKey, ParsedFigureKey, ParsedKey, RenderKey, SourceOriginalKey (+6 more)
 
-### Community 177 - "Dev Agent Record"
-Cohesion: 0.22
-Nodes (12): approvedAssetById(), PreviewManifestService, aiGeneratedAssetInGroundingSlot(), incompatibleCatalogAsset(), missingSourceReferenceForSlot(), nonDecorativeSlotRejectsGeneratedOrCatalog(), sourceFigureAssetUnavailable(), TableVisual() (+4 more)
+### Community 177 - ".assertAuthorizedAssetBindings"
+Cohesion: 0.27
+Nodes (9): approvedAssetById(), PreviewManifestService, aiGeneratedAssetInGroundingSlot(), incompatibleCatalogAsset(), missingSourceReferenceForSlot(), nonDecorativeSlotRejectsGeneratedOrCatalog(), sourceFigureAssetUnavailable(), Acceptance Criteria (+1 more)
 
 ### Community 178 - "FX-001 — Refresh the Storyboard Revision After Audio Duration Reconciliation"
 Cohesion: 0.11
 Nodes (18): 1. Refresh the storyboard when the media poll settles (root-cause fix), 2. Recover from conflicts in the illustration candidate panel, 3. (Optional) Use one revision source in the workspace, Acceptance Criteria, Definition of Done, FX-001 — Refresh the Storyboard Revision After Audio Duration Reconciliation, Impact, Out of Scope (+10 more)
 
-### Community 179 - ".update"
-Cohesion: 0.20
-Nodes (9): blockCorrectionConflict(), blockCorrectionNotFound(), blockKindMismatch(), ContentBlockCorrectionService, mapEffectiveBlock(), overlayValues(), parseBoundary(), PostgresContentBlockCorrectionService (+1 more)
+### Community 179 - "content-block-corrections.ts"
+Cohesion: 0.13
+Nodes (17): blockCorrectionConflict(), blockCorrectionNotFound(), blockKindMismatch(), ContentBlockCorrectionService, CorrectionOverlayState, EffectiveContentBlockInput, mapEffectiveBlock(), overlayValues() (+9 more)
 
 ### Community 180 - "PostgresDemonstrationTestLessonService"
 Cohesion: 0.20
 Nodes (5): DemonstrationTestLessonService, narrationRecord(), PostgresDemonstrationTestLessonService, seedIdentifier(), sha256()
 
 ### Community 181 - "NormalizedDocument"
-Cohesion: 0.05
-Nodes (44): 1.1 The architecture decision, 1.2 The boundary, 1.3 The core principle, 1.4 Adopt from OpenMontage, 1.5 Reject from OpenMontage, 1.6 The one transferable mechanism, 1. What both authors agree on, 10. Open questions for the product owner (+36 more)
+Cohesion: 0.04
+Nodes (43): 10.1 Recommended consistency boundaries, 10.2 Deletion, 10.3 JSON versus normalized rows, 10. Database and Transaction Guidance, API and command surface, Covered user stories, E4. Document Ingestion and Normalization, Epic completion gate (+35 more)
 
 ### Community 182 - "outline-editor.test.ts"
 Cohesion: 0.19
 Nodes (20): approvedStatus, Comparison, configRow(), contentHash, draftFixture(), extractComparisons(), fakeDatabase(), objectiveRow() (+12 more)
 
-### Community 183 - "packages_config_dist_index_createid"
+### Community 183 - "narration-editor.test.ts"
 Cohesion: 0.04
-Nodes (64): approvedOutlineSetRow(), approvedStatus, Comparison, configRow(), contentHash, editorDatabase(), extractComparisons(), fakeDatabase() (+56 more)
+Nodes (36): approvedStatus, contentHash, FakeDbOptions, lessonSpecPayload(), lessonSpecRow(), approvedOutlineSetRow(), approvedStatus, Comparison (+28 more)
 
 ### Community 184 - "ST-054 — Build Storyboard Scene List, Selection, and Navigation"
-Cohesion: 0.12
-Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
+Cohesion: 0.08
+Nodes (24): buildScenePreviewInput(), canPreviewScene(), resolvedManifest, sourceTableManifest, packages_scene_library_dist_index_parsescenepreviewinput, packages_scene_library_dist_index_scenepreviewinput, packages_schemas_dist_index_captionmstoframe, packages_schemas_dist_index_previewmanifest (+16 more)
 
 ### Community 185 - "ST-025 — Implement Email Registration, Sign-In, Sign-Out, and Session Protection"
 Cohesion: 0.12
@@ -1400,8 +1406,8 @@ Cohesion: 0.11
 Nodes (17): dependencies, @avlp/config, @avlp/schemas, zod, exports, @avlp/config, @avlp/schemas, zod (+9 more)
 
 ### Community 187 - "configuration-workspace.tsx"
-Cohesion: 0.05
-Nodes (74): apiUrl(), ConfigurationWorkspace(), ConfigurationWorkspaceProps, extractErrorMessage(), LoadingState, SaveStatus, creativeStylePackOptions, CreativeStylePackSelector() (+66 more)
+Cohesion: 0.11
+Nodes (31): apiUrl(), ConfigurationWorkspace(), ConfigurationWorkspaceProps, extractErrorMessage(), LoadingState, SaveStatus, apps_web_app_workspace_projectid_configuration_lesson_configuration_input_lessonfocuspromptmaxlength, moodLabels (+23 more)
 
 ### Community 188 - "properties"
 Cohesion: 0.11
@@ -1444,12 +1450,12 @@ Cohesion: 0.11
 Nodes (17): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Dev Agent Record, Implementation Checklist, Interfaces, Out of Scope (+9 more)
 
 ### Community 198 - "PostgresRenderService"
-Cohesion: 0.23
-Nodes (8): isRenderableImage(), parse(), PostgresRenderService, publicErrorMessage(), safeErrorCode(), statusForJob(), databaseForRenderCommand(), startRender()
+Cohesion: 0.15
+Nodes (9): LessonValidationService, isRenderableImage(), parse(), PostgresRenderService, publicErrorMessage(), safeErrorCode(), statusForJob(), databaseForRenderCommand() (+1 more)
 
 ### Community 199 - "ST-079 - Build the Narration Writing Workspace"
-Cohesion: 0.11
-Nodes (17): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Dev Agent Record, Follow-up (2026-08-29) — approval footer added, Implementation Checklist, Interfaces (+9 more)
+Cohesion: 0.12
+Nodes (16): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Follow-up (2026-08-29) — approval footer added, Implementation Checklist, Interfaces, Out of Scope (+8 more)
 
 ### Community 200 - "PostgresSourceUploadRepository"
 Cohesion: 0.13
@@ -1460,8 +1466,8 @@ Cohesion: 0.10
 Nodes (19): Acceptance Criteria, Contracts, Persistence, and Render Identity, Definition of Done, Dependencies and Rollout Boundary, Deterministic sequence planning, Dev Agent Record, Implementation Checklist, Increment 1 — Composition Catalogue and Lesson Planning (+11 more)
 
 ### Community 202 - "shoot-cinema.mjs"
-Cohesion: 0.05
-Nodes (31): args, { chromium }, { createElement }, faces, filtered, fontCss, fontDir, fontLog (+23 more)
+Cohesion: 0.07
+Nodes (25): args, { chromium }, { createElement }, faces, filtered, fontCss, fontDir, fontLog (+17 more)
 
 ### Community 203 - "compilerOptions"
 Cohesion: 0.12
@@ -1473,7 +1479,7 @@ Nodes (16): contextlib, dataclasses, dotenv, hashlib, multiprocessing, os, pydan
 
 ### Community 205 - "Decision (proposed)"
 Cohesion: 0.12
-Nodes (15): 2. The plan declares its own end state, and validation replays it, 3. In-transit quantities are represented explicitly, 4. Narration timing is measured, and the plan is bound to the audio, 5. Frame N is derived, never accumulated, Accepted now, ADR-006: Demonstration event plans for explanatory animation, Consequences, Context (+7 more)
+Nodes (16): 2. The plan declares its own end state, and validation replays it, 3. In-transit quantities are represented explicitly, 4. Narration timing is measured, and the plan is bound to the audio, 5. Frame N is derived, never accumulated, 6. The proof is isolated, exactly as ST-094's was, Accepted now, ADR-006: Demonstration event plans for explanatory animation, Consequences (+8 more)
 
 ### Community 206 - "Video Style Templates and User Personalisation"
 Cohesion: 0.13
@@ -1483,9 +1489,9 @@ Nodes (15): 1. Six preconfigured design directions, 2. Make motion explain the s
 Cohesion: 0.12
 Nodes (16): dependencies, zod, exports, ./identifiers, default, types, zod, name (+8 more)
 
-### Community 208 - "one-shot-gateway.ts"
-Cohesion: 0.02
-Nodes (126): ExportFormat, ExportResult, ExportType, manifestSchema, Scope, snapshotSchema, acknowledgeableWarningCodes, affectedValidationRules() (+118 more)
+### Community 208 - "demonstration-proof/validation.ts"
+Cohesion: 0.14
+Nodes (26): demonstrationCompositionIds, demonstrationDurationInFrames(), demonstrationTimeline(), DemonstrationTimelineSegment, PreparedDemonstration, prepareDemonstrationComposition(), sceneIdForPath(), buildDemonstrationPlan() (+18 more)
 
 ### Community 209 - "ST-023 — Assemble a Manual Three-Minute LessonSpec and Full Composition"
 Cohesion: 0.12
@@ -1579,21 +1585,21 @@ Nodes (16): Acceptance Criteria, Contracts and Persistence, Definition of Done, 
 Cohesion: 0.12
 Nodes (16): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Dev Agent Record, Implementation Checklist, Interfaces, Out of Scope (+8 more)
 
-### Community 232 - "demonstration-proof-preview/gallery.tsx"
-Cohesion: 0.12
-Nodes (16): Approach, DemonstrationProofGallery(), formatNaira(), DemonstrationProofGallery, DemonstrationProofGalleryLoader(), panel, SubjectId, subjectIds (+8 more)
+### Community 232 - "one-shot-mock.mjs"
+Cohesion: 0.17
+Nodes (21): briefEstimate(), briefFor(), briefResponse(), briefSections, conflict(), decision(), delay(), eligibilityFor() (+13 more)
 
 ### Community 233 - "ST-080 - Build the Focus Studio Storyboard Workspace"
 Cohesion: 0.12
 Nodes (17): 2026-09-10 product-owner repair follow-up, Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Dev Agent Record, Implementation Checklist, Interfaces (+9 more)
 
 ### Community 234 - "resolveSnapshotSourceRefs"
-Cohesion: 0.11
-Nodes (15): resolveSnapshotSourceRefs(), atLeastOneOutlineItemRequired(), outlineTooManyItems(), superseded(), 5.1 `VisualAssetRequest` (working draft only), 5.2 `AssetManifest` (working draft only), 5.3 Provider adapter boundary, 5. Proposed AVLP domain model (+7 more)
+Cohesion: 0.12
+Nodes (12): resolveSnapshotSourceRefs(), superseded(), 5.1 `VisualAssetRequest` (working draft only), 5.2 `AssetManifest` (working draft only), 5.3 Provider adapter boundary, 5. Proposed AVLP domain model, Change, Compatibility (+4 more)
 
 ### Community 235 - "comparison-workspace.tsx"
 Cohesion: 0.14
-Nodes (18): comparisonStyleLabel(), apiUrl(), approachLabels, ComparisonWorkspace(), CreateComparisonButton(), errorMessage(), FeedbackForm(), statusLabels (+10 more)
+Nodes (17): comparisonStyleLabel(), apiUrl(), approachLabels, ComparisonWorkspace(), CreateComparisonButton(), errorMessage(), FeedbackForm(), statusLabels (+9 more)
 
 ### Community 236 - "tasks"
 Cohesion: 0.12
@@ -1604,12 +1610,12 @@ Cohesion: 0.12
 Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
 
 ### Community 238 - "StoryboardService"
-Cohesion: 0.07
-Nodes (8): IllustrationGenerationApiService, ContactSheetResult, selectability(), LessonValidationService, StoryboardService, IllustrationCandidateBlockReason, visualRolePermits(), Dev Agent Record
+Cohesion: 0.09
+Nodes (7): IllustrationGenerationApiService, ContactSheetResult, selectability(), StoryboardService, IllustrationCandidateBlockReason, visualRolePermits(), Dev Agent Record
 
-### Community 239 - "ref_node_url"
-Cohesion: 0.03
-Nodes (79): apps_api_src_creative_design_canonicalcreativedesignjson, apps_api_src_creative_design_createdefaultcreativedesignmanifest, apps_api_src_creative_design_creativedesignhash, hasCreativeDesignDraftEditConflict(), VideoDesignPreviewComposition, packages_scene_library_dist_style_proof_index, browserExecutable, excerptDir (+71 more)
+### Community 239 - "ref_node_crypto"
+Cohesion: 0.06
+Nodes (41): assets, outPath, records, theme, captions, narrationTracks, timeline, tone() (+33 more)
 
 ### Community 240 - "IngestionServiceTests"
 Cohesion: 0.23
@@ -1620,8 +1626,8 @@ Cohesion: 0.20
 Nodes (9): Exception, lifespan(), DefaultDoclingAdapter, download_source(), IngestionFailure, Path, Keeps one warm Docling worker so model load is paid once, not per document., Load models before the first upload rather than inside its latency budget. (+1 more)
 
 ### Community 242 - "style-proof-tokens.ts"
-Cohesion: 0.12
-Nodes (14): editorial, essential, everyday, styleProofCanvas, styleProofCaptionFamily, styleProofCaptionRegion, StyleProofFontFace, styleProofFontFaces (+6 more)
+Cohesion: 0.04
+Nodes (56): ReleasedCreativeStylePack, ReleasedCreativeStylePackId, releasedCreativeStylePacks, releasedCreativeStylePackVersion, editorial, essential, everyday, styleProofCanvas (+48 more)
 
 ### Community 243 - "Dev Agent Record"
 Cohesion: 0.12
@@ -1636,16 +1642,16 @@ Cohesion: 0.12
 Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
 
 ### Community 246 - "ST-075 - Restyle Source Intake and Ingestion Status"
-Cohesion: 0.12
-Nodes (16): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Dev Agent Record, Implementation Checklist, Interfaces, Out of Scope (+8 more)
+Cohesion: 0.06
+Nodes (30): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+22 more)
 
 ### Community 247 - "ST-029 — Duplicate and Delete Projects with Cleanup Scheduling"
-Cohesion: 0.12
-Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
+Cohesion: 0.11
+Nodes (16): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Dev Agent Record, Implementation Checklist, Interfaces, Out of Scope (+8 more)
 
-### Community 248 - "SceneAudioService"
-Cohesion: 0.17
-Nodes (6): parseBoundary(), response(), sceneAudioRequestAction(), SceneAudioService, Audio failure repair — 2026-09-08, Dev Agent Record
+### Community 248 - "PostgresGroundingService"
+Cohesion: 0.15
+Nodes (10): canonicalHash(), groundingConflict(), groundingSourceNotConfirmed(), jobErrorCode(), lessonSpecNotFound(), parseBoundary(), PostgresGroundingService, sceneNotFound() (+2 more)
 
 ### Community 249 - "ST-033 — Run Docling Ingestion in an Isolated Python Worker"
 Cohesion: 0.12
@@ -1660,12 +1666,12 @@ Cohesion: 0.12
 Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
 
 ### Community 252 - "ObjectStorage"
-Cohesion: 0.12
-Nodes (7): ObjectStorage, SignedDownloadRequest, SignedUploadRequest, StorageObjectRef, Contracts and Persistence, Dev Agent Record, Dev Agent Record
+Cohesion: 0.15
+Nodes (4): ObjectStorage, StorageObjectRef, Contracts and Persistence, Dev Agent Record
 
 ### Community 253 - "PostgresSourceSectionSelectionService"
-Cohesion: 0.19
-Nodes (8): atLeastOneSectionRequired(), parseBoundary(), PostgresSourceSectionSelectionService, projectEffectiveSections(), SourceSectionSelectionService, sourceSelectionConflict(), sourceSelectionNotFound(), Dev Agent Record
+Cohesion: 0.21
+Nodes (7): atLeastOneSectionRequired(), parseBoundary(), PostgresSourceSectionSelectionService, projectEffectiveSections(), SourceSectionSelectionService, sourceSelectionConflict(), sourceSelectionNotFound()
 
 ### Community 254 - "ST-041 — Capture and Validate Lesson Configuration"
 Cohesion: 0.12
@@ -1683,17 +1689,17 @@ Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, 
 Cohesion: 0.12
 Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
 
-### Community 258 - ".build"
-Cohesion: 0.09
-Nodes (23): ExportService, narration(), parseSnapshot(), result(), safeFileStem(), safeStem(), storyboard(), Acceptance Criteria (+15 more)
+### Community 258 - "ST-001 — Bootstrap the TypeScript Monorepo and Engineering Tooling"
+Cohesion: 0.12
+Nodes (16): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Dev Agent Record, Implementation Checklist, Interfaces, Out of Scope (+8 more)
 
 ### Community 259 - "ST-049 — Edit or Regenerate Individual Narration Blocks with Dependency Invalidation"
 Cohesion: 0.12
 Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
 
-### Community 260 - "scene-preview-input.ts"
-Cohesion: 0.16
-Nodes (9): buildScenePreviewInput(), canPreviewScene(), resolvedManifest, sourceTableManifest, packages_scene_library_dist_index_parsescenepreviewinput, packages_scene_library_dist_index_scenepreviewinput, packages_schemas_dist_index_captionmstoframe, packages_schemas_dist_index_storyboardscenedetailresponse (+1 more)
+### Community 260 - "storyboard-panel.tsx"
+Cohesion: 0.07
+Nodes (31): fixtureInputs, missingAssetInput, missingAudioInput, apiUrl(), deriveSaveVersionOutcome(), extractErrorMessage(), extractVersionSaveBlockers(), MobileViewTab (+23 more)
 
 ### Community 261 - "ST-051 — Regenerate One Storyboard Scene Without Altering Neighboring Teacher Edits"
 Cohesion: 0.12
@@ -1703,9 +1709,9 @@ Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, 
 Cohesion: 0.10
 Nodes (20): Acceptance Criteria, Contracts, Persistence, and Interfaces, Controlled motion energy, Cross-feature and legacy coverage, Deliverables, Dependencies and Ownership, Dev Agent Record, Frame and output identity (+12 more)
 
-### Community 263 - "provider-adapters/src/index.ts"
-Cohesion: 0.16
-Nodes (10): defaultModelPricing, estimateCostUsd(), ModelPricing, modelPricingSchema, ModelPricingTable, roundToMicrodollars(), InMemoryQuotaGuard, InMemoryQuotaLimit (+2 more)
+### Community 263 - "quota.ts"
+Cohesion: 0.31
+Nodes (4): InMemoryQuotaGuard, InMemoryQuotaLimit, QuotaExceededError, QuotaGuard
 
 ### Community 264 - "E2. Teacher Workspace and Project Management"
 Cohesion: 0.17
@@ -1720,16 +1726,16 @@ Cohesion: 0.12
 Nodes (17): ProjectStage, Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Dev Agent Record, Implementation Checklist, Interfaces (+9 more)
 
 ### Community 267 - "ST-063 — Generate and Retry Text-to-Speech Audio Per Scene"
-Cohesion: 0.12
-Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
+Cohesion: 0.11
+Nodes (17): Acceptance Criteria, Audio failure repair — 2026-09-08, Contracts and Persistence, Definition of Done, Dependencies, Dev Agent Record, Implementation Checklist, Interfaces (+9 more)
 
 ### Community 268 - "ST-069 — Securely Download Video and Export Captions, Narration, and Storyboard"
-Cohesion: 0.12
-Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
+Cohesion: 0.11
+Nodes (17): VersionExportManifest, Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Dev Agent Record, Implementation Checklist, Interfaces (+9 more)
 
 ### Community 269 - "loadState"
-Cohesion: 0.11
-Nodes (22): CitationHistoryService, approvedNarration(), approvedObjectives(), approvedOutline(), assertRestorable(), blocker(), detail(), ensureReady() (+14 more)
+Cohesion: 0.10
+Nodes (23): CitationHistoryService, approvedNarration(), approvedObjectives(), approvedOutline(), assertRestorable(), canonical(), canonicalJson(), detail() (+15 more)
 
 ### Community 270 - "ST-077 - Restyle Lesson and Voice Configuration"
 Cohesion: 0.12
@@ -1739,13 +1745,13 @@ Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, 
 Cohesion: 0.12
 Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
 
-### Community 272 - "ST-081 - Build the Lesson Preview and Preflight Experience"
-Cohesion: 0.12
-Nodes (16): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Dev Agent Record, Implementation Checklist, Interfaces, Out of Scope (+8 more)
+### Community 272 - "src/narration.ts"
+Cohesion: 0.07
+Nodes (26): countWords(), errorDetails(), GenerationJobState, NarrationSetRow, nothingToEdit(), packages_database_dist_index_narrationblockrevisions, packages_schemas_dist_index_currentnarrationtransformcompatibility, packages_schemas_dist_index_lessonnarrationset (+18 more)
 
 ### Community 273 - "ST-104 — Add the Prompt-to-Video ADR, Focus and Audience Contracts, and Focus-Aware Prompts"
-Cohesion: 0.13
-Nodes (14): Acceptance Criteria, Conflicts the ADR must resolve, Contracts and Persistence, Definition of Done, Dependencies, Interfaces, Out of Scope, Outcome (+6 more)
+Cohesion: 0.10
+Nodes (19): 1. ADR, 2. Contracts (shared schemas first), 3. Prompts, 4. Wizard, Acceptance Criteria, Conflicts the ADR must resolve, Contracts and Persistence, Definition of Done (+11 more)
 
 ### Community 274 - "tasteskill: Anti-Slop Frontend Skill"
 Cohesion: 0.13
@@ -1759,9 +1765,9 @@ Nodes (15): Appendix B - Canonical Sources (read these before reinventing), Appl
 Cohesion: 0.13
 Nodes (14): Acceptance Criteria, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome, Required Reading (+6 more)
 
-### Community 277 - "ST-008 — Define NormalizedDocument v1 and Provenance Contracts"
-Cohesion: 0.13
-Nodes (14): Acceptance Criteria, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome, Required Reading (+6 more)
+### Community 277 - "TRACEABILITY_MATRIX.md"
+Cohesion: 0.11
+Nodes (16): Acceptance Criteria, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome, Required Reading (+8 more)
 
 ### Community 278 - "tasteskill: Anti-Slop Frontend Skill"
 Cohesion: 0.13
@@ -1783,9 +1789,9 @@ Nodes (13): args, { chromium }, { createElement }, frame, frameComponents, fromS
 Cohesion: 0.16
 Nodes (12): Frame N does not depend on frame N−1, In-transit money is named, not hidden, Objects are preserved, not replaced, The arithmetic cannot be wrong on screen, What the runtime guarantees, and how it is checked, NoteStrip(), positioned(), Readout() (+4 more)
 
-### Community 283 - "illustration-candidate-panel.tsx"
-Cohesion: 0.27
-Nodes (9): apiUrl(), Candidate, controlBase, IllustrationCandidatePanel(), illustrationConflictMessage, illustrationFailureMessage, inFlightStatuses, runIllustrationCandidateAction() (+1 more)
+### Community 283 - "ref_react"
+Cohesion: 0.05
+Nodes (46): apps_web_app_globals, metadata, apps_web_app_share_token_page_module, BrandPreview(), PREVIEW_SCENES, ready, sectionStyle, apiUrl() (+38 more)
 
 ### Community 284 - "10. Screen-by-screen direction"
 Cohesion: 0.13
@@ -1795,45 +1801,45 @@ Nodes (15): 10.10 Storyboard editor, 10.11 Full lesson preview, 10.12 Render, ex
 Cohesion: 0.15
 Nodes (12): fastapi_testclient, importlib_util, io, json, pathlib, docx_fixture(), pdf_fixture(), skipUnless (+4 more)
 
-### Community 286 - "ST-035 — Extract and Persist Figures, Captions, and Tables"
-Cohesion: 0.12
-Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
+### Community 286 - "OpenMontage Learnings — Final Consolidated Plan"
+Cohesion: 0.11
+Nodes (19): 10. Sources and provenance, 1.1 The architecture decision, 1.2 The boundary, 1.3 The core principle, 1.4 Adopt from OpenMontage, 1.5 Reject from OpenMontage, 1.6 The one transferable mechanism, 1. What both authors agree on (+11 more)
 
 ### Community 287 - "Creative styles proof: evaluation"
 Cohesion: 0.11
 Nodes (17): AC10 — Planning handoff, AC11 — Distinct in motion, AC2 — Distinct when paused, AC3 — Meaning preserved and equally clear, AC4 — Valid layout, AC5 — Timing and playback, AC6 — Shared rendering, AC7 — Compatibility (+9 more)
 
-### Community 288 - "beats.tsx"
-Cohesion: 0.15
-Nodes (10): BeatContext, CinemaBeats, CinemaBeatTimeline, CinemaMotionEnergy, ease, revealFrames(), useCinemaBeats(), packages_schemas_dist_index_cinemabeat (+2 more)
+### Community 288 - "cinema.test.tsx"
+Cohesion: 0.09
+Nodes (18): BeatContext, CinemaBeats, CinemaBeatTimeline, CinemaMotionEnergy, ease, revealFrames(), useCinemaBeats(), scenes (+10 more)
 
-### Community 289 - "ST-082 - Build Render, Delivery, and Public Playback UI"
-Cohesion: 0.12
-Nodes (16): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Dev Agent Record, Implementation Checklist, Interfaces, Out of Scope (+8 more)
+### Community 289 - "Next steps (in order)"
+Cohesion: 0.14
+Nodes (23): assertPinnedCaptionsUnchanged(), Consequences, captionMsToFrame(), cinemaArtDirectionBrief(), cinemaCaptionsSha256(), cinemaHeroSlotBinding(), cinemaIllustrationBudget(), cinemaIllustrationKey() (+15 more)
 
 ### Community 290 - "dependencies"
 Cohesion: 0.15
 Nodes (13): dependencies, @avlp/config, @avlp/database, @avlp/jobs, @avlp/observability, @avlp/provider-adapters, @avlp/scene-library, @avlp/schemas (+5 more)
 
 ### Community 291 - "ST-027 — Enforce Project Resource Authorization and Tenant Isolation"
-Cohesion: 0.13
-Nodes (14): Acceptance Criteria, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome, Required Reading (+6 more)
+Cohesion: 0.12
+Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
 
-### Community 292 - "E21. Observability, Security, and Cost Controls"
-Cohesion: 0.17
-Nodes (12): API and command surface, Covered user stories, E21. Observability, Security, and Cost Controls, Epic completion gate, Failure, security, and idempotency behavior, Important design decisions, Owned components, Persistence model (+4 more)
+### Community 292 - "jobs/src/contracts.ts"
+Cohesion: 0.11
+Nodes (17): packages_config_dist_index_utctimestamp, packages_config_dist_index_utctimestampschema, CreateJobEnvelopeInput, DeliveryOptions, deliveryOptionsSchema, JobEnvelope, jobEnvelopeVersion, jobErrorClassificationSchema (+9 more)
 
 ### Community 293 - "ST-092 - Explain Blocked Lesson-Version Saves and Guide Recovery"
 Cohesion: 0.13
 Nodes (14): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+6 more)
 
 ### Community 294 - "ST-090 — Constrain Provider Adapters per Job and Forbid Silent Fallback"
-Cohesion: 0.12
-Nodes (15): Acceptance Criteria, Definition of Done, Dependencies, Dev Agent Record, Interfaces, Out of Scope, Outcome, Problem (+7 more)
+Cohesion: 0.08
+Nodes (24): 3.1 Most of the proposed asset-generation work is already shipped, 3.2 Process lesson for both authors, 3. Where the Claude documents were right and Codex's were wrong, 3.1 What exists, 3.2 What is genuinely missing, 3.3 Process lesson, 3. Audit of shipped state — read this before proposing asset work, IllustrationProvider (+16 more)
 
 ### Community 295 - "ST-105 — Orchestrate Prompt-to-Video Runs Server-Side behind a Pilot Cohort"
-Cohesion: 0.15
-Nodes (12): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Interfaces, Out of Scope, Outcome, Required Reading (+4 more)
+Cohesion: 0.12
+Nodes (16): LessonIntentService, 6. Lesson intent, Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Dev Agent Record, Interfaces (+8 more)
 
 ### Community 296 - "document-validation.test.ts"
 Cohesion: 0.17
@@ -1852,28 +1858,28 @@ Cohesion: 0.12
 Nodes (16): A. Sound bed, Acceptance Criteria, B. Post-render self-review, Contracts and Persistence, Definition of Done, Dependencies, Interfaces, Out of Scope (+8 more)
 
 ### Community 300 - "fitText"
-Cohesion: 0.07
-Nodes (49): comparisonContent(), ComparisonSplitComposition(), ComparisonStackedComposition(), IpoCentre(), Point, PointList(), pointListFit(), Side (+41 more)
+Cohesion: 0.18
+Nodes (20): AnnotatedDefinition(), AnnotatedDiagram(), HeroAnnotatedComposition(), HeroIndexedComposition(), indexedEntries(), markerPosition, AnswerCard(), SequenceComposition() (+12 more)
 
-### Community 301 - "Decision"
-Cohesion: 0.10
-Nodes (18): 1. The bed is presentation, pinned by identity, 2. Render manifest version 2, 3. Catalog media lives outside every tenant, 5. Comparison variants are narration-only, 6. The post-render review, 7. Catalog content and licensing, ADR-012 — Pinned background sound bed and deterministic post-render review, Alternatives rejected (+10 more)
+### Community 301 - "Dev Agent Record"
+Cohesion: 0.07
+Nodes (30): 1. The bed is presentation, pinned by identity, 2. Render manifest version 2, 3. Catalog media lives outside every tenant, 4. Deterministic ducking from the composition's own timeline, 5. Comparison variants are narration-only, 6. The post-render review, 7. Catalog content and licensing, ADR-012 — Pinned background sound bed and deterministic post-render review (+22 more)
 
 ### Community 302 - "ST-055 — Reorder, Add, Duplicate, and Delete Storyboard Scenes"
 Cohesion: 0.12
 Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
 
 ### Community 303 - "Decision"
-Cohesion: 0.14
-Nodes (12): 1. Scope of the supersession, 2. What does not change, 3. Focus narrows by citation, not retrieval, 4. Audience and subject neutrality, 5. Orchestration hosting (built in ST-105), 7. Amendment (ST-107, 2026-09-27): the brief is the authorisation, ADR-013 — Prompt-to-video pilot: focus-driven, audience-aware generation with one human gate, Alternatives rejected (+4 more)
+Cohesion: 0.08
+Nodes (24): 1. Scope of the supersession, 2. What does not change, 3. Focus narrows by citation, not retrieval, 4. Audience and subject neutrality, 7. Amendment (ST-107, 2026-09-27): the brief is the authorisation, ADR-013 — Prompt-to-video pilot: focus-driven, audience-aware generation with one human gate, Alternatives rejected, Consequences (+16 more)
 
-### Community 304 - "ST-010 — Create the MVP Video Design System and Motion Tokens"
-Cohesion: 0.13
-Nodes (14): Acceptance Criteria, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome, Required Reading (+6 more)
+### Community 304 - "together-alignment.ts"
+Cohesion: 0.15
+Nodes (17): SceneAudioAlignmentResult, SceneAudioTiming, alignWords(), clean(), FetchLike, jsonObject(), narrationWordGroups(), normalizedWord() (+9 more)
 
 ### Community 305 - "PostgresProjectRepository"
-Cohesion: 0.21
-Nodes (5): decodeProjectCursor(), duplicateProjectTitle(), encodeProjectCursor(), PostgresProjectRepository, toProjectDetail()
+Cohesion: 0.08
+Nodes (9): decodeProjectCursor(), duplicateProjectTitle(), encodeProjectCursor(), parseProjectBoundary(), PostgresProjectRepository, ProjectRepository, api(), InMemoryProjectRepository (+1 more)
 
 ### Community 306 - "5. Visual identity"
 Cohesion: 0.14
@@ -1903,17 +1909,13 @@ Nodes (14): Acceptance Criteria, Acceptance Criteria, Acceptance Criteria, Accep
 Cohesion: 0.14
 Nodes (13): 1. Diagnosis: the flatness is not Remotion's fault, 2. Why Veo/Gemini and HeyGen are the wrong *primary* renderer for this product, 3.1 Build a real motion system (biggest win, lowest risk), 3.2 Make diagrams actual graphs, 3.3 For 3D, use `@remotion/three`, 3.4 Use generative models as *asset producers*, not renderers, 3. Recommended work, in leverage order, 4. The architectural rule (+5 more)
 
-### Community 313 - "AuthGateway"
-Cohesion: 0.16
-Nodes (4): AuthGateway, PasswordResetEmailSender, WebhookPasswordResetEmailSender, Dev Agent Record
-
 ### Community 314 - "PostgresShareLinkService"
 Cohesion: 0.18
 Nodes (3): PostgresShareLinkService, publicUnavailable(), ShareLinkService
 
-### Community 315 - "watch-video.mjs"
-Cohesion: 0.16
-Nodes (11): args, download(), duration, env(), everySeconds, ffmpeg, fromStorage, outDir (+3 more)
+### Community 315 - "PostgresVoiceConfigurationService"
+Cohesion: 0.11
+Nodes (11): approvedVoiceCatalog(), approvedVoicePreview(), conflict(), FixtureTextToSpeechProvider, mapConfiguration(), parse(), PostgresVoiceConfigurationService, TextToSpeechProvider (+3 more)
 
 ### Community 316 - "E5. Ingestion Review"
 Cohesion: 0.17
@@ -1933,7 +1935,7 @@ Nodes (12): Adoption, Controlled Rendering and Versioning Contract, CR-01 — Bo
 
 ### Community 320 - "focus-prompts.test.ts"
 Cohesion: 0.06
-Nodes (34): packages_config_dist_index_togethermodeldefaults, configurationFor(), focusAwarePrompts, objectivesFor(), registry, render(), subjects, registry (+26 more)
+Nodes (33): packages_config_dist_index_togethermodeldefaults, configurationFor(), focusAwarePrompts, objectivesFor(), registry, render(), subjects, registry (+25 more)
 
 ### Community 321 - "exports"
 Cohesion: 0.15
@@ -1943,9 +1945,9 @@ Nodes (13): default, default, types, types, exports, ./demonstration-proof, ./de
 Cohesion: 0.19
 Nodes (9): assetFor(), CausalNode(), CauseEffectLayout, CauseEffectSceneFrame(), CauseEffectSceneFrameState, getCauseEffectSceneFrameState(), selectCauseEffectLayout(), packages_schemas_dist_index_causeeffectnode (+1 more)
 
-### Community 323 - "normalized-document.test.ts"
-Cohesion: 0.07
-Nodes (25): payload(), Migration 0028 compatibility notes, NormalizedDocument compatibility, buildSourcePackage(), ContentBlock, ExtractedFigure, IngestionWarning, normalizedDocumentJsonSchema (+17 more)
+### Community 323 - "Contracts and Persistence"
+Cohesion: 0.33
+Nodes (6): ContentBlock, ExtractedFigure, IngestionWarning, NormalizedSection, ParsedTable, Contracts and Persistence
 
 ### Community 324 - "voice"
 Cohesion: 0.15
@@ -1967,9 +1969,9 @@ Nodes (12): compilerOptions, declaration, declarationMap, exactOptionalPropertyT
 Cohesion: 0.17
 Nodes (12): 4.10 Quotes & Testimonials, 4.11 Page Theme Lock (Light / Dark Mode Consistency), 4.1 Typography, 4.2 Color Calibration, 4.3 Layout Diversification, 4.4 Materiality, Shadows, Cards, 4.5 Interactive UI States, 4.6 Data & Form Patterns (+4 more)
 
-### Community 329 - "ProviderOneShotBriefService"
-Cohesion: 0.14
-Nodes (7): blockText(), OneShotBriefGenerator, ProviderOneShotBriefService, providerUnavailable(), confirm(), service(), FakeBriefGenerator
+### Community 329 - "one-shot-st107.integration.test.ts"
+Cohesion: 0.06
+Nodes (41): OneShotPricing, createOneShotAdvanceJobHandler(), writeOneShotApprovalAudit(), briefBody, confirm(), correlationId, estimate, host() (+33 more)
 
 ### Community 330 - "ST-011 — Implement the Scene Registry, Runtime Contract, and Layout Validation"
 Cohesion: 0.13
@@ -1984,16 +1986,20 @@ Cohesion: 0.17
 Nodes (12): 4.10 Quotes & Testimonials, 4.11 Page Theme Lock (Light / Dark Mode Consistency), 4.1 Typography, 4.2 Color Calibration, 4.3 Layout Diversification, 4.4 Materiality, Shadows, Cards, 4.5 Interactive UI States, 4.6 Data & Form Patterns (+4 more)
 
 ### Community 333 - "Decision"
-Cohesion: 0.18
-Nodes (10): 1. A comparison is an additive record beside the lesson, never a lesson state, 2. The approach is part of render identity, 4. Eligibility is a registered binding, never a keyword, 5. Curated subjects become real projects, 6. The renderer's implementation version is bumped, ADR-007 — Comparison variants for the demonstration-led video pilot, Consequences, Context (+2 more)
+Cohesion: 0.17
+Nodes (11): 1. A comparison is an additive record beside the lesson, never a lesson state, 2. The approach is part of render identity, 3. Demonstration media resolves through the tenant-scoped path, 4. Eligibility is a registered binding, never a keyword, 5. Curated subjects become real projects, 6. The renderer's implementation version is bumped, ADR-007 — Comparison variants for the demonstration-led video pilot, Consequences (+3 more)
 
-### Community 334 - "ST-076 - Build the Ingestion Review Workspace"
-Cohesion: 0.13
-Nodes (14): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+6 more)
+### Community 334 - "E9. Narration Generation"
+Cohesion: 0.17
+Nodes (12): API and command surface, Covered user stories, E9. Narration Generation, Epic completion gate, Failure, security, and idempotency behavior, Important design decisions, Owned components, Persistence model (+4 more)
 
 ### Community 335 - "cinema/primitives.tsx"
-Cohesion: 0.07
-Nodes (35): channel(), CinemaEmphasisStyle, CinemaImageFrame, CinemaSurfaceStyle, fontStacks, luminance(), mixColor(), mutedText() (+27 more)
+Cohesion: 0.11
+Nodes (19): anchorDirection, CinemaHero, CinemaIcon, CinemaShape, EmphasisText(), heroFrameInset(), HeroVisual(), ItemIcon() (+11 more)
+
+### Community 336 - "lesson-versions.ts"
+Cohesion: 0.12
+Nodes (18): buildLessonVersionSnapshot(), mediaReferences(), pinnedCinemaTiming(), portableLessonSpec(), ReadinessExistence, Scope, ADR-0015, packages_schemas_dist_index_anycreativedesignmanifest (+10 more)
 
 ### Community 337 - "ingestion-quality.ts"
 Cohesion: 0.25
@@ -2004,8 +2010,8 @@ Cohesion: 0.07
 Nodes (31): API and command surface, Covered user stories, E19. Source Grounding and Citations, Epic completion gate, Failure, security, and idempotency behavior, Important design decisions, Owned components, Persistence model (+23 more)
 
 ### Community 339 - "E8. Lesson Outline Generation"
-Cohesion: 0.18
-Nodes (11): API and command surface, Covered user stories, E8. Lesson Outline Generation, Epic completion gate, Failure, security, and idempotency behavior, Important design decisions, Owned components, Recommended AI-agent execution order (+3 more)
+Cohesion: 0.17
+Nodes (12): API and command surface, Covered user stories, E8. Lesson Outline Generation, Epic completion gate, Failure, security, and idempotency behavior, Important design decisions, Owned components, Persistence model (+4 more)
 
 ### Community 340 - "ST-101 — Author the Systems, Field Notes, and Prism Style Packs"
 Cohesion: 0.18
@@ -2016,8 +2022,8 @@ Cohesion: 0.17
 Nodes (12): API and command surface, Covered user stories, E17. Video Rendering, Epic completion gate, Failure, security, and idempotency behavior, Important design decisions, Owned components, Persistence model (+4 more)
 
 ### Community 342 - "parsed-document-review.ts"
-Cohesion: 0.14
-Nodes (13): contentTypeToExtension, FigureRow, packages_schemas_dist_index_contentblockcorrectionstate, packages_schemas_dist_index_parseddocumentreviewresponse, packages_schemas_dist_index_parseddocumentreviewresponseschema, packages_schemas_dist_index_parseddocumentsectionresponse, packages_schemas_dist_index_parseddocumentsectionresponseschema, packages_schemas_dist_index_reviewcontentblockschema (+5 more)
+Cohesion: 0.15
+Nodes (12): contentTypeToExtension, FigureRow, packages_schemas_dist_index_contentblockcorrectionstate, packages_schemas_dist_index_parseddocumentreviewresponse, packages_schemas_dist_index_parseddocumentreviewresponseschema, packages_schemas_dist_index_parseddocumentsectionresponse, packages_schemas_dist_index_parseddocumentsectionresponseschema, packages_schemas_dist_index_reviewfigureextensionvalues (+4 more)
 
 ### Community 343 - "E20. Basic Version History"
 Cohesion: 0.17
@@ -2035,9 +2041,13 @@ Nodes (13): api(), cohort, drive(), fill(), only, prepareBrief(), readBrief(), r
 Cohesion: 0.17
 Nodes (12): API and command surface, Covered user stories, E3. Document Upload and Validation, Epic completion gate, Failure, security, and idempotency behavior, Important design decisions, Owned components, Persistence model (+4 more)
 
-### Community 347 - "E6. Lesson Configuration"
-Cohesion: 0.17
-Nodes (12): API and command surface, Covered user stories, E6. Lesson Configuration, Epic completion gate, Failure, security, and idempotency behavior, Important design decisions, Owned components, Persistence model (+4 more)
+### Community 347 - "identity.ts"
+Cohesion: 0.16
+Nodes (17): ChapterComposition(), channel(), CinemaEmphasisStyle, CinemaImageFrame, CinemaSurfaceStyle, fontStacks, luminance(), mixColor() (+9 more)
+
+### Community 348 - "ST-110 — Visual Planning and Purposeful Imagery"
+Cohesion: 0.18
+Nodes (11): Acceptance Criteria, Commands/tests, Decisions/assumptions, Dev Agent Record, Deviations, Known risks/follow-up, Outcome, Required Tests (+3 more)
 
 ### Community 349 - "packages_config_dist_index_identifierschema"
 Cohesion: 0.21
@@ -2048,8 +2058,8 @@ Cohesion: 0.14
 Nodes (14): dependencies, @avlp/config, @avlp/database, @avlp/provider-adapters, @avlp/schemas, drizzle-orm, @opentelemetry/api, @opentelemetry/auto-instrumentations-node (+6 more)
 
 ### Community 351 - "job-envelope.ts"
-Cohesion: 0.26
-Nodes (8): ApprovedProviderUnavailableError, pipelineJobAdapterEnvelopes, PipelineJobType, providerAdapterFamilies, ProviderAdapterFamily, ProviderEnvelopeViolationError, ProviderSelection, resolveJobAdapter()
+Cohesion: 0.24
+Nodes (9): ApprovedProviderUnavailableError, pipelineJobAdapterEnvelopes, PipelineJobType, providerAdapterFamilies, ProviderAdapterFamily, ProviderEnvelopeViolationError, ProviderSelection, providerSelectionReason() (+1 more)
 
 ### Community 352 - "dependencies"
 Cohesion: 0.17
@@ -2063,29 +2073,29 @@ Nodes (12): scripts, analyse:style-proof-motion, build, generate:demonstration-a
 Cohesion: 0.17
 Nodes (12): properties, $ref, projectId, schemaVersion, targetDurationSeconds, themeId, enum, type (+4 more)
 
-### Community 355 - "IngestionReviewViewer"
-Cohesion: 0.20
-Nodes (11): apiUrl(), IngestionReviewViewer(), BlockCorrectionAction, blockCorrectionRevision(), BlockCorrectionSnapshot, buildBlockCorrectionInput(), effectiveBlockText(), correctedParagraphBlock (+3 more)
+### Community 355 - "captions.ts"
+Cohesion: 0.26
+Nodes (14): alignSentences(), captionContentHash(), CaptionCue, clean(), normalizeCaptionTiming(), pad(), segmentCaptions(), serializeSrt() (+6 more)
 
 ### Community 357 - "PostgresSoundBedService"
 Cohesion: 0.27
 Nodes (3): PostgresSoundBedService, SoundBedService, toEntry()
 
-### Community 358 - "Dev Agent Record"
-Cohesion: 0.21
-Nodes (7): CitationApiService, CitationService, PostgresCitationService, sceneNotFound(), resolveSourceRefsAgainstSnapshot(), CitationIssue, Dev Agent Record
+### Community 358 - "SourceSnapshotService"
+Cohesion: 0.11
+Nodes (7): CitationApiService, PostgresCitationService, sceneNotFound(), resolveSourceRefsAgainstSnapshot(), SourceSnapshotService, CitationIssue, Dev Agent Record
 
 ### Community 359 - "ST-047 — Edit, Reorder, Link, and Approve the Lesson Outline"
 Cohesion: 0.12
 Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
 
 ### Community 360 - "Product Brand and Interface Design Guide"
-Cohesion: 0.15
-Nodes (11): 12. Accessibility and inclusive design, 13. Content and data integrity rules, 14. Implementation foundation, 15. Screen design worksheet, 17. Known open brand decisions, 1. Purpose, 2. Design read, 3. Inspiration and originality (+3 more)
+Cohesion: 0.10
+Nodes (21): 11. Loading, empty, error, and success states, 12. Accessibility and inclusive design, 13. Content and data integrity rules, 14. Implementation foundation, 15. Screen design worksheet, 17. Known open brand decisions, 18. Interface craft conventions (6 October 2026), 1. Purpose (+13 more)
 
 ### Community 361 - "4.3 Brand principles"
-Cohesion: 0.18
-Nodes (11): 4.1 Brand idea, 4.2 Brand promise, 4.3 Brand principles, 4.4 Product naming, 4.5 Voice and copy, 4. Brand foundation, Clarity is the product, Creativity needs calm structure (+3 more)
+Cohesion: 0.20
+Nodes (10): 4.1 Brand idea, 4.2 Brand promise, 4.3 Brand principles, 4.5 Voice and copy, 4. Brand foundation, Clarity is the product, Creativity needs calm structure, Teachers stay in control (+2 more)
 
 ### Community 362 - "8. Core component direction"
 Cohesion: 0.18
@@ -2136,7 +2146,7 @@ Cohesion: 0.25
 Nodes (13): cohort, drive(), fillAndCreate(), finishRun(), outsideCohort(), { PDFDocument, StandardFonts }, require_, results (+5 more)
 
 ### Community 375 - ".generate"
-Cohesion: 0.25
+Cohesion: 0.33
 Nodes (5): canonicalHash(), outlineConfigurationMissing(), outlineObjectivesMissing(), outlineSourceNotConfirmed(), sortCanonical()
 
 ### Community 376 - "style-proof/font-assets.d.ts"
@@ -2147,25 +2157,25 @@ Nodes (10): @fontsource/atkinson-hyperlegible/400.css, @fontsource/atkinson-hype
 Cohesion: 0.18
 Nodes (11): enum, type, additionalProperties, properties, required, type, enum, type (+3 more)
 
-### Community 378 - "caption-export.ts"
-Cohesion: 0.48
-Nodes (6): CaptionExportCue, CaptionExportFormat, serializeCaptionExport(), srt(), time(), vtt()
+### Community 378 - "ST-035 — Extract and Persist Figures, Captions, and Tables"
+Cohesion: 0.12
+Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
 
-### Community 379 - "The prompt-to-video pilot (runner and API)"
-Cohesion: 0.15
-Nodes (13): Authorisation, metering and audit, Bounded self-repair (ST-107), Decision log (ST-107), Endpoints, How the runner works, Known limitations, Run budget ledger (ST-107), Stage map (+5 more)
+### Community 379 - "ST-081 - Build the Lesson Preview and Preflight Experience"
+Cohesion: 0.12
+Nodes (15): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+7 more)
 
 ### Community 380 - "10. REFERENCE VOCABULARY (Pattern Names the Agent Should Know)"
 Cohesion: 0.20
 Nodes (10): 10. REFERENCE VOCABULARY (Pattern Names the Agent Should Know), Animation Library Choice, Cards & Containers, Galleries & Media, Hero Paradigms, Layout & Grids, Micro-Interactions & Effects, Navigation & Menus (+2 more)
 
-### Community 382 - "ipo-scene.tsx"
-Cohesion: 0.29
-Nodes (8): assetFor(), getIpoSceneFrameState(), IpoLayout, IpoSceneFrame(), IpoSceneFrameState, ItemList(), selectIpoLayout(), packages_schemas_dist_index_ipoitem
+### Community 382 - "PasswordResetEmailSender"
+Cohesion: 0.28
+Nodes (3): PasswordResetEmailSender, WebhookPasswordResetEmailSender, Dev Agent Record
 
-### Community 383 - "ST-087 — Pilot Graph-Based Deterministic Motion for Process and Cause-Effect Scenes"
-Cohesion: 0.15
-Nodes (12): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Interfaces, Out of Scope, Outcome, Required Reading (+4 more)
+### Community 383 - "ST-084 — Reconcile Scene Durations With Measured Audio Before Real TTS Adoption"
+Cohesion: 0.14
+Nodes (15): synthesizeFixtureAudio(), Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Interfaces, Outcome, Problem (+7 more)
 
 ### Community 384 - "ST-096 — comparison pilot evidence"
 Cohesion: 0.20
@@ -2184,8 +2194,8 @@ Cohesion: 0.20
 Nodes (10): 10. REFERENCE VOCABULARY (Pattern Names the Agent Should Know), Animation Library Choice, Cards & Containers, Galleries & Media, Hero Paradigms, Layout & Grids, Micro-Interactions & Effects, Navigation & Menus (+2 more)
 
 ### Community 388 - "graphify reference: extra exports and benchmark"
-Cohesion: 0.20
-Nodes (9): graphify reference: extra exports and benchmark, Step 6b - Wiki (only if --wiki flag), Step 7 - Neo4j export (only if --neo4j or --neo4j-push flag), Step 7a - FalkorDB export (only if --falkordb or --falkordb-push flag), Step 7b - SVG export (only if --svg flag), Step 7c - GraphML export (only if --graphml flag), Step 7d - MCP server (only if --mcp flag), Step 8 - Token reduction benchmark (only if total_words > 5000) (+1 more)
+Cohesion: 0.17
+Nodes (11): graphify reference: extra exports and benchmark, Step 6b - Wiki (only if --wiki flag), Step 7 - Neo4j export (only if --neo4j or --neo4j-push flag), Step 7a - FalkorDB export (only if --falkordb or --falkordb-push flag), Step 7b - SVG export (only if --svg flag), Step 7c - GraphML export (only if --graphml flag), Step 7d - MCP server (only if --mcp flag), Step 8 - Token reduction benchmark (only if total_words > 5000) (+3 more)
 
 ### Community 389 - "ST-106 — Build the Prompt-to-Video Screens"
 Cohesion: 0.14
@@ -2195,13 +2205,13 @@ Nodes (13): Acceptance Criteria, Contracts and Persistence, Definition of Done, 
 Cohesion: 0.20
 Nodes (10): Acceptance Criteria, Acceptance Criteria, Approved bounded extension — ST-097, ST-100, ST-101, ADR-010, ST-102, Epic E11: Visual Scene Template Library, MVP Templates, Objective, Technical Dependencies, Technical Dependencies (+2 more)
 
-### Community 391 - "error-filter.ts"
+### Community 391 - "groundCinemaDisplay"
 Cohesion: 0.23
-Nodes (8): ApiExceptionFilter, mapHttpStatusToErrorCode(), RequestWithCorrelation, toPublicHttpError(), Catch, packages_config_dist_index_toapierrorenvelope, fastify, @nestjs/common
+Nodes (15): authoredCinemaDisplay(), authoredEmphasis(), bareWord(), cinemaApprovedSceneText(), cinemaPrimaryText(), defaultHeadline(), eligibleCinemaCompositions(), groundCinemaDisplay() (+7 more)
 
-### Community 392 - "Dev Agent Record"
-Cohesion: 0.20
-Nodes (11): anyNarration(), anyObjectives(), anyOutline(), computeReadinessBlockers(), evaluateReadiness(), ApiErrorEnvelope, CorrelationContext, FieldErrorMap (+3 more)
+### Community 392 - "ST-076 - Build the Ingestion Review Workspace"
+Cohesion: 0.13
+Nodes (14): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Implementation Checklist, Interfaces, Out of Scope, Outcome (+6 more)
 
 ### Community 393 - "items"
 Cohesion: 0.33
@@ -2215,21 +2225,17 @@ Nodes (9): DemonstrationPresentation, Acceptance Criteria, Dev Agent Record, Out
 Cohesion: 0.17
 Nodes (12): API and command surface, Covered user stories, E15. Scene and Lesson Preview, Epic completion gate, Failure, security, and idempotency behavior, Important design decisions, Owned components, Persistence model (+4 more)
 
-### Community 396 - "ref_node_fs"
-Cohesion: 0.06
-Nodes (24): assets, outPath, records, theme, makeRandom(), ADR-0004, narrationWav(), outputPath (+16 more)
-
-### Community 397 - "ST-071 MVP acceptance"
-Cohesion: 0.25
-Nodes (7): Canonical exercise, Content reuse, Failure and recovery evidence, PRD metric sources, Quota gates, Release commands, ST-071 MVP acceptance
+### Community 396 - "render-demonstration-proof.mjs"
+Cohesion: 0.04
+Nodes (44): args, download(), duration, env(), everySeconds, ffmpeg, fromStorage, outDir (+36 more)
 
 ### Community 398 - "compilerOptions"
 Cohesion: 0.22
 Nodes (8): compilerOptions, emitDecoratorMetadata, experimentalDecorators, outDir, rootDir, extends, include, ../../tsconfig.base.json
 
-### Community 399 - "video-theme.ts"
-Cohesion: 0.33
-Nodes (8): isWithinSafeArea(), scaleVideoCanvas(), transitionPresets, VIDEO_FPS, VIDEO_HEIGHT, VIDEO_WIDTH, videoFont, VideoScale
+### Community 399 - "Dev Agent Record"
+Cohesion: 0.15
+Nodes (12): anyNarration(), anyObjectives(), anyOutline(), blocker(), computeReadinessBlockers(), evaluateReadiness(), VersionBrowser(), PublicError (+4 more)
 
 ### Community 400 - "scripts"
 Cohesion: 0.29
@@ -2239,29 +2245,29 @@ Nodes (7): scripts, build, dev, health, lint, test, typecheck
 Cohesion: 0.17
 Nodes (12): API and command surface, Covered user stories, E12. Storyboard Editor, Epic completion gate, Failure, security, and idempotency behavior, Important design decisions, Owned components, Persistence model (+4 more)
 
-### Community 402 - "`@avlp/jobs`"
-Cohesion: 0.40
-Nodes (4): pipeline(), `@avlp/jobs`, Contracts, Database integration tests
+### Community 402 - "cost.ts"
+Cohesion: 0.39
+Nodes (6): defaultModelPricing, estimateCostUsd(), ModelPricing, modelPricingSchema, ModelPricingTable, roundToMicrodollars()
 
 ### Community 403 - "ST-091 — Structured Node and Edge Editor for Graph Process and Cause-Effect Scenes"
-Cohesion: 0.17
-Nodes (11): Acceptance Criteria, Definition of Done, Dependencies, Dev Agent Record, Out of Scope, Outcome, Required Reading, Scope (+3 more)
+Cohesion: 0.18
+Nodes (10): Acceptance Criteria, Definition of Done, Dependencies, Out of Scope, Outcome, Required Reading, Scope, ST-091 — Structured Node and Edge Editor for Graph Process and Cause-Effect Scenes (+2 more)
 
 ### Community 404 - "9. AI TELLS (Forbidden Patterns)"
 Cohesion: 0.25
 Nodes (8): 9.A Visual & CSS, 9. AI TELLS (Forbidden Patterns), 9.B Typography, 9.C Layout & Spacing, 9.D Content & Data ("Jane Doe" Effect), 9.E External Resources & Components, 9.F Production-Test Tells (banned outright), 9.G EM-DASH BAN (the single most-violated Tell)
 
-### Community 405 - "creative-style-packs.ts"
-Cohesion: 0.47
-Nodes (4): ReleasedCreativeStylePack, ReleasedCreativeStylePackId, releasedCreativeStylePacks, releasedCreativeStylePackVersion
+### Community 405 - ".acceptCandidate"
+Cohesion: 0.37
+Nodes (5): narrationBlockNotFound(), narrationCandidateNotFound(), narrationCandidateNotPending(), narrationConflict(), parseBoundary()
 
-### Community 406 - "Dev Agent Record"
-Cohesion: 0.29
-Nodes (4): ModelCallRepository, PostgresModelCallRepository, focusPromptParam(), Dev Agent Record
+### Community 406 - "LessonVersionsService"
+Cohesion: 0.10
+Nodes (11): LessonVersionsService, ModelCallRepository, PostgresGenerationQuotaGuard, PostgresModelCallRepository, focusPromptParam(), Dev Agent Record, 1. Pilot flag, 2. Persistence (+3 more)
 
-### Community 407 - "dependencies"
-Cohesion: 0.18
-Nodes (11): dependencies, @avlp/config, @avlp/design-system, @avlp/scene-library, @avlp/schemas, geist, motion, next (+3 more)
+### Community 407 - "scene-library/src/index.ts"
+Cohesion: 0.04
+Nodes (50): packages_design_system_dist_index, packages_design_system_dist_index_transitionpresets, packages_design_system_dist_index_videotheme, assets, generatedAnalogyFixture, maximumDensityAnalogyFixture, sourcedAnalogyFixture, packages_scene_library_src_analogy_scene_js (+42 more)
 
 ### Community 408 - "IngestionStatusService"
 Cohesion: 0.25
@@ -2316,20 +2322,20 @@ Cohesion: 0.25
 Nodes (8): Acceptance Criteria, Acceptance Criteria, Epic E10: Storyboard Generation, Objective, Technical Dependencies, Technical Dependencies, User Story E10-US1: Generate storyboard, User Story E10-US2: Regenerate one scene plan
 
 ### Community 422 - "ST-107 — Add a Video Brief, Run Budget Ledger, Bounded Self-Repair and Decision Log to Prompt-to-Video"
-Cohesion: 0.09
-Nodes (20): 1. Video brief, 2. Run budget ledger, 3. Bounded self-repair, 4. Brief-promise check (deterministic, before the preview), 5. Production decision log, 6. Post-render review for one-shot, Acceptance Criteria, Contracts and Persistence (+12 more)
+Cohesion: 0.15
+Nodes (12): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Interfaces, Out of Scope, Outcome, Required Reading (+4 more)
 
 ### Community 424 - "design-system/tsconfig.json"
 Cohesion: 0.25
 Nodes (7): compilerOptions, jsx, outDir, rootDir, extends, include, ../../tsconfig.base.json
 
-### Community 425 - "ProjectAssetService"
-Cohesion: 0.25
-Nodes (4): extensionFor(), parseBoundary(), ProjectAssetService, validation()
+### Community 425 - "cinema/index.ts"
+Cohesion: 0.15
+Nodes (12): packages_scene_library_src_cinema_beats_js, packages_scene_library_src_cinema_cinema_scene_js, packages_scene_library_src_cinema_compositions_connected_js, IllustratedHeadlineComposition(), StatementComposition(), TitleLine(), packages_scene_library_src_cinema_frame_js, packages_scene_library_src_cinema_primitives_js (+4 more)
 
-### Community 426 - "video-design-preview/page.tsx"
-Cohesion: 0.18
-Nodes (9): fixtureInputs, missingAssetInput, missingAudioInput, packages_scene_library_dist_index_createdefaultscene, packages_scene_library_dist_index_createscenepreviewfixture, packages_scene_library_dist_index_fulllessonpreviewplayer, packages_scene_library_dist_index_scenepreviewplayer, packages_schemas_dist_index_scenetemplate (+1 more)
+### Community 426 - "Premium interface refinement - 6 October 2026"
+Cohesion: 0.15
+Nodes (8): Changed files, Completion record, Design decisions, Premium interface refinement - 6 October 2026, Route review matrix, Scope and plan, Shared interaction repairs, Verification results
 
 ### Community 427 - "devDependencies"
 Cohesion: 0.25
@@ -2367,9 +2373,9 @@ Nodes (7): 6.A Hardware Acceleration, 6.B Reduced Motion (mandatory), 6.C Dark M
 Cohesion: 0.53
 Nodes (3): detectNarrationPauses(), NarrationPause, narrationPauseNote()
 
-### Community 436 - "main"
-Cohesion: 0.06
-Nodes (36): loadCommittedCatalog(), main(), registerSoundBeds(), 10. Sources and provenance, 2.1 The storyboard review was largely duplicate work, 2.2 A blocking finding must not fail the job, 2.3 Rejected alternatives need real alternatives, 2.4 Do not cite an unavailable skill (+28 more)
+### Community 436 - "ST-083 - Complete Cross-Screen UI Quality and Accessibility Hardening"
+Cohesion: 0.12
+Nodes (17): Acceptance Criteria, Contracts and Persistence, Definition of Done, Dependencies, Dev Agent Record, Implementation Checklist, Interfaces, Maintenance - 6 October 2026: premium interface refinement (+9 more)
 
 ### Community 437 - "pipeline-worker/tsconfig.json"
 Cohesion: 0.29
@@ -2379,9 +2385,9 @@ Nodes (6): compilerOptions, outDir, rootDir, extends, include, ../../tsconfig.ba
 Cohesion: 0.29
 Nodes (6): compilerOptions, outDir, rootDir, extends, include, ../../tsconfig.base.json
 
-### Community 439 - "render-cinema-mp4.mjs"
-Cohesion: 0.12
-Nodes (15): args, browserExecutable, { bundle }, captions, { chromium }, fromSceneLibrary, lesson, ADR-0015 (+7 more)
+### Community 439 - "ref_node_fs"
+Cohesion: 0.04
+Nodes (41): args, browserExecutable, { bundle }, captions, { chromium }, fromSceneLibrary, lesson, ADR-0015 (+33 more)
 
 ### Community 440 - "APPENDICES - Real Source-Backed Reference Material"
 Cohesion: 0.29
@@ -2427,9 +2433,9 @@ Nodes (6): compilerOptions, outDir, rootDir, extends, include, ../../tsconfig.ba
 Cohesion: 0.29
 Nodes (6): compilerOptions, outDir, rootDir, extends, include, ../../tsconfig.base.json
 
-### Community 451 - "groundingState"
-Cohesion: 1.00
-Nodes (3): groundingFindings(), groundingState(), isRecord()
+### Community 451 - "SceneAudioService"
+Cohesion: 0.21
+Nodes (4): parseBoundary(), response(), sceneAudioRequestAction(), SceneAudioService
 
 ### Community 452 - "database/tsconfig.json"
 Cohesion: 0.29
@@ -2456,8 +2462,8 @@ Cohesion: 0.06
 Nodes (11): page(), cors, fillRequest(), prepareAndConfirm(), projectIdFor(), seed(), startRun(), tracks (+3 more)
 
 ### Community 458 - "getSceneFrameTiming"
-Cohesion: 0.07
-Nodes (48): packages_design_system_dist_video_theme, packages_design_system_dist_video_theme_video_fps, packages_design_system_dist_video_theme_videotheme, AnalogySceneFrame(), AnalogySceneFrameState, getAnalogySceneFrameState(), isGeneratedAnalogy(), DefinitionSceneFrame() (+40 more)
+Cohesion: 0.06
+Nodes (55): packages_design_system_dist_video_theme, packages_design_system_dist_video_theme_video_fps, packages_design_system_dist_video_theme_videotheme, AnalogySceneFrame(), AnalogySceneFrameState, getAnalogySceneFrameState(), isGeneratedAnalogy(), DefinitionSceneFrame() (+47 more)
 
 ### Community 459 - "schemas/tsconfig.json"
 Cohesion: 0.29
@@ -2479,9 +2485,9 @@ Nodes (5): Hand off, Implement and verify, Next Story, Prepare work, Select the 
 Cohesion: 0.33
 Nodes (5): Clean-room statement, Immutability, Records, Registration, Sound bed catalog — license records (ST-103)
 
-### Community 464 - "cinema.test.tsx"
-Cohesion: 0.06
-Nodes (40): packages_scene_library_src_cinema_beats_js, cinemaCompositionComponents, CinemaScene(), cinemaSceneBeatFrames(), packages_scene_library_src_cinema_cinema_scene_js, settle, transitionStyle(), ADR-0015 (+32 more)
+### Community 464 - "cinema-scene.tsx"
+Cohesion: 0.09
+Nodes (28): Immediate mitigation, ahead of story 1, cinemaCompositionComponents, CinemaScene(), cinemaSceneBeatFrames(), settle, transitionStyle(), ADR-0015, Assets (+20 more)
 
 ### Community 465 - "graphify reference: query, path, explain"
 Cohesion: 0.33
@@ -2563,13 +2569,13 @@ Nodes (4): ADR-010 — Expand the registered standard-video style-pack catalogue
 Cohesion: 0.40
 Nodes (4): ADR-011 — Design snapshots do not require render readiness, Consequences, Context, Decision
 
-### Community 485 - "11. Loading, empty, error, and success states"
-Cohesion: 0.40
-Nodes (5): 11. Loading, empty, error, and success states, Empty, Error, Loading, Success
+### Community 485 - "one-shot-preview.tsx"
+Cohesion: 0.18
+Nodes (11): apps_web_app_workspace_projectid_one_shot_one_shot_module, ManifestState, OneShotPreview(), OneShotUnavailable(), ValidationWarnings(), isProjectPayload(), OneShotPage(), ProjectPayload (+3 more)
 
-### Community 486 - "9. Motion system"
-Cohesion: 0.40
-Nodes (5): 9.1 Motion principles, 9.2 Timing, 9.3 Reduced motion, 9.4 Implementation boundary, 9. Motion system
+### Community 486 - "ADR-005: Versioned style packs for multi-style video"
+Cohesion: 0.15
+Nodes (12): 1. Keep the semantic model; version the presentation around it, 2. Persist the resolved design in the LessonSpec, not a side manifest, 3. Reject rather than substitute, 4. Retain implementations, not just version strings, 5. Extend render identity to cover design, ADR-005: Versioned style packs for multi-style video, Alternatives considered, Consequences if accepted (+4 more)
 
 ### Community 487 - "Runbook: storage cleanup"
 Cohesion: 0.40
@@ -2583,13 +2589,13 @@ Nodes (4): Change, Compatibility, Migration 0029 — model_calls and ai.groundin
 Cohesion: 0.40
 Nodes (4): Change, Compatibility, Migration 0030 — learning_objective_sets and learning_objectives, Notes
 
-### Community 490 - "source-figure-controls.ts"
-Cohesion: 0.40
-Nodes (4): buildFigureUpdateInput(), FigureSelectionAction, FigureSelectionSnapshot, FigureSelectionUpdate
+### Community 490 - "comparison.tsx"
+Cohesion: 0.23
+Nodes (12): comparisonContent(), ComparisonSplitComposition(), ComparisonStackedComposition(), IpoCentre(), Point, PointList(), pointListFit(), Side (+4 more)
 
 ### Community 491 - "scripts"
-Cohesion: 0.19
-Nodes (9): exports, ./telemetry, scripts, build, lint, test, typecheck, default (+1 more)
+Cohesion: 0.40
+Nodes (5): scripts, build, lint, test, typecheck
 
 ### Community 492 - "blocks"
 Cohesion: 0.40
@@ -2607,9 +2613,9 @@ Nodes (3): versionRecoveryStageSchema, versionSaveBlockerSchema, versionSaveRead
 Cohesion: 0.50
 Nodes (4): 7. DIAL DEFINITIONS (Technical Reference), DESIGN_VARIANCE (Level 1-10), MOTION_INTENSITY (Level 1-10), VISUAL_DENSITY (Level 1-10)
 
-### Community 496 - "RenderService"
+### Community 496 - "createSceneAudioGenerationJobHandler"
 Cohesion: 0.17
-Nodes (3): LessonVersionsService, RenderService, 4. Endpoints (NestJS, `apps/api/src/app.ts`, the `projects` controller)
+Nodes (10): alignWithoutProvider(), canFallBackToEstimatedCaptions(), createSceneAudioGenerationJobHandler(), digest(), fixtureDurationJitterMs(), hasReadyCaptions(), isCurrentAudioCompletion(), persistedTiming() (+2 more)
 
 ### Community 497 - "duplicate/route.ts"
 Cohesion: 0.50
@@ -2640,8 +2646,8 @@ Cohesion: 0.50
 Nodes (3): npx, playwright, @playwright/mcp
 
 ### Community 504 - "Dev Agent Record"
-Cohesion: 0.18
-Nodes (10): PublicError, Commands/tests, Decisions/assumptions, Dev Agent Record, Deviations, Known risks/follow-up, Migrations, Public contract changes (+2 more)
+Cohesion: 0.25
+Nodes (8): Commands/tests, Decisions/assumptions, Dev Agent Record, Deviations, Migrations, Public contract changes, Screenshots/output, Story code review fixes (2026-09-28)
 
 ### Community 505 - "0066 lesson configuration creative style pack compatibility"
 Cohesion: 0.50
@@ -2703,113 +2709,125 @@ Nodes (7): citationDeepLink(), citationIssueLabel(), citationPageLabel(), apiUrl
 Cohesion: 0.22
 Nodes (9): scripts, build, dev, lint, sound-beds:register, sound-beds:verify-tracks, start, test (+1 more)
 
-### Community 582 - "video-preview-composition.tsx"
-Cohesion: 0.25
-Nodes (5): getVideoDesignPreviewFrame(), PreviewContents(), videoDesignPreviewId, videoDesignPreviewTransition, TransitionPreset
+### Community 582 - "ref_remotion"
+Cohesion: 0.07
+Nodes (22): packages_design_system_dist_video_theme_videofont, DemonstrationFontGate(), demonstrationRequiredFontSpecifiers, waitForDemonstrationFonts(), assetFor(), getIpoSceneFrameState(), IpoLayout, IpoSceneFrame() (+14 more)
 
-### Community 585 - "storyboard-scene-editor.test.ts"
-Cohesion: 0.22
-Nodes (12): approvedStatus, configRow(), contentHash, fakeDatabase(), FakeDbOptions, graphStoryboardPayload(), lessonSpecRow(), narrationBlockRows() (+4 more)
+### Community 585 - "duration-reconciliation.integration.test.ts"
+Cohesion: 0.03
+Nodes (63): contentHash, createService(), fakeDatabase(), lessonSpecPayload(), lessonSpecRow(), now, CitationService, LessonSpecRow (+55 more)
 
 ### Community 586 - "0068 focus prompt and audience compatibility"
 Cohesion: 0.29
 Nodes (6): 0068 focus prompt and audience compatibility, Audience values, Deployment order, `learning_objective_sets.focus_coverage`, `lesson_configurations.focus_prompt`, `usage_operation_type` += `ai.lesson-intent`
 
-### Community 587 - "ref_react_dom"
-Cohesion: 0.03
-Nodes (65): sampleManifest, sampleProjects, sampleRenderStatus, sampleScene1, sampleScene2, ManifestState, OneShotPreview(), ValidationWarnings() (+57 more)
+### Community 587 - "cross-screen-quality.playwright.test.tsx"
+Cohesion: 0.05
+Nodes (45): sampleManifest, sampleProjects, sampleRenderStatus, sampleScene1, sampleScene2, apiUrl(), firstScene, hash (+37 more)
 
-### Community 588 - "comparison-scene.tsx"
-Cohesion: 0.28
-Nodes (5): ComparisonSceneFrame(), ComparisonSceneFrameState, getComparisonSceneFrameState(), subjectAsset(), packages_schemas_dist_index_comparisonsubject
+### Community 589 - "video-approach-selector.playwright.test.tsx"
+Cohesion: 0.18
+Nodes (8): eligible, unsupported, videoApproachOptions, VideoApproachSelector(), packages_schemas_dist_demonstration_pilot_demonstrationeligibility, packages_schemas_dist_demonstration_pilot_demonstrationineligibilityreason, packages_schemas_dist_index_videoapproach, ref_video_approach_selector_js
 
 ### Community 590 - "E13. Asset Management"
 Cohesion: 0.17
 Nodes (12): API and command surface, Covered user stories, E13. Asset Management, Epic completion gate, Failure, security, and idempotency behavior, Important design decisions, Owned components, Persistence model (+4 more)
 
-### Community 591 - "ST-102 — Add Creative Style Pack Selection to Lesson Configuration"
-Cohesion: 0.22
-Nodes (8): Acceptance Criteria, Gap This Closes, Out of Scope, Required Reading, Required Tests, Scope and Decisions, ST-102 — Add Creative Style Pack Selection to Lesson Configuration, Story
+### Community 591 - "Runbook: render diagnostics"
+Cohesion: 0.33
+Nodes (5): Diagnose, Gather, Recover, Runbook: render diagnostics, Verify
 
 ### Community 592 - "ProviderLessonIntentService"
 Cohesion: 0.36
 Nodes (3): intentService(), ProviderLessonIntentService, providerUnavailable()
 
-### Community 594 - "Dev Agent Record"
-Cohesion: 0.22
-Nodes (9): Commands and tests run, Decisions and assumptions, Dev Agent Record, Deviations from the story or technical guide, Known risks and follow-up, Migrations, Post-review verification, Public contract changes (+1 more)
+### Community 593 - "packages_design_system_dist_style_proof_tokens"
+Cohesion: 0.12
+Nodes (14): packages_design_system_dist_style_proof_tokens, packages_design_system_dist_style_proof_tokens_getstyleproofpack, packages_design_system_dist_style_proof_tokens_styleproofcanvas, packages_design_system_dist_style_proof_tokens_styleprooffontfaces, leafProofFixtures, StyleProofFontGate(), styleProofRequiredFontSpecifiers, waitForProofFonts() (+6 more)
+
+### Community 594 - "E6. Lesson Configuration"
+Cohesion: 0.17
+Nodes (12): API and command surface, Covered user stories, E6. Lesson Configuration, Epic completion gate, Failure, security, and idempotency behavior, Important design decisions, Owned components, Persistence model (+4 more)
 
 ### Community 595 - "0069 one-shot runs compatibility"
 Cohesion: 0.50
 Nodes (3): 0069 one-shot runs compatibility, Enum additions, `one_shot_runs` (new table)
 
-### Community 597 - "SceneSpec"
-Cohesion: 0.25
-Nodes (8): Consequences, SceneSpec, Assets, fonts, and layout, Compatibility and reproducibility, Contracts and selection, Rendering and timing, Technical Implementation Requirements, Dev Agent Record
-
 ### Community 599 - "project-route-authorization.ts"
 Cohesion: 0.48
 Nodes (5): authorizeProjectRoute(), inaccessibleProjectError(), parseProjectId(), projectIdSegment(), ProjectRouteAuthorizer
 
-### Community 600 - "design-system/src/index.ts"
-Cohesion: 0.29
-Nodes (4): packages_design_system_src_video_preview_composition_js, packages_design_system_src_video_theme_provider_js, ref_video_preview_composition_js, ref_video_theme_provider_js
+### Community 600 - "frame.tsx"
+Cohesion: 0.24
+Nodes (9): absolute(), cinemaCanvas, CinemaCompositionProps, headerHeight(), headlineAddsInformation(), headlineRepeatsPrimary(), headlineShownInContent(), SceneHeader() (+1 more)
 
-### Community 602 - "videoTheme"
-Cohesion: 0.38
-Nodes (6): MotionPreset, VideoThemeContext, SafeArea, videoTheme, Contracts and Persistence, Dev Agent Record
+### Community 602 - "Dev Agent Record"
+Cohesion: 0.67
+Nodes (3): mockSceneVisual(), newMockSceneId(), Dev Agent Record
 
-### Community 603 - "PostgresGenerationQuotaGuard"
-Cohesion: 0.29
-Nodes (5): PostgresGenerationQuotaGuard, 1. Pilot flag, 2. Persistence, 3. Runner, Scope
-
-### Community 604 - "Dev Agent Record"
-Cohesion: 0.33
-Nodes (5): LessonIntentService, 6. Lesson intent, providerSelectionReason(), Dev Agent Record, Stage Map (from exploration)
-
-### Community 605 - "Scope"
-Cohesion: 0.40
-Nodes (5): 1. ADR, 2. Contracts (shared schemas first), 3. Prompts, 4. Wizard, Scope
+### Community 605 - ".regenerateBlock"
+Cohesion: 0.36
+Nodes (5): canonicalHash(), narrationConfigurationMissing(), narrationOutlineMissing(), narrationSourceNotConfirmed(), sortCanonical()
 
 ### Community 606 - "ST-109 — V2 Contracts and Composition Families"
-Cohesion: 0.15
-Nodes (13): Acceptance Criteria, Commands/tests, Decisions/assumptions, Dev Agent Record, Deviations, Files changed, Known risks/follow-up, Out of Scope (+5 more)
+Cohesion: 0.17
+Nodes (12): Acceptance Criteria, Commands/tests, Decisions/assumptions, Dev Agent Record, Deviations, Known risks/follow-up, Out of Scope, Outcome (+4 more)
 
 ### Community 607 - "delete/route.ts"
-Cohesion: 0.67
-Nodes (3): apiUrl(), POST(), packages_schemas_dist_index_projectdeleteresponseschema
+Cohesion: 0.29
+Nodes (6): apiUrl(), POST(), apiUrl(), POST(), packages_schemas_dist_index_projectcreateresponseschema, packages_schemas_dist_index_projectdeleteresponseschema
 
-### Community 608 - "projects/route.ts"
-Cohesion: 0.67
-Nodes (3): apiUrl(), POST(), packages_schemas_dist_index_projectcreateresponseschema
+### Community 609 - "s3-compatible.test.ts"
+Cohesion: 0.14
+Nodes (11): Key and retention conventions, Local MinIO, Private object storage, StorageObjectNotFoundError, createS3CompatibleObjectStorage(), integrationEnvironmentSchema, isLocalEndpoint(), checksum (+3 more)
 
-### Community 609 - "Local MinIO"
+### Community 612 - "comparison-scene.tsx"
+Cohesion: 0.28
+Nodes (5): ComparisonSceneFrame(), ComparisonSceneFrameState, getComparisonSceneFrameState(), subjectAsset(), packages_schemas_dist_index_comparisonsubject
+
+### Community 613 - "detail.tsx"
+Cohesion: 0.43
+Nodes (7): detailContent(), detailFontSize(), detailHeight(), DetailLine, estimatedDetailHeight(), primaryFit(), SceneDetail()
+
+### Community 614 - "Scope"
+Cohesion: 0.29
+Nodes (7): 1. Video brief, 2. Run budget ledger, 3. Bounded self-repair, 4. Brief-promise check (deterministic, before the preview), 5. Production decision log, 6. Post-render review for one-shot, Scope
+
+### Community 615 - "Dev Agent Record"
+Cohesion: 0.33
+Nodes (6): Commands/tests, Decisions/assumptions, Dev Agent Record, Deviations, Known risks/follow-up, Screenshots/output
+
+### Community 616 - "`@avlp/jobs`"
+Cohesion: 0.40
+Nodes (4): pipeline(), `@avlp/jobs`, Contracts, Database integration tests
+
+### Community 617 - "./telemetry"
 Cohesion: 0.50
-Nodes (3): Key and retention conventions, Local MinIO, Private object storage
+Nodes (4): exports, ./telemetry, default, types
 
 ### Community 626 - "ADR-014: Narration pauses are advisory"
 Cohesion: 0.40
 Nodes (4): ADR-014: Narration pauses are advisory, Consequences, Context, Decision
 
 ## Knowledge Gaps
-- **5938 isolated node(s):** `repoRoot`, `sceneLibrary`, `fromSceneLibrary`, `{ bundle }`, `{ renderMedia, selectComposition }` (+5933 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 7378 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **77 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **5954 isolated node(s):** `repoRoot`, `sceneLibrary`, `fromSceneLibrary`, `{ bundle }`, `{ renderMedia, selectComposition }` (+5949 more)
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 7404 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **84 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `vitest` connect `vitest` to `pipeline-worker/src/cinema-lesson.fixture.ts`, `lib/one-shot.ts`, `scene-editor-form.tsx`, `scene-library/src/index.test.ts`, `scene-detail-panel.tsx`, `render-worker.ts`, `next`, `demonstration-proof/validation.ts`, `createApp`, `outline.ts`, `style-proof-contract.test.ts`, `diagram-layout.ts`, `schemas/src/demonstration-pilot.ts`, `creative-design-v2.ts`, `schemas/src/creative-design.ts`, `demonstration-integration.test.ts`, `storyboard-panel.tsx`, `toast-provider.tsx`, `ref_react`, `schemas/src/storyboard.test.ts`, `storyboard-scene-query.ts`, `render-review.ts`, `narration-panel.tsx`, `citation-panel.tsx`, `package.json`, `demonstration-proof/fixtures.ts`, `pilot-bindings.ts`, `together-alignment.ts`, `config/src/index.ts`, `schemas/src/narration.test.ts`, `worker.ts`, `provider-adapters/src/contracts.ts`, `project-access.ts`, `render-worker.test.ts`, `gateway.ts`, `plan-builder.ts`, `observability/src/contracts.ts`, `telemetry.ts`, `ST-084 — Reconcile Scene Durations With Measured Audio Before Real TTS Adoption`, `sound-bed.ts`, `schemas/src/voice-configuration.test.ts`, `storyboard-scene-editor.test.ts`, `ref_react_dom`, `lesson-versions.ts`, `outline-panel.tsx`, `creative-design-panel.tsx`, `ref_zod`, `together-provider.ts`, `schemas/src/grounding.test.ts`, `docling-normalizer.ts`, `illustration-contact-sheet.tsx`, `focus-audience.test.ts`, `lease-reaper.ts`, `lesson-spec.test.ts`, `authorized-project-storage.ts`, `s3-compatible.ts`, `one-shot-runner.ts`, `jobs/src/repository.ts`, `worker.test.ts`, `demonstration-proof/index.ts`, `source-snapshot.ts`, `api/src/runtime.ts`, `logging.ts`, `./process-scene.js`, `mvp-acceptance.ts`, `client.ts`, `ingestion-status-panel.tsx`, `packages_schemas_dist_index`, `ingestion-review-viewer.tsx`, `ref_node_path`, `schemas/src/one-shot.ts`, `database.integration.test.ts`, `one-shot-repair.ts`, `api/src/one-shot.ts`, `metrics.ts`, `dispatcher.ts`, `schemas/src/outline.test.ts`, `scene-audio-panel.tsx`, `scene-library/src/index.ts`, `visual-role.test.ts`, `S3CompatibleObjectStorage`, `keys.ts`, `outline-editor.test.ts`, `packages_config_dist_index_createid`, `configuration-workspace.tsx`, `one-shot-gateway.ts`, `comparison-workspace.tsx`, `ref_node_url`, `Dev Agent Record`, `SceneAudioService`, `scene-preview-input.ts`, `provider-adapters/src/index.ts`, `illustration-candidate-panel.tsx`, `document-validation.test.ts`, `AuthGateway`, `focus-prompts.test.ts`, `normalized-document.test.ts`, `objectives-editor.test.ts`, `ingestion-quality.ts`, `creative-design-carry-forward.ts`, `packages_config_dist_index_identifierschema`, `job-envelope.ts`, `IngestionReviewViewer`, `grounding-panel.tsx`, `error-filter.ts`, `video-theme.ts`, `creative-style-packs.ts`, `approved-assets.ts`, `narration-pauses.ts`, `getSceneFrameTiming`, `cinema.test.tsx`, `source-figure-controls.ts`, `schemas/src/citations.test.ts`, `lesson-version.test.ts`?**
+- **Why does `vitest` connect `packages_schemas_dist_index` to `packages_config_dist_index_createid`, `packages_config_dist_index`, `lib/one-shot.ts`, `scene-editor-form.tsx`, `scene-library/src/index.test.ts`, `scene-narration-editor.tsx`, `render-worker.ts`, `next`, `state.ts`, `source-snapshot.ts`, `style-proof-contract.test.ts`, `diagram-layout.ts`, `schemas/src/demonstration-pilot.ts`, `schemas/src/creative-design.ts`, `storyboard-input.ts`, `toast-provider.tsx`, `schemas/src/storyboard.test.ts`, `storyboard-scene-query.ts`, `render-review.ts`, `narration-panel.tsx`, `citation-panel.tsx`, `one-shot-views.tsx`, `package.json`, `demonstration-proof/fixtures.ts`, `pilot-bindings.ts`, `together-tts.ts`, `config/src/index.ts`, `schemas/src/narration.test.ts`, `worker.ts`, `provider-adapters/src/contracts.ts`, `project-access.ts`, `gateway.ts`, `plan-builder.ts`, `telemetry.ts`, `Dev Agent Record`, `sound-bed.ts`, `schemas/src/voice-configuration.test.ts`, `duration-reconciliation.integration.test.ts`, `cross-screen-quality.playwright.test.tsx`, `api/src/creative-design.ts`, `video-approach-selector.playwright.test.tsx`, `outline-panel.tsx`, `creative-design-panel.tsx`, `ref_zod`, `creative-design-v2.test.ts`, `together-provider.ts`, `schemas/src/grounding.test.ts`, `illustration-contact-sheet.tsx`, `schemas/src/objectives.test.ts`, `prompts/index.ts`, `observability/src/contracts.ts`, `lease-reaper.ts`, `lesson-spec.test.ts`, `authorized-project-storage.ts`, `s3-compatible.test.ts`, `one-shot-runner-st112.test.ts`, `test-fixtures/src/index.ts`, `jobs/src/repository.ts`, `worker.test.ts`, `creative-design-render.test.ts`, `api/src/runtime.ts`, `logging.ts`, `./process-scene.js`, `mvp-acceptance.ts`, `lesson-configuration-input.ts`, `document-ingestion-job.ts`, `client.ts`, `ingestion-status-panel.tsx`, `grounding-check-job.test.ts`, `ingestion-review-viewer.tsx`, `runner.ts`, `schemas/src/one-shot.ts`, `database.integration.test.ts`, `one-shot-repair.ts`, `api/src/one-shot.ts`, `metrics.ts`, `schemas/src/outline.test.ts`, `measureSceneContent`, `render-panel.tsx`, `scene-detail-panel.tsx`, `visual-role.test.ts`, `keys.ts`, `NormalizedDocument`, `outline-editor.test.ts`, `narration-editor.test.ts`, `ST-054 — Build Storyboard Scene List, Selection, and Navigation`, `configuration-workspace.tsx`, `comparison-workspace.tsx`, `ref_node_crypto`, `style-proof-tokens.ts`, `Dev Agent Record`, `storyboard-panel.tsx`, `quota.ts`, `ref_react`, `cinema.test.tsx`, `document-validation.test.ts`, `together-alignment.ts`, `focus-prompts.test.ts`, `objectives-editor.test.ts`, `one-shot-st107.integration.test.ts`, `ingestion-quality.ts`, `creative-design-carry-forward.ts`, `packages_config_dist_index_identifierschema`, `job-envelope.ts`, `captions.ts`, `PasswordResetEmailSender`, `grounding-panel.tsx`, `render-demonstration-proof.mjs`, `Dev Agent Record`, `cost.ts`, `scene-library/src/index.ts`, `approved-assets.ts`, `narration-pauses.ts`, `SceneAudioService`, `getSceneFrameTiming`, `schemas/src/citations.test.ts`, `lesson-version.test.ts`?**
   _High betweenness centrality (0.127) - this node is a cross-community bridge._
-- **Why does `LessonSpec` connect `LessonSpec` to `schemas/src/index.ts`, `E15. Scene and Lesson Preview`, `ST-071 MVP acceptance`, `ref_node_path`, `E12. Storyboard Editor`, `diagram-layout.ts`, `ST-020 — Implement the Worked Example Scene Template`, `demonstration-integration.test.ts`, `schemas/src/storyboard.test.ts`, `Creative styles proof: evaluation`, `E11. Visual Scene Template Library`, `measureSceneContent`, `Epic E10: Storyboard Generation`, `render-review.ts`, `ST-093 - Use Approved Source Figures and Tables in Storyboard Scenes`, `Decision`, `ST-015 — Implement the Input–Process–Output Scene Template`, `ST-018 — Implement the Labelled Diagram Scene Template`, `NormalizedDocument`, `schemas/src/narration.test.ts`, `project-access.ts`, `mvp-plan.md`, `ST-016 — Implement the Comparison Scene Template`, `ST-014 — Implement the Process or Sequence Scene Template`, `Reconciled OpenMontage Learnings and Video-Quality Roadmap`, `8. Epic Implementation Specifications`, `ST-088 — Add Editorial Scene-Monotony Validation as a Versioned Advisory Rule`, `Decision`, `ST-007 — Define LessonSpec v1 and Scene Discriminated Unions`, `ST-101 — Author the Systems, Field Notes, and Prism Style Packs`, `OpenMontage Learnings: Asset Generation Discovery`, `README.md`, `focus-audience.test.ts`, `ST-057 — Create the Approved Reusable Asset Catalog and Scene Asset Picker`, `2. Architecture Principles`, `lesson-spec.test.ts`, `mvp-prd.md`?**
-  _High betweenness centrality (0.080) - this node is a cross-community bridge._
+- **Why does `LessonSpec` connect `LessonSpec` to `schemas/src/index.ts`, `E15. Scene and Lesson Preview`, `runner.ts`, `E12. Storyboard Editor`, `diagram-layout.ts`, `ST-020 — Implement the Worked Example Scene Template`, `packages_schemas_dist_demonstration_proof`, `OpenMontage Learnings — Final Consolidated Plan`, `Creative styles proof: evaluation`, `schemas/src/storyboard.test.ts`, `E11. Visual Scene Template Library`, `measureSceneContent`, `Epic E10: Storyboard Generation`, `Dev Agent Record`, `Dev Agent Record`, `ST-015 — Implement the Input–Process–Output Scene Template`, `ST-018 — Implement the Labelled Diagram Scene Template`, `NormalizedDocument`, `schemas/src/narration.test.ts`, `project-access.ts`, `mvp-plan.md`, `ST-016 — Implement the Comparison Scene Template`, `ST-014 — Implement the Process or Sequence Scene Template`, `Reconciled OpenMontage Learnings and Video-Quality Roadmap`, `8. Epic Implementation Specifications`, `ST-088 — Add Editorial Scene-Monotony Validation as a Versioned Advisory Rule`, `Decision`, `Runbook: render diagnostics`, `ST-007 — Define LessonSpec v1 and Scene Discriminated Unions`, `ST-101 — Author the Systems, Field Notes, and Prism Style Packs`, `OpenMontage Learnings: Asset Generation Discovery`, `README.md`, `ST-057 — Create the Approved Reusable Asset Catalog and Scene Asset Picker`, `2. Architecture Principles`, `lesson-spec.test.ts`, `ADR-005: Versioned style packs for multi-style video`, `mvp-prd.md`?**
+  _High betweenness centrality (0.077) - this node is a cross-community bridge._
 - **Why does `2. Product Objectives` connect `mvp-prd.md` to `LessonSpec`?**
-  _High betweenness centrality (0.035) - this node is a cross-community bridge._
+  _High betweenness centrality (0.031) - this node is a cross-community bridge._
 - **What connects `repoRoot`, `sceneLibrary`, `fromSceneLibrary` to the rest of the system?**
-  _5938 weakly-connected nodes found - possible documentation gaps or missing edges._
+  _5954 weakly-connected nodes found - possible documentation gaps or missing edges._
 - **Should `schemas/src/index.ts` be split into smaller, more focused modules?**
   _Cohesion score 0.0032258064516129032 - nodes in this community are weakly interconnected._
-- **Should `pipeline-worker/src/cinema-lesson.fixture.ts` be split into smaller, more focused modules?**
-  _Cohesion score 0.04490106544901065 - nodes in this community are weakly interconnected._
-- **Should `vitest` be split into smaller, more focused modules?**
-  _Cohesion score 0.024764551489887293 - nodes in this community are weakly interconnected._
+- **Should `packages_config_dist_index_createid` be split into smaller, more focused modules?**
+  _Cohesion score 0.03421859039836568 - nodes in this community are weakly interconnected._
+- **Should `packages_config_dist_index` be split into smaller, more focused modules?**
+  _Cohesion score 0.0244532279314888 - nodes in this community are weakly interconnected._

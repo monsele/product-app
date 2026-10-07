@@ -40,6 +40,7 @@ import {
   Trash,
   TreeStructure,
 } from "@phosphor-icons/react";
+import { PageLoading } from "../../../../components/brand/onion-skin-loader";
 
 type ViewState =
   | { kind: "loading" }
@@ -481,11 +482,7 @@ export function OutlinePanel({
         title="Lesson outline"
         subtitle="Loading lesson outline…"
         mainContent={
-          <div style={{ padding: "40px 0", textAlign: "center" }}>
-            <p role="status" style={{ color: "var(--color-text-muted)" }}>
-              Loading the lesson outline…
-            </p>
-          </div>
+          <PageLoading message="Loading the lesson outline…" />
         }
       />
     );

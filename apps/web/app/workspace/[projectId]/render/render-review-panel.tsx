@@ -11,6 +11,7 @@
 
 import React from "react";
 import type { RenderReviewSummary } from "@avlp/schemas";
+import { LoadingImage } from "../../../../components/brand/loading-image";
 
 export function formatReviewTimestamp(ms: number): string {
   const totalTenths = Math.floor(ms / 100);
@@ -165,9 +166,11 @@ export function RenderReviewPanel({
           >
             {review.contactSheet.map((frame) => (
               <div key={frame.atMs} style={{ margin: 0 }}>
-                <img
+                <LoadingImage
                   alt={`Video frame at ${formatReviewTimestamp(frame.atMs)}`}
                   src={frame.url}
+                  frameStyle={{ aspectRatio: "16 / 9", borderRadius: "6px" }}
+                  loaderSize={32}
                   style={{
                     aspectRatio: "16 / 9",
                     border: "1px solid var(--color-border)",

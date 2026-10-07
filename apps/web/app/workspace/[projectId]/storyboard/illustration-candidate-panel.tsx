@@ -9,6 +9,7 @@ import {
   Warning,
   X,
 } from "@phosphor-icons/react";
+import { LoadingImage } from "../../../../components/brand/loading-image";
 
 type Candidate = {
   id: string;
@@ -422,9 +423,11 @@ export function IllustrationCandidatePanel({
                   }}
                 >
                   {candidate.previewUrl !== null ? (
-                    <img
+                    <LoadingImage
                       alt={`AI illustration for the ${candidate.slot} slot`}
                       src={candidate.previewUrl}
+                      frameStyle={{ width: "100%", height: "100%" }}
+                      loaderSize={32}
                       style={{
                         width: "100%",
                         height: "100%",

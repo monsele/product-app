@@ -3,6 +3,7 @@
 import React from "react";
 import { List } from "@phosphor-icons/react";
 import { IconButton } from "../ui/icon-button";
+import { BrandLogo } from "../brand/brand-logo";
 import styles from "./app-header.module.css";
 
 export interface AppHeaderProps {
@@ -42,7 +43,9 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             className="mobile-pipeline-toggle"
           />
         )}
-        <span className={styles.brand}>AI Visual Learning Platform</span>
+        <span className={styles.brand}>
+          <BrandLogo size={22} compactOnPhone />
+        </span>
       </div>
 
       {projectTitle && (

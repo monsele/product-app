@@ -103,7 +103,7 @@ export function AuthForm({
           <p className={styles.intro}>
             {mode === "register"
               ? "Register your teacher account to start authoring visual lessons."
-              : "Sign in to access your teacher workspace and project pipeline."}
+              : "Pick up your lessons where you left off."}
           </p>
 
           <AnimatePresence mode="wait">
@@ -164,7 +164,7 @@ export function AuthForm({
                   }
                   value={passwordValue}
                   onChange={(e) => setPasswordValue(e.target.value)}
-                  placeholder={mode === "register" ? "At least 12 characters" : "••••••••••••"}
+                  placeholder={mode === "register" ? "At least 12 characters" : undefined}
                   required
                 />
                 <button

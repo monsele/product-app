@@ -51,6 +51,8 @@ import {
   type FigureSelectionAction,
 } from "./source-figure-controls";
 import { toast } from "../../../../components/ui/toast-provider";
+import { LoadingImage } from "../../../../components/brand/loading-image";
+import { OnionSkinLoader } from "../../../../components/brand/onion-skin-loader";
 
 type State =
   | { kind: "loading" }
@@ -605,10 +607,7 @@ export function IngestionReviewViewer({
             color: "var(--color-text-muted)",
           }}
         >
-          <ArrowsClockwise
-            weight="bold"
-            className="ui-spinner"
-          />
+          <OnionSkinLoader size={24} />
           <span>Loading document review…</span>
         </div>
       </section>
@@ -2158,9 +2157,17 @@ function SectionContentRenderer({
                     }}
                   >
                     {figure.previewUrl !== undefined ? (
-                      <img
+                      <LoadingImage
                         src={figure.previewUrl}
                         alt={figure.altText ?? "Extracted figure"}
+                        frameStyle={{
+                          width: "100%",
+                          height: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                        loaderSize={36}
                         style={{
                           maxWidth: "100%",
                           maxHeight: "100%",
@@ -2993,9 +3000,17 @@ function InspectorDetails({
               justifyContent: "center",
             }}
           >
-            <img
+            <LoadingImage
               src={figure.previewUrl}
               alt={figure.altText ?? "Extracted figure"}
+              frameStyle={{
+                width: "100%",
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              loaderSize={40}
               style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
             />
           </div>

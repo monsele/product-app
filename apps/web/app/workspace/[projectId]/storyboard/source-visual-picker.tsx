@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useState, type JSX } from "react";
 import type { SourceVisualPickerEntry } from "@avlp/schemas";
 import { fetchSourceVisuals } from "./storyboard-scene-query";
 import styles from "./storyboard.module.css";
+import { LoadingImage } from "../../../../components/brand/loading-image";
+import { OnionSkinLoader } from "../../../../components/brand/onion-skin-loader";
 
 /**
  * ST-093: the presentational half of the picker. Split out from
@@ -108,7 +110,12 @@ export function SourceVisualPickerView({
         value={query}
       />
       {status === "loading" ? (
-        <p role="status" className={styles.assetPickerStatus}>
+        <p
+          role="status"
+          className={styles.assetPickerStatus}
+          style={{ display: "flex", alignItems: "center", gap: "8px" }}
+        >
+          <OnionSkinLoader size={18} />
           Loading source visuals…
         </p>
       ) : status === "error" ? (
@@ -148,10 +155,12 @@ export function SourceVisualPickerView({
       {selected !== undefined ? (
         <>
           {selected.kind === "figure" && selected.thumbnailUrl !== undefined ? (
-            <img
+            <LoadingImage
               alt={selected.caption ?? selected.altText ?? "Source figure"}
               src={selected.thumbnailUrl}
               className={styles.teacherAssetPreview}
+              frameStyle={{ minHeight: 96, borderRadius: 10 }}
+              loaderSize={36}
             />
           ) : null}
           <small

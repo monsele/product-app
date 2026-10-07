@@ -15,6 +15,7 @@
   --color-brand-active: #47209F;
   --color-focus: #5B2CCB;
   --color-on-brand: #FFFFFF;
+  --color-brand-mark-flap: #C9B6FF;
 
   --shadow-elevation: 0 18px 50px rgba(73, 52, 105, 0.10);
   --color-scheme: light;
@@ -54,6 +55,7 @@
   --color-brand-active: #976EFF;
   --color-focus: #A883FF;
   --color-on-brand: #1B1027;
+  --color-brand-mark-flap: #E9E1FF;
 
   --shadow-elevation: 0 20px 60px rgba(8, 4, 14, 0.36);
   --color-scheme: dark;

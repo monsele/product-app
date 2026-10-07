@@ -33,6 +33,7 @@ import {
   Target,
   Trash,
 } from "@phosphor-icons/react";
+import { PageLoading } from "../../../../components/brand/onion-skin-loader";
 
 type ViewState =
   | { kind: "loading" }
@@ -371,11 +372,7 @@ export function ObjectivesPanel({
         title="Learning objectives"
         subtitle="Loading learning objectives…"
         mainContent={
-          <div style={{ padding: "40px 0", textAlign: "center" }}>
-            <p role="status" style={{ color: "var(--color-text-muted)" }}>
-              Loading learning objectives…
-            </p>
-          </div>
+          <PageLoading message="Loading learning objectives…" />
         }
       />
     );

@@ -2,8 +2,8 @@
 
 import React from "react";
 
-import Image from "next/image";
-import { motion } from "motion/react";
+import { BrandLogo } from "../components/brand/brand-logo";
+import { LessonReel } from "../components/brand/lesson-reel";
 import styles from "./auth.module.css";
 
 /**
@@ -14,24 +14,14 @@ import styles from "./auth.module.css";
 export function AuthAside({ message }: { message: string }) {
   return (
     <section className={styles.reassurance}>
-      <span className={styles.brand}>AI Visual Learning Platform</span>
+      <span className={styles.brand}>
+        <BrandLogo size={30} />
+      </span>
 
       <div className={styles.artFrameContainer}>
-        <motion.div
-          className={styles.artFrame}
-          initial={{ opacity: 0, scale: 0.96 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-        >
-          <Image
-            src="/catalog/plant-cycle.svg"
-            alt="A calm plant life-cycle learning illustration"
-            fill
-            priority
-            sizes="(max-width: 760px) 88vw, 42vw"
-            style={{ pointerEvents: "none" }}
-          />
-        </motion.div>
+        <div className={styles.reelFrame}>
+          <LessonReel />
+        </div>
       </div>
 
       <p className={styles.reassuranceMessage}>{message}</p>

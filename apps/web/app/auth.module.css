@@ -23,10 +23,8 @@
 }
 
 .brand {
-  font-size: 1.25rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--color-brand, #6430d7);
+  display: inline-flex;
+  align-items: center;
 }
 
 .artFrameContainer {
@@ -37,30 +35,9 @@
   margin: 1rem 0;
 }
 
-.artFrame {
-  position: relative;
-  width: min(100%, 28rem);
-  aspect-ratio: 4 / 3;
-  padding: 1.5rem;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  box-shadow: 0 24px 64px -20px rgb(73 52 105 / 0.16), inset 0 1px 0 rgb(255 255 255 / 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 300ms ease;
-}
-
-.artFrame:hover {
-  transform: translateY(-2px);
-}
-
-.artFrame img {
-  object-fit: contain;
-  filter: drop-shadow(0 8px 16px rgba(100, 48, 215, 0.08));
+/* Real lesson scenes (components/brand/lesson-reel). */
+.reelFrame {
+  width: min(100%, 30rem);
 }
 
 .reassuranceMessage {
@@ -347,13 +324,9 @@
     border-bottom: 1px solid var(--color-border, #ddd8e5);
   }
 
+  /* docs/design.md 10.2: on small screens the form comes first. */
   .artFrameContainer {
-    margin: 0.5rem 0;
-  }
-
-  .artFrame {
-    width: min(85vw, 20rem);
-    aspect-ratio: 16 / 9;
+    display: none;
   }
 
   .reassuranceMessage {
@@ -373,7 +346,6 @@
 @media (prefers-reduced-motion: reduce) {
   .primaryAction,
   .field input,
-  .artFrame,
   .backLink {
     transition: none;
     transform: none !important;
@@ -382,5 +354,3 @@
     animation-duration: 2s;
   }
 }
-
-@media (prefers-reduced-transparency: reduce) { .artFrame { background: var(--color-surface); backdrop-filter: none; -webkit-backdrop-filter: none; } }

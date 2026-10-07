@@ -7,7 +7,10 @@ import { NavigationProgressBar } from "../components/layout/navigation-progress-
 import { MotionPreferences } from "../components/ui/motion-preferences";
 import "./globals.css";
 
-export const metadata: Metadata = { title: "AI Visual Learning Platform" };
+export const metadata: Metadata = {
+  title: "PageMotion",
+  description: "Turn teaching material into an editable visual lesson.",
+};
 
 export default function RootLayout({
   children,

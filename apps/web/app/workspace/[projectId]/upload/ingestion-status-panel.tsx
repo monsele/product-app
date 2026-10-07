@@ -18,6 +18,7 @@ import { Notice } from "../../../../components/ui/notice";
 import { StatusLabel, type StatusType } from "../../../../components/ui/status-label";
 import { toast } from "../../../../components/ui/toast-provider";
 import { useTaskStatusNotification } from "../../../../lib/use-task-notification";
+import { OnionSkinLoader } from "../../../../components/brand/onion-skin-loader";
 
 type State =
   | { kind: "loading" }
@@ -344,7 +345,13 @@ export function IngestionStatusPanel({ projectId }: { projectId: string }) {
 
       {state.kind === "loading" && (
         <div style={{ padding: "16px 0", color: "var(--color-text-muted)", fontSize: "14px" }}>
-          <p role="status">Loading document status…</p>
+          <p
+            role="status"
+            style={{ display: "flex", alignItems: "center", gap: "10px", margin: 0 }}
+          >
+            <OnionSkinLoader size={22} />
+            Loading document status…
+          </p>
         </div>
       )}
 

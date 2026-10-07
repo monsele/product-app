@@ -1,0 +1,61 @@
+/*
+ * PageMotion brand mark and logo. Colours come from the theme tokens, so the
+ * mark switches automatically between Studio Daylight and Focus Studio.
+ */
+
+.logo {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--color-text);
+}
+
+.mark {
+  display: block;
+  flex-shrink: 0;
+}
+
+.page {
+  fill: var(--color-brand);
+}
+
+.flap {
+  fill: var(--color-brand-mark-flap);
+}
+
+.wordmark {
+  display: block;
+  overflow: visible; /* the descender of "g" sits below the cap-centred box */
+  fill: currentColor;
+}
+
+@media (max-width: 479px) {
+  .compactOnPhone .wordmark {
+    display: none;
+  }
+}
+
+/* The corner lifts and folds back while a job runs. Transform only. */
+.working .flap {
+  transform-box: view-box;
+  transform-origin: 42px 15px;
+  animation: pm-fold 2.4s var(--motion-easing, cubic-bezier(0.16, 1, 0.3, 1))
+    infinite;
+}
+
+@keyframes pm-fold {
+  0%,
+  15% {
+    transform: rotate3d(1, 1, 0, 180deg);
+  }
+  60%,
+  100% {
+    transform: rotate3d(1, 1, 0, 0deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .working .flap {
+    animation: none;
+  }
+}

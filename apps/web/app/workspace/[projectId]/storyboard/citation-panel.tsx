@@ -10,6 +10,7 @@ import {
   citationIssueLabel,
   citationPageLabel,
 } from "./citation-input";
+import { OnionSkinLoader } from "../../../../components/brand/onion-skin-loader";
 
 type State =
   | { kind: "loading" }
@@ -57,7 +58,15 @@ export function SceneCitations({
   }, [refresh]);
 
   if (state.kind === "loading")
-    return <p role="status">Loading source citations…</p>;
+    return (
+      <p
+        role="status"
+        style={{ display: "flex", alignItems: "center", gap: "8px" }}
+      >
+        <OnionSkinLoader size={18} />
+        Loading source citations…
+      </p>
+    );
 
   if (state.kind === "failed")
     return <p role="alert">{state.message}</p>;

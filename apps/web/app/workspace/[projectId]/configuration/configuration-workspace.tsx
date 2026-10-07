@@ -76,6 +76,7 @@ import {
   maxPronunciationOverrides,
   type VoiceFormState,
 } from "./voice-configuration-input";
+import { OnionSkinLoader } from "../../../../components/brand/onion-skin-loader";
 
 function apiUrl(path: string): string {
   return `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}${path}`;
@@ -582,8 +583,16 @@ export const ConfigurationWorkspace: React.FC<ConfigurationWorkspaceProps> = ({
           </h1>
           <p
             role="status"
-            style={{ color: "var(--color-text-muted)", fontSize: "14px", margin: 0 }}
+            style={{
+              color: "var(--color-text-muted)",
+              fontSize: "14px",
+              margin: 0,
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+            }}
           >
+            <OnionSkinLoader size={24} />
             Loading lesson configuration and voice settings…
           </p>
         </div>

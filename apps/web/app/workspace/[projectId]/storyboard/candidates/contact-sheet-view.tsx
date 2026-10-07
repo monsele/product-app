@@ -8,6 +8,7 @@ import {
   type ContactSheetDecision,
   type ContactSheetScene,
 } from "./illustration-contact-sheet";
+import { PageLoading } from "../../../../../components/brand/onion-skin-loader";
 
 const apiUrl = (path: string) =>
   `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}${path}`;
@@ -134,9 +135,7 @@ export function IllustrationContactSheetView({
 
   if (state.kind === "loading") {
     return (
-      <p style={{ color: "var(--color-text-muted, #BDB5C7)", fontSize: "14px" }}>
-        Loading illustration candidates…
-      </p>
+      <PageLoading message="Loading illustration candidates…" />
     );
   }
   if (state.kind === "error") {

@@ -11,6 +11,7 @@ import {
   Warning,
   X,
 } from "@phosphor-icons/react";
+import { LoadingImage } from "../../../../../components/brand/loading-image";
 
 export type ContactSheetVisualRole =
   | "grounding_critical"
@@ -471,9 +472,11 @@ function CandidateCard({
         }}
       >
         {candidate.previewUrl !== null ? (
-          <img
+          <LoadingImage
             alt={altText}
             src={candidate.previewUrl}
+            frameStyle={{ width: "100%", height: "100%" }}
+            loaderSize={36}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
         ) : (

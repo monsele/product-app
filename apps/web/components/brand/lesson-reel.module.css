@@ -1,0 +1,92 @@
+/*
+ * Lesson reel: real scene frames in an onion-skin stack. The front frame sits
+ * upper right; earlier-looking frames fall back down and to the left, like the
+ * Onion Skin mark. Only transform and opacity change.
+ */
+
+.reel {
+  margin: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.stack {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 11;
+}
+
+.frame {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 86%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--radius-surface, 16px);
+  border: 1px solid var(--color-border-soft, #e8e5ee);
+  background-color: var(--color-surface);
+  box-shadow: var(--shadow-surface);
+  transform-origin: 30% 80%;
+  transition:
+    transform 600ms var(--motion-easing, cubic-bezier(0.16, 1, 0.3, 1)),
+    opacity 600ms var(--motion-easing, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+.frame img {
+  object-fit: cover;
+}
+
+.frame[data-slot="front"] {
+  z-index: 4;
+  transform: none;
+  opacity: 1;
+}
+
+.frame[data-slot="middle"] {
+  z-index: 3;
+  transform: translate(-7%, 9%) rotate(-2.5deg) scale(0.95);
+  opacity: 0.6;
+}
+
+.frame[data-slot="back"] {
+  z-index: 2;
+  transform: translate(-14%, 18%) rotate(-5deg) scale(0.9);
+  opacity: 0.28;
+}
+
+.frame[data-slot="hidden"] {
+  z-index: 1;
+  transform: translate(-18%, 22%) rotate(-6deg) scale(0.88);
+  opacity: 0;
+}
+
+/* The previous front frame lifts up and away before it rejoins the back. */
+.frame[data-slot="leaving"] {
+  z-index: 5;
+  transform: translate(6%, -10%) rotate(3deg) scale(1.02);
+  opacity: 0;
+}
+
+.caption {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--color-text-muted);
+}
+
+.role {
+  font-weight: 600;
+  color: var(--color-brand);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frame {
+    transition: none;
+  }
+}

@@ -12,16 +12,9 @@
 
 .progressBar {
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    var(--color-brand, #795290) 0%,
-    #b485d4 50%,
-    var(--color-brand, #795290) 100%
-  );
-  background-size: 200% 100%;
-  box-shadow: 0 0 10px rgba(121, 82, 144, 0.65), 0 0 4px rgba(180, 133, 212, 0.9);
+  /* Brand colour, no glow (docs/design.md 5.4). */
+  background-color: var(--color-brand, #6430d7);
   transition: width 240ms cubic-bezier(0.16, 1, 0.3, 1), opacity 200ms ease;
-  animation: progressGlow 2s ease-in-out infinite;
 }
 
 .loadingBadge {
@@ -45,10 +38,6 @@
   animation: badgeFadeIn 180ms ease-out forwards;
 }
 
-.spinner {
-  color: var(--color-brand, #795290);
-}
-
 @keyframes badgeFadeIn {
   from {
     opacity: 0;
@@ -61,10 +50,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .progressBar {
-    animation: none;
-    box-shadow: none;
-  }
   .loadingBadge {
     animation: none;
   }
