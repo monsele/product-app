@@ -258,66 +258,208 @@ function alignWords(
       };
     });
   }
-  const narrationWords = groups.flatMap((group) =>
-    [...group.text.matchAll(/\S+/g)].map((match) => match[0] ?? ""),
+  return alignWordsInOrder(groups, words);
+}
+
+/**
+ * Share of narration words the transcript must reproduce exactly. ASR misses
+ * numbers, symbols, acronyms and names in otherwise correct speech, and those
+ * words still carry usable timing once aligned in order; a transcript below
+ * this share is treated as different speech rather than a mishearing.
+ */
+const minimumExactWordShare = 0.7;
+
+type WordSpan = { first: number; last: number };
+
+/**
+ * Edit-distance alignment of narration words onto transcript words, in order.
+ * Substituted words keep the transcript's timing, words split or joined
+ * differently ("water-cycle" / "water cycle") match exactly, and transcript
+ * words with no narration counterpart extend the narration word before them.
+ * Sentences whose words were all dropped are interpolated between their
+ * neighbours by word count.
+ */
+function alignWordsInOrder(
+  groups: ReadonlyArray<{ text: string; wordIndexes: number[] }>,
+  words: readonly TimedWord[],
+): SceneAudioTiming[] {
+  const narration = groups.flatMap((group, groupIndex) =>
+    [...group.text.matchAll(/\S+/g)]
+      .map((match) => ({ token: normalizedWord(match[0] ?? ""), groupIndex }))
+      .filter((entry) => entry.token.length > 0),
   );
-  if (narrationWords.length === 0 || words.length < narrationWords.length)
+  const transcript = words
+    .map((word, index) => ({ token: normalizedWord(word.word), index }))
+    .filter((entry) => entry.token.length > 0);
+  const n = narration.length;
+  const m = transcript.length;
+  if (n === 0 || m === 0)
     throw new ProviderCallError({
       code: "PROVIDER_ALIGNMENT_MISMATCH",
       message: "Together transcription did not cover the approved narration.",
-      providerReason: `word_counts:${narrationWords.length}:${words.length}`,
+      providerReason: `word_counts:${n}:${m}`,
     });
 
-  const matched: TimedWord[] = [];
-  let cursor = 0;
-  for (const narrationWord of narrationWords) {
-    const target = normalizedWord(narrationWord);
-    let found = -1;
-    for (let index = cursor; index < words.length; index += 1) {
-      if (normalizedWord(words[index]!.word) === target) {
-        found = index;
-        break;
-      }
+  type Move = "match" | "delete" | "insert" | "split" | "join";
+  const width = m + 1;
+  const cost = new Float64Array((n + 1) * width).fill(Infinity);
+  const moves: Move[] = new Array((n + 1) * width);
+  cost[0] = 0;
+  for (let i = 0; i <= n; i += 1)
+    for (let j = 0; j <= m; j += 1) {
+      if (i === 0 && j === 0) continue;
+      let best = Infinity;
+      let move: Move = "match";
+      const consider = (candidate: number, candidateMove: Move) => {
+        if (candidate < best) {
+          best = candidate;
+          move = candidateMove;
+        }
+      };
+      if (i > 0 && j > 0)
+        consider(
+          cost[(i - 1) * width + j - 1]! +
+            (narration[i - 1]!.token === transcript[j - 1]!.token ? 0 : 1),
+          "match",
+        );
+      if (
+        i > 0 &&
+        j > 1 &&
+        narration[i - 1]!.token ===
+          transcript[j - 2]!.token + transcript[j - 1]!.token
+      )
+        consider(cost[(i - 1) * width + j - 2]!, "split");
+      if (
+        i > 1 &&
+        j > 0 &&
+        narration[i - 2]!.token + narration[i - 1]!.token ===
+          transcript[j - 1]!.token
+      )
+        consider(cost[(i - 2) * width + j - 1]!, "join");
+      if (i > 0) consider(cost[(i - 1) * width + j]! + 1, "delete");
+      if (j > 0) consider(cost[i * width + j - 1]! + 1, "insert");
+      cost[i * width + j] = best;
+      moves[i * width + j] = move;
     }
-    if (found < 0) {
-      // Numeric forms and punctuation can be transcribed differently. A
-      // same-length transcript is still safe to map in order; a different
-      // length is rejected instead of producing misleading captions.
-      if (words.length !== narrationWords.length)
-        throw new ProviderCallError({
-          code: "PROVIDER_ALIGNMENT_MISMATCH",
-          message:
-            "Together transcription did not match the approved narration.",
-          providerReason: `word_counts:${narrationWords.length}:${words.length};matched:${matched.length}`,
-        });
-      found = cursor;
+
+  const path: { move: Move; i: number; j: number }[] = [];
+  for (let i = n, j = m; i > 0 || j > 0; ) {
+    const move = moves[i * width + j]!;
+    path.push({ move, i, j });
+    if (move === "match") (i -= 1), (j -= 1);
+    else if (move === "split") (i -= 1), (j -= 2);
+    else if (move === "join") (i -= 2), (j -= 1);
+    else if (move === "delete") i -= 1;
+    else j -= 1;
+  }
+  path.reverse();
+
+  // Record which transcript words each narration word owns. A transcript word
+  // with no narration counterpart belongs to the narration word before it
+  // (usually the misheard word it continues), so a sentence ends where its
+  // speech ends; before any narration word, it belongs to the first one.
+  const spans: (WordSpan | undefined)[] = new Array(n).fill(undefined);
+  const exact: boolean[] = new Array(n).fill(false);
+  const own = (narrationIndex: number, first: number, last: number) => {
+    const span = spans[narrationIndex];
+    spans[narrationIndex] =
+      span === undefined
+        ? { first, last }
+        : { first: Math.min(span.first, first), last: Math.max(span.last, last) };
+  };
+  let previousNarration = 0;
+  for (const { move, i, j } of path) {
+    if (move === "match") {
+      own(i - 1, transcript[j - 1]!.index, transcript[j - 1]!.index);
+      exact[i - 1] = narration[i - 1]!.token === transcript[j - 1]!.token;
+      previousNarration = i - 1;
+    } else if (move === "split") {
+      own(i - 1, transcript[j - 2]!.index, transcript[j - 1]!.index);
+      exact[i - 1] = true;
+      previousNarration = i - 1;
+    } else if (move === "join") {
+      own(i - 2, transcript[j - 1]!.index, transcript[j - 1]!.index);
+      own(i - 1, transcript[j - 1]!.index, transcript[j - 1]!.index);
+      exact[i - 2] = true;
+      exact[i - 1] = true;
+      previousNarration = i - 1;
+    } else if (move === "delete") {
+      previousNarration = i - 1;
+    } else {
+      own(previousNarration, transcript[j - 1]!.index, transcript[j - 1]!.index);
     }
-    matched.push(words[found]!);
-    cursor = found + 1;
   }
 
-  return groups.map((group) => {
-    const first = matched[group.wordIndexes[0]!];
-    const last = matched[group.wordIndexes[group.wordIndexes.length - 1]!];
-    if (first === undefined || last === undefined)
-      throw new ProviderCallError({
-        code: "PROVIDER_INVALID_ALIGNMENT",
-        message: "Together returned incomplete word timing data.",
-      });
+  const exactCount = exact.filter(Boolean).length;
+  if (exactCount / n < minimumExactWordShare)
+    throw new ProviderCallError({
+      code: "PROVIDER_ALIGNMENT_MISMATCH",
+      message: "Together transcription did not match the approved narration.",
+      providerReason: `word_counts:${n}:${m};matched:${exactCount}`,
+    });
+
+  const sentenceSpans = groups.map((_, groupIndex) => {
+    let first = Infinity;
+    let last = -Infinity;
+    narration.forEach((entry, index) => {
+      const span = spans[index];
+      if (entry.groupIndex !== groupIndex || span === undefined) return;
+      first = Math.min(first, span.first);
+      last = Math.max(last, span.last);
+    });
+    return Number.isFinite(first)
+      ? {
+          startMs: Math.round(words[first]!.start * 1_000),
+          endMs: Math.round(words[last]!.end * 1_000),
+        }
+      : undefined;
+  });
+  return groups.map((group, groupIndex) => {
+    let timing = sentenceSpans[groupIndex];
+    if (timing === undefined) timing = interpolateSentence(groups, sentenceSpans, groupIndex);
+    const previous = groupIndex > 0 ? sentenceSpans[groupIndex - 1] : undefined;
+    const startMs = Math.max(timing.startMs, previous?.endMs ?? 0);
     // Some ASR models quantize individual words to a single instant. Those
     // anchors are usable inside a sentence, but the resulting caption still
     // needs a positive duration at millisecond precision.
-    if (Math.round(last.end * 1_000) <= Math.round(first.start * 1_000))
+    if (timing.endMs <= startMs)
       throw new ProviderCallError({
         code: "PROVIDER_INVALID_ALIGNMENT",
         message: "Together returned a sentence without a positive duration.",
       });
-    return {
-      startMs: Math.round(first.start * 1_000),
-      endMs: Math.round(last.end * 1_000),
-      text: group.text,
-    };
+    sentenceSpans[groupIndex] = { startMs, endMs: timing.endMs };
+    return { startMs, endMs: timing.endMs, text: group.text };
   });
+}
+
+/** Places a sentence the transcript dropped between its timed neighbours. */
+function interpolateSentence(
+  groups: ReadonlyArray<{ wordIndexes: number[] }>,
+  spans: ReadonlyArray<{ startMs: number; endMs: number } | undefined>,
+  groupIndex: number,
+): { startMs: number; endMs: number } {
+  let before = groupIndex - 1;
+  while (before >= 0 && spans[before] === undefined) before -= 1;
+  let after = groupIndex + 1;
+  while (after < spans.length && spans[after] === undefined) after += 1;
+  const from = before >= 0 ? spans[before]!.endMs : 0;
+  const to = after < spans.length ? spans[after]!.startMs : undefined;
+  if (to === undefined || to <= from)
+    throw new ProviderCallError({
+      code: "PROVIDER_INVALID_ALIGNMENT",
+      message: "Together returned incomplete word timing data.",
+    });
+  const weight = (index: number) => Math.max(1, groups[index]!.wordIndexes.length);
+  let total = 0;
+  let offset = 0;
+  for (let index = before + 1; index < after; index += 1) {
+    if (index < groupIndex) offset += weight(index);
+    total += weight(index);
+  }
+  return {
+    startMs: Math.round(from + ((to - from) * offset) / total),
+    endMs: Math.round(from + ((to - from) * (offset + weight(groupIndex))) / total),
+  };
 }
 
 export class TogetherWhisperAlignmentProvider implements SceneAudioAlignmentProvider {

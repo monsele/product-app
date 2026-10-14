@@ -196,6 +196,145 @@ export function retimePcm16Wav(
   speakingRate: number,
 ): Uint8Array {
   if (speakingRate === 1) return bytes;
+  const { channels, sampleRate, blockAlign, samples } = readPcm16Wav(bytes);
+  const view = new DataView(samples.buffer, samples.byteOffset, samples.byteLength);
+  const inputFrames = Math.floor(samples.byteLength / blockAlign);
+  const outputFrames = Math.max(1, Math.round(inputFrames / speakingRate));
+  const output = new Uint8Array(outputFrames * blockAlign);
+  const outputView = new DataView(output.buffer);
+  for (let frame = 0; frame < outputFrames; frame += 1) {
+    const sourcePosition = Math.min(inputFrames - 1, frame * speakingRate);
+    const lower = Math.floor(sourcePosition);
+    const upper = Math.min(inputFrames - 1, lower + 1);
+    const fraction = sourcePosition - lower;
+    for (let channel = 0; channel < channels; channel += 1) {
+      const lowerSample = view.getInt16(lower * blockAlign + channel * 2, true);
+      const upperSample = view.getInt16(upper * blockAlign + channel * 2, true);
+      outputView.setInt16(
+        frame * blockAlign + channel * 2,
+        Math.round(lowerSample + (upperSample - lowerSample) * fraction),
+        true,
+      );
+    }
+  }
+  return writePcm16Wav({ channels, sampleRate, samples: output });
+}
+
+/** Longest narration sent in one speech request. The model's audio budget
+ * cut narrations of ~880+ characters (41-55 s of speech); this keeps each
+ * request to roughly 20-25 s, well inside it. */
+export const maximumSpeechChunkCharacters = 350;
+
+/**
+ * Splits narration into speech requests at sentence boundaries, joining
+ * whole sentences up to the limit. A sentence longer than the limit is split
+ * at clause punctuation, then between words, so no request can overrun.
+ */
+export function narrationChunks(
+  narration: string,
+  limit: number = maximumSpeechChunkCharacters,
+): string[] {
+  const text = narration.replace(/\s+/g, " ").trim();
+  if (text.length <= limit) return [text];
+  const pieces = (text.match(/[^.!?]+[.!?]+["')\]]*|[^.!?]+$/g) ?? [text])
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+    .flatMap((sentence) => splitLongPiece(sentence, limit));
+  const chunks: string[] = [];
+  let current = "";
+  for (const piece of pieces) {
+    const next = current === "" ? piece : `${current} ${piece}`;
+    if (current !== "" && next.length > limit) {
+      chunks.push(current);
+      current = piece;
+    } else current = next;
+  }
+  if (current !== "") chunks.push(current);
+  return chunks;
+}
+
+function splitLongPiece(sentence: string, limit: number): string[] {
+  if (sentence.length <= limit) return [sentence];
+  const clauses = sentence.match(/[^,;:]+[,;:]?/g)?.map((clause) => clause.trim()).filter(Boolean) ?? [sentence];
+  const pieces: string[] = [];
+  let current = "";
+  for (const unit of clauses.flatMap((clause) =>
+    clause.length <= limit ? [clause] : clause.split(" "),
+  )) {
+    const next = current === "" ? unit : `${current} ${unit}`;
+    if (current !== "" && next.length > limit) {
+      pieces.push(current);
+      current = unit;
+    } else current = next;
+  }
+  if (current !== "") pieces.push(current);
+  return pieces;
+}
+
+/** Joins PCM16 WAV pieces of one voice into a single WAV. */
+export function concatPcm16Wavs(pieces: readonly Uint8Array[]): Uint8Array {
+  const parsed = pieces.map(readPcm16Wav);
+  const first = parsed[0]!;
+  if (
+    parsed.some(
+      (piece) =>
+        piece.channels !== first.channels ||
+        piece.sampleRate !== first.sampleRate,
+    )
+  )
+    throw new ProviderCallError({
+      code: "PROVIDER_INVALID_AUDIO",
+      message: "Together returned audio pieces in different WAV formats.",
+    });
+  const samples = new Uint8Array(
+    parsed.reduce((total, piece) => total + piece.samples.byteLength, 0),
+  );
+  let offset = 0;
+  for (const piece of parsed) {
+    samples.set(piece.samples, offset);
+    offset += piece.samples.byteLength;
+  }
+  return writePcm16Wav({
+    channels: first.channels,
+    sampleRate: first.sampleRate,
+    samples,
+  });
+}
+
+function writePcm16Wav(input: {
+  channels: number;
+  sampleRate: number;
+  samples: Uint8Array;
+}): Uint8Array {
+  const blockAlign = input.channels * 2;
+  const output = new Uint8Array(44 + input.samples.byteLength);
+  const outputView = new DataView(output.buffer);
+  const writeAscii = (at: number, text: string) =>
+    [...text].forEach((character, index) =>
+      outputView.setUint8(at + index, character.charCodeAt(0)),
+    );
+  writeAscii(0, "RIFF");
+  outputView.setUint32(4, 36 + input.samples.byteLength, true);
+  writeAscii(8, "WAVEfmt ");
+  outputView.setUint32(16, 16, true);
+  outputView.setUint16(20, 1, true);
+  outputView.setUint16(22, input.channels, true);
+  outputView.setUint32(24, input.sampleRate, true);
+  outputView.setUint32(28, input.sampleRate * blockAlign, true);
+  outputView.setUint16(32, blockAlign, true);
+  outputView.setUint16(34, 16, true);
+  writeAscii(36, "data");
+  outputView.setUint32(40, input.samples.byteLength, true);
+  output.set(input.samples, 44);
+  return output;
+}
+
+function readPcm16Wav(bytes: Uint8Array): {
+  channels: number;
+  sampleRate: number;
+  blockAlign: number;
+  samples: Uint8Array;
+} {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (
     bytes.length < 44 ||
@@ -244,48 +383,15 @@ export function retimePcm16Wav(
       code: "PROVIDER_INVALID_AUDIO",
       message: "Together returned an unsupported WAV encoding.",
     });
-  const inputFrames = Math.floor(dataBytes / blockAlign);
-  const outputFrames = Math.max(1, Math.round(inputFrames / speakingRate));
-  const output = new Uint8Array(44 + outputFrames * blockAlign);
-  const outputView = new DataView(output.buffer);
-  const writeAscii = (at: number, text: string) =>
-    [...text].forEach((character, index) =>
-      outputView.setUint8(at + index, character.charCodeAt(0)),
-    );
-  writeAscii(0, "RIFF");
-  outputView.setUint32(4, 36 + outputFrames * blockAlign, true);
-  writeAscii(8, "WAVEfmt ");
-  outputView.setUint32(16, 16, true);
-  outputView.setUint16(20, 1, true);
-  outputView.setUint16(22, channels, true);
-  outputView.setUint32(24, sampleRate, true);
-  outputView.setUint32(28, sampleRate * blockAlign, true);
-  outputView.setUint16(32, blockAlign, true);
-  outputView.setUint16(34, 16, true);
-  writeAscii(36, "data");
-  outputView.setUint32(40, outputFrames * blockAlign, true);
-  for (let frame = 0; frame < outputFrames; frame += 1) {
-    const sourcePosition = Math.min(inputFrames - 1, frame * speakingRate);
-    const lower = Math.floor(sourcePosition);
-    const upper = Math.min(inputFrames - 1, lower + 1);
-    const fraction = sourcePosition - lower;
-    for (let channel = 0; channel < channels; channel += 1) {
-      const lowerSample = view.getInt16(
-        dataOffset + lower * blockAlign + channel * 2,
-        true,
-      );
-      const upperSample = view.getInt16(
-        dataOffset + upper * blockAlign + channel * 2,
-        true,
-      );
-      outputView.setInt16(
-        44 + frame * blockAlign + channel * 2,
-        Math.round(lowerSample + (upperSample - lowerSample) * fraction),
-        true,
-      );
-    }
-  }
-  return output;
+  return {
+    channels,
+    sampleRate,
+    blockAlign,
+    samples: bytes.subarray(
+      dataOffset,
+      dataOffset + Math.floor(dataBytes / blockAlign) * blockAlign,
+    ),
+  };
 }
 
 export class TogetherKokoroTtsProvider implements SceneAudioTtsProvider {
@@ -306,10 +412,44 @@ export class TogetherKokoroTtsProvider implements SceneAudioTtsProvider {
     voiceId?: string;
     pronunciationOverrides?: readonly { phrase: string; replacement: string }[];
   }): Promise<SceneAudioSynthesis> {
-    const startedAt = Date.now();
     const pronunciationDict = pronunciationDictionary(
       input.pronunciationOverrides,
     );
+    const voice = voiceFor(input.voiceId, this.options.defaultVoice ?? "tara");
+    // The model stops generating at a fixed audio budget, so one request for
+    // a long narration returns audio that ends mid-sentence with the rest of
+    // the text silently missing. Speak it in sentence-aligned pieces and join
+    // the PCM, so every word of the approved narration is voiced.
+    const pieces: Uint8Array[] = [];
+    for (const chunk of narrationChunks(input.narration))
+      pieces.push(await this.speak(chunk, voice, pronunciationDict));
+    const bytes = retimePcm16Wav(
+      pieces.length === 1 ? pieces[0]! : concatPcm16Wavs(pieces),
+      input.speakingRate,
+    );
+    const durationMs = wavDurationMs(bytes);
+    return {
+      bytes,
+      durationMs,
+      // The configured provider's non-streaming response contains audio only. The worker
+      // runs the configured forced-alignment adapter before completing the
+      // scene, so no proportional estimate can be mistaken for provider
+      // timing.
+      timing: [],
+      providerCallId: `together-tts-${createHash("sha256").update(bytes).digest("hex").slice(0, 24)}`,
+      costUsd:
+        (input.narration.length / 1_000_000) *
+        this.parsed.costUsdPerMillionCharacters,
+    };
+  }
+
+  /** One provider request for one chunk of narration, with retries. */
+  private async speak(
+    text: string,
+    voice: string,
+    pronunciationDict: readonly string[],
+  ): Promise<Uint8Array> {
+    const startedAt = Date.now();
     for (let attempt = 0; attempt <= this.parsed.maxRetries; attempt += 1) {
       const controller = new AbortController();
       const timeout = setTimeout(
@@ -327,11 +467,8 @@ export class TogetherKokoroTtsProvider implements SceneAudioTtsProvider {
             },
             body: JSON.stringify({
               model: this.model,
-              input: input.narration,
-              voice: voiceFor(
-                input.voiceId,
-                this.options.defaultVoice ?? "tara",
-              ),
+              input: text,
+              voice,
               response_format: "wav",
               language: "en",
               stream: false,
@@ -352,24 +489,7 @@ export class TogetherKokoroTtsProvider implements SceneAudioTtsProvider {
           await wait(Math.min(4_000, 250 * 2 ** attempt));
           continue;
         }
-        const bytes = retimePcm16Wav(
-          new Uint8Array(await response.arrayBuffer()),
-          input.speakingRate,
-        );
-        const durationMs = wavDurationMs(bytes);
-        return {
-          bytes,
-          durationMs,
-          // The configured provider's non-streaming response contains audio only. The worker
-          // runs the configured forced-alignment adapter before completing the
-          // scene, so no proportional estimate can be mistaken for provider
-          // timing.
-          timing: [],
-          providerCallId: `together-tts-${createHash("sha256").update(bytes).digest("hex").slice(0, 24)}`,
-          costUsd:
-            (input.narration.length / 1_000_000) *
-            this.parsed.costUsdPerMillionCharacters,
-        };
+        return new Uint8Array(await response.arrayBuffer());
       } catch (error) {
         if (error instanceof ProviderCallError) throw error;
         if (attempt >= this.parsed.maxRetries)

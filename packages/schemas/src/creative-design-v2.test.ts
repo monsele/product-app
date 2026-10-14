@@ -898,6 +898,29 @@ describe("ST-111 beat resolution", () => {
     expect([...frames]).toEqual([...frames].sort((left, right) => left - right));
   });
 
+  it("anchors a repeated phrase to its own sentence, not its first occurrence", () => {
+    // "the interest" is said in sentences 1 and 2. Searching the whole scene
+    // snapped item-3 to sentence 1, so it appeared three seconds early.
+    const cues = [
+      { startFrame: 0, endFrame: 60, text: "First you save money." },
+      { startFrame: 60, endFrame: 150, text: "Then the bank pays the interest." },
+      { startFrame: 150, endFrame: 240, text: "The interest joins your savings." },
+      { startFrame: 240, endFrame: 330, text: "Next year you earn more." },
+    ];
+    const frames = resolveCinemaBeatFrames({
+      beats: [
+        { target: "item-1", motion: "sequential-reveal", anchor: { sentence: 0 } },
+        { target: "item-2", motion: "sequential-reveal", anchor: { sentence: 1 } },
+        { target: "item-3", motion: "sequential-reveal", anchor: { sentence: 2, phrase: "the interest" } },
+      ],
+      narration:
+        "First you save money. Then the bank pays the interest. The interest joins your savings. Next year you earn more.",
+      cues,
+      durationInFrames: 400,
+    });
+    expect(frames[2]).toBe(150);
+  });
+
   it("falls back to proportional timing without captions and never enters the final hold", () => {
     const frames = resolveCinemaBeatFrames({
       beats: [0, 1, 2, 3].map((sentence) => ({

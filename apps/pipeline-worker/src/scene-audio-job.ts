@@ -486,6 +486,10 @@ export function createSceneAudioGenerationJobHandler(input: {
                 error instanceof JobExecutionError
                   ? error.code
                   : "UNKNOWN",
+              providerReason:
+                error instanceof ProviderCallError
+                  ? (error.providerReason ?? null)
+                  : null,
             });
             aligned = {
               timing: alignSentences({

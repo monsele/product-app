@@ -1355,7 +1355,17 @@ export function resolveCinemaBeatFrames(
             ? beat.anchor.phrase
             : sentence.split(" ").slice(0, 6).join(" "),
         );
-        const found = needle.length > 0 ? joined.indexOf(needle) : -1;
+        // Search from the anchored sentence, not the start of the scene: a
+        // phrase or sentence opening that repeats would otherwise snap the
+        // beat to its earlier occurrence and show it before it is spoken.
+        // The cue text is the narration re-segmented, so the sentence's
+        // normalised offset locates it; the slack absorbs segmentation
+        // differences at cue boundaries.
+        const prefix = normalise(narration.slice(0, sentenceOffsets[sentenceIndex] ?? 0));
+        const from = Math.max(0, prefix.length - 8);
+        const fromSentence = needle.length > 0 ? joined.indexOf(needle, from) : -1;
+        const found =
+          fromSentence >= 0 ? fromSentence : needle.length > 0 ? joined.indexOf(needle) : -1;
         frame =
           found >= 0
             ? frameAtCueOffset(found)

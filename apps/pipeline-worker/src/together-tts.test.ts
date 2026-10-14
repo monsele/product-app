@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { retimePcm16Wav, TogetherKokoroTtsProvider } from "./together-tts.js";
+import {
+  concatPcm16Wavs,
+  maximumSpeechChunkCharacters,
+  narrationChunks,
+  retimePcm16Wav,
+  TogetherKokoroTtsProvider,
+} from "./together-tts.js";
 
 function wavOneSecond(): Uint8Array {
   const sampleRate = 24_000;
@@ -70,6 +76,46 @@ describe("Together TTS adapter", () => {
       extra_params: { pronunciation_dict: ["Water/H2O"] },
     });
     expect(JSON.stringify(body)).not.toContain('"speed"');
+  });
+
+  it("voices a long narration in sentence-aligned pieces so none of it is cut off", async () => {
+    // As in the "What Is Rest" lesson: a 1,245-character narration came back
+    // as 55 s of audio that stopped mid-sentence, the last 50 words unspoken.
+    const sentence =
+      "Recovery does not demand inactivity, and walking, stretching, hobbies and time outdoors all support it.";
+    const narration = Array.from({ length: 12 }, () => sentence).join(" ");
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockImplementation(async () => audioResponse(wavOneSecond()));
+    const provider = new TogetherKokoroTtsProvider({
+      apiKey: "test-key",
+      fetcher,
+      maxRetries: 0,
+    });
+    const result = await provider.synthesize({ narration, speakingRate: 1 });
+    const inputs = fetcher.mock.calls.map(
+      (call) => (JSON.parse(call[1]?.body as string) as { input: string }).input,
+    );
+    expect(inputs.length).toBeGreaterThan(1);
+    for (const input of inputs)
+      expect(input.length).toBeLessThanOrEqual(maximumSpeechChunkCharacters);
+    expect(inputs.join(" ")).toBe(narration);
+    expect(result.durationMs).toBe(inputs.length * 1_000);
+    expect(wavDuration(result.bytes)).toBe(inputs.length * 1_000);
+  });
+
+  it("splits only at sentence, then clause, then word boundaries", () => {
+    expect(narrationChunks("Short. Narration.")).toEqual(["Short. Narration."]);
+    const run = `${"word ".repeat(120).trim()}, ${"more ".repeat(10).trim()}.`;
+    const chunks = narrationChunks(run, 100);
+    expect(chunks.join(" ")).toBe(run);
+    for (const chunk of chunks) expect(chunk.length).toBeLessThanOrEqual(100);
+  });
+
+  it("joins PCM pieces and applies the speaking rate to the whole narration", () => {
+    const joined = concatPcm16Wavs([wavOneSecond(), wavOneSecond()]);
+    expect(wavDuration(joined)).toBe(2_000);
+    expect(wavDuration(retimePcm16Wav(joined, 1.25))).toBe(1_600);
   });
 
   it("applies the teacher speaking rate to PCM audio locally", () => {
