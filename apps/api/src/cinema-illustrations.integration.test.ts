@@ -1,8 +1,10 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Identifier } from "@avlp/config";
 import {
   creativeDesignDrafts,
   illustrationGenerationCandidates,
+  illustrationLibraryEntries,
   jobs,
   lessonSpecs,
   migrateDatabase,
@@ -18,13 +20,17 @@ import {
   cinemaIllustrationJobPayloadSchema,
   cinemaIllustrationKey,
   cinemaIllustrationPromptVersion,
+  cinemaIllustrationSurface,
   createDefaultCreativeDesignManifest,
+  creativeDesignAssetIds,
   creativeDesignHash,
+  illustrationLibraryPromptVersion,
   isCreativeDesignManifestV2,
   planCinemaDesign,
   sceneSpecSchema,
   type CinemaIllustrationBrief,
 } from "@avlp/schemas";
+import type { ObjectStorage } from "@avlp/storage";
 import { eq } from "drizzle-orm";
 import {
   blockA,
@@ -347,5 +353,149 @@ describeWithPostgres("queueCinemaIllustrations (ST-110, Postgres)", () => {
     });
     await expect(queue()).resolves.toMatchObject({ queued: [], skipped: "design_v1" });
     expect(await client.select().from(jobs)).toHaveLength(0);
+  });
+});
+
+describeWithPostgres("queueCinemaIllustrations — library step (ST-113, Postgres)", () => {
+  let database: TestDatabase | undefined;
+  const entryId: Identifier = "019ffbf1-9393-7000-8000-000000000113";
+  /** A valid 1×1 PNG and its checksum. */
+  const png = new Uint8Array([
+    137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0,
+    0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 8, 215, 99, 248, 207, 192, 240, 31, 0, 5,
+    0, 1, 255, 137, 153, 61, 29, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
+  ]);
+  const checksum = createHash("sha256").update(png).digest("hex");
+
+  beforeAll(async () => {
+    database = await createTestDatabase(serverUrl!);
+    await migrateDatabase(database.client);
+  });
+
+  afterAll(async () => {
+    await database?.destroy();
+  });
+
+  /** The lesson with four of its five pictures already spent: the kettle scene is over budget. */
+  async function seedOverBudget(client: DatabaseClient) {
+    await client.delete(illustrationLibraryEntries);
+    await seedLesson(client);
+    await client.insert(illustrationGenerationCandidates).values(
+      ["stove", "cloud", "sun", "river"].map((concept, index) => ({
+        id: `019ffbf1-9292-7000-8000-00000000030${index}`,
+        ownerUserId,
+        projectId,
+        sceneId: sceneB,
+        slot: cinemaHeroSlot,
+        status: "queued",
+        promptVersion: cinemaIllustrationPromptVersion,
+        provider: "mock-illustration",
+        moderationStatus: "pending",
+        idempotencyKey: `cinema-hero:${cinemaIllustrationKey(concept, "flat")}`,
+      })),
+    );
+  }
+
+  async function seedKettleEntry(client: DatabaseClient) {
+    const manifest = design();
+    await client.insert(illustrationLibraryEntries).values({
+      id: entryId,
+      illustrationKey: cinemaIllustrationKey("kettle", manifest.artDirection.treatment),
+      treatment: manifest.artDirection.treatment,
+      surface: cinemaIllustrationSurface(manifest.settings.colors.surface),
+      concept: "kettle",
+      description: "A kettle letting out a curl of steam.",
+      subject: "object",
+      depictsPeople: false,
+      altText: "A kettle letting out a curl of steam.",
+      status: "active",
+      storageKey: `catalog/illustrations/${manifest.artDirection.treatment}/light/${entryId}/${checksum}.png`,
+      checksumSha256: checksum,
+      contentType: "image/png",
+      width: 1,
+      height: 1,
+      prompt: "A kettle letting out a curl of steam.",
+      promptVersion: illustrationLibraryPromptVersion,
+      provider: "mock-illustration",
+    });
+  }
+
+  function access() {
+    return {
+      catalog: {
+        getBytes: vi.fn(async () => ({
+          body: png,
+          metadata: {} as Awaited<ReturnType<ObjectStorage["getBytes"]>>["metadata"],
+        })),
+      },
+      storage: {
+        putBytes: vi.fn<ObjectStorage["putBytes"]>(
+          async () => ({}) as Awaited<ReturnType<ObjectStorage["putBytes"]>>,
+        ),
+      },
+    };
+  }
+
+  it("changes nothing when the library is configured but empty (AC1)", async () => {
+    const client = database!.client;
+    await seedOverBudget(client);
+    const library = access();
+    const result = await new IllustrationGenerationService(client, () => now, library).queueCinemaIllustrations({
+      ownerUserId,
+      projectId,
+      correlationId,
+    });
+    expect(result.library).toEqual([]);
+    expect(result.motif).toEqual([{ sceneId: sceneD, reason: "over_budget" }]);
+    expect(library.catalog.getBytes).not.toHaveBeenCalled();
+    expect((await readDraft(client)).revision).toBe(1);
+  });
+
+  it("copies a matching library picture into the project and pins it on the over-budget scene (AC2, AC6)", async () => {
+    const client = database!.client;
+    await seedOverBudget(client);
+    await seedKettleEntry(client);
+    const before = await client.select().from(illustrationLibraryEntries);
+    const library = access();
+    const service = new IllustrationGenerationService(client, () => now, library);
+    const result = await service.queueCinemaIllustrations({ ownerUserId, projectId, correlationId });
+
+    expect(result.motif).toEqual([]);
+    expect(result.library).toEqual([
+      { sceneId: sceneD, assetId: expect.any(String), entryId, match: "exact" },
+    ]);
+    const assetId = result.library![0]!.assetId;
+    expect(library.storage.putBytes).toHaveBeenCalledWith(
+      expect.objectContaining({
+        key: expect.stringMatching(new RegExp(`^users/${ownerUserId}/projects/${projectId}/`)),
+        contentType: "image/png",
+      }),
+    );
+    const [asset] = await client.select().from(projectAssets).where(eq(projectAssets.id, assetId as Identifier));
+    expect(asset).toMatchObject({ status: "active", provenance: "ai_generated", sha256: checksum });
+    const draft = await readDraft(client);
+    expect(draft.revision).toBe(2);
+    expect(draft.manifest.scenes[sceneD]!.imagery.hero).toEqual({
+      assetId,
+      origin: "library",
+      altText: "A kettle letting out a curl of steam.",
+    });
+    // Tenant work never writes the library.
+    expect(await client.select().from(illustrationLibraryEntries)).toEqual(before);
+
+    // AC7: retiring the entry leaves the pinned project copy, which is what
+    // previews, renders and version snapshots resolve.
+    await client
+      .update(illustrationLibraryEntries)
+      .set({ status: "retired" })
+      .where(eq(illustrationLibraryEntries.id, entryId));
+    const replay = await service.queueCinemaIllustrations({ ownerUserId, projectId, correlationId });
+    expect(replay.library).toEqual([]);
+    const after = await readDraft(client);
+    expect(after.manifest.scenes[sceneD]!.imagery.hero).toEqual(draft.manifest.scenes[sceneD]!.imagery.hero);
+    expect(creativeDesignAssetIds(after.manifest)).toContain(assetId);
+    const [kept] = await client.select().from(projectAssets).where(eq(projectAssets.id, assetId as Identifier));
+    expect(kept).toMatchObject({ status: "active", storageKey: asset!.storageKey });
+    expect(library.catalog.getBytes).toHaveBeenCalledTimes(1);
   });
 });

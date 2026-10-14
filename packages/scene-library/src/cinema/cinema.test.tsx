@@ -295,6 +295,22 @@ describe("ST-108 picture resolution", () => {
     });
     expect(resolveCinemaHero({ scene, design: unpinned, assets: boundAssets, mode: "render" }).kind).toBe("image");
   });
+
+  it("ST-113: renders a library hero through the same asset path, as presentation, never evidence", () => {
+    const library = planCinemaDesign({
+      packId: "everyday",
+      scenes: [scene],
+      seed,
+      imagery: { [scene.id]: { assetId: heroId, origin: "library", altText: "A puddle in the sun" } },
+    }).scenes[scene.id]!;
+    expect(
+      resolveCinemaHero({ scene, design: library, assets: { ...boundAssets, [heroId]: picture(heroId) }, mode: "render" }),
+    ).toEqual({ kind: "image", src: "data:image/png;base64,iVBORw0KGgo=", alt: "A puddle in the sun", evidence: false });
+    // A saved version never substitutes: an unresolved library copy blocks the render.
+    expect(() => resolveCinemaHero({ scene, design: library, assets: boundAssets, mode: "render" })).toThrow(
+      /pinned illustration/u,
+    );
+  });
 });
 
 describe("ST-112 native shape drawings", () => {

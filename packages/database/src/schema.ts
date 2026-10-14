@@ -1244,6 +1244,64 @@ export const soundBedTracks = pgTable("sound_bed_tracks", {
   registeredAt: utcTimestamp("registered_at").notNull().defaultNow(),
 });
 
+/**
+ * ST-113. The curated illustration library: platform-owned pictures used when
+ * a lesson's own picture cannot be generated. Shared by every tenant, so it
+ * has no project or owner columns, and only the operator script
+ * (`illustration-library:generate`) writes it; lesson content never does. A
+ * row is claimed (`generating`) before its paid call, so a re-run never pays
+ * twice, and is `active` only after moderation passes. Bytes live at a
+ * checksum-addressed key under `catalog/illustrations/`. A lesson that uses a
+ * picture copies it into its project, so retiring a row changes no version.
+ */
+export const illustrationLibraryEntryStatusValues = [
+  "generating",
+  "active",
+  "rejected",
+  "failed",
+  "retired",
+] as const;
+export const illustrationLibraryEntries = pgTable(
+  "illustration_library_entries",
+  {
+    id: primaryId(),
+    /** `cinemaIllustrationKey(concept, treatment)`. */
+    illustrationKey: text("illustration_key").notNull(),
+    treatment: text("treatment").notNull(),
+    surface: text("surface").notNull(),
+    concept: text("concept").notNull(),
+    description: text("description").notNull(),
+    subject: text("subject").notNull(),
+    depictsPeople: boolean("depicts_people").notNull(),
+    altText: text("alt_text").notNull(),
+    status: text("status").notNull().default("generating"),
+    storageKey: text("storage_key").unique(),
+    checksumSha256: text("checksum_sha256"),
+    contentType: text("content_type"),
+    width: integer("width"),
+    height: integer("height"),
+    prompt: text("prompt").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    provider: text("provider").notNull(),
+    model: text("model"),
+    providerCallId: text("provider_call_id"),
+    costUsd: numeric("cost_usd", { precision: 14, scale: 6 }),
+    failureCode: text("failure_code"),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("illustration_library_entries_key_surface_unique").on(
+      table.illustrationKey,
+      table.surface,
+    ),
+    index("illustration_library_entries_lookup_idx").on(
+      table.treatment,
+      table.surface,
+      table.status,
+    ),
+  ],
+);
+
 export const lessonConfigurations = pgTable(
   "lesson_configurations",
   {

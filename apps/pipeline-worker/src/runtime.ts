@@ -5,6 +5,7 @@ import {
   storageEnvironmentSchema,
 } from "@avlp/config";
 import { createDatabaseConnection } from "@avlp/database";
+import { illustrationLibraryPrefix } from "@avlp/schemas";
 import {
   BullMqJobPublisher,
   OutboxDispatcher,
@@ -87,15 +88,22 @@ function processAbortSignal(): { signal: AbortSignal; dispose: () => void } {
   };
 }
 
+/**
+ * Tenant media is confined to `users/`. ST-113: the illustration library is a
+ * second client confined to the platform-owned `catalog/illustrations`
+ * prefix, used only to read library pictures for copying into a project.
+ */
 async function createStorage(
   environmentInput: Record<string, string | undefined>,
+  scope: "tenant" | "illustration-library" = "tenant",
 ): Promise<ObjectStorage> {
   const environment = storageEnvironmentSchema
     .and(z.object({ OBJECT_STORAGE_BUCKET: z.string().min(1) }))
     .parse(environmentInput);
   return createS3CompatibleObjectStorage({
-    allowedPrefix: "users",
-    allowedUploadContentTypes: ["application/octet-stream"],
+    allowedPrefix: scope === "tenant" ? "users" : illustrationLibraryPrefix,
+    allowedUploadContentTypes:
+      scope === "tenant" ? ["application/octet-stream"] : ["image/png"],
     allowInsecureEndpoint: environment.OBJECT_STORAGE_ALLOW_INSECURE_ENDPOINT,
     bucket: environment.OBJECT_STORAGE_BUCKET,
     ...(environment.OBJECT_STORAGE_ACCESS_KEY === undefined
@@ -187,6 +195,10 @@ export async function runPipelineWorker(
     if (handlers === undefined) {
       const storage = await (options.storageFactory?.() ??
         createStorage(environmentInput));
+      const libraryCatalog =
+        options.storageFactory === undefined
+          ? await createStorage(environmentInput, "illustration-library")
+          : undefined;
       const languageModelProvider =
         options.languageModelProvider ??
         createLanguageModelProvider(workerEnvironment, logger);
@@ -277,6 +289,7 @@ export async function runPipelineWorker(
           database: database.client,
           storage,
           provider: imageProvider,
+          ...(libraryCatalog === undefined ? {} : { library: { catalog: libraryCatalog } }),
         }),
         createDocumentIngestionJobHandler({
           database: database.client,

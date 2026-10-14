@@ -209,6 +209,45 @@ describe("preview manifest", () => {
     );
   });
 
+  it("ST-113: resolves a library hero from its project copy, never the catalogue", async () => {
+    const heroId = "01989a3d-8e00-7000-8000-0000000001be";
+    const design = planCinemaDesign({
+      packId: "everyday",
+      scenes: [scene],
+      seed: "0123456789abcdef",
+      imagery: { [scene.id]: { assetId: heroId, origin: "library", altText: "A sunny kitchen" } },
+    });
+    const signer = {
+      createSignedDownload: vi.fn().mockResolvedValue({
+        url: "https://storage.example.test/signed",
+        expiresAt: new Date("2026-08-24T10:05:00.000Z"),
+      }),
+    };
+    const manifest = await new PreviewManifestService(
+      databaseFor([
+        ...rows(),
+        [{ manifest: design }],
+        [
+          {
+            id: heroId,
+            storageKey: `users/${ownerUserId}/projects/${projectId}/assets/${heroId}/original.png`,
+            thumbnailStorageKey: null,
+            originalName: "library-illustration.png",
+            provenance: "ai_generated",
+          },
+        ],
+      ]),
+      signer,
+    ).get({ ownerUserId, projectId });
+    expect(manifest.assets[heroId]).toMatchObject({ assetId: heroId, provenance: "ai_generated", source: "source" });
+    expect(signer.createSignedDownload).toHaveBeenCalledWith(
+      expect.objectContaining({ key: expect.stringMatching(/^users\//u) }),
+    );
+    expect(signer.createSignedDownload).not.toHaveBeenCalledWith(
+      expect.objectContaining({ key: expect.stringMatching(/^catalog\//u) }),
+    );
+  });
+
   it("ST-103: includes the project's configured sound bed with a fresh signed URL, and omits none", async () => {
     const signer = {
       createSignedDownload: vi.fn().mockResolvedValue({

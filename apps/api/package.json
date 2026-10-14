@@ -11,7 +11,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "sound-beds:register": "tsx --env-file=../../.env src/sound-bed-registration.ts",
-    "sound-beds:verify-tracks": "node sound-beds/generate-tracks.mjs"
+    "sound-beds:verify-tracks": "node sound-beds/generate-tracks.mjs",
+    "illustration-library:generate": "tsx --env-file=../../.env src/illustration-library-generation.ts"
   },
   "dependencies": {
     "@avlp/auth": "workspace:*",

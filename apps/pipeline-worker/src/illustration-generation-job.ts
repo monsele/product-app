@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { createId, type Identifier } from "@avlp/config";
 import {
+  activeIllustrationLibraryEntries,
+  copyLibraryIllustrationIntoProject,
   creativeDesignDrafts,
   illustrationGenerationCandidates,
   lessonSpecs,
@@ -21,10 +23,12 @@ import {
   cinemaIllustrationJobPayloadSchema,
   cinemaIllustrationKey,
   cinemaIllustrationPrompt,
+  cinemaIllustrationSurface,
   creativeDesignHash,
   illustrationGenerationJobPayloadSchema,
   isCreativeDesignManifestV2,
   lessonStoryboardSchema,
+  matchCinemaLibraryIllustration,
   validateCreativeDesignManifestV2,
   type CinemaIllustrationJobPayload,
   type CreativeDesignManifestV2,
@@ -41,7 +45,7 @@ import {
 import { PostgresAuditWriter } from "@avlp/observability";
 import { and, eq, or } from "drizzle-orm";
 import sharp from "sharp";
-import { storageKeys, type ObjectStorage } from "@avlp/storage";
+import { storageKeySchema, storageKeys, type ObjectStorage } from "@avlp/storage";
 
 export const illustrationGenerationJobType = "illustration.generate";
 
@@ -178,6 +182,9 @@ async function generateCandidateIllustration(input: {
   onFailure: "throw" | "motif";
   maxAttempts?: number;
   bind?: (transaction: DatabaseExecutor, assetId: Identifier) => Promise<JobMetadata>;
+  /** ST-113. Tried before the motif when `onFailure` is `"motif"`; returns
+   * undefined when no library picture fits. */
+  libraryFallback?: () => Promise<JobMetadata | undefined>;
 }): Promise<JobMetadata> {
   const { context, now, candidateId } = input;
   const [claimed] = await input.database
@@ -194,6 +201,22 @@ async function generateCandidateIllustration(input: {
     )
     .returning({ id: illustrationGenerationCandidates.id });
   if (claimed === undefined) return { status: "already_processing" };
+  // A failed generation never fails the video: a matching library picture is
+  // pinned when one exists, otherwise the authored motif stays (AC3).
+  const fallback = async (): Promise<JobMetadata> => {
+    if (input.libraryFallback === undefined) return { fallback: "motif" };
+    try {
+      const library = await input.libraryFallback();
+      return library === undefined ? { fallback: "motif" } : { fallback: "library", ...library };
+    } catch (error) {
+      // Only a code reaches job metadata, never a storage message or key.
+      const code = error instanceof Error ? error.message : "";
+      return {
+        fallback: "motif",
+        libraryError: /^[A-Z][A-Z0-9_]{2,63}$/u.test(code) ? code : "ILLUSTRATION_LIBRARY_UNAVAILABLE",
+      };
+    }
+  };
   const usage = (
     result: ProviderUsage,
     status: "succeeded" | "failed",
@@ -259,7 +282,7 @@ async function generateCandidateIllustration(input: {
       return {
         status: "rejected",
         code: moderationCode,
-        ...(input.onFailure === "motif" ? { fallback: "motif" } : {}),
+        ...(input.onFailure === "motif" ? await fallback() : {}),
       };
     }
     const metadata = await sharp(result.bytes, {
@@ -371,12 +394,12 @@ async function generateCandidateIllustration(input: {
         code,
         "The illustration could not be generated.",
       );
-    return { status: "failed", code, fallback: "motif" };
+    return { status: "failed", code, ...(await fallback()) };
   }
 }
 
 /**
- * Pins a generated picture as `imagery.hero` on every scene of the v2 draft
+ * Pins a generated (or, ST-113, library) picture as `imagery.hero` on every scene of the v2 draft
  * it was planned for, when that scene still wants this concept and has no
  * picture yet. Never overwrites a teacher's choice, and never lands where
  * validation refuses it (evidence scenes, AC5). The draft row is locked, so
@@ -388,6 +411,7 @@ async function bindCinemaHero(
   payload: CinemaIllustrationJobPayload,
   assetId: Identifier,
   now: Date,
+  hero: Readonly<{ origin: "generated" | "library"; altText?: string }> = { origin: "generated" },
 ): Promise<JobMetadata> {
   const [draft] = await transaction
     .select()
@@ -439,7 +463,11 @@ async function bindCinemaHero(
           ...design,
           imagery: {
             ...design.imagery,
-            hero: { assetId, origin: "generated", altText: design.imagery.brief.description },
+            hero: {
+              assetId,
+              origin: hero.origin,
+              altText: hero.altText ?? design.imagery.brief.description,
+            },
           },
         },
       },
@@ -466,7 +494,9 @@ async function bindCinemaHero(
  * design. The prompt is the plan's brief plus the video's shared art
  * direction (never source or lesson text); people may appear when the art
  * direction allows. A success is pinned as `imagery.hero` before approval
- * (ADR-015 §6); a failure leaves the authored motif and still succeeds.
+ * (ADR-015 §6). A moderation rejection or final-attempt failure takes a
+ * matching library picture when `library` is configured (ST-113), otherwise
+ * the authored motif, and still succeeds.
  */
 export function createCinemaIllustrationJobHandler(input: {
   database: DatabaseClient;
@@ -475,6 +505,8 @@ export function createCinemaIllustrationJobHandler(input: {
   now?: () => Date;
   /** The delivery budget the job is enqueued with. */
   maxAttempts?: number;
+  /** ST-113. Read-only client confined to `catalog/illustrations`. */
+  library?: Readonly<{ catalog: Pick<ObjectStorage, "getBytes"> }>;
 }): RegisteredJobHandler {
   const now = input.now ?? (() => new Date());
   const auditWriter = new PostgresAuditWriter(input.database);
@@ -522,7 +554,89 @@ export function createCinemaIllustrationJobHandler(input: {
         ...(input.maxAttempts === undefined ? {} : { maxAttempts: input.maxAttempts }),
         bind: (transaction, assetId) =>
           bindCinemaHero(transaction, context, payload, assetId, now()),
+        ...(input.library === undefined
+          ? {}
+          : {
+              libraryFallback: () =>
+                pinLibraryHero({
+                  database: input.database,
+                  catalog: input.library!.catalog,
+                  storage: input.storage,
+                  context,
+                  payload,
+                  now,
+                }),
+            }),
       });
     },
   );
+}
+
+/**
+ * ST-113. The library picture for a failed hero: matched on the payload's
+ * brief within the video's treatment and surface (people only when the art
+ * direction allows them), copied into the project, then pinned with origin
+ * `library` through the same validated bind as a generated picture, so it
+ * never lands on an evidence scene. No paid call, so nothing is metered.
+ */
+async function pinLibraryHero(input: {
+  database: DatabaseClient;
+  catalog: Pick<ObjectStorage, "getBytes">;
+  storage: Pick<ObjectStorage, "putBytes">;
+  context: GenerationContext;
+  payload: CinemaIllustrationJobPayload;
+  now: () => Date;
+}): Promise<JobMetadata | undefined> {
+  const { context, payload } = input;
+  const { treatment, humanFigures } = payload.artDirection;
+  const surface = cinemaIllustrationSurface(payload.palette.surface);
+  const found = matchCinemaLibraryIllustration({
+    brief: payload.brief,
+    treatment,
+    surface,
+    humanFigures,
+    entries: await activeIllustrationLibraryEntries(input.database, { treatment, surface }),
+  });
+  if (found === null) return undefined;
+  const copy = await copyLibraryIllustrationIntoProject({
+    database: input.database,
+    ownerUserId: context.ownerUserId,
+    projectId: context.projectId,
+    entryId: found.entry.entryId,
+    newAssetId: () => createId(input.now()),
+    now: input.now(),
+    storage: {
+      readCatalogBytes: async (key, maxBytes) =>
+        (await input.catalog.getBytes(storageKeySchema.parse(key), maxBytes)).body,
+      writeProjectBytes: async ({ assetId, bytes, sha256 }) => {
+        const key = storageKeys.assetOriginal({
+          userId: context.ownerUserId as Identifier,
+          projectId: context.projectId as Identifier,
+          assetId: assetId as Identifier,
+          extension: "png",
+        });
+        await input.storage.putBytes({
+          key,
+          body: bytes,
+          contentType: "image/png",
+          metadata: { "library-entry-id": found.entry.entryId, provenance: "ai-generated", sha256 },
+        });
+        return key;
+      },
+    },
+  });
+  if (copy === null) return undefined;
+  const bound = await input.database.transaction((transaction) =>
+    bindCinemaHero(transaction, context, payload, copy.assetId as Identifier, input.now(), {
+      origin: "library",
+      altText: copy.altText,
+    }),
+  );
+  return {
+    assetId: copy.assetId,
+    libraryEntryId: found.entry.entryId,
+    libraryMatch: found.match,
+    libraryScore: Number(found.score.toFixed(3)),
+    ...bound,
+  };
 }

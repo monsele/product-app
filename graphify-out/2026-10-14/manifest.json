@@ -1056,15 +1056,15 @@
     "semantic_hash": ""
   },
   "apps/pipeline-worker/src/together-tts.test.ts": {
-    "mtime": 1788818592.0,
-    "seen": 1790461247.7226815,
-    "ast_hash": "90570209f952ee025edc25e4ff56dc27",
+    "mtime": 1791979407.097153,
+    "seen": 1791979620.0740726,
+    "ast_hash": "1ed831da996e31b09c64efffe925744c",
     "semantic_hash": ""
   },
   "apps/pipeline-worker/src/together-tts.ts": {
-    "mtime": 1788818820.0,
-    "seen": 1790461247.7226827,
-    "ast_hash": "a7f8f9480ed80a77ea48d0f710df570a",
+    "mtime": 1791979352.640354,
+    "seen": 1791979620.0740755,
+    "ast_hash": "ffebbbb3c7306ac9638d45aba0944326",
     "semantic_hash": ""
   },
   "apps/pipeline-worker/tsconfig.json": {
@@ -15555,6 +15555,54 @@
     "mtime": 1791454302.599869,
     "seen": 1791974654.785506,
     "ast_hash": "dc941514bc281bac9ea561aa9433c0fc",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/sync-frames/after-154.5.png": {
+    "mtime": 1791978014.2411323,
+    "seen": 1791979620.6952553,
+    "ast_hash": "1565190699578be9774b746a58286f4c",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/sync-frames/after-228.png": {
+    "mtime": 1791978013.550019,
+    "seen": 1791979620.695261,
+    "ast_hash": "ae9b0ac8fbba6b395840550121368c2e",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/sync-frames/after-238.png": {
+    "mtime": 1791978013.8323843,
+    "seen": 1791979620.695265,
+    "ast_hash": "d63529163617377b7798db31c8275eab",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/sync-frames/before-154.5.png": {
+    "mtime": 1791978013.2820952,
+    "seen": 1791979620.6952693,
+    "ast_hash": "d946927d8b631a3fe3b9caa0ed9daa36",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/sync-frames/before-228.png": {
+    "mtime": 1791978012.7458785,
+    "seen": 1791979620.6952753,
+    "ast_hash": "f9dba004886d373f6560998361338ff9",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/sync-frames/before-238.png": {
+    "mtime": 1791978013.0880685,
+    "seen": 1791979620.6952786,
+    "ast_hash": "4dc0ae89e50476270ff41471ad402405",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/sync-after.mp4": {
+    "mtime": 1791977962.7339852,
+    "seen": 1791979620.7177088,
+    "ast_hash": "494830b80dc7c94fe393739525e708df",
+    "semantic_hash": ""
+  },
+  ".runtime-logs/sync-before.mp4": {
+    "mtime": 1791977962.4771612,
+    "seen": 1791979620.7177107,
+    "ast_hash": "c87db6667974e469f00c7123ec4576a0",
     "semantic_hash": ""
   }
 }

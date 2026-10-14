@@ -53,7 +53,7 @@ import {
 import { ExportService } from "./exports.js";
 import { PostgresShareLinkService } from "./share-links.js";
 import { PostgresSoundBedService } from "./sound-beds.js";
-import { soundBedCatalogPrefix } from "@avlp/schemas";
+import { illustrationLibraryPrefix, soundBedCatalogPrefix } from "@avlp/schemas";
 import {
   PostgresJobRepository,
   redisConnectionFromUrl,
@@ -163,6 +163,26 @@ export async function runApi(input: {
       database.client,
       catalogStorage,
     );
+    // ST-113. A third client confined to the platform illustration library;
+    // it only reads library pictures for copying into a project.
+    const illustrationLibraryStorage = await createS3CompatibleObjectStorage({
+      bucket: environment.OBJECT_STORAGE_BUCKET,
+      allowedPrefix: illustrationLibraryPrefix,
+      allowedUploadContentTypes: ["image/png"],
+      maxUploadBytes: environment.MAX_UPLOAD_BYTES,
+      defaultSignedUrlTtlSeconds: environment.SIGNED_URL_TTL_SECONDS,
+      region: environment.OBJECT_STORAGE_REGION,
+      forcePathStyle: environment.OBJECT_STORAGE_FORCE_PATH_STYLE,
+      allowInsecureEndpoint: environment.OBJECT_STORAGE_ALLOW_INSECURE_ENDPOINT,
+      runtimeEnvironment: environment.NODE_ENV,
+      credentials: {
+        accessKeyId: environment.OBJECT_STORAGE_ACCESS_KEY,
+        secretAccessKey: environment.OBJECT_STORAGE_SECRET_KEY,
+      },
+      ...(environment.OBJECT_STORAGE_ENDPOINT === undefined
+        ? {}
+        : { endpoint: environment.OBJECT_STORAGE_ENDPOINT }),
+    });
     const projectAuthorizer = new ProjectAuthorizationService(
       projectRepository,
     );
@@ -243,6 +263,8 @@ export async function runApi(input: {
     );
     const illustrationGenerationService = new IllustrationGenerationService(
       database.client,
+      undefined,
+      { catalog: illustrationLibraryStorage, storage },
     );
     const objectivesService = new PostgresObjectivesService(
       database.client,

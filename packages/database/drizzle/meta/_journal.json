@@ -498,6 +498,13 @@
       "when": 1790000500000,
       "tag": "0070_one_shot_brief_budget_decisions",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1790000510000,
+      "tag": "0071_illustration_library",
+      "breakpoints": true
     }
   ]
 }

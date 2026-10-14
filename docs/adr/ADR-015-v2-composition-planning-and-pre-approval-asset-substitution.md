@@ -115,3 +115,34 @@ appearance of approved lesson versions and invalidate their render parity.
   renderer and makes essential text unreadable, unlocalisable and ungrounded.
 - **Substituting assets at render time:** makes a saved version's output
   depend on current project state.
+
+## Compatibility notes
+
+### ST-113 — curated illustration library (2026-10-14)
+
+ST-113 is the first v2 change that migrates. It amends the "No new storage
+table" consequence above for the library step of §6 only:
+
+- Migration `0071_illustration_library` adds `illustration_library_entries`, a
+  platform-owned catalogue with no tenant columns (the ST-103
+  `sound_bed_tracks` pattern). Only the operator script
+  `illustration-library:generate` writes it, from a checked-in concept list;
+  lesson content, briefs and project pictures never reach it. See
+  `packages/database/drizzle/0071_illustration_library.compatibility.md`.
+- The picture order of §6 is now complete: source figure → project asset →
+  generated (within the §7 budget) → library → authored motif. A library
+  picture is taken for a scene over the budget, or when its generated picture
+  is rejected by moderation or fails on its final attempt.
+- Matching is deterministic and model-free: the exact illustration key in the
+  video's treatment and surface (light or dark, from the palette's surface
+  colour), else the highest content-word overlap of at least 0.5, ties by key.
+  Pictures showing people are excluded when the art direction excludes them,
+  and the existing evidence rule (only a source figure may replace evidence)
+  applies to `origin: "library"` unchanged.
+- A matched picture is copied into the lesson's project as an ordinary active
+  project asset and pinned as `imagery.hero` with `origin: "library"` (already
+  in the v2 schema). Manifests, snapshots and render identities do not change
+  shape; after approval nothing is substituted, and retiring a library row
+  never changes a saved version.
+- The library copy is not a paid call and is not metered; the failed
+  generation that preceded it is metered once, as before.

@@ -312,7 +312,14 @@ export interface OneShotStageGateway {
   requestIllustrations(context: OneShotCallContext): Promise<{
     queued: number;
     skipped: number;
-    cinema?: { reused: number; motif: number; budget: number };
+    cinema?: {
+      reused: number;
+      /** ST-113. Library pictures pinned, and how many matched exactly. */
+      library?: number;
+      libraryExact?: number;
+      motif: number;
+      budget: number;
+    };
   }>;
   /** ST-112. */
   visualDesign(scope: OneShotScope): Promise<VisualDesignState>;
@@ -1379,6 +1386,13 @@ export async function advanceOneShotRun(input: {
           summary: `${requested.cinema.motif} scene${requested.cinema.motif === 1 ? " uses" : "s use"} the style's own drawn motif instead of a generated picture.`,
           reason: `Up to ${requested.cinema.budget} generated pictures are allowed for a video of this length, and evidence pictures are never replaced.`,
         });
+      const library = requested.cinema?.library ?? 0;
+      if (library > 0)
+        decisions.push({
+          kind: "style_pack",
+          summary: `${library} scene${library === 1 ? " uses" : "s use"} a curated library picture instead of a generated one.`,
+          reason: `The generated-picture budget of ${requested.cinema?.budget ?? 0} was used up, so a matching library picture in the same style was chosen before the drawn motif.`,
+        });
       return {
         kind: "acted",
         detail: {
@@ -1389,6 +1403,12 @@ export async function advanceOneShotRun(input: {
             ? {}
             : {
                 reused: requested.cinema.reused,
+                ...(requested.cinema.library === undefined || requested.cinema.library === 0
+                  ? {}
+                  : {
+                      library: requested.cinema.library,
+                      libraryMatch: `exact:${requested.cinema.libraryExact ?? 0},overlap:${requested.cinema.library - (requested.cinema.libraryExact ?? 0)}`,
+                    }),
                 motif: requested.cinema.motif,
                 pictureBudget: requested.cinema.budget,
               }),

@@ -2238,6 +2238,131 @@ export type CinemaIllustrationReusable = Readonly<
 
 type CinemaMotifReason = "over_budget" | "evidence_picture" | "no_people";
 
+// ---------------------------------------------------------------------------
+// Curated illustration library (ST-113)
+// ---------------------------------------------------------------------------
+
+/**
+ * Platform-owned library pictures live outside every tenant prefix. The bytes
+ * are shared catalogue media written only by the operator script; a lesson
+ * that uses one copies it into its own project first.
+ */
+export const illustrationLibraryPrefix = "catalog/illustrations" as const;
+export const illustrationLibraryPromptVersion = "illustration-library-v1" as const;
+
+export const cinemaIllustrationSurfaces = ["light", "dark"] as const;
+export const cinemaIllustrationSurfaceSchema = z.enum(cinemaIllustrationSurfaces);
+export type CinemaIllustrationSurface = z.infer<typeof cinemaIllustrationSurfaceSchema>;
+
+/** The surface a picture is drawn for: whichever of black or white text the
+ * video's surface colour would carry better. */
+export function cinemaIllustrationSurface(surfaceColor: string): CinemaIllustrationSurface {
+  return creativeDesignContrastRatio(surfaceColor, "#000000") >=
+    creativeDesignContrastRatio(surfaceColor, "#ffffff")
+    ? "light"
+    : "dark";
+}
+
+/** One authored concept of the checked-in list; never lesson or source text. */
+export const illustrationLibraryConceptSchema = z
+  .object({
+    concept: text(80),
+    description: text(300),
+    subject: z.enum(["object", "person", "place", "process"]),
+    /** True when the picture shows people; such a picture is never used where
+     * the video's art direction excludes them. */
+    depictsPeople: z.boolean(),
+  })
+  .strict();
+export type IllustrationLibraryConcept = z.infer<typeof illustrationLibraryConceptSchema>;
+
+export const illustrationLibraryConceptListSchema = z
+  .object({
+    listVersion: z.literal(1),
+    concepts: z.array(illustrationLibraryConceptSchema).min(1).max(500),
+  })
+  .strict()
+  .superRefine((list, context) => {
+    const seen = new Set<string>();
+    for (const [index, entry] of list.concepts.entries()) {
+      const key = cinemaIllustrationKey(entry.concept, "flat");
+      if (seen.has(key))
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["concepts", index, "concept"],
+          message: `"${entry.concept}" repeats an earlier concept.`,
+        });
+      seen.add(key);
+    }
+  });
+export type IllustrationLibraryConceptList = z.infer<typeof illustrationLibraryConceptListSchema>;
+
+/** An active library picture as the planner sees it. */
+export type CinemaLibraryEntry = Readonly<{
+  entryId: string;
+  /** `cinemaIllustrationKey(concept, treatment)`. */
+  key: string;
+  treatment: CinemaIllustrationTreatment;
+  surface: CinemaIllustrationSurface;
+  depictsPeople: boolean;
+}>;
+
+export type CinemaLibraryMatch = Readonly<{
+  entry: CinemaLibraryEntry;
+  match: "exact" | "overlap";
+  /** Content-word overlap (Jaccard), 1 for an exact key. */
+  score: number;
+}>;
+
+/** The minimum content-word overlap for a non-exact library match. */
+export const cinemaLibraryMatchThreshold = 0.5;
+
+function illustrationKeyWords(key: string): ReadonlySet<string> {
+  const words = key.slice(key.indexOf(":") + 1).split(" ").filter((word) => word.length > 0);
+  return new Set(words);
+}
+
+/**
+ * The library picture for a brief, or null. Only entries of the video's
+ * treatment and surface are eligible, and none that depicts people when the
+ * art direction excludes them. An exact illustration key wins; otherwise the
+ * highest content-word overlap at or above the threshold, ties by key. Pure
+ * and deterministic: no model call.
+ */
+export function matchCinemaLibraryIllustration(
+  input: Readonly<{
+    brief: CinemaIllustrationBrief;
+    treatment: CinemaIllustrationTreatment;
+    surface: CinemaIllustrationSurface;
+    humanFigures: boolean;
+    entries: readonly CinemaLibraryEntry[];
+  }>,
+): CinemaLibraryMatch | null {
+  const key = cinemaIllustrationKey(input.brief.concept, input.treatment);
+  const eligible = input.entries
+    .filter(
+      (entry) =>
+        entry.treatment === input.treatment &&
+        entry.surface === input.surface &&
+        (input.humanFigures || !entry.depictsPeople),
+    )
+    .sort((left, right) => (left.key < right.key ? -1 : left.key > right.key ? 1 : 0));
+  const exact = eligible.find((entry) => entry.key === key);
+  if (exact !== undefined) return { entry: exact, match: "exact", score: 1 };
+  const wanted = illustrationKeyWords(key);
+  if (wanted.size === 0) return null;
+  let best: CinemaLibraryMatch | null = null;
+  for (const entry of eligible) {
+    const words = illustrationKeyWords(entry.key);
+    let shared = 0;
+    for (const word of words) if (wanted.has(word)) shared += 1;
+    const score = shared / (wanted.size + words.size - shared);
+    if (score >= cinemaLibraryMatchThreshold && (best === null || score > best.score))
+      best = { entry, match: "overlap", score };
+  }
+  return best;
+}
+
 export type CinemaIllustrationPlan = Readonly<{
   budget: number;
   /** New pictures to generate, one per concept and treatment. */
@@ -2251,6 +2376,14 @@ export type CinemaIllustrationPlan = Readonly<{
     sceneId: string;
     hero: NonNullable<CinemaSceneImagery["hero"]>;
   }>[];
+  /** ST-113. Over-budget scenes that take a matching library picture. */
+  library: readonly Readonly<{
+    sceneId: string;
+    entryId: string;
+    reason: "over_budget";
+    match: CinemaLibraryMatch["match"];
+    score: number;
+  }>[];
   /** Scenes that keep their authored motif, and why. */
   motif: readonly Readonly<{ sceneId: string; reason: CinemaMotifReason }>[];
 }>;
@@ -2258,10 +2391,11 @@ export type CinemaIllustrationPlan = Readonly<{
 /**
  * Decides which scenes get which picture, in the ADR-015 order: the scene's
  * own (source) picture, a pinned hero or an available picture of the same
- * concept and treatment, a new generated picture within budget, then the
- * authored motif. Only scenes whose composition shows a picture are
- * considered, and none whose hero position carries evidence (AC5). When the
- * budget is short, picture-led compositions are served first.
+ * concept and treatment, a new generated picture within budget, a matching
+ * library picture (ST-113), then the authored motif. Only scenes whose
+ * composition shows a picture are considered, and none whose hero position
+ * carries evidence (AC5). When the budget is short, picture-led compositions
+ * are served first.
  */
 export function planCinemaIllustrations(
   input: Readonly<{
@@ -2274,6 +2408,8 @@ export function planCinemaIllustrations(
     alreadyGenerated?: number | undefined;
     /** Keys already requested (in flight or failed): never requested again. */
     requested?: ReadonlySet<string> | undefined;
+    /** ST-113. Active library pictures; empty or absent changes nothing. */
+    library?: readonly CinemaLibraryEntry[] | undefined;
   }>,
 ): CinemaIllustrationPlan {
   const budget = cinemaIllustrationBudget(input.targetDurationSeconds);
@@ -2323,8 +2459,32 @@ export function planCinemaIllustrations(
   const ranked = [...wanted.entries()].sort(
     ([, left], [, right]) => Number(right.central) - Number(left.central) || left.order - right.order,
   );
-  for (const [, value] of ranked.slice(remaining))
-    for (const sceneId of value.sceneIds) motif.push({ sceneId, reason: "over_budget" });
+  const library: CinemaIllustrationPlan["library"][number][] = [];
+  const surface = cinemaIllustrationSurface(input.manifest.settings.colors.surface);
+  for (const [, value] of ranked.slice(remaining)) {
+    const found =
+      input.library === undefined || input.library.length === 0
+        ? null
+        : matchCinemaLibraryIllustration({
+            brief: value.brief,
+            treatment,
+            surface,
+            humanFigures,
+            entries: input.library,
+          });
+    for (const sceneId of value.sceneIds)
+      if (found === null) motif.push({ sceneId, reason: "over_budget" });
+      else
+        library.push(
+          Object.freeze({
+            sceneId,
+            entryId: found.entry.entryId,
+            reason: "over_budget" as const,
+            match: found.match,
+            score: found.score,
+          }),
+        );
+  }
   return Object.freeze({
     budget,
     generate: Object.freeze(
@@ -2333,6 +2493,7 @@ export function planCinemaIllustrations(
       ),
     ),
     reuse: Object.freeze(reuse),
+    library: Object.freeze(library),
     motif: Object.freeze(motif),
   });
 }

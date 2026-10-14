@@ -60,9 +60,9 @@
     "semantic_hash": ""
   },
   "apps/api/package.json": {
-    "mtime": 1790491287.8371217,
-    "seen": 1790522115.9214966,
-    "ast_hash": "b0552f5eb5c12cf103bfe5cdf60472f6",
+    "mtime": 1792008477.206269,
+    "seen": 1792008748.4476151,
+    "ast_hash": "681d9984b91e87b3b44d37aecd7d3295",
     "semantic_hash": ""
   },
   "apps/api/sound-beds/catalog.json": {
@@ -258,9 +258,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/illustration-generation.ts": {
-    "mtime": 1790751463.2605405,
-    "seen": 1790754703.4176605,
-    "ast_hash": "1343af23760c9450409129f017bf52cc",
+    "mtime": 1792006381.8379881,
+    "seen": 1792008748.46494,
+    "ast_hash": "d5b65c16adb1ce557711b358865519fc",
     "semantic_hash": ""
   },
   "apps/api/src/ingestion-status.test.ts": {
@@ -438,9 +438,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/preview-manifest.test.ts": {
-    "mtime": 1790713470.045021,
-    "seen": 1790714371.426656,
-    "ast_hash": "88808ea5b208f90a61f0b0216d3e6d8e",
+    "mtime": 1792007086.3256304,
+    "seen": 1792008748.4955537,
+    "ast_hash": "89353988d7cfff3f0d9e53e50f2c87ac",
     "semantic_hash": ""
   },
   "apps/api/src/preview-manifest.ts": {
@@ -522,9 +522,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/runtime.ts": {
-    "mtime": 1790751463.2595532,
-    "seen": 1790754703.4325721,
-    "ast_hash": "bc6110cc71cba3e6589d7b1a833c9b40",
+    "mtime": 1792008456.7068737,
+    "seen": 1792008748.5041947,
+    "ast_hash": "e2b856b022de5d79397f0173506bcd31",
     "semantic_hash": ""
   },
   "apps/api/src/scene-audio.test.ts": {
@@ -864,9 +864,9 @@
     "semantic_hash": ""
   },
   "apps/pipeline-worker/src/illustration-generation-job.ts": {
-    "mtime": 1790717675.3652003,
-    "seen": 1790718592.6229377,
-    "ast_hash": "7d4369b9474df82111918e423de05482",
+    "mtime": 1792008440.275206,
+    "seen": 1792008748.5475802,
+    "ast_hash": "da9388be0c31e975132fd4fafc87d54d",
     "semantic_hash": ""
   },
   "apps/pipeline-worker/src/ingestion-quality.test.ts": {
@@ -1002,9 +1002,9 @@
     "semantic_hash": ""
   },
   "apps/pipeline-worker/src/runtime.ts": {
-    "mtime": 1790717722.6549165,
-    "seen": 1790718592.6321378,
-    "ast_hash": "40ce40cbc0d3b3278ed8a8ea6573bcae",
+    "mtime": 1792008456.909231,
+    "seen": 1792008748.5733995,
+    "ast_hash": "0678a926cd8688f179fd45a9bf8c7d20",
     "semantic_hash": ""
   },
   "apps/pipeline-worker/src/scene-audio-job.test.ts": {
@@ -2814,9 +2814,9 @@
     "semantic_hash": ""
   },
   "packages/database/drizzle/meta/_journal.json": {
-    "mtime": 1790540549.4760258,
-    "seen": 1790579890.711893,
-    "ast_hash": "f64b704c2990ac90f54fb05226274a7e",
+    "mtime": 1792006163.3444939,
+    "seen": 1792008748.814873,
+    "ast_hash": "adfaf30ba77e6e4026acd67a4fbdf133",
     "semantic_hash": ""
   },
   "packages/database/package.json": {
@@ -2856,9 +2856,9 @@
     "semantic_hash": ""
   },
   "packages/database/src/index.ts": {
-    "mtime": 1790626576.0745013,
-    "seen": 1790627749.4227247,
-    "ast_hash": "d6043a0c73dad403c2e0488425f4d69f",
+    "mtime": 1792006199.9587324,
+    "seen": 1792008748.820882,
+    "ast_hash": "6888f160f2bcf0e881014a92657cbe63",
     "semantic_hash": ""
   },
   "packages/database/src/migrations.ts": {
@@ -2886,9 +2886,9 @@
     "semantic_hash": ""
   },
   "packages/database/src/schema.ts": {
-    "mtime": 1790542217.0936482,
-    "seen": 1790579890.714079,
-    "ast_hash": "f7f53cbbb45aa0c07b1f81e4fa89a194",
+    "mtime": 1792006133.1305275,
+    "seen": 1792008748.823338,
+    "ast_hash": "42e63ab5f4530f829bc09a0d03bd3ce9",
     "semantic_hash": ""
   },
   "packages/database/src/test-database.ts": {
@@ -5004,9 +5004,9 @@
     "semantic_hash": ""
   },
   "STORY_INDEX.md": {
-    "mtime": 1791454811.1808226,
-    "seen": 1791974654.7914765,
-    "ast_hash": "0671e53b000fa6130bcf16786679d240",
+    "mtime": 1792005781.2847564,
+    "seen": 1792008749.003526,
+    "ast_hash": "6b2e712ba6eb4dd0f5ed369ee5007f74",
     "semantic_hash": ""
   },
   "STORY_TEMPLATE.md": {
@@ -6462,26 +6462,26 @@
     "semantic_hash": ""
   },
   ".runtime-logs/source-visual-picker/table-selected-1280.png": {
-    "mtime": 1791365846.5059843,
-    "seen": 1791366213.2627125,
+    "mtime": 1792008020.1814828,
+    "seen": 1792008749.4277728,
     "ast_hash": "6a8046ee50273d19d6050a23ef348fb4",
     "semantic_hash": ""
   },
   ".runtime-logs/source-visual-picker/table-selected-375.png": {
-    "mtime": 1791365848.9606326,
-    "seen": 1791366213.2627182,
+    "mtime": 1792008027.3990834,
+    "seen": 1792008749.427776,
     "ast_hash": "f4e042c402e1ddba343700169e4da5b0",
     "semantic_hash": ""
   },
   ".runtime-logs/source-visual-picker/table-selected-640.png": {
-    "mtime": 1791365850.8898659,
-    "seen": 1791366213.2627218,
+    "mtime": 1792008029.3127756,
+    "seen": 1792008749.4277778,
     "ast_hash": "4eb52eb4fb63817fc79f44a59973af20",
     "semantic_hash": ""
   },
   ".runtime-logs/source-visual-picker/table-selected-768.png": {
-    "mtime": 1791365847.69891,
-    "seen": 1791366213.2627285,
+    "mtime": 1792008020.855184,
+    "seen": 1792008749.4277816,
     "ast_hash": "892ca78e07156facfff310bd1fcef3a0",
     "semantic_hash": ""
   },
@@ -6636,9 +6636,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/one-shot-gateway.ts": {
-    "mtime": 1790751447.519873,
-    "seen": 1790754703.4239354,
-    "ast_hash": "2fe14d69a6827ae4cf4786ae288bb15a",
+    "mtime": 1792006381.7771947,
+    "seen": 1792008748.4850903,
+    "ast_hash": "2b8c6d82d7fadd373b5b4d2694afefbc",
     "semantic_hash": ""
   },
   "apps/api/src/one-shot-runner.test.ts": {
@@ -6648,9 +6648,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/one-shot-runner.ts": {
-    "mtime": 1790752110.16731,
-    "seen": 1790754703.4248297,
-    "ast_hash": "28f7dc02e19883529ad933e7959c6154",
+    "mtime": 1792006381.8400054,
+    "seen": 1792008748.487974,
+    "ast_hash": "659ccdf061d3bed52581ce1f421838fb",
     "semantic_hash": ""
   },
   "apps/api/src/one-shot-test-pipeline.ts": {
@@ -7806,15 +7806,15 @@
     "semantic_hash": ""
   },
   "packages/schemas/src/creative-design-v2.test.ts": {
-    "mtime": 1791974303.8102858,
-    "seen": 1791974654.7686715,
-    "ast_hash": "79bb25ef8e143a7164470148e5afb96d",
+    "mtime": 1792006835.0524411,
+    "seen": 1792008748.9638124,
+    "ast_hash": "52e2823d0af6dc4d8c7e9ca6f19eefc2",
     "semantic_hash": ""
   },
   "packages/schemas/src/creative-design-v2.ts": {
-    "mtime": 1791974282.9402628,
-    "seen": 1791974654.768674,
-    "ast_hash": "5177bf4bea2676918ce614aa7cbb4f35",
+    "mtime": 1792006105.8041346,
+    "seen": 1792008748.963815,
+    "ast_hash": "7c98ca377e89686f22e89c261b20e5ed",
     "semantic_hash": ""
   },
   ".playwright-cli/page-2026-09-29T08-33-30-715Z.yml": {
@@ -7830,9 +7830,9 @@
     "semantic_hash": ""
   },
   "docs/adr/ADR-015-v2-composition-planning-and-pre-approval-asset-substitution.md": {
-    "mtime": 1790691869.3079793,
-    "seen": 1790696073.242272,
-    "ast_hash": "96f8f862d709a0022c468a78a0940a7b",
+    "mtime": 1792007395.0837643,
+    "seen": 1792008749.013919,
+    "ast_hash": "35a421d4cf0b537fa5588d8209270247",
     "semantic_hash": ""
   },
   "docs/cinema-reel.md": {
@@ -10668,9 +10668,9 @@
     "semantic_hash": ""
   },
   "packages/scene-library/src/cinema/cinema.test.tsx": {
-    "mtime": 1790762349.4183855,
-    "seen": 1790762893.5005178,
-    "ast_hash": "81c6147bd81fce4f0ab232420655f868",
+    "mtime": 1792007085.1818619,
+    "seen": 1792008748.9119456,
+    "ast_hash": "aa11e95d9b893726dbcbd763260fe8eb",
     "semantic_hash": ""
   },
   "apps/api/src/creative-design-v2.integration.test.ts": {
@@ -10686,9 +10686,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/cinema-illustrations.integration.test.ts": {
-    "mtime": 1790718171.85013,
-    "seen": 1790718592.5317545,
-    "ast_hash": "188ed97904980572b4ad5105e83839ba",
+    "mtime": 1792007351.1111877,
+    "seen": 1792008748.4522,
+    "ast_hash": "b76138a7a4c11bd12cfead1190758044",
     "semantic_hash": ""
   },
   "apps/api/src/cinema-lesson.fixture.ts": {
@@ -15288,9 +15288,9 @@
     "semantic_hash": ""
   },
   "stories/11-visual-storytelling/ST-113-curated-illustration-library-fallback.md": {
-    "mtime": 1790790680.908351,
-    "seen": 1790869415.6163933,
-    "ast_hash": "8b484560de46dad1de457190c911029f",
+    "mtime": 1792005781.2376978,
+    "seen": 1792008749.096069,
+    "ast_hash": "ec5298bdc359f422c9f94ba8bef8f4d2",
     "semantic_hash": ""
   },
   "packages/scene-library/src/text-overflow.test.ts": {
@@ -15603,6 +15603,60 @@
     "mtime": 1791977962.4771612,
     "seen": 1791979620.7177107,
     "ast_hash": "c87db6667974e469f00c7123ec4576a0",
+    "semantic_hash": ""
+  },
+  "apps/api/illustration-library/concepts.json": {
+    "mtime": 1792006695.973703,
+    "seen": 1792008748.4476101,
+    "ast_hash": "93f2c4806bf86809ebd327a2b59ae275",
+    "semantic_hash": ""
+  },
+  "apps/api/src/illustration-library-generation.test.ts": {
+    "mtime": 1792007284.1161141,
+    "seen": 1792008748.4649448,
+    "ast_hash": "66622a04b00aede415bf0c260ce755ac",
+    "semantic_hash": ""
+  },
+  "apps/api/src/illustration-library-generation.ts": {
+    "mtime": 1792007284.1154993,
+    "seen": 1792008748.4649477,
+    "ast_hash": "6dc54c89e5a82ecf513cc90095124c70",
+    "semantic_hash": ""
+  },
+  "apps/pipeline-worker/src/cinema-illustration-library.integration.test.ts": {
+    "mtime": 1792007034.471203,
+    "seen": 1792008748.5235314,
+    "ast_hash": "6e707b33741dfb2bd19e3bb811e627e6",
+    "semantic_hash": ""
+  },
+  "packages/database/src/illustration-library.ts": {
+    "mtime": 1792006556.7912664,
+    "seen": 1792008748.8208764,
+    "ast_hash": "59a6f7672c02d1ff67335d6e58d921a5",
+    "semantic_hash": ""
+  },
+  "packages/database/drizzle/0071_illustration_library.compatibility.md": {
+    "mtime": 1792007284.1171346,
+    "seen": 1792008749.0461273,
+    "ast_hash": "bbc652ac07e541e2678e3800e08ceae2",
+    "semantic_hash": ""
+  },
+  "stories/08-product-ui/ST-115-conversational-lesson-editing.md": {
+    "mtime": 1791987907.0897672,
+    "seen": 1792008749.09138,
+    "ast_hash": "055d3b76d7efea72b51f6e6d244f3e4e",
+    "semantic_hash": ""
+  },
+  "stories/10-prompt-to-video/ST-116-prompt-only-lessons-without-a-source-document.md": {
+    "mtime": 1791987908.1804655,
+    "seen": 1792008749.0936189,
+    "ast_hash": "ce4bbceb4c1ee4660b8fa77bc6d4329e",
+    "semantic_hash": ""
+  },
+  "stories/11-visual-storytelling/ST-114-animated-data-chart-scene-from-source-tables.md": {
+    "mtime": 1791987905.9241314,
+    "seen": 1792008749.0960736,
+    "ast_hash": "d9800db8624184e3ac6c4112b4fb04e8",
     "semantic_hash": ""
   }
 }

@@ -12,7 +12,11 @@ import {
   cinemaIllustrationBudget,
   cinemaIllustrationKey,
   cinemaIllustrationPrompt,
+  cinemaIllustrationSurface,
+  cinemaLibraryMatchThreshold,
   cinemaPackArtDirection,
+  illustrationLibraryConceptListSchema,
+  matchCinemaLibraryIllustration,
   planCinemaIllustrations,
   cinemaBeatRevealFrames,
   creativeDesignAssetIds,
@@ -31,6 +35,7 @@ import {
   visualPlanProposalSchema,
   type CinemaCompositionFamily,
   type CinemaIllustrationBrief,
+  type CinemaLibraryEntry,
 } from "./creative-design-v2.js";
 import {
   createDefaultCreativeDesignManifest,
@@ -819,6 +824,202 @@ describe("ST-110 presentation illustrations", () => {
       palette: { accent: "#1d4ed8", diagramEmphasis: "#059669", surface: "#ffffff" },
     });
     expect(vignette).toContain("fades to a plain, solid #ffffff background");
+  });
+
+  describe("ST-113 curated library", () => {
+    const entry = (
+      id: number,
+      concept: string,
+      overrides: Partial<CinemaLibraryEntry> = {},
+    ): CinemaLibraryEntry => ({
+      entryId: `00000000-0000-7000-8000-${String(id).padStart(12, "0")}`,
+      key: cinemaIllustrationKey(concept, overrides.treatment ?? "flat"),
+      treatment: "flat",
+      surface: "light",
+      depictsPeople: false,
+      ...overrides,
+    });
+    const match = (
+      brief: CinemaIllustrationBrief,
+      entries: readonly CinemaLibraryEntry[],
+      options: { treatment?: "flat" | "ink-sketch" | "editorial"; surface?: "light" | "dark"; humanFigures?: boolean } = {},
+    ) =>
+      matchCinemaLibraryIllustration({
+        brief,
+        treatment: options.treatment ?? "flat",
+        surface: options.surface ?? "light",
+        humanFigures: options.humanFigures ?? true,
+        entries,
+      });
+
+    it("derives the surface from the palette's surface colour", () => {
+      expect(cinemaIllustrationSurface("#ffffff")).toBe("light");
+      expect(cinemaIllustrationSurface("#fff8ee")).toBe("light");
+      expect(cinemaIllustrationSurface("#1e293b")).toBe("dark");
+      expect(cinemaIllustrationSurface("#000000")).toBe("dark");
+    });
+
+    it("matches an exact illustration key first", () => {
+      const exact = entry(1, "savings jars");
+      const close = entry(2, "glass savings jar");
+      expect(match(jar, [close, exact])).toEqual({ entry: exact, match: "exact", score: 1 });
+    });
+
+    it("otherwise takes the highest content-word overlap at or above the threshold", () => {
+      // "savings jar" vs "jar": 1 shared of 2 words = 0.5, exactly the threshold.
+      expect(cinemaLibraryMatchThreshold).toBe(0.5);
+      expect(match(jar, [entry(1, "jar")])).toMatchObject({ match: "overlap", score: 0.5 });
+      // "savings jar" vs "glass jar of coins": 1 of 4 = 0.25, below it.
+      expect(match(jar, [entry(1, "glass jar of coins")])).toBeNull();
+      const better = entry(2, "savings jar lid");
+      expect(match(jar, [entry(1, "jar"), better])?.entry).toBe(better);
+      expect(match({ ...jar, concept: "the of and" }, [entry(1, "jar")])).toBeNull();
+    });
+
+    it("isolates treatment and surface", () => {
+      const sketch = entry(1, "savings jar", { treatment: "ink-sketch" });
+      const dark = entry(2, "savings jar", { surface: "dark" });
+      expect(match(jar, [sketch, dark])).toBeNull();
+      expect(match(jar, [sketch, dark], { treatment: "ink-sketch" })?.entry).toBe(sketch);
+      expect(match(jar, [sketch, dark], { surface: "dark" })?.entry).toBe(dark);
+    });
+
+    it("never offers a picture of people when the art direction excludes them", () => {
+      const people = entry(1, "savings jar", { depictsPeople: true });
+      expect(match(jar, [people], { humanFigures: false })).toBeNull();
+      expect(match(jar, [people], { humanFigures: true })?.entry).toBe(people);
+    });
+
+    it("is deterministic: input order never changes the result, and ties go by key", () => {
+      const entries = [entry(1, "jar coin"), entry(2, "jar box"), entry(3, "jar"), entry(4, "pot")];
+      const first = match(jar, entries);
+      expect(first).toMatchObject({ match: "overlap", score: 0.5 });
+      // "jar" (0.5) ties nothing; "jar box"/"jar coin" score 1/3, below the threshold.
+      expect(first?.entry.key).toBe(cinemaIllustrationKey("jar", "flat"));
+      // "savings" and "jar" each share one of two words: a tie, broken by key.
+      const tied = [entry(5, "savings"), entry(6, "jar")];
+      for (const order of [tied, [...tied].reverse()])
+        expect(match(jar, order)).toMatchObject({ entry: { key: "flat:jar" }, score: 0.5 });
+      expect(match(jar, [...entries].reverse())).toEqual(first);
+    });
+
+    it("rejects a concept list that repeats a concept", () => {
+      const concept = { concept: "savings jar", description: "A jar.", subject: "object", depictsPeople: false };
+      expect(
+        illustrationLibraryConceptListSchema.safeParse({ listVersion: 1, concepts: [concept] }).success,
+      ).toBe(true);
+      expect(
+        illustrationLibraryConceptListSchema.safeParse({
+          listVersion: 1,
+          concepts: [concept, { ...concept, concept: "Savings jars" }],
+        }).success,
+      ).toBe(false);
+    });
+
+    /** Three picture-led concepts over a one-picture budget. */
+    function overBudget(scenes = investigatedLesson()) {
+      const { manifest } = designWithBriefs({ 0: jar, 6: snowball, 7: { ...jar, concept: "coin stack" } }, scenes);
+      const surface = cinemaIllustrationSurface(manifest.settings.colors.surface);
+      return { scenes, manifest, surface };
+    }
+
+    it("leaves every plan unchanged when the library is empty (AC1)", () => {
+      const { scenes, manifest } = overBudget();
+      const without = planCinemaIllustrations({ manifest, scenes, targetDurationSeconds: 300, alreadyGenerated: 6 });
+      const empty = planCinemaIllustrations({
+        manifest,
+        scenes,
+        targetDurationSeconds: 300,
+        alreadyGenerated: 6,
+        library: [],
+      });
+      expect(empty).toEqual(without);
+      expect(without.library).toEqual([]);
+    });
+
+    it("gives an over-budget scene a matching library picture, otherwise the motif (AC2)", () => {
+      const { scenes, manifest, surface } = overBudget();
+      const coins = entry(9, "coin stack", { surface });
+      const plan = planCinemaIllustrations({
+        manifest,
+        scenes,
+        targetDurationSeconds: 300,
+        alreadyGenerated: 6,
+        library: [coins, entry(10, "savings jar", { surface: surface === "light" ? "dark" : "light" })],
+      });
+      expect(plan.generate.map((value) => value.brief.concept)).toEqual(["savings jar", "snowball"]);
+      expect(plan.library).toEqual([
+        { sceneId: scenes[7]!.id, entryId: coins.entryId, reason: "over_budget", match: "exact", score: 1 },
+      ]);
+      expect(plan.motif).toEqual([]);
+
+      const exhausted = planCinemaIllustrations({
+        manifest,
+        scenes,
+        targetDurationSeconds: 300,
+        alreadyGenerated: 12,
+        library: [coins],
+      });
+      expect(exhausted.generate).toEqual([]);
+      expect(exhausted.library.map((value) => value.sceneId)).toEqual([scenes[7]!.id]);
+      expect(exhausted.motif).toEqual([
+        { sceneId: scenes[0]!.id, reason: "over_budget" },
+        { sceneId: scenes[6]!.id, reason: "over_budget" },
+      ]);
+    });
+
+    it("keeps evidence and no-people exclusions ahead of the library (AC4)", () => {
+      const scenes = investigatedLesson();
+      const diagram = scene(
+        "labelled-diagram",
+        { kind: "shapes", shape: "cell", labels: [{ anchor: "left", id: "wall", text: "Cell wall" }] },
+        "The cell wall protects the cell.",
+      );
+      const lesson = [...scenes, diagram];
+      const manifest = planCinemaDesign({ packId: "systems", scenes: lesson, seed: "0123456789abcdef" });
+      const surface = cinemaIllustrationSurface(manifest.settings.colors.surface);
+      const design = manifest.scenes[diagram.id]!;
+      const briefed = {
+        ...manifest,
+        artDirection: { ...manifest.artDirection, treatment: "flat" as const, humanFigures: false },
+        scenes: { ...manifest.scenes, [diagram.id]: { ...design, imagery: { ...design.imagery, brief: jar } } },
+      };
+      const library = [entry(1, "savings jar", { surface })];
+      expect(
+        planCinemaIllustrations({ manifest: briefed, scenes: lesson, targetDurationSeconds: 300, alreadyGenerated: 12, library }),
+      ).toMatchObject({ library: [], motif: [{ sceneId: diagram.id, reason: "evidence_picture" }] });
+
+      const people = overBudget();
+      const noPeople = {
+        ...people.manifest,
+        artDirection: { ...people.manifest.artDirection, humanFigures: false },
+      };
+      const peopleEntry = entry(2, "coin stack", { surface: people.surface, depictsPeople: true });
+      expect(
+        planCinemaIllustrations({
+          manifest: noPeople,
+          scenes: people.scenes,
+          targetDurationSeconds: 300,
+          alreadyGenerated: 6,
+          library: [peopleEntry],
+        }),
+      ).toMatchObject({ library: [], motif: [{ sceneId: people.scenes[7]!.id, reason: "over_budget" }] });
+
+      // A library hero over evidence is refused like a generated one.
+      const pinned = {
+        ...manifest,
+        scenes: {
+          ...manifest.scenes,
+          [diagram.id]: {
+            ...design,
+            imagery: { ...design.imagery, hero: { assetId: library[0]!.entryId, origin: "library" as const, altText: "A jar" } },
+          },
+        },
+      };
+      expect(validateCreativeDesignManifestV2(pinned, lesson)).toEqual([
+        `Scene ${diagram.id} shows evidence that a presentation illustration cannot replace.`,
+      ]);
+    });
   });
 });
 

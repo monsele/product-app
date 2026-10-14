@@ -4,6 +4,8 @@ import {
   type Identifier,
 } from "@avlp/config";
 import {
+  activeIllustrationLibraryEntries,
+  copyLibraryIllustrationIntoProject,
   creativeDesignDrafts,
   illustrationGenerationCandidates,
   jobs,
@@ -21,11 +23,13 @@ import {
   cinemaHeroSlot,
   cinemaIllustrationJobPayloadSchema,
   cinemaIllustrationPromptVersion,
+  cinemaIllustrationSurface,
   creativeDesignHash,
   isCreativeDesignManifestV2,
   lessonStoryboardSchema,
   planCinemaIllustrations,
   validateCreativeDesignManifestV2,
+  type CinemaSceneImagery,
   illustrationGenerationInputSchema,
   illustrationCandidateDecisionInputSchema,
   illustrationGenerationJobPayloadSchema,
@@ -40,8 +44,19 @@ import {
   type LessonIllustrationGenerationResponse,
   type VisualRole,
 } from "@avlp/schemas";
+import { storageKeySchema, storageKeys, type ObjectStorage } from "@avlp/storage";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
+
+/**
+ * ST-113. Storage for copying library pictures into a project: a read client
+ * confined to `catalog/illustrations` and the tenant client for the copy.
+ * Absent (tests, local runs without storage), the library step is skipped.
+ */
+export type IllustrationLibraryAccess = Readonly<{
+  catalog: Pick<ObjectStorage, "getBytes">;
+  storage: Pick<ObjectStorage, "putBytes">;
+}>;
 
 /** Shape of the persisted `scenes.asset_requirements` column. */
 const sceneAssetRequirementsSchema = z.array(
@@ -183,6 +198,7 @@ export class IllustrationGenerationService {
   public constructor(
     private readonly database: DatabaseClient,
     private readonly now: () => Date = () => new Date(),
+    private readonly library?: IllustrationLibraryAccess | undefined,
   ) {}
 
   /**
@@ -835,9 +851,10 @@ export class IllustrationGenerationService {
    * ADR-015 order. Scenes whose concept already has a generated picture in
    * this project take it now (pinned as `imagery.hero`); new concepts are
    * queued once each (deduplicated by concept and treatment) within the
-   * lesson's budget; everything else keeps its authored motif. A v1 design
-   * queues nothing. Idempotent: a concept is never requested twice, so a
-   * replayed call adds no cost.
+   * lesson's budget; over-budget scenes take a matching library picture,
+   * copied into the project (ST-113); everything else keeps its authored
+   * motif. A v1 design queues nothing. Idempotent: a concept is never
+   * requested twice, so a replayed call adds no cost.
    */
   public async queueCinemaIllustrations(input: {
     ownerUserId: Identifier;
@@ -862,6 +879,7 @@ export class IllustrationGenerationService {
     const none = (reason: string): CinemaIllustrationQueueResult => ({
       queued: [],
       reused: [],
+      library: [],
       motif: [],
       budget: 0,
       skipped: reason,
@@ -938,11 +956,48 @@ export class IllustrationGenerationService {
       reusable,
       requested,
       alreadyGenerated: generatedForLesson.size,
+      ...(this.library === undefined
+        ? {}
+        : {
+            library: await activeIllustrationLibraryEntries(this.database, {
+              treatment: manifest.artDirection.treatment,
+              surface: cinemaIllustrationSurface(manifest.settings.colors.surface),
+            }),
+          }),
     });
 
-    if (plan.reuse.length > 0) {
+    // ST-113. Each matched library picture is copied into the project once,
+    // outside any transaction; a copy that fails leaves those scenes on the
+    // authored motif, as before the library existed.
+    const motif = plan.motif.map((entry) => ({ sceneId: entry.sceneId, reason: entry.reason }));
+    const pins: { sceneId: string; hero: NonNullable<CinemaSceneImagery["hero"]> }[] = [
+      ...plan.reuse,
+    ];
+    const libraryPins = new Map<string, { assetId: string; entryId: string; match: string }>();
+    const copies = new Map<string, { assetId: string; altText: string } | null>();
+    for (const entry of plan.library) {
+      if (!copies.has(entry.entryId))
+        copies.set(entry.entryId, await this.copyLibraryPicture(input, entry.entryId));
+      const copy = copies.get(entry.entryId) ?? null;
+      if (copy === null) {
+        motif.push({ sceneId: entry.sceneId, reason: entry.reason });
+        continue;
+      }
+      pins.push({
+        sceneId: entry.sceneId,
+        hero: { assetId: copy.assetId, origin: "library", altText: copy.altText },
+      });
+      libraryPins.set(entry.sceneId, {
+        assetId: copy.assetId,
+        entryId: entry.entryId,
+        match: entry.match,
+      });
+    }
+
+    const pinned = new Set<string>();
+    if (pins.length > 0) {
       let next = manifest;
-      for (const entry of plan.reuse) {
+      for (const entry of pins) {
         const design = next.scenes[entry.sceneId]!;
         const candidate = {
           ...next,
@@ -951,7 +1006,10 @@ export class IllustrationGenerationService {
             [entry.sceneId]: { ...design, imagery: { ...design.imagery, hero: entry.hero } },
           },
         };
-        if (validateCreativeDesignManifestV2(candidate, sceneSpecs).length === 0) next = candidate;
+        if (validateCreativeDesignManifestV2(candidate, sceneSpecs).length === 0) {
+          next = candidate;
+          pinned.add(entry.sceneId);
+        }
       }
       if (next !== manifest)
         await this.database
@@ -1061,12 +1119,57 @@ export class IllustrationGenerationService {
       if (result !== undefined)
         queued.push({ key: request.key, sceneIds: [...request.sceneIds], ...result });
     }
+    const library: CinemaIllustrationQueueResult["library"] = [];
+    for (const [sceneId, pin] of libraryPins)
+      if (pinned.has(sceneId)) library.push({ sceneId, ...pin });
+      else motif.push({ sceneId, reason: "over_budget" });
     return {
       queued,
       reused: plan.reuse.map((entry) => ({ sceneId: entry.sceneId, assetId: entry.hero.assetId })),
-      motif: plan.motif.map((entry) => ({ sceneId: entry.sceneId, reason: entry.reason })),
+      library,
+      motif,
       budget: plan.budget,
     };
+  }
+
+  /** ST-113. Copies one library picture into the project, or null. */
+  private async copyLibraryPicture(
+    scope: { ownerUserId: Identifier; projectId: Identifier },
+    entryId: string,
+  ): Promise<{ assetId: string; altText: string } | null> {
+    const library = this.library;
+    if (library === undefined) return null;
+    try {
+      return await copyLibraryIllustrationIntoProject({
+        database: this.database,
+        ownerUserId: scope.ownerUserId,
+        projectId: scope.projectId,
+        entryId,
+        newAssetId: () => createId(this.now()),
+        now: this.now(),
+        storage: {
+          readCatalogBytes: async (key, maxBytes) =>
+            (await library.catalog.getBytes(storageKeySchema.parse(key), maxBytes)).body,
+          writeProjectBytes: async ({ assetId, bytes, sha256 }) => {
+            const key = storageKeys.assetOriginal({
+              userId: scope.ownerUserId,
+              projectId: scope.projectId,
+              assetId: assetId as Identifier,
+              extension: "png",
+            });
+            await library.storage.putBytes({
+              key,
+              body: bytes,
+              contentType: "image/png",
+              metadata: { "library-entry-id": entryId, provenance: "ai-generated", sha256 },
+            });
+            return key;
+          },
+        },
+      });
+    } catch {
+      return null;
+    }
   }
 }
 
@@ -1076,6 +1179,9 @@ const cinemaHeroKeyPrefix = "cinema-hero:";
 export type CinemaIllustrationQueueResult = {
   queued: { key: string; sceneIds: string[]; candidateId: Identifier; jobId: Identifier }[];
   reused: { sceneId: string; assetId: string }[];
+  /** ST-113. Over-budget scenes given a library picture, and how it matched.
+   * Always set by the service; optional so earlier result shapes still read. */
+  library?: { sceneId: string; assetId: string; entryId: string; match: string }[];
   motif: { sceneId: string; reason: string }[];
   budget: number;
   /** Why nothing was planned (no storyboard, no design, a v1 design). */

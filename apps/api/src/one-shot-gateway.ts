@@ -454,6 +454,13 @@ export class ServiceOneShotGateway
         skipped: cinema.motif.length,
         cinema: {
           reused: cinema.reused.length,
+          // ST-113. Reported only when a library picture was used.
+          ...((cinema.library ?? []).length === 0
+            ? {}
+            : {
+                library: cinema.library!.length,
+                libraryExact: cinema.library!.filter((entry) => entry.match === "exact").length,
+              }),
           motif: cinema.motif.length,
           budget: cinema.budget,
         },
