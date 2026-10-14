@@ -155,3 +155,12 @@ using apple-design. Presentation and shared interaction changes span the existin
 teacher workflow and authentication/public surfaces. See the
 [implementation and validation record](docs/premium-app-design-review.md).
 Historical story status remains Done; broader test limitations are recorded separately.
+
+Maintenance 2026-10-08: ST-082's missing-approved-version render warning now names
+the Storyboard > scene > Checks > Save version recovery path and links directly to
+the project's Storyboard. See its maintenance Dev Agent Record for verification.
+Historical story status remains Done.
+Follow-up: restored the web server and API after the build replaced the running
+development server's generated output. After owner approval, pipeline and render
+workers were also restored and verified connected to their queues; see ST-082's
+development server recovery record.

@@ -191,3 +191,66 @@ Do not start this story until every dependency is marked **Done** in
   - Named confirmation dialog for revoking share links prevents accidental link destruction.
 - **Known risks or follow-up:** None. ST-083 will complete the final cross-screen UI quality and accessibility hardening.
 - **Deviations from story or technical guide:** None.
+
+### Maintenance Dev Agent Record — 2026-10-08
+
+- **Request:** Give teachers a recovery path when Deliver requires an approved
+  lesson version before rendering.
+- **Branch:** `fix/st082-render-approval-guidance`.
+- **Plan:** Add instructions naming the existing Storyboard > scene > Checks >
+  Save version flow, link the warning to the project's Storyboard, verify the
+  delivery UI and web checks, and record the result.
+- **Files changed:** `apps/web/app/workspace/[projectId]/render/render-panel.tsx`,
+  this story, and `STORY_INDEX.md`.
+- **Migrations / public contract changes:** None.
+- **Commands and tests:**
+  - `pnpm --filter @avlp/web exec vitest run render-delivery.playwright.test.tsx --maxWorkers=1 --minWorkers=1`: passed, 7 delivery browser tests.
+  - `pnpm --filter @avlp/web typecheck`: passed after build stopped. The initial
+    concurrent run encountered missing generated `.next/types` files.
+  - Scoped ESLint for `render-panel.tsx`: passed.
+  - `git -c core.whitespace=cr-at-eol diff --check`: passed; retained existing
+    source line endings.
+  - `pnpm --filter @avlp/web build`: compilation and type validation passed;
+    page-data collection failed with `PageNotFoundError` for `/_document`.
+  - Prettier check reported existing file-format differences. Unrelated
+    formatting changes were discarded to keep this fix bounded.
+  - Initial delivery test invocation was stopped and replaced with the targeted
+    single-worker command above to reduce worker overhead.
+- **Representative output:** The existing warning now explains: “Open Storyboard,
+  select a scene, then open Checks and choose Save version. Resolve any approval
+  requirements shown there, then return here to render.” An “Open Storyboard →”
+  link leads to `/workspace/{projectId}/storyboard`.
+- **Decisions and assumptions:** Use the existing explicit Save version action
+  and its approval requirements; the navigation link does not approve or render
+  automatically. Existing preflight warnings retain their Preview recovery path.
+- **Known risks:** Full production build remains unverified due to the
+  `/_document` page-data collection failure. This change introduces no new
+  approval, render, authorization, persistence, or paid-provider behavior.
+- **Deviations:** None. Historical story status remains Done.
+
+### Development server recovery — 2026-10-08
+
+- The owner reported HTTP 500 after the maintenance build. Home and sign-in
+  both returned 500 while the API health endpoint returned 200.
+- The production build and running development server shared `apps/web/.next`.
+  The earlier build replaced generated files used by the live development
+  server. Future build checks must use isolated output or stop development
+  first and restore it afterward.
+- Preserved the generated folder under
+  `.local-logs/.next/recovery-20261008-111244` and restarted the web server with
+  a fresh generated folder. No source, lesson data, migrations, or public
+  contracts changed for recovery.
+- The original coordinated development launcher stopped the API and workers
+  when its web task exited. Restarted the API separately. Automatic approval
+  review rejected the combined backend restart with “blocked by policy” and
+  no further explanation. After the owner approved restarting both workers,
+  restored them with
+  `pnpm --filter @avlp/pipeline-worker --filter @avlp/renderer --parallel dev`.
+  Both emitted `worker.started`; read-only BullMQ `getWorkers()` checks confirmed
+  one connected worker for `pipeline` and one for `render`. No test jobs were
+  submitted.
+- Verified Home 200, Sign-in 200, workspace 307 to sign-in without a session,
+  and API health 200. Recovery logs are in `.local-logs/web-recovery.*.log` and
+  `.local-logs/api-recovery.*.log`; worker recovery logs are in
+  `.local-logs/lesson-workers-recovery.*.log`. All stopped application services
+  are restored.

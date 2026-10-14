@@ -53,7 +53,8 @@ function renderBlocker(
   if (lessonVersionId === null)
     return {
       message: "Save an approved lesson version before rendering.",
-      detail: null,
+      detail:
+        "Open Storyboard, select a scene, then open Checks and choose Save version. Resolve any approval requirements shown there, then return here to render.",
     };
   if (validation === null)
     return {
@@ -576,14 +577,16 @@ export function RenderPanel({
                   />
                   {blocker?.detail != null && (
                     <a
-                      href={`/workspace/${encodeURIComponent(projectId)}/preview`}
+                      href={`/workspace/${encodeURIComponent(projectId)}/${lessonVersionId === null ? "storyboard" : "preview"}`}
                       style={{
                         fontSize: "13px",
                         color: "var(--color-brand)",
                         textDecoration: "underline",
                       }}
                     >
-                      Open Preview &amp; preflight &rarr;
+                      {lessonVersionId === null
+                        ? "Open Storyboard \u2192"
+                        : "Open Preview & preflight \u2192"}
                     </a>
                   )}
                 </div>

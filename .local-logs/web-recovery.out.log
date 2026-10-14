@@ -1,0 +1,40 @@
+
+> @avlp/web@0.0.0 dev D:\Eronmonsele\Documents\SoundMinds\product-app\apps\web
+> next dev
+
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.100.8:3000
+   - Experiments (use with caution):
+     · optimizePackageImports
+
+ ✓ Starting...
+ ✓ Ready in 23.5s
+ ○ Compiling / ...
+ ✓ Compiled / in 32.6s (1524 modules)
+ GET / 200 in 35033ms
+ ○ Compiling /sign-in ...
+ ✓ Compiled /sign-in in 3.2s (1579 modules)
+ GET /sign-in 200 in 3858ms
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 3.3s (158 modules)
+ GET / 200 in 404ms
+ GET /sign-in 200 in 91ms
+ ○ Compiling /workspace/[projectId]/preview ...
+ ✓ Compiled /workspace/[projectId]/preview in 8.4s (2329 modules)
+ GET /sign-in 200 in 5311ms
+ GET /workspace/01a1184f-0b63-7218-918a-6eaf4fb84abf/preview 200 in 12264ms
+ ○ Compiling /icon.svg ...
+ ✓ Compiled /icon.svg in 943ms (1168 modules)
+ GET /icon.svg?a3e476c2782f352f 200 in 1410ms
+ GET /icon.svg?a3e476c2782f352f 200 in 37ms
+ ○ Compiling /apple-icon.png ...
+ ✓ Compiled /apple-icon.png in 582ms (1164 modules)
+ GET /apple-icon.png?46bec63ae385bd93 200 in 718ms
+ ○ Compiling /workspace/[projectId]/render ...
+ ✓ Compiled /workspace/[projectId]/render in 2s (2141 modules)
+ GET /workspace/01a1184f-0b63-7218-918a-6eaf4fb84abf/render 200 in 4020ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 549ms (1203 modules)
+ GET /favicon.ico 200 in 669ms
+ GET /favicon.ico 200 in 30ms
