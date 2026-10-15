@@ -71,6 +71,7 @@ import {
 import { createSceneAudioGenerationJobHandler } from "./scene-audio-job.js";
 import { createCreativeDesignInterpretationJobHandler } from "./creative-design-job.js";
 import { createVisualPlanJobHandler } from "./visual-plan-job.js";
+import { createEditPlanJobHandler } from "./edit-plan-job.js";
 import { TogetherKokoroTtsProvider } from "./together-tts.js";
 import { TogetherWhisperAlignmentProvider } from "./together-alignment.js";
 
@@ -389,6 +390,17 @@ export async function runPipelineWorker(
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),
           quotaGuard: generationQuotaGuard({
             "ai.creative_design": { maxCallsPerHour: 20 },
+          }),
+          pricing: togetherPricing,
+        }),
+        createEditPlanJobHandler({
+          database: database.client,
+          provider: languageModelProvider,
+          promptRegistry: new StaticPromptRegistry(repositoryPrompts),
+          quotaGuard: generationQuotaGuard({
+            "ai.edit-plan": {
+              maxCallsPerHour: workerEnvironment.MAX_EDIT_TURNS_PER_HOUR,
+            },
           }),
           pricing: togetherPricing,
         }),

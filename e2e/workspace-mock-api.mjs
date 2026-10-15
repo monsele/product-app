@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import { handleOneShot } from "./one-shot-mock.mjs";
+import { handleEditThread } from "./edit-thread-mock.mjs";
 
 const now = "2026-08-13T12:00:00.000Z";
 const existingId = "019ffbf1-610e-738a-b087-6775ff97568c";
@@ -386,6 +387,8 @@ function storyboardSceneStatus(scene) {
           ? "planned"
           : "none",
     audio: "not_generated",
+    // ST-115: the scene-status contract has carried captions since ST-063.
+    captions: "not_generated",
     validation: "ok",
     stale: false,
   };
@@ -564,6 +567,15 @@ const server = createServer(async (request, response) => {
   if (request.method === "GET" && url.pathname === "/health")
     return send(response, 200, { status: "ok" });
   if (await handleOneShot(request, response, url, { send, storyboardDraft }))
+    return;
+  if (
+    await handleEditThread(request, response, url, {
+      send,
+      storyboardDraft,
+      projects,
+      storyboardState,
+    })
+  )
     return;
   if (request.method === "GET" && url.pathname.endsWith("/source-document")) {
     return send(response, 200, {
@@ -1184,6 +1196,7 @@ const server = createServer(async (request, response) => {
         return send(response, 404, { error: { code: "not_found" } });
       return send(response, 200, {
         scene,
+        sceneRevision: 0,
         status: storyboardSceneStatus(scene),
       });
     }

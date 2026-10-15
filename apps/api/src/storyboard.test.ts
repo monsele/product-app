@@ -170,6 +170,7 @@ describe("storyboard API", () => {
         sampleResponse(),
       ),
       acceptIllustrationCandidate: vi.fn(async () => ({}) as never),
+      restoreEditTurn: vi.fn(async () => ({ revision: 1 })),
       scenes: vi.fn(async (): Promise<StoryboardSceneListResponse> => ({
         revision: 0,
         stale: false,

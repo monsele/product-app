@@ -32,6 +32,7 @@ import { PostgresObjectivesService } from "./objectives.js";
 import { PostgresOutlineService } from "./outline.js";
 import { PostgresNarrationService } from "./narration.js";
 import { PostgresStoryboardService } from "./storyboard.js";
+import { PostgresEditThreadService } from "./edit-thread.js";
 import { PostgresCitationService } from "./citations.js";
 import { PostgresGroundingService } from "./grounding.js";
 import { PostgresCitationHistoryService } from "./citation-history.js";
@@ -299,6 +300,25 @@ export async function runApi(input: {
       storage,
     );
 
+    // ST-115. Conversational editing plans through a queued, metered job and
+    // applies only through the storyboard and narration services above.
+    const editThreadService = new PostgresEditThreadService({
+      database: database.client,
+      storyboard: storyboardService,
+      narration: narrationService,
+      quotaGuard: new PostgresGenerationQuotaGuard(
+        database.client,
+        {
+          "ai.edit-plan": {
+            maxCallsPerHour: environment.MAX_EDIT_TURNS_PER_HOUR,
+          },
+        },
+        undefined,
+        environment.MAX_PROVIDER_CALLS_PER_HOUR,
+      ),
+      maxTurnsPerHour: environment.MAX_EDIT_TURNS_PER_HOUR,
+    });
+
     // ST-105. The prompt-to-video runner is hosted here, in the API process,
     // as a consumer of the `orchestration` queue (ADR-013 §5). It is
     // registered whatever the flag says, so turning the flag off drains runs
@@ -465,6 +485,7 @@ export async function runApi(input: {
         new PostgresDemonstrationTestLessonService(database.client, storage),
       demonstrationPilotCohort,
       oneShotService,
+      editThreadService,
       projectAuthorizer,
       ...(environment.WEB_ORIGIN === undefined
         ? {}

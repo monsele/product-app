@@ -47,6 +47,7 @@ import { buildScenePreviewInput, canPreviewScene } from "./scene-preview-input";
 import { SceneList } from "./scene-list";
 import { SceneTimeline } from "./scene-timeline";
 import { CreativeDesignPanel } from "./creative-design-panel";
+import { EditThreadPanel } from "./edit-thread-panel";
 import {
   SceneDetailPanel,
   teacherReplacementPreviewForScene,
@@ -1541,6 +1542,22 @@ export function StoryboardPanel({
             <aside
               className={`${styles.rightPanel} ${mobileTab === "details" ? "" : styles.regionHidden}`}
             >
+              <div className={styles.editThreadSlot}>
+                <EditThreadPanel
+                  projectId={projectId}
+                  revision={revision}
+                  scenes={listScenes.map((scene) => ({
+                    sceneId: scene.sceneId,
+                    order: scene.order,
+                    title: scene.title,
+                  }))}
+                  selectedSceneId={selectedSceneId}
+                  disabled={generating || view.value.stale || editing}
+                  onSelectScene={selectScene}
+                  onScenePending={markScenePending}
+                  onStoryboardChanged={onStoryboardChanged}
+                />
+              </div>
               {selectedSceneId === null ? (
                 <div role="status" className={styles.inspectorState}>
                   <p>Select a scene to see its detail.</p>

@@ -552,6 +552,14 @@ export const apiEnvironmentSchema = baseEnvironmentSchema
       .min(1)
       .max(10)
       .default(3),
+    /** ST-115. Conversational edit requests one project's thread may make per
+     * rolling hour. Each request is one metered `ai.edit-plan` call. */
+    MAX_EDIT_TURNS_PER_HOUR: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .default(20),
   })
   .superRefine((value, context) => {
     validateStorageCredentialPair(value, context);
@@ -622,6 +630,14 @@ export const workerEnvironmentSchema = baseEnvironmentSchema
        * design. Off by default until the proof lessons are reviewed.
        */
       CREATIVE_DESIGN_V2_DEFAULT: environmentBooleanSchema.default(true),
+      /** ST-115. The worker's `ai.edit-plan` quota, matching the API's
+       * per-thread turn limit. */
+      MAX_EDIT_TURNS_PER_HOUR: z.coerce
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .default(20),
     }),
   )
   .superRefine((value, context) => {

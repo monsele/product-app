@@ -4133,6 +4133,8 @@ export const modelCallOperationValues = [
   "ai.lesson-intent",
   // ST-107. The prompt-to-video brief: coverage, style, sound and scene plan.
   "ai.one-shot-brief",
+  // ST-115. A change plan for one conversational storyboard edit request.
+  "ai.edit-plan",
 ] as const;
 export const modelCallOperationSchema = z.enum(modelCallOperationValues);
 export type ModelCallOperation = z.infer<typeof modelCallOperationSchema>;
@@ -8631,4 +8633,847 @@ export const validationIssueAcknowledgementInputSchema = z
   .strict();
 export type ValidationIssueAcknowledgementInput = z.infer<
   typeof validationIssueAcknowledgementInputSchema
+>;
+
+// ---------------------------------------------------------------------------
+// ST-115 — Conversational lesson editing
+// ---------------------------------------------------------------------------
+
+/** Operations one plan may propose, and distinct scenes it may touch. */
+export const editPlanMaximumOperations = 12 as const;
+export const editPlanMaximumScenes = 8 as const;
+/** Earlier turns passed to the planner as context. */
+export const editThreadContextTurns = 10 as const;
+export const editThreadMessageMaximumLength = 1_000 as const;
+/** Messages per thread page: 50 whole turns (a request and its reply). */
+export const editThreadPageSize = 100 as const;
+/** Default per-thread turn limit per rolling hour (`MAX_EDIT_TURNS_PER_HOUR`). */
+export const editThreadDefaultTurnsPerHour = 20 as const;
+
+/** The prompt/model the API uses for edit planning right now. */
+export const currentEditPlanCompatibility =
+  sceneRegenerationCompatibilitySchema.parse({
+    promptId: "edit-plan",
+    promptVersion: "v1",
+    model: togetherModelDefaults.llm,
+  });
+
+export const editThreadScopeKindValues = [
+  "scene",
+  "selected",
+  "lesson",
+] as const;
+export const editThreadScopeKindSchema = z.enum(editThreadScopeKindValues);
+export type EditThreadScopeKind = z.infer<typeof editThreadScopeKindSchema>;
+
+/**
+ * What a turn addresses. `scene` is one scene (the default), `selected` up to
+ * eight, and `lesson` the whole storyboard.
+ */
+export const editThreadScopeSchema = z
+  .object({
+    kind: editThreadScopeKindSchema,
+    sceneIds: z.array(identifierSchema).max(editPlanMaximumScenes),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const count = new Set(value.sceneIds).size;
+    if (count !== value.sceneIds.length)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["sceneIds"],
+        message: "Each scene can be selected once.",
+      });
+    if (value.kind === "scene" && count !== 1)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["sceneIds"],
+        message: "A scene scope names exactly one scene.",
+      });
+    if (value.kind === "selected" && count < 1)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["sceneIds"],
+        message: "Select at least one scene.",
+      });
+    if (value.kind === "lesson" && count !== 0)
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["sceneIds"],
+        message: "A whole-lesson scope names no scenes.",
+      });
+  });
+export type EditThreadScope = z.infer<typeof editThreadScopeSchema>;
+
+/** A field value the planner may propose: text, a line list, or a number. */
+export const editPlanFieldValueSchema = z.union([
+  z.string().trim().max(5_000),
+  z.number().int(),
+  z.array(z.string().trim().min(1).max(300)).max(12),
+]);
+export type EditPlanFieldValue = z.infer<typeof editPlanFieldValueSchema>;
+
+const editPlanRationaleSchema = boundedText(200);
+
+/** The closed operation set. Each maps to one existing service or job. */
+export const editPlanOperationSchema = z.discriminatedUnion("type", [
+  z
+    .object({
+      type: z.literal("regenerate-scene"),
+      sceneId: identifierSchema,
+      mode: sceneRegenerationModeSchema,
+      instruction: boundedText(500).optional(),
+      rationale: editPlanRationaleSchema,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("regenerate-narration-block"),
+      blockId: identifierSchema,
+      mode: narrationTransformModeSchema,
+      instruction: boundedText(500).optional(),
+      rationale: editPlanRationaleSchema,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("edit-scene-field"),
+      sceneId: identifierSchema,
+      path: boundedText(100),
+      value: editPlanFieldValueSchema,
+      rationale: editPlanRationaleSchema,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("reorder-scenes"),
+      sceneIds: z.array(identifierSchema).min(2).max(100),
+      rationale: editPlanRationaleSchema,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("answer-only"),
+      answer: boundedText(600),
+    })
+    .strict(),
+]);
+export type EditPlanOperation = z.infer<typeof editPlanOperationSchema>;
+export type EditPlanOperationType = EditPlanOperation["type"];
+
+/** Scenes an operation addresses directly (a reorder addresses none). */
+function editPlanOperationSceneId(operation: EditPlanOperation): string | null {
+  return operation.type === "regenerate-scene" ||
+    operation.type === "edit-scene-field"
+    ? operation.sceneId
+    : null;
+}
+
+/**
+ * Operations a model response may carry before `limitEditPlan` trims it to
+ * the plan limits. Over-long plans are cut in code rather than rejected, so
+ * a whole-lesson request still yields the first 8 scenes and a follow-up note
+ * instead of a failed (and re-billed) call.
+ */
+export const editPlanMaximumOutputOperations = 60 as const;
+
+function editPlanShape(maximumOperations: number) {
+  return z
+    .object({
+      schemaVersion: z.literal("edit-plan-v1"),
+      summary: boundedText(300),
+      operations: z
+        .array(editPlanOperationSchema)
+        .min(1)
+        .max(maximumOperations),
+      /** Scenes in scope the plan left for a follow-up turn (AC2). */
+      remainingSceneIds: z.array(identifierSchema).max(100).optional(),
+    })
+    .strict();
+}
+
+type EditPlanShape = z.infer<ReturnType<typeof editPlanShape>>;
+
+function refineEditPlan(
+  value: EditPlanShape,
+  context: z.RefinementCtx,
+  enforceLimits: boolean,
+): void {
+  const answers = value.operations.filter(
+    (operation) => operation.type === "answer-only",
+  ).length;
+  if (answers > 0 && value.operations.length > 1)
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["operations"],
+      message: "An answer-only plan contains no other operation.",
+    });
+  const scenes = new Set(
+    value.operations
+      .map(editPlanOperationSceneId)
+      .filter((id): id is string => id !== null),
+  );
+  if (enforceLimits && scenes.size > editPlanMaximumScenes)
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["operations"],
+      message: `A plan may change at most ${editPlanMaximumScenes} scenes.`,
+    });
+  if (
+    value.operations.filter((operation) => operation.type === "reorder-scenes")
+      .length > 1
+  )
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["operations"],
+      message: "A plan reorders the scenes at most once.",
+    });
+  const seen = new Set<string>();
+  const regenerated = new Set<string>();
+  const edited = new Set<string>();
+  for (const [index, operation] of value.operations.entries()) {
+    const key =
+      operation.type === "edit-scene-field"
+        ? `field:${operation.sceneId}:${operation.path}`
+        : operation.type === "regenerate-scene"
+          ? `scene:${operation.sceneId}`
+          : operation.type === "regenerate-narration-block"
+            ? `block:${operation.blockId}`
+            : null;
+    if (key !== null && seen.has(key))
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["operations", index],
+        message: "The plan repeats an operation on the same target.",
+      });
+    if (key !== null) seen.add(key);
+    if (operation.type === "regenerate-scene")
+      regenerated.add(operation.sceneId);
+    if (operation.type === "edit-scene-field") edited.add(operation.sceneId);
+  }
+  for (const sceneId of regenerated)
+    if (edited.has(sceneId))
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["operations"],
+        message:
+          "A scene is either regenerated or edited field by field in one plan, not both.",
+      });
+}
+
+/**
+ * The versioned structured output of one `ai.edit-plan` call as the model
+ * returns it: an ordered list of operations from the closed set, before the
+ * plan limits are applied by `limitEditPlan`.
+ */
+export const editPlanOutputSchema = editPlanShape(
+  editPlanMaximumOutputOperations,
+).superRefine((value, context) => refineEditPlan(value, context, false));
+export type EditPlanOutput = z.infer<typeof editPlanOutputSchema>;
+
+/**
+ * A change plan within the plan limits (≤ 12 operations, ≤ 8 distinct
+ * scenes). Whether each operation fits the current storyboard is
+ * `validateEditPlan`.
+ */
+export const editPlanSchema = editPlanShape(
+  editPlanMaximumOperations,
+).superRefine((value, context) => refineEditPlan(value, context, true));
+export type EditPlan = z.infer<typeof editPlanSchema>;
+
+/**
+ * Applies the plan limits to a model response (AC2): keeps operations for the
+ * first 8 scenes in storyboard order and at most 12 operations, and lists
+ * every scene it had to leave out in `remainingSceneIds` so the teacher is
+ * told to ask again. Operations on scenes the storyboard does not have are
+ * kept so `validateEditPlan` can refuse them. Pure and deterministic.
+ */
+export function limitEditPlan(
+  plan: EditPlanOutput,
+  sceneOrder: readonly string[],
+): EditPlan {
+  const rank = (sceneId: string): number => {
+    const index = sceneOrder.indexOf(sceneId);
+    return index < 0 ? -1 : index;
+  };
+  const touched = [
+    ...new Set(
+      plan.operations
+        .map(editPlanOperationSceneId)
+        .filter((id): id is string => id !== null),
+    ),
+  ].sort((left, right) => rank(left) - rank(right));
+  const kept = new Set(touched.slice(0, editPlanMaximumScenes));
+  const left = new Set(touched.slice(editPlanMaximumScenes));
+  const operations: EditPlanOperation[] = [];
+  for (const operation of plan.operations) {
+    const sceneId = editPlanOperationSceneId(operation);
+    if (sceneId !== null && !kept.has(sceneId)) continue;
+    if (operations.length >= editPlanMaximumOperations) {
+      if (sceneId !== null) left.add(sceneId);
+      continue;
+    }
+    operations.push(operation);
+  }
+  // A scene whose every operation was cut is left over, not half-changed.
+  for (const sceneId of kept)
+    if (
+      !operations.some(
+        (operation) => editPlanOperationSceneId(operation) === sceneId,
+      )
+    )
+      left.add(sceneId);
+  const remaining = [
+    ...new Set([...(plan.remainingSceneIds ?? []), ...left]),
+  ].sort((first, second) => rank(first) - rank(second));
+  return editPlanSchema.parse({
+    schemaVersion: plan.schemaVersion,
+    summary: plan.summary,
+    operations,
+    ...(remaining.length === 0
+      ? {}
+      : { remainingSceneIds: remaining.slice(0, 100) }),
+  });
+}
+
+/** Bounded parameters for one edit-planning job. The teacher's words are not
+ * here: the job reads them from the thread by message id. */
+export const editPlanParamsSchema = z
+  .object({
+    threadId: identifierSchema,
+    messageId: identifierSchema,
+    lessonSpecId: identifierSchema,
+    lessonSpecRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type EditPlanParams = z.infer<typeof editPlanParamsSchema>;
+
+/** Teacher-facing labels the server records beside each planned operation, so
+ * a plan card can render a field diff without refetching the scene. */
+export const editPlanOperationDisplaySchema = z
+  .object({
+    sceneOrder: z.number().int().positive().nullable(),
+    fieldLabel: boundedText(100).nullable(),
+    before: editPlanFieldValueSchema.nullable(),
+  })
+  .strict();
+export type EditPlanOperationDisplay = z.infer<
+  typeof editPlanOperationDisplaySchema
+>;
+
+export const editThreadPlanOperationSchema = z
+  .object({
+    id: z.string().regex(/^op-\d{1,2}$/),
+    operation: editPlanOperationSchema,
+    display: editPlanOperationDisplaySchema,
+  })
+  .strict();
+export type EditThreadPlanOperation = z.infer<
+  typeof editThreadPlanOperationSchema
+>;
+
+/** A plan as persisted on an assistant message: the validated proposal, the
+ * revisions it was planned against, and an id per operation. */
+export const editThreadPlanSchema = z
+  .object({
+    schemaVersion: z.literal("edit-plan-v1"),
+    summary: boundedText(300),
+    operations: z
+      .array(editThreadPlanOperationSchema)
+      .min(1)
+      .max(editPlanMaximumOperations),
+    remainingSceneIds: z.array(identifierSchema).max(100),
+    expectedRevision: z.number().int().nonnegative(),
+    narrationSetRevision: z.number().int().nonnegative().nullable(),
+    modelCallId: identifierSchema,
+  })
+  .strict();
+export type EditThreadPlan = z.infer<typeof editThreadPlanSchema>;
+
+export const editThreadOperationStateValues = [
+  "proposed",
+  "applied",
+  "queued",
+  "ready",
+  "failed",
+  "skipped",
+] as const;
+export const editThreadOperationStateSchema = z.enum(
+  editThreadOperationStateValues,
+);
+export type EditThreadOperationState = z.infer<
+  typeof editThreadOperationStateSchema
+>;
+
+/** Progress of one operation after apply. Generated operations move from
+ * `queued` to `ready` when their candidate is waiting for review. */
+export const editThreadOperationProgressSchema = z
+  .object({
+    operationId: z.string().regex(/^op-\d{1,2}$/),
+    state: editThreadOperationStateSchema,
+    jobId: identifierSchema.nullable(),
+    candidateId: identifierSchema.nullable(),
+    errorCode: z.string().max(100).nullable(),
+  })
+  .strict();
+export type EditThreadOperationProgress = z.infer<
+  typeof editThreadOperationProgressSchema
+>;
+
+export const editThreadMessageRoleSchema = z.enum(["teacher", "assistant"]);
+export type EditThreadMessageRole = z.infer<typeof editThreadMessageRoleSchema>;
+
+export const editThreadMessageStatusValues = [
+  "sent",
+  "planning",
+  "proposed",
+  "answered",
+  "applying",
+  "applied",
+  "partly_applied",
+  "dismissed",
+  "undone",
+  "failed",
+] as const;
+export const editThreadMessageStatusSchema = z.enum(
+  editThreadMessageStatusValues,
+);
+export type EditThreadMessageStatus = z.infer<
+  typeof editThreadMessageStatusSchema
+>;
+
+/** One message in a project's edit thread. A teacher message carries the
+ * request; its assistant reply carries the plan and what became of it. */
+export const editThreadMessageSchema = z
+  .object({
+    id: identifierSchema,
+    /** Position in the thread; a turn is a teacher message and its reply. */
+    seq: z.number().int().positive(),
+    role: editThreadMessageRoleSchema,
+    replyToId: identifierSchema.nullable(),
+    text: z.string().max(editThreadMessageMaximumLength).nullable(),
+    scope: editThreadScopeSchema,
+    status: editThreadMessageStatusSchema,
+    plan: editThreadPlanSchema.nullable(),
+    operations: z
+      .array(editThreadOperationProgressSchema)
+      .max(editPlanMaximumOperations),
+    appliedOperationIds: z
+      .array(z.string().regex(/^op-\d{1,2}$/))
+      .max(editPlanMaximumOperations),
+    beforeRevision: z.number().int().nonnegative().nullable(),
+    afterRevision: z.number().int().nonnegative().nullable(),
+    failure: z
+      .object({ code: z.string().max(100), message: z.string().max(500) })
+      .strict()
+      .nullable(),
+    canUndo: z.boolean(),
+    createdAt: z.string().datetime({ offset: true }),
+  })
+  .strict();
+export type EditThreadMessage = z.infer<typeof editThreadMessageSchema>;
+
+/** `GET /projects/:id/edit-thread/messages` (and every write's) response. */
+export const editThreadResponseSchema = z
+  .object({
+    threadId: identifierSchema.nullable(),
+    storyboardRevision: z.number().int().nonnegative().nullable(),
+    turnLimit: z
+      .object({
+        limit: z.number().int().positive(),
+        used: z.number().int().nonnegative(),
+        remaining: z.number().int().nonnegative(),
+      })
+      .strict(),
+    /** One page of the thread, oldest first: the latest page by default. */
+    messages: z.array(editThreadMessageSchema).max(editThreadPageSize),
+    /** Pass as `before` to read the page of older messages; null at the start. */
+    earlierCursor: z.number().int().positive().nullable(),
+  })
+  .strict();
+export type EditThreadResponse = z.infer<typeof editThreadResponseSchema>;
+
+/** `GET /projects/:id/edit-thread/messages?before=<seq>` query. */
+export const editThreadPageQuerySchema = z
+  .object({ before: z.coerce.number().int().positive().optional() })
+  .strict();
+
+/** `POST /projects/:id/edit-thread/messages` (Idempotency-Key required). */
+export const editThreadMessageInputSchema = z
+  .object({
+    text: boundedText(editThreadMessageMaximumLength),
+    scope: editThreadScopeSchema,
+    expectedRevision: z.number().int().nonnegative(),
+  })
+  .strict();
+export type EditThreadMessageInput = z.infer<
+  typeof editThreadMessageInputSchema
+>;
+
+/** `POST .../plans/:planId/apply`. Omitting `operationIds` applies them all. */
+export const editPlanApplyInputSchema = z
+  .object({
+    expectedRevision: z.number().int().nonnegative(),
+    operationIds: z
+      .array(z.string().regex(/^op-\d{1,2}$/))
+      .min(1)
+      .max(editPlanMaximumOperations)
+      .optional(),
+  })
+  .strict();
+export type EditPlanApplyInput = z.infer<typeof editPlanApplyInputSchema>;
+
+export const editPlanUndoInputSchema = z
+  .object({ expectedRevision: z.number().int().nonnegative() })
+  .strict();
+export type EditPlanUndoInput = z.infer<typeof editPlanUndoInputSchema>;
+
+export const editPlanDismissInputSchema = z.object({}).strict();
+
+/** Editor controls a planned field edit may target. Graphs, chart pickers and
+ * the diagram type change structure or bindings and stay in the form editor. */
+const editPlanFieldControls: ReadonlySet<SceneEditorControl> = new Set([
+  "text",
+  "textarea",
+  "text-list",
+  "select",
+]);
+/** Narration changes go through narration-block regeneration (ST-049), which
+ * keeps citations; `visual.kind` rewrites asset bindings. */
+const editPlanExcludedPaths: ReadonlySet<string> = new Set([
+  "narration",
+  "visual.kind",
+]);
+
+function readScenePath(scene: SceneSpec, path: string): unknown {
+  let value: unknown = scene;
+  for (const part of path.split(".")) {
+    if (typeof value !== "object" || value === null || Array.isArray(value))
+      return undefined;
+    value = (value as Record<string, unknown>)[part];
+  }
+  return value;
+}
+
+function isStringList(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) && value.every((item) => typeof item === "string")
+  );
+}
+
+export type EditPlanFieldOption = SceneEditorField & {
+  value: EditPlanFieldValue | null;
+};
+
+/**
+ * The fields of one scene a plan may edit, with their current values: the
+ * template's editor metadata (ST-056) narrowed to plain text, select and
+ * line-list fields. A line list qualifies only while it holds plain strings,
+ * so structured lists (labels with anchors, linked causes) are never rebuilt
+ * from chat.
+ */
+export function plannableSceneFields(
+  scene: SceneSpec,
+): readonly EditPlanFieldOption[] {
+  return sceneEditorMetadata(scene.template).fields.flatMap(
+    (field): EditPlanFieldOption[] => {
+      if (
+        !editPlanFieldControls.has(field.control) ||
+        editPlanExcludedPaths.has(field.path)
+      )
+        return [];
+      const current = readScenePath(scene, field.path);
+      if (field.control === "text-list") {
+        if (current !== undefined && !isStringList(current)) return [];
+        return [{ ...field, value: current ?? [] }];
+      }
+      if (typeof current === "string" || typeof current === "number")
+        return [{ ...field, value: current }];
+      return [{ ...field, value: null }];
+    },
+  );
+}
+
+/** Applies one field edit to a scene copy. The result is not yet validated. */
+export function applySceneFieldEdit(
+  scene: SceneSpec,
+  path: string,
+  value: EditPlanFieldValue,
+): SceneSpec {
+  const next = JSON.parse(JSON.stringify(scene)) as Record<string, unknown>;
+  const parts = path.split(".");
+  let target = next;
+  for (const part of parts.slice(0, -1)) {
+    const existing = target[part];
+    if (
+      typeof existing !== "object" ||
+      existing === null ||
+      Array.isArray(existing)
+    )
+      target[part] = {};
+    target = target[part] as Record<string, unknown>;
+  }
+  const key = parts.at(-1)!;
+  if (typeof value === "string" && value.trim() === "") delete target[key];
+  else target[key] = value;
+  return next as unknown as SceneSpec;
+}
+
+/** A field value as the planner may phrase it, coerced to the stored type. */
+function coerceFieldValue(
+  field: SceneEditorField,
+  value: EditPlanFieldValue,
+): EditPlanFieldValue | null {
+  if (field.path === "durationSeconds") {
+    const number =
+      typeof value === "number"
+        ? value
+        : typeof value === "string" && /^\d{1,3}$/.test(value.trim())
+          ? Number(value.trim())
+          : Number.NaN;
+    return Number.isInteger(number) ? number : null;
+  }
+  if (field.control === "text-list") return isStringList(value) ? value : null;
+  if (typeof value !== "string") return null;
+  if (field.control === "select")
+    return field.options?.includes(value) === true ? value : null;
+  if (field.required && value.trim() === "") return null;
+  return value;
+}
+
+export type EditPlanSceneContext = Readonly<{
+  stableSceneId: string;
+  order: number;
+  scene: SceneSpec;
+  /** Measured narration, rounded up to whole seconds (ADR-004), or null. */
+  measuredSeconds: number | null;
+}>;
+
+export type EditPlanContext = Readonly<{
+  scope: EditThreadScope;
+  /** Every storyboard scene, in order. */
+  scenes: readonly EditPlanSceneContext[];
+  /** Narration blocks of the working set, with the scene that covers each. */
+  narrationBlocks: readonly Readonly<{
+    blockId: string;
+    sceneId: string | null;
+  }>[];
+  /** Narration can be regenerated only while its set is a draft. */
+  narrationEditable: boolean;
+}>;
+
+export type EditPlanIssue = Readonly<{
+  operationIndex: number | null;
+  code:
+    | "scene_not_found"
+    | "scene_out_of_scope"
+    | "field_not_editable"
+    | "value_invalid"
+    | "value_out_of_bounds"
+    | "duration_below_narration"
+    | "block_not_found"
+    | "narration_locked"
+    | "reorder_mismatch";
+  message: string;
+}>;
+
+/**
+ * Whether a plan fits the storyboard it is applied to (ST-115). Every message
+ * is authored here from ids, paths and counts, never from provider or teacher
+ * text. Field edits are applied to a scene copy and re-parsed with the scene
+ * contract, so the template's real limits apply; a duration below the
+ * measured narration is refused (ADR-004). The worker runs this on the
+ * model's output and the API runs it again before anything is applied.
+ */
+export function validateEditPlan(
+  plan: Pick<EditPlan, "operations">,
+  context: EditPlanContext,
+): readonly EditPlanIssue[] {
+  const issues: EditPlanIssue[] = [];
+  const scenes = new Map(
+    context.scenes.map((scene) => [scene.stableSceneId, scene]),
+  );
+  const inScope = (sceneId: string): boolean =>
+    context.scope.kind === "lesson" || context.scope.sceneIds.includes(sceneId);
+  const edited = new Map<string, SceneSpec>();
+  for (const [index, operation] of plan.operations.entries()) {
+    if (operation.type === "answer-only") continue;
+    if (operation.type === "reorder-scenes") {
+      const current = context.scenes.map((scene) => scene.stableSceneId);
+      const proposed = new Set(operation.sceneIds);
+      if (
+        proposed.size !== current.length ||
+        operation.sceneIds.length !== current.length ||
+        current.some((id) => !proposed.has(id))
+      )
+        issues.push({
+          operationIndex: index,
+          code: "reorder_mismatch",
+          message: `Operation ${index + 1} must list every scene exactly once.`,
+        });
+      else if (operation.sceneIds.every((id, at) => id === current[at]))
+        issues.push({
+          operationIndex: index,
+          code: "reorder_mismatch",
+          message: `Operation ${index + 1} keeps the current order.`,
+        });
+      continue;
+    }
+    if (operation.type === "regenerate-narration-block") {
+      const block = context.narrationBlocks.find(
+        (entry) => entry.blockId === operation.blockId,
+      );
+      if (block === undefined)
+        issues.push({
+          operationIndex: index,
+          code: "block_not_found",
+          message: `Operation ${index + 1} names a narration block that is not in this lesson.`,
+        });
+      else if (!context.narrationEditable)
+        issues.push({
+          operationIndex: index,
+          code: "narration_locked",
+          message: `Operation ${index + 1} changes approved narration, which is locked.`,
+        });
+      else if (
+        context.scope.kind !== "lesson" &&
+        (block.sceneId === null || !inScope(block.sceneId))
+      )
+        issues.push({
+          operationIndex: index,
+          code: "scene_out_of_scope",
+          message: `Operation ${index + 1} names a narration block outside the selected scenes.`,
+        });
+      continue;
+    }
+    const scene = scenes.get(operation.sceneId);
+    if (scene === undefined) {
+      issues.push({
+        operationIndex: index,
+        code: "scene_not_found",
+        message: `Operation ${index + 1} names a scene that is not in this storyboard.`,
+      });
+      continue;
+    }
+    if (!inScope(operation.sceneId)) {
+      issues.push({
+        operationIndex: index,
+        code: "scene_out_of_scope",
+        message: `Operation ${index + 1} changes scene ${scene.order}, which is outside the selected scenes.`,
+      });
+      continue;
+    }
+    if (operation.type === "regenerate-scene") continue;
+    const base = edited.get(operation.sceneId) ?? scene.scene;
+    const field = plannableSceneFields(base).find(
+      (entry) => entry.path === operation.path,
+    );
+    if (field === undefined) {
+      issues.push({
+        operationIndex: index,
+        code: "field_not_editable",
+        message: `Operation ${index + 1} edits a field that is not editable for scene ${scene.order}.`,
+      });
+      continue;
+    }
+    const value = coerceFieldValue(field, operation.value);
+    if (value === null) {
+      issues.push({
+        operationIndex: index,
+        code: "value_invalid",
+        message: `Operation ${index + 1} gives ${field.label} a value of the wrong type.`,
+      });
+      continue;
+    }
+    if (field.path === "durationSeconds" && typeof value === "number") {
+      if (
+        value < storyboardSceneMinimumSeconds ||
+        value > storyboardSceneMaximumSeconds
+      ) {
+        issues.push({
+          operationIndex: index,
+          code: "value_out_of_bounds",
+          message: `Operation ${index + 1} sets a duration outside ${storyboardSceneMinimumSeconds}-${storyboardSceneMaximumSeconds} seconds.`,
+        });
+        continue;
+      }
+      if (scene.measuredSeconds !== null && value < scene.measuredSeconds) {
+        issues.push({
+          operationIndex: index,
+          code: "duration_below_narration",
+          message: `Operation ${index + 1} sets scene ${scene.order} to ${value} s, but its narration measures ${scene.measuredSeconds} s.`,
+        });
+        continue;
+      }
+    }
+    const next = applySceneFieldEdit(base, field.path, value);
+    const parsed = sceneSpecSchema.safeParse(next);
+    if (!parsed.success) {
+      issues.push({
+        operationIndex: index,
+        code: "value_out_of_bounds",
+        message: `Operation ${index + 1} gives ${field.label} a value outside the template's limits.`,
+      });
+      continue;
+    }
+    edited.set(operation.sceneId, parsed.data);
+  }
+  return issues;
+}
+
+/**
+ * The scene each operation would produce, keyed by stable scene id: every
+ * field edit of a valid plan applied in order. Used to build the ST-056 edit
+ * commands, one per scene.
+ */
+export function editPlanSceneEdits(
+  operations: readonly EditPlanOperation[],
+  scenes: readonly EditPlanSceneContext[],
+): ReadonlyMap<string, SceneSpec> {
+  const result = new Map<string, SceneSpec>();
+  for (const operation of operations) {
+    if (operation.type !== "edit-scene-field") continue;
+    const scene = scenes.find(
+      (entry) => entry.stableSceneId === operation.sceneId,
+    );
+    if (scene === undefined) continue;
+    const base = result.get(operation.sceneId) ?? scene.scene;
+    const field = plannableSceneFields(base).find(
+      (entry) => entry.path === operation.path,
+    );
+    if (field === undefined) continue;
+    const value = coerceFieldValue(field, operation.value);
+    if (value === null) continue;
+    result.set(
+      operation.sceneId,
+      sceneSpecSchema.parse(applySceneFieldEdit(base, field.path, value)),
+    );
+  }
+  return result;
+}
+
+/**
+ * What undoing a turn restores: the storyboard revision the turn started
+ * from, the scene order then, and the scenes the turn changed as they were.
+ * Field edits and reorders never add or remove scenes, so this is the exact
+ * pre-turn storyboard while nothing else has changed since (AC6).
+ */
+export const editTurnUndoSnapshotSchema = z
+  .object({
+    revision: z.number().int().nonnegative(),
+    sceneOrder: z.array(identifierSchema).min(1).max(100),
+    scenes: z.array(lessonStoryboardSceneSchema).max(100),
+  })
+  .strict();
+export type EditTurnUndoSnapshot = z.infer<typeof editTurnUndoSnapshotSchema>;
+
+/** `details` of the 409 a stale plan gets: re-plan against `currentRevision`. */
+export const editPlanConflictDetailsSchema = z
+  .object({
+    action: z.literal("re-plan"),
+    currentRevision: z.number().int().nonnegative().nullable(),
+  })
+  .strict();
+export type EditPlanConflictDetails = z.infer<
+  typeof editPlanConflictDetailsSchema
 >;

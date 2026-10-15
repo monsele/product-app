@@ -43,7 +43,9 @@ describeWithPostgres("PostgreSQL migration lifecycle", () => {
       "utf8",
     );
     expect(compatibilityNotes).toContain("forward migration");
-  });
+    // Applying every migration twice grows with the journal (73 files at
+    // ST-115) and exceeded the 5 s default under parallel test load.
+  }, 30_000);
 });
 
 describeWithPostgres("PostgreSQL transaction and concurrency behavior", () => {

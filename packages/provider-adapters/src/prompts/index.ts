@@ -26,6 +26,7 @@ import { storyboardPromptV3 } from "./storyboard/v3.js";
 import { storyboardPromptV4 } from "./storyboard/v4.js";
 import { lessonIntentPromptV1 } from "./lesson-intent/v1.js";
 import { oneShotBriefPromptV1 } from "./one-shot-brief/v1.js";
+import { editPlanPromptV1 } from "./edit-plan/v1.js";
 
 /**
  * The repository's versioned prompt files. Every prompt change must bump a
@@ -58,4 +59,5 @@ export const repositoryPrompts: readonly PromptDefinition[] = [
   visualPlanPromptV1,
   lessonIntentPromptV1,
   oneShotBriefPromptV1,
+  editPlanPromptV1,
 ];

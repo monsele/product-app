@@ -103,6 +103,7 @@ import type { ExportService } from "./exports.js";
 import type { ShareLinkService } from "./share-links.js";
 import type { SoundBedService } from "./sound-beds.js";
 import type { OneShotService } from "./one-shot.js";
+import type { EditThreadService } from "./edit-thread.js";
 import { oneShotEligibilitySchema } from "@avlp/schemas/one-shot";
 import { searchApprovedAssets } from "./approved-assets.js";
 
@@ -151,6 +152,7 @@ const DEMONSTRATION_TEST_LESSON_SERVICE = Symbol(
   "DEMONSTRATION_TEST_LESSON_SERVICE",
 );
 const ONE_SHOT_SERVICE = Symbol("ONE_SHOT_SERVICE");
+const EDIT_THREAD_SERVICE = Symbol("EDIT_THREAD_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
 
@@ -3122,6 +3124,118 @@ class OneShotController {
   }
 }
 
+/**
+ * ST-115 - conversational editing of the storyboard.
+ *
+ * Every route is under `/projects/:projectId`, so the project authorizer
+ * rejects another tenant's project with 404 before the handler runs (AC9);
+ * the service also scopes every query by owner and project.
+ */
+@Controller("projects")
+class EditThreadController {
+  public constructor(
+    @Inject(TRUSTED_ORIGIN)
+    private readonly trustedOrigin: string | undefined,
+    @Inject(EDIT_THREAD_SERVICE) private readonly editThread: EditThreadService,
+  ) {}
+
+  @Get(":projectId/edit-thread/messages")
+  public async messages(
+    @Param("projectId") projectId: string,
+    @Query("before") before: string | undefined,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    return this.editThread.list({
+      ...assertAuthorizedProject(request, projectId),
+      ...(before === undefined ? {} : { before }),
+    });
+  }
+
+  /** Queues one metered `ai.edit-plan` call for the request. */
+  @Post(":projectId/edit-thread/messages")
+  @HttpCode(202)
+  public async postMessage(
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+    @Headers("idempotency-key") idempotencyKey: string | undefined,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.editThread.postMessage({
+      ...assertAuthorizedProject(request, projectId),
+      body,
+      idempotencyKey,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/edit-thread/plans/:planId/apply")
+  @HttpCode(200)
+  public async apply(
+    @Param("projectId") projectId: string,
+    @Param("planId") planId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.editThread.applyPlan({
+      ...assertAuthorizedProject(request, projectId),
+      planId: editThreadPlanId(planId),
+      body,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/edit-thread/plans/:planId/dismiss")
+  @HttpCode(200)
+  public async dismiss(
+    @Param("projectId") projectId: string,
+    @Param("planId") planId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.editThread.dismissPlan({
+      ...assertAuthorizedProject(request, projectId),
+      planId: editThreadPlanId(planId),
+      body,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  @Post(":projectId/edit-thread/plans/:planId/undo")
+  @HttpCode(200)
+  public async undo(
+    @Param("projectId") projectId: string,
+    @Param("planId") planId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.editThread.undoPlan({
+      ...assertAuthorizedProject(request, projectId),
+      planId: editThreadPlanId(planId),
+      body,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+}
+
+function editThreadPlanId(value: string): Identifier {
+  const parsed = identifierSchema.safeParse(value);
+  if (!parsed.success)
+    throw new PublicError(
+      "not_found",
+      "The requested resource was not found.",
+      404,
+    );
+  return parsed.data;
+}
+
 @Controller("share")
 class PublicShareController {
   public constructor(
@@ -3242,6 +3356,7 @@ class DatabaseShutdown implements OnApplicationShutdown {
     SoundBedsController,
     ProjectsController,
     OneShotController,
+    EditThreadController,
     DemonstrationTestLessonController,
     PublicShareController,
   ],
@@ -3292,6 +3407,7 @@ function createAppModule(
   demonstrationTestLessonService: DemonstrationTestLessonApiService,
   demonstrationPilotCohort: DemonstrationPilotCohort,
   oneShotService: OneShotService,
+  editThreadService: EditThreadService,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -3360,6 +3476,7 @@ function createAppModule(
         useValue: demonstrationPilotCohort,
       },
       { provide: ONE_SHOT_SERVICE, useValue: oneShotService },
+      { provide: EDIT_THREAD_SERVICE, useValue: editThreadService },
     ],
   };
 }
@@ -3404,6 +3521,7 @@ export type CreateAppOptions = {
   demonstrationTestLessonService?: DemonstrationTestLessonApiService;
   demonstrationPilotCohort?: DemonstrationPilotCohort;
   oneShotService?: OneShotService;
+  editThreadService?: EditThreadService;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -4606,6 +4724,23 @@ const unavailableOneShotService: OneShotService = {
   cancel: oneShotUnavailable,
 };
 
+const editThreadUnavailable = () =>
+  Promise.reject(
+    new PublicError(
+      "internal_error",
+      "Conversational editing is unavailable.",
+      503,
+      true,
+    ),
+  );
+const unavailableEditThreadService: EditThreadService = {
+  list: editThreadUnavailable,
+  postMessage: editThreadUnavailable,
+  applyPlan: editThreadUnavailable,
+  dismissPlan: editThreadUnavailable,
+  undoPlan: editThreadUnavailable,
+};
+
 /** No pilot configured means no cohort, so the routes answer 404. */
 const closedDemonstrationPilotCohort: DemonstrationPilotCohort = {
   enabled: () => false,
@@ -4676,6 +4811,7 @@ export async function createApp(
         unavailableDemonstrationTestLessonService,
       options.demonstrationPilotCohort ?? closedDemonstrationPilotCohort,
       options.oneShotService ?? unavailableOneShotService,
+      options.editThreadService ?? unavailableEditThreadService,
     ),
     new FastifyAdapter({
       logger: {

@@ -39,6 +39,7 @@ import {
   dataChartAltText,
   dataChartTableSlot,
   dataChartUnselectedTableId,
+  editTurnUndoSnapshotSchema,
   sceneSpecSchema,
   sourceTableCitation,
   withSourceTableCitation,
@@ -237,6 +238,18 @@ export interface StoryboardService {
     /** ST-105. Set when a prompt-to-video run acts for the owner. */
     oneShotRunId?: Identifier | undefined;
   }): Promise<StoryboardSceneEditResponse>;
+  /**
+   * ST-115. Undoes one conversational edit turn: restores the scenes it
+   * changed and the order it started from, as one new revision, only while
+   * the storyboard is still at `expectedRevision`.
+   */
+  restoreEditTurn(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    expectedRevision: number;
+    snapshot: unknown;
+    correlationId: Identifier;
+  }): Promise<{ revision: number }>;
 }
 
 type LessonSpecRow = typeof lessonSpecs.$inferSelect;
@@ -1281,40 +1294,14 @@ export class PostgresStoryboardService implements StoryboardService {
         timestamp,
       );
       const impact = sceneEditInvalidation(current.scene, edited.scene);
-      if (impact.invalidated.includes("captions")) {
-        await transaction
-          .update(sceneAudio)
-          .set({ status: "stale", updatedAt: timestamp })
-          .where(
-            and(
-              eq(sceneAudio.ownerUserId, input.ownerUserId),
-              eq(sceneAudio.projectId, input.projectId),
-              eq(sceneAudio.sceneId, current.id),
-            ),
-          );
-        await transaction
-          .update(captionTracks)
-          .set({ status: "stale", updatedAt: timestamp })
-          .where(
-            and(
-              eq(captionTracks.ownerUserId, input.ownerUserId),
-              eq(captionTracks.projectId, input.projectId),
-              inArray(
-                captionTracks.sceneAudioId,
-                transaction
-                  .select({ id: sceneAudio.id })
-                  .from(sceneAudio)
-                  .where(
-                    and(
-                      eq(sceneAudio.ownerUserId, input.ownerUserId),
-                      eq(sceneAudio.projectId, input.projectId),
-                      eq(sceneAudio.sceneId, current.id),
-                    ),
-                  ),
-              ),
-            ),
-          );
-      }
+      if (impact.invalidated.includes("captions"))
+        await this.markSceneMediaStale(
+          transaction,
+          input.ownerUserId,
+          input.projectId,
+          current.id,
+          timestamp,
+        );
       await new PostgresAuditWriter(transaction).write({
         ownerUserId: input.ownerUserId,
         projectId: input.projectId,
@@ -2010,6 +1997,138 @@ export class PostgresStoryboardService implements StoryboardService {
       ownerUserId: input.ownerUserId,
       projectId: input.projectId,
     });
+  }
+
+  public async restoreEditTurn(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    expectedRevision: number;
+    snapshot: unknown;
+    correlationId: Identifier;
+  }): Promise<{ revision: number }> {
+    const snapshot = editTurnUndoSnapshotSchema.parse(input.snapshot);
+    const timestamp = this.now();
+    let revision: number | undefined;
+    await this.database.transaction(async (transaction) => {
+      const lessonSpec = await this.mutableDraftLessonSpecRow(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        input.expectedRevision,
+      );
+      const storyboard = parseStoryboard(lessonSpec);
+      const current = new Map(
+        storyboard.scenes.map((scene) => [scene.stableSceneId, scene]),
+      );
+      // A turn never adds or removes scenes; a different scene set means the
+      // storyboard moved on and the snapshot no longer describes it.
+      if (
+        snapshot.sceneOrder.length !== current.size ||
+        snapshot.sceneOrder.some((id) => !current.has(id))
+      )
+        throw sceneConflict();
+      const restored = new Map(
+        snapshot.scenes.map((scene) => [scene.stableSceneId, scene]),
+      );
+      const nextScenes = this.renumberScenes(
+        snapshot.sceneOrder.map((stableSceneId) => {
+          const now = current.get(stableSceneId)!;
+          const before = restored.get(stableSceneId);
+          return before === undefined ? now : { ...before, id: now.id };
+        }),
+      );
+      const updatedStoryboard = this.rebuildStoryboard(storyboard, nextScenes);
+      await this.persistStoryboard(
+        transaction,
+        lessonSpec,
+        updatedStoryboard,
+        timestamp,
+      );
+      await this.syncSceneRows(
+        transaction,
+        input.ownerUserId,
+        input.projectId,
+        lessonSpec.id,
+        nextScenes,
+        timestamp,
+      );
+      for (const scene of nextScenes) {
+        const now = current.get(scene.stableSceneId)!;
+        if (
+          sceneEditInvalidation(now.scene, scene.scene).invalidated.includes(
+            "captions",
+          )
+        )
+          await this.markSceneMediaStale(
+            transaction,
+            input.ownerUserId,
+            input.projectId,
+            scene.id,
+            timestamp,
+          );
+      }
+      await new PostgresAuditWriter(transaction).write({
+        ownerUserId: input.ownerUserId,
+        projectId: input.projectId,
+        actor: { type: "user", userId: input.ownerUserId },
+        eventType: "storyboard.edited",
+        target: { type: "storyboard", id: storyboard.id },
+        correlationId: input.correlationId,
+        metadata: {
+          operation: "edit_turn_undo",
+          restoredRevision: snapshot.revision,
+          sceneCount: snapshot.scenes.length,
+          lessonSpecRevision: updatedStoryboard.revision,
+          invalidatedScope: ["preview", "validation", "render"],
+        },
+        occurredAt: timestamp,
+      });
+      revision = updatedStoryboard.revision;
+    });
+    if (revision === undefined) throw sceneConflict();
+    return { revision };
+  }
+
+  /** Marks one scene's audio and captions stale after its narration changed. */
+  private async markSceneMediaStale(
+    executor: DatabaseExecutor,
+    ownerUserId: Identifier,
+    projectId: Identifier,
+    sceneRowId: Identifier,
+    timestamp: Date,
+  ): Promise<void> {
+    await executor
+      .update(sceneAudio)
+      .set({ status: "stale", updatedAt: timestamp })
+      .where(
+        and(
+          eq(sceneAudio.ownerUserId, ownerUserId),
+          eq(sceneAudio.projectId, projectId),
+          eq(sceneAudio.sceneId, sceneRowId),
+        ),
+      );
+    await executor
+      .update(captionTracks)
+      .set({ status: "stale", updatedAt: timestamp })
+      .where(
+        and(
+          eq(captionTracks.ownerUserId, ownerUserId),
+          eq(captionTracks.projectId, projectId),
+          inArray(
+            captionTracks.sceneAudioId,
+            executor
+              .select({ id: sceneAudio.id })
+              .from(sceneAudio)
+              .where(
+                and(
+                  eq(sceneAudio.ownerUserId, ownerUserId),
+                  eq(sceneAudio.projectId, projectId),
+                  eq(sceneAudio.sceneId, sceneRowId),
+                ),
+              ),
+          ),
+        ),
+      );
   }
 
   private renumberScenes(

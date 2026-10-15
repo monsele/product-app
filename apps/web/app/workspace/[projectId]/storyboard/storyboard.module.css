@@ -1379,3 +1379,212 @@
     transition: none !important;
   }
 }
+
+/* ST-115: Ask for changes */
+
+.editThread {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.editThreadList {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  max-height: 420px;
+  overflow-y: auto;
+}
+
+.editRequest {
+  justify-self: end;
+  max-width: 92%;
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface-brand);
+  border: 1px solid var(--color-brand-line);
+}
+
+.editRequest p {
+  margin: 0;
+  font: var(--text-supporting);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.editScopeTag {
+  font: var(--text-supporting);
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.editPlan {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background-color: var(--color-surface);
+}
+
+.editPlan[data-status="dismissed"],
+.editPlan[data-status="undone"] {
+  opacity: 0.72;
+}
+
+.editPlanBody {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.editPlanning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  font: var(--text-supporting);
+  color: var(--color-text-muted);
+}
+
+.editPlanStatus,
+.editPlanSummary {
+  margin: 0;
+  font: var(--text-supporting);
+  color: var(--color-text);
+}
+
+.editPlanStatus strong {
+  font-weight: 650;
+}
+
+.editOperations {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.editOperation {
+  display: grid;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
+  background-color: var(--color-canvas);
+  border: 1px solid var(--color-border-soft);
+}
+
+.editOperationHead {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font: var(--text-supporting);
+}
+
+.editOperationState {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.editOperationState[data-state="ready"] {
+  color: var(--color-brand);
+  font-weight: 600;
+}
+
+.editOperationState[data-state="failed"],
+.editOperationState[data-state="skipped"] {
+  color: var(--color-warning-text);
+}
+
+.editDiff {
+  margin: 0;
+  font: var(--text-supporting);
+  overflow-wrap: anywhere;
+}
+
+.editDiff del {
+  color: var(--color-text-muted);
+}
+
+.editDiff ins {
+  text-decoration: none;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.editComposer {
+  display: grid;
+  gap: 10px;
+}
+
+.editScope,
+.editSceneChoices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font: var(--text-supporting);
+  color: var(--color-text);
+}
+
+.editScope legend,
+.editSceneChoices legend {
+  width: 100%;
+  margin-bottom: 4px;
+  color: var(--color-text-muted);
+}
+
+.editScope label,
+.editSceneChoices label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.editSceneChoices {
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.editFieldLabel {
+  font: var(--text-supporting);
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.editTextarea {
+  font: var(--text-supporting);
+  width: 100%;
+  resize: vertical;
+  padding: 8px 10px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-border);
+  background-color: var(--color-canvas);
+  color: var(--color-text);
+}
+
+.editTextarea:focus-visible,
+.editScope input:focus-visible,
+.editSceneChoices input:focus-visible,
+.editOperationHead input:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+.editSuggestions,
+.editActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.editThreadSlot {
+  margin-bottom: 14px;
+}

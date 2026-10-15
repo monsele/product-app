@@ -18,6 +18,7 @@ describe("prompt registry", () => {
       [...new Set(definitions.map((definition) => definition.kind))].sort(),
     ).toEqual([
       "creative-design",
+      "edit-plan",
       "grounding",
       "lesson-intent",
       "narration",

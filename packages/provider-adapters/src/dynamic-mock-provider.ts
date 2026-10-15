@@ -1245,6 +1245,158 @@ function generateVisualPlanJson(text: string): string {
   return JSON.stringify({ scenes });
 }
 
+type EditPlanMockScene = {
+  sceneId: string;
+  order: number;
+  inScope: boolean;
+  title?: string;
+  onScreenText?: string[];
+  durationSeconds?: number;
+  measuredNarrationSeconds?: number | null;
+  editableFields?: { path: string; control: string; options?: string[] }[];
+};
+
+type EditPlanMockInput = {
+  request?: string;
+  scope?: { kind?: string };
+  scenes?: EditPlanMockScene[];
+  earlierTurns?: {
+    operations?: { type?: string; sceneId?: string; mode?: string }[];
+  }[];
+};
+
+/**
+ * ST-115: a deterministic change plan built from the planner's own input, so
+ * local runs and the mocked E2E exercise conversational editing without a
+ * provider. It covers the evaluation cases: one scene, several scenes, the
+ * whole lesson (with scenes left for a follow-up), a timing conflict, an
+ * ambiguous request and an out-of-bounds layout request.
+ */
+function generateEditPlanJson(text: string): string {
+  const marker = "The input below is the whole context.";
+  const at = text.lastIndexOf(marker);
+  let input: EditPlanMockInput = {};
+  try {
+    input = JSON.parse(text.slice(at + marker.length).trim()) as EditPlanMockInput;
+  } catch {
+    input = {};
+  }
+  const request = (input.request ?? "").toLowerCase();
+  const scenes = (input.scenes ?? []).filter((scene) => scene.inScope);
+  const answer = (value: string) =>
+    JSON.stringify({
+      schemaVersion: "edit-plan-v1",
+      summary: clampText(value, 300),
+      operations: [{ type: "answer-only", answer: clampText(value, 600) }],
+    });
+  if (/pixel|coordinat|position|font|colou?r|css|move .* (left|right|up|down)/.test(request))
+    return answer(
+      "The renderer places every element, so I can't move things or set sizes, fonts or colours. I can change the wording, timing or transition, or regenerate a scene.",
+    );
+  if (
+    scenes.length === 0 ||
+    (input.scope?.kind === "lesson" &&
+      /\b(it|this|that)\b/.test(request) &&
+      !/\b(every|all|each|whole|lesson)\b/.test(request))
+  )
+    return answer("Which scene should I change? Select it, or name it in your request.");
+  const planned = scenes.slice(0, 8);
+  const remainingSceneIds = scenes.slice(8).map((scene) => scene.sceneId);
+  const plan = (summary: string, operations: unknown[]) =>
+    JSON.stringify({
+      schemaVersion: "edit-plan-v1",
+      summary:
+        remainingSceneIds.length === 0
+          ? summary
+          : clampText(
+              `${summary} ${remainingSceneIds.length} more scene${remainingSceneIds.length === 1 ? "" : "s"} left for a follow-up request.`,
+              300,
+            ),
+      operations,
+      ...(remainingSceneIds.length === 0 ? {} : { remainingSceneIds }),
+    });
+  const seconds = /(\d{1,3})\s*(?:s\b|sec|second)/.exec(request);
+  if (seconds !== null) {
+    const target = planned[0]!;
+    const value = Number(seconds[1]);
+    const measured = target.measuredNarrationSeconds ?? null;
+    if (measured !== null && value < measured)
+      return answer(
+        `Scene ${target.order} can't be ${value} s: its narration measures ${measured} s. Shorten the narration instead?`,
+      );
+    return plan(`Set scene ${target.order} to ${value} seconds.`, [
+      {
+        type: "edit-scene-field",
+        sceneId: target.sceneId,
+        path: "durationSeconds",
+        value,
+        rationale: `Scene ${target.order} runs ${value} seconds.`,
+      },
+    ]);
+  }
+  if (/\bagain\b/.test(request)) {
+    const previous = [...(input.earlierTurns ?? [])]
+      .reverse()
+      .flatMap((turn) => turn.operations ?? [])
+      .find((operation) => operation.type === "regenerate-scene");
+    if (previous?.sceneId !== undefined)
+      return plan("Do the previous change once more.", [
+        {
+          type: "regenerate-scene",
+          sceneId: previous.sceneId,
+          mode: request.includes("short") ? "shorten" : (previous.mode ?? "regenerate"),
+          instruction: clampText(input.request ?? "Repeat the previous change.", 500),
+          rationale: "Repeats the change from your last request.",
+        },
+      ]);
+  }
+  if (/on-screen|on screen|\blines?\b/.test(request) && /short/.test(request)) {
+    const withText = planned.filter((scene) => (scene.onScreenText ?? []).length > 0);
+    if (withText.length === 0)
+      return answer("None of these scenes has on-screen text to shorten.");
+    return plan(
+      `Shorten the on-screen text in ${withText.length} scene${withText.length === 1 ? "" : "s"}.`,
+      withText.map((scene) => ({
+        type: "edit-scene-field",
+        sceneId: scene.sceneId,
+        path: "onScreenText",
+        value: (scene.onScreenText ?? []).map(
+          (line) => line.split(/\s+/).slice(0, 4).join(" ") || line,
+        ),
+        rationale: `Keeps scene ${scene.order}'s on-screen lines to a few words.`,
+      })),
+    );
+  }
+  if (/transition/.test(request))
+    return plan(
+      "Use a gentle fade into the selected scenes.",
+      planned.map((scene) => ({
+        type: "edit-scene-field",
+        sceneId: scene.sceneId,
+        path: "transition",
+        value: "fade",
+        rationale: `A fade eases into scene ${scene.order}.`,
+      })),
+    );
+  const mode = /simpl/.test(request)
+    ? "simplify"
+    : /short/.test(request)
+      ? "shorten"
+      : /visual|picture|diagram/.test(request)
+        ? "improve-visual"
+        : "regenerate";
+  return plan(
+    `Regenerate ${planned.length === 1 ? `scene ${planned[0]!.order}` : `${planned.length} scenes`} (${mode}).`,
+    planned.map((scene) => ({
+      type: "regenerate-scene",
+      sceneId: scene.sceneId,
+      mode,
+      instruction: clampText(input.request ?? "Improve this scene.", 500),
+      rationale: `Rewrites scene ${scene.order} as you asked; you compare before and after.`,
+    })),
+  );
+}
+
 export class DynamicMockLanguageModelProvider implements LanguageModelProvider {
   public readonly providerId: string;
   public readonly supportedModels = [togetherModelDefaults.llm] as const;
@@ -1271,7 +1423,9 @@ export class DynamicMockLanguageModelProvider implements LanguageModelProvider {
 
     let jsonOutput: string;
 
-    if (systemText.includes("rewrites ONE narration block")) {
+    if (systemText.includes("storyboard editing planner")) {
+      jsonOutput = generateEditPlanJson(fullText);
+    } else if (systemText.includes("rewrites ONE narration block")) {
       jsonOutput = generateNarrationBlockTransformJson(fullText, allUuids);
     } else if (systemText.includes("storyboard scene editor")) {
       jsonOutput = generateSceneRegenerationJson(fullText, allUuids);

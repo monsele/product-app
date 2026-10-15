@@ -10,6 +10,8 @@ export const promptKindValues = [
   "creative-design",
   "lesson-intent",
   "one-shot-brief",
+  // ST-115. The conversational edit planner.
+  "edit-plan",
 ] as const;
 export const promptKindSchema = z.enum(promptKindValues);
 export type PromptKind = z.infer<typeof promptKindSchema>;

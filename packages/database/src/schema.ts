@@ -1056,6 +1056,11 @@ export const auditEventTypeValues = [
   // ST-107. The video brief and the run budget.
   "one_shot.brief_prepared",
   "one_shot.budget_accepted",
+  // ST-115. Conversational storyboard edits.
+  "edit_thread.message_posted",
+  "edit_thread.plan_applied",
+  "edit_thread.plan_dismissed",
+  "edit_thread.plan_undone",
 ] as const;
 export const auditEventType = pgEnum("audit_event_type", auditEventTypeValues);
 
@@ -1099,6 +1104,7 @@ export const usageOperationTypeValues = [
   "ai.creative_design",
   "ai.lesson-intent",
   "ai.one-shot-brief",
+  "ai.edit-plan",
   "image.generation",
   "tts.generation",
   "video.render",
@@ -2971,6 +2977,90 @@ export const oneShotRunDecisions = pgTable(
     uniqueIndex("one_shot_run_decisions_run_seq_unique").on(
       table.runId,
       table.seq,
+    ),
+  ],
+);
+
+/**
+ * ST-115. One conversational edit thread per project. Messages carry the
+ * teacher's requests and the plans proposed for them; the plans themselves
+ * only ever dispatch to the existing storyboard and narration services.
+ */
+export const lessonEditThreads = pgTable(
+  "lesson_edit_threads",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    /** Last message `seq` handed out; bumped with each insert so the row
+     * lock serialises appends. */
+    messageSequence: integer("message_sequence").notNull().default(0),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("lesson_edit_threads_project_unique").on(
+      table.ownerUserId,
+      table.projectId,
+    ),
+  ],
+);
+
+export const lessonEditMessageRoleValues = ["teacher", "assistant"] as const;
+export const lessonEditMessageStatusValues = [
+  "sent",
+  "planning",
+  "proposed",
+  "answered",
+  "applying",
+  "applied",
+  "partly_applied",
+  "dismissed",
+  "undone",
+  "failed",
+] as const;
+
+export const lessonEditMessages = pgTable(
+  "lesson_edit_messages",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    threadId: uuid("thread_id")
+      .notNull()
+      .references(() => lessonEditThreads.id, { onDelete: "cascade" }),
+    seq: integer("seq").notNull(),
+    role: text("role", { enum: lessonEditMessageRoleValues }).notNull(),
+    /** The assistant message this teacher message produced, or the teacher
+     * message an assistant message answers. */
+    replyToId: uuid("reply_to_id"),
+    /** User content, like a focus prompt: never logged or audited. */
+    text: text("text"),
+    scope: jsonb("scope").notNull(),
+    status: text("status", { enum: lessonEditMessageStatusValues }).notNull(),
+    idempotencyKey: text("idempotency_key"),
+    requestHash: text("request_hash"),
+    jobId: uuid("job_id"),
+    modelCallId: uuid("model_call_id"),
+    plan: jsonb("plan"),
+    operationStates: jsonb("operation_states").notNull().default([]),
+    appliedOperationIds: jsonb("applied_operation_ids").notNull().default([]),
+    beforeRevision: integer("before_revision"),
+    afterRevision: integer("after_revision"),
+    /** The scenes a turn changed, as they were before it, for undo. */
+    undoSnapshot: jsonb("undo_snapshot"),
+    errorCode: text("error_code"),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("lesson_edit_messages_thread_seq_unique").on(
+      table.threadId,
+      table.seq,
+    ),
+    uniqueIndex("lesson_edit_messages_request_unique")
+      .on(table.ownerUserId, table.projectId, table.idempotencyKey)
+      .where(sql`${table.idempotencyKey} is not null`),
+    index("lesson_edit_messages_owner_project_created_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.createdAt,
     ),
   ],
 );

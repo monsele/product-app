@@ -690,9 +690,9 @@
     "semantic_hash": ""
   },
   "apps/api/src/storyboard.ts": {
-    "mtime": 1792015435.4847136,
-    "seen": 1792047485.3102221,
-    "ast_hash": "7521257df35adaeebdf45a6db7188812",
+    "mtime": 1792050213.1605697,
+    "seen": 1792053638.4281511,
+    "ast_hash": "dfe800f5c0d93dc1d9775177967d6d25",
     "semantic_hash": ""
   },
   "apps/api/src/voice-configuration.test.ts": {
@@ -1020,15 +1020,15 @@
     "semantic_hash": ""
   },
   "apps/pipeline-worker/src/scene-regeneration-job.test.ts": {
-    "mtime": 1788613456.0,
-    "seen": 1790461247.7226746,
-    "ast_hash": "bc87bdc95b8adce86e0946176552b7d7",
+    "mtime": 1792050201.5283186,
+    "seen": 1792053638.4434798,
+    "ast_hash": "7c49facbceb17cf40f15371ec2d6c714",
     "semantic_hash": ""
   },
   "apps/pipeline-worker/src/scene-regeneration-job.ts": {
-    "mtime": 1792015122.6163476,
-    "seen": 1792047485.323371,
-    "ast_hash": "d8727137cea205de1a552ae91e89634b",
+    "mtime": 1792050198.2458909,
+    "seen": 1792053638.4434822,
+    "ast_hash": "35f1a4d416350b5843424d6ead34a399",
     "semantic_hash": ""
   },
   "apps/pipeline-worker/src/storyboard-job.test.ts": {
@@ -1038,9 +1038,9 @@
     "semantic_hash": ""
   },
   "apps/pipeline-worker/src/storyboard-job.ts": {
-    "mtime": 1792016977.3363264,
-    "seen": 1792047485.3237884,
-    "ast_hash": "7bdd952d270d95fc5ef57a8e32de5030",
+    "mtime": 1792050200.455266,
+    "seen": 1792053638.443698,
+    "ast_hash": "a5a7f77601a7bdaf3f590cb70e78826f",
     "semantic_hash": ""
   },
   "apps/pipeline-worker/src/together-alignment.test.ts": {
@@ -3972,9 +3972,9 @@
     "semantic_hash": ""
   },
   "packages/scene-library/src/full-lesson.tsx": {
-    "mtime": 1792013184.0457754,
-    "seen": 1792047485.4616466,
-    "ast_hash": "a23dc2f65a0d9c06f56fa6344f191a1b",
+    "mtime": 1792050418.713038,
+    "seen": 1792053638.5912285,
+    "ast_hash": "4b8796ad4065e17a1d9258e40219bd0c",
     "semantic_hash": ""
   },
   "packages/scene-library/src/graph-diagram.tsx": {
@@ -4116,9 +4116,9 @@
     "semantic_hash": ""
   },
   "packages/scene-library/src/scene-registry.tsx": {
-    "mtime": 1792013059.42386,
-    "seen": 1792047485.4663668,
-    "ast_hash": "81798ad6d83f427893e27952eecd888e",
+    "mtime": 1792050415.4501922,
+    "seen": 1792053638.5966244,
+    "ast_hash": "b96ac4f2e3a84126b6ba4783468ece86",
     "semantic_hash": ""
   },
   "packages/scene-library/src/sound-bed.test.tsx": {
@@ -5004,9 +5004,9 @@
     "semantic_hash": ""
   },
   "STORY_INDEX.md": {
-    "mtime": 1792011309.2896533,
-    "seen": 1792047485.4991107,
-    "ast_hash": "d5b7c7788e9c3be0165efffd65db77fa",
+    "mtime": 1792050015.2894175,
+    "seen": 1792053638.6345844,
+    "ast_hash": "a6646bd2a61407a686445e038f89d1f9",
     "semantic_hash": ""
   },
   "STORY_TEMPLATE.md": {
@@ -5100,9 +5100,9 @@
     "semantic_hash": ""
   },
   "docs/adr/ADR-010-expand-versioned-style-packs.md": {
-    "mtime": 1789976736.612442,
-    "seen": 1790461247.723372,
-    "ast_hash": "02e28ea1d26f064727b10de42f44994a",
+    "mtime": 1792050768.942456,
+    "seen": 1792053638.6378033,
+    "ast_hash": "ebef0a167401b9aaf2de156d51de361f",
     "semantic_hash": ""
   },
   "docs/adr/ADR-011-design-snapshots-do-not-require-render-readiness.md": {
@@ -6420,14 +6420,14 @@
     "semantic_hash": ""
   },
   ".runtime-logs/audio-first/audio-1280.png": {
-    "mtime": 1792046876.008422,
-    "seen": 1792047485.5550659,
+    "mtime": 1792051766.1587627,
+    "seen": 1792053638.7575939,
     "ast_hash": "a1614bec1bf0d5a2b349909c814b225a",
     "semantic_hash": ""
   },
   ".runtime-logs/audio-first/audio-375.png": {
-    "mtime": 1792046875.8446734,
-    "seen": 1792047485.555069,
+    "mtime": 1792051765.9143271,
+    "seen": 1792053638.7575972,
     "ast_hash": "32d852e20cb6b775ef29d18248de56fd",
     "semantic_hash": ""
   },
@@ -6462,26 +6462,26 @@
     "semantic_hash": ""
   },
   ".runtime-logs/source-visual-picker/table-selected-1280.png": {
-    "mtime": 1792046832.942682,
-    "seen": 1792047485.7871475,
+    "mtime": 1792051637.8126843,
+    "seen": 1792053639.0886965,
     "ast_hash": "6a8046ee50273d19d6050a23ef348fb4",
     "semantic_hash": ""
   },
   ".runtime-logs/source-visual-picker/table-selected-375.png": {
-    "mtime": 1792046834.1046536,
-    "seen": 1792047485.7871501,
+    "mtime": 1792051639.7189827,
+    "seen": 1792053639.0886993,
     "ast_hash": "f4e042c402e1ddba343700169e4da5b0",
     "semantic_hash": ""
   },
   ".runtime-logs/source-visual-picker/table-selected-640.png": {
-    "mtime": 1792046834.6753173,
-    "seen": 1792047485.7871518,
+    "mtime": 1792051640.6158495,
+    "seen": 1792053639.088701,
     "ast_hash": "4eb52eb4fb63817fc79f44a59973af20",
     "semantic_hash": ""
   },
   ".runtime-logs/source-visual-picker/table-selected-768.png": {
-    "mtime": 1792046833.53013,
-    "seen": 1792047485.7871554,
+    "mtime": 1792051638.8173983,
+    "seen": 1792053639.088705,
     "ast_hash": "892ca78e07156facfff310bd1fcef3a0",
     "semantic_hash": ""
   },
@@ -15654,45 +15654,45 @@
     "semantic_hash": ""
   },
   "stories/11-visual-storytelling/ST-114-animated-data-chart-scene-from-source-tables.md": {
-    "mtime": 1792011309.2416008,
-    "seen": 1792047485.5513577,
-    "ast_hash": "870130e72012bd570825817e93749eae",
+    "mtime": 1792053496.856285,
+    "seen": 1792053638.7501159,
+    "ast_hash": "46a1c4d4fec13d6aa1f5e9ceca77abe6",
     "semantic_hash": ""
   },
   "apps/api/src/data-chart.integration.test.ts": {
-    "mtime": 1792017428.8113663,
-    "seen": 1792047485.2856674,
-    "ast_hash": "320100d316148e09544e1b7eb33b6260",
+    "mtime": 1792050221.937769,
+    "seen": 1792053638.3893015,
+    "ast_hash": "1d09f8722f47c29cff276d5110b120f3",
     "semantic_hash": ""
   },
   "apps/pipeline-worker/src/chart-tables.test.ts": {
-    "mtime": 1792018323.0319586,
-    "seen": 1792047485.3114586,
-    "ast_hash": "9c918bbc29f28ebc990b136c81eeebcc",
+    "mtime": 1792050202.6301763,
+    "seen": 1792053638.4297867,
+    "ast_hash": "bdcd58e5bfe13e0241fc8e769ee1842c",
     "semantic_hash": ""
   },
   "apps/pipeline-worker/src/chart-tables.ts": {
-    "mtime": 1792015311.641213,
-    "seen": 1792047485.3114605,
-    "ast_hash": "9c5bd35738fc126a94ec009f2916b9e5",
+    "mtime": 1792050182.7189462,
+    "seen": 1792053638.4297895,
+    "ast_hash": "2e2fee56e2bcc8c3734d0bbc52ff9664",
     "semantic_hash": ""
   },
   "apps/pipeline-worker/src/storyboard-data-chart.integration.test.ts": {
-    "mtime": 1792017303.6672218,
-    "seen": 1792047485.3233743,
-    "ast_hash": "f9aab5bf9ac8bcc43e3029032f006840",
+    "mtime": 1792049843.8294225,
+    "seen": 1792053638.4434857,
+    "ast_hash": "0504e1f4a8d3e0e60bea647f33c89168",
     "semantic_hash": ""
   },
   "apps/web/app/workspace/[projectId]/storyboard/data-chart-editor.test.tsx": {
-    "mtime": 1792018356.5883868,
-    "seen": 1792047485.3576164,
-    "ast_hash": "144eda52350fad30730e25dd3797c2d5",
+    "mtime": 1792050729.6321135,
+    "seen": 1792053638.4736025,
+    "ast_hash": "e65d66ebf2e6fdf4c2d16b2d6ebebbd3",
     "semantic_hash": ""
   },
   "apps/web/app/workspace/[projectId]/storyboard/data-chart-editor.tsx": {
-    "mtime": 1792017170.0959466,
-    "seen": 1792047485.3576186,
-    "ast_hash": "78bdcc4239060473a62bf4f126c6d69f",
+    "mtime": 1792050531.4104998,
+    "seen": 1792053638.4736059,
+    "ast_hash": "4ae2226a4a2dded7d5e2e7272235c12c",
     "semantic_hash": ""
   },
   "packages/provider-adapters/src/prompts/scene-regeneration/v3.ts": {
@@ -15726,15 +15726,15 @@
     "semantic_hash": ""
   },
   "packages/scene-library/src/data-chart-scene.test.tsx": {
-    "mtime": 1792018049.3251462,
-    "seen": 1792047485.452067,
-    "ast_hash": "b51202b3d23aef03d859d6c4da3db32d",
+    "mtime": 1792050472.5240297,
+    "seen": 1792053638.5799608,
+    "ast_hash": "a9fc455bfd0ac06e092425093fb5c72c",
     "semantic_hash": ""
   },
   "packages/scene-library/src/data-chart-scene.tsx": {
-    "mtime": 1792012979.0943024,
-    "seen": 1792047485.4520686,
-    "ast_hash": "d7d2909c30eb83ea4b5c368bb9b3b6d7",
+    "mtime": 1792050446.7094157,
+    "seen": 1792053638.5799649,
+    "ast_hash": "461d5fa55ef2e2a80d4da4a028692e16",
     "semantic_hash": ""
   },
   "packages/scene-library/src/data-chart/chart-layout.ts": {
@@ -15744,9 +15744,9 @@
     "semantic_hash": ""
   },
   "packages/scene-library/src/data-chart/chart-motion.ts": {
-    "mtime": 1792014538.814634,
-    "seen": 1792047485.4520721,
-    "ast_hash": "dd6e4b1ee09e5ade36ca07bbbbc6232c",
+    "mtime": 1792050431.5562825,
+    "seen": 1792053638.5803154,
+    "ast_hash": "49ec76690dbb06febb8c6603ff79a2f6",
     "semantic_hash": ""
   },
   "packages/scene-library/src/data-chart/data-chart-svg.tsx": {
@@ -15774,15 +15774,15 @@
     "semantic_hash": ""
   },
   "packages/schemas/src/data-chart.test.ts": {
-    "mtime": 1792012674.0626748,
-    "seen": 1792047485.4771743,
-    "ast_hash": "abe1fec12edb83f313232f82fcf0c87c",
+    "mtime": 1792050237.8151398,
+    "seen": 1792053638.6103578,
+    "ast_hash": "66b56b848ed537729a5efa9432df5a3d",
     "semantic_hash": ""
   },
   "packages/schemas/src/data-chart.ts": {
-    "mtime": 1792012329.1528332,
-    "seen": 1792047485.4771767,
-    "ast_hash": "948d8345a5ffc7564e3aa4a710869c9b",
+    "mtime": 1792050167.8717177,
+    "seen": 1792053638.610361,
+    "ast_hash": "a1817ddb5dcc116d74ff0b6e1a80b6b2",
     "semantic_hash": ""
   },
   ".runtime-logs/cinema-chart-shots/everyday-hero-chart-bar.png": {
@@ -16341,6 +16341,18 @@
     "mtime": 1792017758.5645487,
     "seen": 1792047485.7854233,
     "ast_hash": "a09673f34fe24ed8ef9392e257c66edc",
+    "semantic_hash": ""
+  },
+  "apps/renderer/src/data-chart-render.integration.test.ts": {
+    "mtime": 1792051131.7642405,
+    "seen": 1792053638.4461844,
+    "ast_hash": "8a91e1fd195cfaa862a5fc41891067db",
+    "semantic_hash": ""
+  },
+  "stories/03-ingestion-configuration/ST-117-correct-extracted-table-cells-as-overlays.md": {
+    "mtime": 1792050014.133562,
+    "seen": 1792053638.7088473,
+    "ast_hash": "f0637e814f9c136e1facf50197e18772",
     "semantic_hash": ""
   }
 }

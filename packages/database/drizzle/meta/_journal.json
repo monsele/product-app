@@ -505,6 +505,13 @@
       "when": 1790000510000,
       "tag": "0071_illustration_library",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1790000520000,
+      "tag": "0072_lesson_edit_threads",
+      "breakpoints": true
     }
   ]
 }
