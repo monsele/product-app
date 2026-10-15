@@ -24,6 +24,7 @@ import { ParsedDocumentRepository } from "./parsed-document-repository.js";
 import { PostgresSourceSectionSelectionService } from "./source-section-selection.js";
 import { PostgresContentBlockCorrectionService } from "./content-block-corrections.js";
 import { PostgresFigureInclusionService } from "./source-figure-inclusion.js";
+import { PostgresTableCellCorrectionService } from "./table-cell-corrections.js";
 import { PostgresLessonConfigurationService } from "./lesson-configuration.js";
 import { PostgresCreativeDesignService } from "./creative-design.js";
 import { PostgresSourceSnapshotService } from "./source-snapshot.js";
@@ -445,6 +446,9 @@ export async function runApi(input: {
         database.client,
       ),
       figureInclusionService: new PostgresFigureInclusionService(
+        database.client,
+      ),
+      tableCellCorrectionService: new PostgresTableCellCorrectionService(
         database.client,
       ),
       lessonConfigurationService,

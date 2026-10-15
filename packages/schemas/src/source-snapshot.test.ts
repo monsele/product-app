@@ -182,6 +182,38 @@ describe("source snapshot schemas", () => {
     expect(metadata.sectionCount).toBe(2);
   });
 
+  it("accepts a table with corrected cells inside the grid (ST-117)", () => {
+    const snapshot = sampleSnapshot();
+    snapshot.tables = snapshot.tables.map((table) => ({
+      ...table,
+      correctedCells: [{ rowIndex: 1, columnIndex: 1, revision: 2 }],
+    }));
+    expect(sourceSnapshotSchema.safeParse(snapshot).success).toBe(true);
+  });
+
+  it("rejects a corrected cell outside the table (ST-117)", () => {
+    for (const cell of [
+      { rowIndex: 2, columnIndex: 0, revision: 1 },
+      { rowIndex: 0, columnIndex: 2, revision: 1 },
+    ]) {
+      const snapshot = sampleSnapshot();
+      snapshot.tables = snapshot.tables.map((table) => ({
+        ...table,
+        correctedCells: [cell],
+      }));
+      expect(sourceSnapshotSchema.safeParse(snapshot).success).toBe(false);
+    }
+  });
+
+  it("rejects an empty corrected-cell list so uncorrected tables keep one shape (ST-117)", () => {
+    const snapshot = sampleSnapshot();
+    snapshot.tables = snapshot.tables.map((table) => ({
+      ...table,
+      correctedCells: [],
+    }));
+    expect(sourceSnapshotSchema.safeParse(snapshot).success).toBe(false);
+  });
+
   it("rejects a narrowing without any selection", () => {
     expect(sourcePackageNarrowingSchema.safeParse({}).success).toBe(false);
     expect(

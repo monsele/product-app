@@ -84,3 +84,30 @@ test("empty section displays a message", async ({ page }) => {
     page.getByText("This section has no extractable content."),
   ).toBeVisible();
 });
+
+test("a table cell can be corrected and restored as an overlay (ST-117)", async ({
+  page,
+}) => {
+  await setSessionCookie(page);
+  await page.goto(`/workspace/${projectId}/review`);
+  await page.getByRole("button", { name: /Evaporation/ }).click();
+  const cell = page.locator('[data-cell="1:1"]');
+  await expect(cell).toHaveAttribute("data-corrected", "false");
+
+  await page.getByRole("button", { name: "Correct row 2, column 2: 2.7" }).click();
+  const input = page.getByLabel("Corrected text for row 2, column 2");
+  await expect(input).toHaveValue("2.7");
+  await input.fill("2.9");
+  await page.getByRole("button", { name: "Save" }).click();
+
+  await expect(cell).toHaveAttribute("data-corrected", "true");
+  await expect(cell.getByRole("button", { name: /Correct row 2, column 2: 2\.9/ })).toBeVisible();
+  await expect(cell.getByText("Corrected", { exact: true })).toBeVisible();
+  await expect(cell.getByText("2.7", { exact: true })).toBeVisible();
+
+  await page
+    .getByRole("button", { name: "Restore the original text of row 2, column 2" })
+    .click();
+  await expect(cell).toHaveAttribute("data-corrected", "false");
+  await expect(cell.getByRole("button", { name: "Correct row 2, column 2: 2.7" })).toBeVisible();
+});

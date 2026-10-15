@@ -12,7 +12,6 @@ import {
   reviewFigureExtensionValues,
   reviewFigureSchema,
   reviewSectionSummarySchema,
-  reviewTableSchema,
   reviewWarningSchema,
   type ParsedDocumentReviewResponse,
   type ParsedDocumentSectionResponse,
@@ -22,6 +21,10 @@ import type { AuthorizedProjectStorage } from "@avlp/storage";
 import type { z } from "zod";
 import { ParsedDocumentRepository } from "./parsed-document-repository.js";
 import { projectEffectiveFigures } from "./source-figure-inclusion.js";
+import {
+  projectReviewTable,
+  toOverlayState,
+} from "./table-cell-corrections.js";
 
 export interface ParsedDocumentReviewService {
   review(
@@ -152,7 +155,7 @@ export class PostgresParsedDocumentReviewService
       projectId,
       latest.document.id,
     );
-    const [figureSignedUrls, figureOverlays] = await Promise.all([
+    const [figureSignedUrls, figureOverlays, cellOverlays] = await Promise.all([
       this.signFigureUrls(
         ownerUserId,
         projectId,
@@ -160,6 +163,11 @@ export class PostgresParsedDocumentReviewService
         detail.figures,
       ),
       this.repository.findFigureInclusionOverlays({
+        ownerUserId,
+        projectId,
+        parsedDocumentId: latest.document.id,
+      }),
+      this.repository.findTableCellCorrections({
         ownerUserId,
         projectId,
         parsedDocumentId: latest.document.id,
@@ -216,22 +224,12 @@ export class PostgresParsedDocumentReviewService
           });
         }),
         tables: detail.tables.map((table) =>
-          reviewTableSchema.parse({
-            id: table.id,
-            order: table.order,
-            pageStart: table.pageStart,
-            pageEnd: table.pageEnd,
-            captionBlockId: table.captionBlockId ?? undefined,
-            columns: table.columns as string[],
-            rows: table.rows as string[][],
-            cells: table.cells.map((cell) => ({
-              rowIndex: cell.rowIndex,
-              columnIndex: cell.columnIndex,
-              text: cell.text,
-              rowSpan: cell.rowSpan,
-              columnSpan: cell.columnSpan,
-            })),
-          }),
+          projectReviewTable(
+            table,
+            cellOverlays
+              .filter((overlay) => overlay.tableId === table.id)
+              .map(toOverlayState),
+          ),
         ),
       },
     });

@@ -11,6 +11,7 @@ import {
   parsedTableCells,
   parsedTables,
   sourceDocumentIngestionReuses,
+  tableCellCorrections,
   type DatabaseClient,
 } from "@avlp/database";
 import { and, count, eq, inArray } from "drizzle-orm";
@@ -321,6 +322,24 @@ export class ParsedDocumentRepository {
           eq(contentBlockCorrections.ownerUserId, input.ownerUserId),
           eq(contentBlockCorrections.projectId, input.projectId),
           eq(contentBlockCorrections.parsedDocumentId, input.parsedDocumentId),
+        ),
+      );
+  }
+
+  /** ST-117. Loads tenant-scoped table-cell overlays for a parsed document. */
+  public async findTableCellCorrections(input: {
+    ownerUserId: Identifier;
+    projectId: Identifier;
+    parsedDocumentId: Identifier;
+  }): Promise<readonly (typeof tableCellCorrections.$inferSelect)[]> {
+    return this.database
+      .select()
+      .from(tableCellCorrections)
+      .where(
+        and(
+          eq(tableCellCorrections.ownerUserId, input.ownerUserId),
+          eq(tableCellCorrections.projectId, input.projectId),
+          eq(tableCellCorrections.parsedDocumentId, input.parsedDocumentId),
         ),
       );
   }

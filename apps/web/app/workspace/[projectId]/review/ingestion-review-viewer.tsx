@@ -7,6 +7,7 @@ import {
   parsedDocumentSectionResponseSchema,
   reviewContentBlockSchema,
   reviewFigureSchema,
+  reviewTableSchema,
   sourceApprovalStatusSchema,
   sourceSectionSelectionResponseSchema,
   sourceSectionSelectionSchema,
@@ -14,6 +15,7 @@ import {
   type ParsedDocumentSectionResponse,
   type ReviewContentBlock,
   type ReviewFigure,
+  type ReviewTable,
   type SourceApprovalStatus,
   type SourceSectionSelection,
 } from "@avlp/schemas";
@@ -50,6 +52,11 @@ import {
   buildFigureUpdateInput,
   type FigureSelectionAction,
 } from "./source-figure-controls";
+import {
+  buildTableCellRequest,
+  type TableCellAction,
+} from "./table-cell-controls";
+import { EditableSourceTable } from "./source-table-editor";
 import { toast } from "../../../../components/ui/toast-provider";
 import { LoadingImage } from "../../../../components/brand/loading-image";
 import { OnionSkinLoader } from "../../../../components/brand/onion-skin-loader";
@@ -467,6 +474,84 @@ export function IngestionReviewViewer({
       }
     },
     [projectId],
+  );
+
+  // ST-117. One cell of an extracted table, corrected or restored as an
+  // overlay; the server answers with the whole table as review shows it.
+  const correctTableCell = useCallback(
+    async (sectionId: string, table: ReviewTable, action: TableCellAction) => {
+      const request = buildTableCellRequest(table, action);
+      try {
+        const response = await fetch(
+          apiUrl(`/projects/${encodeURIComponent(projectId)}${request.path}`),
+          {
+            method: request.method,
+            credentials: "include",
+            cache: "no-store",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(request.body),
+          },
+        );
+        const payload: unknown = await response.json().catch(() => null);
+        if (!response.ok) {
+          const message =
+            typeof payload === "object" &&
+            payload !== null &&
+            "error" in payload &&
+            typeof payload.error === "object" &&
+            payload.error !== null &&
+            "message" in payload.error &&
+            typeof payload.error.message === "string"
+              ? payload.error.message
+              : "Unable to update the table cell.";
+          throw new Error(message);
+        }
+        const parsed = reviewTableSchema.safeParse(payload);
+        if (!parsed.success) throw new Error("Unable to update the table.");
+        setSectionStates((prev) => {
+          const detail = prev[sectionId]?.detail;
+          if (detail === undefined) return prev;
+          return {
+            ...prev,
+            [sectionId]: {
+              loading: false,
+              detail: {
+                ...detail,
+                section: {
+                  ...detail.section,
+                  tables: detail.section.tables.map((entry) =>
+                    entry.id === table.id ? parsed.data : entry,
+                  ),
+                },
+              },
+            },
+          };
+        });
+        // A correction changes the effective source, so the approval banner
+        // must offer re-confirmation before charts can use the new value.
+        void refreshApproval();
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Unable to update the table cell.";
+        toast.error(message);
+        setSectionStates((prev) => {
+          const existing = prev[sectionId];
+          return {
+            ...prev,
+            [sectionId]: {
+              loading: false,
+              ...(existing?.detail === undefined
+                ? {}
+                : { detail: existing.detail }),
+              error: message,
+            },
+          };
+        });
+      }
+    },
+    [projectId, refreshApproval],
   );
 
   const updateFigure = useCallback(
@@ -1658,6 +1743,9 @@ export function IngestionReviewViewer({
                                 action,
                               )
                             }
+                            onCorrectCell={(table, action) =>
+                              void correctTableCell(section.id, table, action)
+                            }
                           />
                         ) : null}
                       </div>
@@ -2043,6 +2131,7 @@ function SectionContentRenderer({
   onSelectFigure,
   onCorrect,
   onToggleFigure,
+  onCorrectCell,
 }: {
   detail: ParsedDocumentSectionResponse;
   selectedItem: SelectedItem;
@@ -2053,6 +2142,7 @@ function SectionContentRenderer({
     action: BlockCorrectionAction,
   ) => void;
   onToggleFigure: (figure: ReviewFigure, action: FigureSelectionAction) => void;
+  onCorrectCell: (table: ReviewTable, action: TableCellAction) => void;
 }) {
   const { section } = detail;
 
@@ -2295,71 +2385,11 @@ function SectionContentRenderer({
             <span>Tables ({section.tables.length})</span>
           </h4>
           {section.tables.map((table) => (
-            <div
+            <EditableSourceTable
               key={table.id}
-              role="region"
-              tabIndex={0}
-              aria-label={`Table with ${table.columns.length} columns`}
-              style={{
-                overflowX: "auto",
-                border: "1px solid var(--color-border)",
-                borderRadius: "var(--radius-control)",
-              }}
-            >
-              <table
-                data-table-id={table.id}
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: "13px",
-                  textAlign: "left",
-                }}
-              >
-                <thead>
-                  <tr style={{ backgroundColor: "var(--color-surface-subtle)" }}>
-                    {table.columns.map((column, index) => (
-                      <th
-                        key={index}
-                        scope="col"
-                        style={{
-                          padding: "10px 14px",
-                          fontWeight: 600,
-                          color: "var(--color-text)",
-                          borderBottom: "1px solid var(--color-border)",
-                        }}
-                      >
-                        {column}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {table.rows.map((row, rowIndex) => (
-                    <tr
-                      key={rowIndex}
-                      style={{
-                        borderBottom:
-                          rowIndex === table.rows.length - 1
-                            ? "none"
-                            : "1px solid var(--color-border)",
-                      }}
-                    >
-                      {row.map((cell, cellIndex) => (
-                        <td
-                          key={cellIndex}
-                          style={{
-                            padding: "8px 14px",
-                            color: "var(--color-text)",
-                          }}
-                        >
-                          {cell}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+              table={table}
+              onCorrect={onCorrectCell}
+            />
           ))}
         </div>
       ) : null}

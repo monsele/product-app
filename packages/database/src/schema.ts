@@ -731,6 +731,93 @@ export const sourceFigureInvalidations = pgTable(
 );
 
 /**
+ * ST-117. Editable text correction for one cell of an immutable parsed table.
+ * `parsed_tables` and `parsed_table_cells` stay authoritative; this row carries
+ * the teacher's text for the cell at (`row_index`, `column_index`) of the
+ * table's `rows` grid. `original_text` copies the parser's text at the time of
+ * the first correction for audit. A restore sets `corrected_text` to null and
+ * keeps the row, so the revision only ever counts up and a stale editor can
+ * never match a re-created overlay.
+ */
+export const tableCellCorrections = pgTable(
+  "table_cell_corrections",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    parsedDocumentId: uuid("parsed_document_id")
+      .notNull()
+      .references(() => parsedDocuments.id, { onDelete: "cascade" }),
+    sectionId: uuid("section_id")
+      .notNull()
+      .references(() => parsedSections.id, { onDelete: "cascade" }),
+    tableId: uuid("table_id")
+      .notNull()
+      .references(() => parsedTables.id, { onDelete: "cascade" }),
+    rowIndex: integer("row_index").notNull(),
+    columnIndex: integer("column_index").notNull(),
+    originalText: text("original_text").notNull(),
+    correctedText: text("corrected_text"),
+    editedBy: uuid("edited_by").notNull(),
+    revision: revisionColumn(),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("table_cell_corrections_project_cell_unique").on(
+      table.projectId,
+      table.tableId,
+      table.rowIndex,
+      table.columnIndex,
+    ),
+    index("table_cell_corrections_project_document_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.parsedDocumentId,
+    ),
+  ],
+);
+
+/**
+ * ST-117. Idempotent dependency-invalidation record for a table-cell
+ * correction or restore, as `source_content_invalidations` is for blocks. One
+ * row per (project, cell, overlay revision) prevents duplicates.
+ */
+export const sourceTableInvalidations = pgTable(
+  "source_table_invalidations",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    parsedDocumentId: uuid("parsed_document_id")
+      .notNull()
+      .references(() => parsedDocuments.id, { onDelete: "cascade" }),
+    sectionId: uuid("section_id")
+      .notNull()
+      .references(() => parsedSections.id, { onDelete: "cascade" }),
+    tableId: uuid("table_id")
+      .notNull()
+      .references(() => parsedTables.id, { onDelete: "cascade" }),
+    rowIndex: integer("row_index").notNull(),
+    columnIndex: integer("column_index").notNull(),
+    cellRevision: integer("cell_revision").notNull(),
+    scope: text("scope").notNull().default("unapproved_drafts"),
+    ...auditColumns(),
+  },
+  (table) => [
+    uniqueIndex("source_table_invalidations_project_cell_revision_unique").on(
+      table.projectId,
+      table.tableId,
+      table.rowIndex,
+      table.columnIndex,
+      table.cellRevision,
+    ),
+    index("source_table_invalidations_project_created_idx").on(
+      table.ownerUserId,
+      table.projectId,
+      table.createdAt,
+    ),
+  ],
+);
+
+/**
  * Immutable approved source snapshot. `payload` freezes the effective reviewed
  * content (included sections, corrected blocks, included figures/tables) as
  * JSONB; the queryable columns mirror the metadata needed by generation jobs.
@@ -1061,6 +1148,9 @@ export const auditEventTypeValues = [
   "edit_thread.plan_applied",
   "edit_thread.plan_dismissed",
   "edit_thread.plan_undone",
+  // ST-117. Table-cell correction overlays.
+  "source.table_cell_corrected",
+  "source.table_cell_restored",
 ] as const;
 export const auditEventType = pgEnum("audit_event_type", auditEventTypeValues);
 

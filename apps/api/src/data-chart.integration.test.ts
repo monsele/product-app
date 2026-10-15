@@ -5,13 +5,15 @@
  * binding and citation. The preview manifest resolves that table inside the
  * project's own approved snapshot, and the chart drawn from it repeats the
  * table cells exactly. A non-numeric selection fails lesson validation with
- * the cell named; another tenant's table is refused; and a changed approved
- * table reaches the next preview while grounding asks for a recheck.
+ * the cell named; another tenant's table is refused; and a cell corrected in
+ * ingestion review (ST-117) reaches the next preview after re-approval while
+ * grounding asks for a recheck.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Identifier } from "@avlp/config";
 import {
   contentBlocks,
+  groundingChecks,
   learningObjectiveSets,
   lessonOutlineSets,
   lessonSpecs,
@@ -46,6 +48,7 @@ import { PreviewManifestService } from "./preview-manifest.js";
 import { PostgresSourceSnapshotService } from "./source-snapshot.js";
 import { PostgresSourceVisualsService } from "./source-visuals.js";
 import { PostgresStoryboardService } from "./storyboard.js";
+import { PostgresTableCellCorrectionService } from "./table-cell-corrections.js";
 
 const serverUrl = process.env.TEST_DATABASE_URL;
 const describeWithPostgres = serverUrl === undefined ? describe.skip : describe;
@@ -386,28 +389,67 @@ describeWithPostgres("ST-114 data-chart scene from approved table to preview (Po
     expect(manifest.assets[foreignTableId]).toBeUndefined();
   });
 
-  it("previews a changed approved table and asks for a grounding recheck (AC4, simulated correction)", async () => {
+  it("previews a corrected cell after re-approval and asks for a grounding recheck (AC4, completed by ST-117 AC2)", async () => {
     await editChart({ tableId, categoryColumn: 0, valueColumns: [1], rowIndexes: [0, 1, 2] });
-    // Simulation only: table-cell correction overlays are ST-117, which
-    // replaces this test. Writing to the immutable parser table here stands in
-    // for the corrected effective table that re-approval would snapshot; no
-    // product path writes to `parsed_tables`.
-    await database!.client
-      .update(parsedTables)
-      .set({ rows: [["Lithium", "0.534"], ["Sodium", "0.97"], ["Potassium", "0.86"]].map((row) => [...row, "x"]) })
-      .where(eq(parsedTables.id, tableId));
-    await snapshotService.approve({ ownerUserId, projectId, correlationId });
-    const manifest = await previewService.get({ ownerUserId, projectId });
-    const scene = manifest.storyboard.scenes[0]!.scene;
-    if (scene.template !== "data-chart") throw new Error("expected a chart");
-    const chart = resolveSceneChart(scene, manifest.assets);
-    expect(chart.ok && chart.chart.series[0]!.values[0]!.text).toBe("0.534");
-    const run = await new PostgresLessonValidationService(database!.client, () => now).run({
+    const chartValues = async () => {
+      const manifest = await previewService.get({ ownerUserId, projectId });
+      const scene = manifest.storyboard.scenes[0]!.scene;
+      if (scene.template !== "data-chart") throw new Error("expected a chart");
+      const chart = resolveSceneChart(scene, manifest.assets);
+      if (!chart.ok) throw new Error("expected a resolvable chart");
+      return chart.chart.series[0]!.values.map((value) => value.text);
+    };
+    const validate = () =>
+      new PostgresLessonValidationService(database!.client, () => now).run({
+        ownerUserId,
+        projectId,
+        body: {},
+      });
+
+    // Grounding was rechecked for this lesson revision against the approved
+    // snapshot, so nothing asks for a recheck yet.
+    const [spec] = await database!.client.select().from(lessonSpecs).where(eq(lessonSpecs.id, lessonSpecId));
+    const approved = await snapshotService.status({ ownerUserId, projectId });
+    await database!.client.insert(groundingChecks).values({
+      id: "019ffbf1-9998-7000-8000-000000000114",
       ownerUserId,
       projectId,
-      body: {},
+      lessonSpecId,
+      lessonSpecRevision: spec!.revision,
+      lessonSpecContentHash: spec!.contentHash,
+      sourceSnapshotId: approved.snapshotId!,
+      sourceSnapshotContentHash: approved.contentHash!,
+      scope: "lesson",
+      claims: [],
+      results: [],
+      summary: { supported: 0, unsupported: 0, needsReview: 0 },
+      idempotencyKey: "chart:grounding:1",
+      createdAt: now,
+      updatedAt: now,
     });
-    expect(run.issues).toContainEqual(
+    expect((await validate()).issues).not.toContainEqual(
+      expect.objectContaining({ code: "grounding_recheck_required", sceneId }),
+    );
+
+    // ST-117: the teacher corrects Lithium's density in ingestion review.
+    await new PostgresTableCellCorrectionService(database!.client, () => now).update({
+      ownerUserId,
+      projectId,
+      tableId,
+      body: { rowIndex: 0, columnIndex: 1, revision: 0, correctedText: "0.534" },
+      correlationId,
+    });
+    const [parsed] = await database!.client.select().from(parsedTables).where(eq(parsedTables.id, tableId));
+    expect(parsed!.rows).toEqual(rows);
+    // Until the source is approved again, the chart keeps the approved value.
+    expect(await chartValues()).toEqual(["0.53", "0.97", "0.86"]);
+    expect((await validate()).issues).not.toContainEqual(
+      expect.objectContaining({ code: "grounding_recheck_required", sceneId }),
+    );
+
+    await snapshotService.approve({ ownerUserId, projectId, correlationId });
+    expect(await chartValues()).toEqual(["0.534", "0.97", "0.86"]);
+    expect((await validate()).issues).toContainEqual(
       expect.objectContaining({ code: "grounding_recheck_required", sceneId }),
     );
   });

@@ -68,6 +68,7 @@ import type { IngestionStatusService } from "./ingestion-status.js";
 import type { ParsedDocumentReviewService } from "./parsed-document-review.js";
 import type { SourceSectionSelectionService } from "./source-section-selection.js";
 import type { ContentBlockCorrectionService } from "./content-block-corrections.js";
+import type { TableCellCorrectionService } from "./table-cell-corrections.js";
 import type { FigureInclusionService } from "./source-figure-inclusion.js";
 import type { LessonConfigurationService } from "./lesson-configuration.js";
 import type { CreativeDesignService } from "./creative-design.js";
@@ -127,6 +128,7 @@ const CONTENT_BLOCK_CORRECTION_SERVICE = Symbol(
   "CONTENT_BLOCK_CORRECTION_SERVICE",
 );
 const FIGURE_INCLUSION_SERVICE = Symbol("FIGURE_INCLUSION_SERVICE");
+const TABLE_CELL_CORRECTION_SERVICE = Symbol("TABLE_CELL_CORRECTION_SERVICE");
 const LESSON_CONFIGURATION_SERVICE = Symbol("LESSON_CONFIGURATION_SERVICE");
 const CREATIVE_DESIGN_SERVICE = Symbol("CREATIVE_DESIGN_SERVICE");
 const SOURCE_SNAPSHOT_SERVICE = Symbol("SOURCE_SNAPSHOT_SERVICE");
@@ -354,6 +356,10 @@ type ContentBlockCorrectionApiService = Pick<
   "update" | "restore"
 >;
 type FigureInclusionApiService = Pick<FigureInclusionService, "update">;
+type TableCellCorrectionApiService = Pick<
+  TableCellCorrectionService,
+  "update" | "restore"
+>;
 type LessonConfigurationApiService = Pick<
   LessonConfigurationService,
   "get" | "save"
@@ -570,6 +576,8 @@ class ProjectsController {
     private readonly contentBlockCorrections: ContentBlockCorrectionApiService,
     @Inject(FIGURE_INCLUSION_SERVICE)
     private readonly figureInclusion: FigureInclusionApiService,
+    @Inject(TABLE_CELL_CORRECTION_SERVICE)
+    private readonly tableCellCorrections: TableCellCorrectionApiService,
     @Inject(LESSON_CONFIGURATION_SERVICE)
     private readonly lessonConfiguration: LessonConfigurationApiService,
     @Inject(CREATIVE_DESIGN_SERVICE)
@@ -877,6 +885,61 @@ class ProjectsController {
       ownerUserId: access.ownerUserId,
       projectId: access.projectId,
       figureId: figureId.data,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  /** ST-117. Correct one cell of a parsed table as an overlay. */
+  @Patch(":projectId/source-tables/:tableId/cells")
+  public async updateSourceTableCell(
+    @Param("projectId") projectId: string,
+    @Param("tableId") tableIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const tableId = identifierSchema.safeParse(tableIdInput);
+    if (!tableId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.tableCellCorrections.update({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      tableId: tableId.data,
+      body: input,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
+  }
+
+  /** ST-117. Restore one cell's parser text. */
+  @Post(":projectId/source-tables/:tableId/cells/restore")
+  @HttpCode(200)
+  public async restoreSourceTableCell(
+    @Param("projectId") projectId: string,
+    @Param("tableId") tableIdInput: string,
+    @Body() input: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    const access = assertAuthorizedProject(request, projectId);
+    const tableId = identifierSchema.safeParse(tableIdInput);
+    if (!tableId.success)
+      throw new PublicError(
+        "not_found",
+        "The requested resource was not found.",
+        404,
+      );
+    return this.tableCellCorrections.restore({
+      ownerUserId: access.ownerUserId,
+      projectId: access.projectId,
+      tableId: tableId.data,
       body: input,
       correlationId:
         request.correlationId ?? "00000000-0000-7000-8000-000000000000",
@@ -3384,6 +3447,7 @@ function createAppModule(
   sourceSectionSelectionService: SourceSectionSelectionApiService,
   contentBlockCorrectionService: ContentBlockCorrectionApiService,
   figureInclusionService: FigureInclusionApiService,
+  tableCellCorrectionService: TableCellCorrectionApiService,
   lessonConfigurationService: LessonConfigurationApiService,
   creativeDesignService: CreativeDesignApiService,
   sourceSnapshotService: SourceSnapshotApiService,
@@ -3438,6 +3502,10 @@ function createAppModule(
         useValue: contentBlockCorrectionService,
       },
       { provide: FIGURE_INCLUSION_SERVICE, useValue: figureInclusionService },
+      {
+        provide: TABLE_CELL_CORRECTION_SERVICE,
+        useValue: tableCellCorrectionService,
+      },
       {
         provide: LESSON_CONFIGURATION_SERVICE,
         useValue: lessonConfigurationService,
@@ -3498,6 +3566,7 @@ export type CreateAppOptions = {
   sourceSectionSelectionService?: SourceSectionSelectionApiService;
   contentBlockCorrectionService?: ContentBlockCorrectionApiService;
   figureInclusionService?: FigureInclusionApiService;
+  tableCellCorrectionService?: TableCellCorrectionApiService;
   lessonConfigurationService?: LessonConfigurationApiService;
   creativeDesignService?: CreativeDesignApiService;
   sourceSnapshotService?: SourceSnapshotApiService;
@@ -3852,6 +3921,27 @@ const unavailableFigureInclusionService: FigureInclusionApiService = {
       new PublicError(
         "internal_error",
         "Figure inclusion is unavailable.",
+        503,
+        true,
+      ),
+    ),
+};
+
+const unavailableTableCellCorrectionService: TableCellCorrectionApiService = {
+  update: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Table cell correction is unavailable.",
+        503,
+        true,
+      ),
+    ),
+  restore: () =>
+    Promise.reject(
+      new PublicError(
+        "internal_error",
+        "Table cell correction is unavailable.",
         503,
         true,
       ),
@@ -4786,6 +4876,8 @@ export async function createApp(
       options.contentBlockCorrectionService ??
         unavailableContentBlockCorrectionService,
       options.figureInclusionService ?? unavailableFigureInclusionService,
+      options.tableCellCorrectionService ??
+        unavailableTableCellCorrectionService,
       options.lessonConfigurationService ??
         unavailableLessonConfigurationService,
       options.creativeDesignService ?? unavailableCreativeDesignService,

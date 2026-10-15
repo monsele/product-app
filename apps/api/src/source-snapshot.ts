@@ -14,6 +14,7 @@ import {
   parsedTables,
   sourceSectionOverlays,
   sourceSnapshots,
+  tableCellCorrections,
   type DatabaseClient,
   type DatabaseExecutor,
 } from "@avlp/database";
@@ -52,6 +53,11 @@ import {
 import { and, desc, eq } from "drizzle-orm";
 import { findLatestProjectParsedDocument } from "./project-parsed-document.js";
 import { requestActor } from "./audit-actor.js";
+import {
+  projectEffectiveTableRows,
+  toOverlayState,
+  type TableCellOverlayState,
+} from "./table-cell-corrections.js";
 
 /** Immutable section shape needed to materialize the effective source. */
 export interface EffectiveSectionInput {
@@ -133,6 +139,8 @@ export interface EffectiveSourceInput {
     sections: ReadonlyMap<string, SourceSectionOverlayState>;
     blocks: ReadonlyMap<string, BlockCorrectionOverlayState>;
     figures: ReadonlyMap<string, FigureInclusionOverlayState>;
+    /** ST-117. Cell overlays keyed by table ID; absent means none. */
+    tableCells?: ReadonlyMap<string, readonly TableCellOverlayState[]>;
   };
 }
 
@@ -264,6 +272,10 @@ export function materializeEffectiveSource(
   const effectiveTables: SourceSnapshotTable[] = [];
   for (const table of input.tables) {
     if (!includedSectionIds.has(table.sectionId)) continue;
+    const effective = projectEffectiveTableRows(
+      Array.isArray(table.rows) ? (table.rows as string[][]) : [],
+      input.overlays.tableCells?.get(table.id) ?? [],
+    );
     effectiveTables.push(
       sourceSnapshotTableSchema.parse({
         tableId: table.id,
@@ -275,7 +287,10 @@ export function materializeEffectiveSource(
           ? {}
           : { captionBlockId: table.captionBlockId }),
         columns: Array.isArray(table.columns) ? table.columns : [],
-        rows: Array.isArray(table.rows) ? table.rows : [],
+        rows: effective.rows,
+        ...(effective.correctedCells.length === 0
+          ? {}
+          : { correctedCells: effective.correctedCells }),
       }),
     );
     const current = tableIdsBySection.get(table.sectionId) ?? [];
@@ -650,6 +665,7 @@ export class PostgresSourceSnapshotService implements SourceSnapshotService {
       sectionOverlays,
       blockCorrections,
       figureOverlays,
+      cellCorrections,
     ] = await Promise.all([
       executor
         .select()
@@ -701,7 +717,23 @@ export class PostgresSourceSnapshotService implements SourceSnapshotService {
             eq(figureInclusionOverlays.parsedDocumentId, document.id),
           ),
         ),
+      executor
+        .select()
+        .from(tableCellCorrections)
+        .where(
+          and(
+            eq(tableCellCorrections.ownerUserId, ownerUserId),
+            eq(tableCellCorrections.projectId, projectId),
+            eq(tableCellCorrections.parsedDocumentId, document.id),
+          ),
+        ),
     ]);
+    const tableCells = new Map<string, TableCellOverlayState[]>();
+    for (const row of cellCorrections) {
+      const overlays = tableCells.get(row.tableId) ?? [];
+      overlays.push(toOverlayState(row));
+      tableCells.set(row.tableId, overlays);
+    }
     return {
       document: {
         id: document.id as Identifier,
@@ -775,6 +807,7 @@ export class PostgresSourceSnapshotService implements SourceSnapshotService {
             { included: row.included, revision: row.revision },
           ]),
         ),
+        tableCells,
       },
     };
   }

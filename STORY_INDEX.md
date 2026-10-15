@@ -122,7 +122,7 @@ Status values: `Ready`, `In Progress`, `Blocked`, `In Review`, `Done`.
 |   114 | Visual Storytelling | [ST-114 - Add an Animated Data-Chart Scene Built from Approved Source Tables](stories/11-visual-storytelling/ST-114-animated-data-chart-scene-from-source-tables.md) | ST-093, ST-109, ST-111, ST-112 | Done |
 |   115 | Product UI | [ST-115 - Add Conversational Editing to the Storyboard Workspace](stories/08-product-ui/ST-115-conversational-lesson-editing.md) | ST-049, ST-051, ST-056, ST-080, ST-111 | Done |
 |   116 | Prompt to Video | [ST-116 - Start a Lesson from a Topic Prompt Alone with a Reviewed AI-Written Reference](stories/10-prompt-to-video/ST-116-prompt-only-lessons-without-a-source-document.md) | ST-104, ST-105, ST-106, ST-107 | Blocked |
-|   117 | Ingestion and Lesson Configuration | [ST-117 - Correct Extracted Table Cells as Overlays](stories/03-ingestion-configuration/ST-117-correct-extracted-table-cells-as-overlays.md) | ST-039, ST-093, ST-114 | Ready |
+|   117 | Ingestion and Lesson Configuration | [ST-117 - Correct Extracted Table Cells as Overlays](stories/03-ingestion-configuration/ST-117-correct-extracted-table-cells-as-overlays.md) | ST-039, ST-093, ST-114 | Done |
 
 Maintenance 2026-09-08: ST-063 audio-provider failure repair verified on the reported scene (11,776 ms WAV and three caption cues). See its Dev Agent Record for the Together alignment configuration change and regression checks. Story status remains Done.
 

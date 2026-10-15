@@ -2444,6 +2444,25 @@ export const reviewTableCellSchema = z
   .strict();
 export type ReviewTableCell = z.infer<typeof reviewTableCellSchema>;
 
+/**
+ * ST-117. A table cell's correction overlay as review shows it. `rows` on the
+ * table stay the parser's original text; `correctedText` is the teacher's
+ * text, or null once the cell was restored to the original (the overlay is
+ * kept so its revision keeps counting up).
+ */
+export const reviewTableCellCorrectionSchema = z
+  .object({
+    rowIndex: z.number().int().nonnegative(),
+    columnIndex: z.number().int().nonnegative(),
+    revision: z.number().int().positive(),
+    // The ST-117 correction bound (`tableCellCorrectionMaxLength`).
+    correctedText: z.string().max(160).nullable(),
+  })
+  .strict();
+export type ReviewTableCellCorrection = z.infer<
+  typeof reviewTableCellCorrectionSchema
+>;
+
 export const reviewTableSchema = z
   .object({
     id: identifierSchema,
@@ -2454,6 +2473,10 @@ export const reviewTableSchema = z
     columns: z.array(z.string().max(1_000)).min(1).max(500),
     rows: z.array(z.array(z.string().max(10_000))).max(10_000),
     cells: z.array(reviewTableCellSchema).max(100_000).optional(),
+    cellCorrections: z
+      .array(reviewTableCellCorrectionSchema)
+      .max(100_000)
+      .optional(),
   })
   .strict();
 export type ReviewTable = z.infer<typeof reviewTableSchema>;
@@ -2674,6 +2697,53 @@ export type FigureInclusionInput = z.infer<typeof figureInclusionInputSchema>;
  */
 export const effectiveFigureSchema = reviewFigureSchema;
 export type EffectiveFigure = z.infer<typeof effectiveFigureSchema>;
+
+// ---------------------------------------------------------------------------
+// ST-117 — Table-cell correction overlays
+// ---------------------------------------------------------------------------
+
+/** A corrected cell is bounded plain text: the source-table preview bound
+ * (`sourceTableVisualMaxCellLength`, declared later in this module). */
+export const tableCellCorrectionMaxLength = 160;
+
+const tableCellPosition = {
+  rowIndex: z.number().int().nonnegative().max(9_999),
+  columnIndex: z.number().int().nonnegative().max(499),
+  revision: z.number().int().nonnegative(),
+};
+
+/**
+ * Patch body for one table-cell correction. `rowIndex` and `columnIndex`
+ * address the table's `rows` grid; `revision` is the expected current overlay
+ * revision (0 means "never corrected"). The text is one line of plain text and
+ * is not parsed as a number here: a data chart applies its own numeric rule.
+ * An empty cell is allowed, because a blank cell is real table structure.
+ */
+export const tableCellCorrectionInputSchema = z
+  .object({
+    ...tableCellPosition,
+    correctedText: z
+      .string()
+      .trim()
+      .max(tableCellCorrectionMaxLength)
+      .refine((value) => !/\p{Cc}/u.test(value), "Use one line of plain text."),
+  })
+  .strict();
+export type TableCellCorrectionInput = z.infer<
+  typeof tableCellCorrectionInputSchema
+>;
+
+/** Body for restoring one cell's parser text; carries the expected revision. */
+export const tableCellRestoreInputSchema = z
+  .object(tableCellPosition)
+  .strict();
+export type TableCellRestoreInput = z.infer<typeof tableCellRestoreInputSchema>;
+
+/** A cell command answers with the table as review shows it. */
+export const tableCellUpdateResponseSchema = reviewTableSchema;
+export type TableCellUpdateResponse = z.infer<
+  typeof tableCellUpdateResponseSchema
+>;
 
 // ---------------------------------------------------------------------------
 // ST-041 — Lesson configuration
@@ -3027,7 +3097,13 @@ export const sourceSnapshotFigureSchema = z
   .superRefine(pageRangeValidation);
 export type SourceSnapshotFigure = z.infer<typeof sourceSnapshotFigureSchema>;
 
-/** Effective table captured at approval time. */
+/**
+ * Effective table captured at approval time. `rows` hold the effective cell
+ * text: the teacher's correction where one is active (ST-117), otherwise the
+ * parser's. `correctedCells` records which cells were corrected, at which
+ * overlay revision; it is present only when at least one is, so a table with
+ * no corrections hashes exactly as it did before ST-117.
+ */
 export const sourceSnapshotTableSchema = z
   .object({
     tableId: identifierSchema,
@@ -3037,6 +3113,19 @@ export const sourceSnapshotTableSchema = z
     captionBlockId: identifierSchema.optional(),
     columns: z.array(normalizedText(1_000)).min(1).max(500),
     rows: z.array(z.array(z.string().max(10_000))).max(10_000),
+    correctedCells: z
+      .array(
+        z
+          .object({
+            rowIndex: z.number().int().nonnegative(),
+            columnIndex: z.number().int().nonnegative(),
+            revision: z.number().int().positive(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(100_000)
+      .optional(),
   })
   .strict()
   .superRefine((value, context) => {
@@ -3047,6 +3136,16 @@ export const sourceSnapshotTableSchema = z
           code: z.ZodIssueCode.custom,
           path: ["rows", index],
           message: "Every table row must have one cell per column.",
+        });
+    for (const [index, cell] of (value.correctedCells ?? []).entries())
+      if (
+        cell.rowIndex >= value.rows.length ||
+        cell.columnIndex >= value.columns.length
+      )
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["correctedCells", index],
+          message: "A corrected cell must lie inside the table.",
         });
   });
 export type SourceSnapshotTable = z.infer<typeof sourceSnapshotTableSchema>;

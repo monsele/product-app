@@ -186,6 +186,8 @@ describe("project route authorization", () => {
       ["PATCH", `/source-sections/${secondaryId}`],
       ["PATCH", `/source-blocks/${secondaryId}`],
       ["PATCH", `/source-figures/${secondaryId}`],
+      ["PATCH", `/source-tables/${secondaryId}/cells`],
+      ["POST", `/source-tables/${secondaryId}/cells/restore`],
       ["GET", "/source-review"],
       ["PUT", "/configuration"],
       ["PUT", "/voice-configuration"],

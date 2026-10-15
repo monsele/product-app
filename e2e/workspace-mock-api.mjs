@@ -540,6 +540,31 @@ function mockSceneVisual(template) {
   }
 }
 
+// ST-117. The Evaporation section's table and its cell-correction overlays.
+const evaporationTableId = "019ffbf1-6130-738a-b087-6775ff97568c";
+const tableCellState = new Map();
+function evaporationTable() {
+  const cellCorrections = [...tableCellState.entries()]
+    .map(([key, overlay]) => {
+      const [rowIndex, columnIndex] = key.split(":").map(Number);
+      return { rowIndex, columnIndex, ...overlay };
+    })
+    .sort((a, b) => a.rowIndex - b.rowIndex || a.columnIndex - b.columnIndex);
+  return {
+    id: evaporationTableId,
+    order: 1,
+    pageStart: 4,
+    pageEnd: 4,
+    columns: ["Temperature (°C)", "Evaporation rate (mm/day)"],
+    rows: [
+      ["10", "1.2"],
+      ["20", "2.7"],
+      ["30", "4.1"],
+    ],
+    ...(cellCorrections.length === 0 ? {} : { cellCorrections }),
+  };
+}
+
 function send(response, status, body) {
   response.writeHead(status, {
     "content-type": "application/json",
@@ -815,7 +840,7 @@ const server = createServer(async (request, response) => {
           pageEnd: 4,
           blockCount: 1,
           figureCount: 0,
-          tableCount: 0,
+          tableCount: 1,
         },
         {
           id: "019ffbf1-6116-738a-b087-6775ff97568c",
@@ -847,6 +872,66 @@ const server = createServer(async (request, response) => {
         findings: [],
       },
     });
+  }
+  // The review page also loads section selections (ST-038); every section
+  // of the mock document starts included with no overlay.
+  const sourceSectionsMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/source-sections$/,
+  );
+  if (request.method === "GET" && sourceSectionsMatch !== null) {
+    if (projects.get(sourceSectionsMatch[1]) === undefined)
+      return send(response, 404, { error: { code: "not_found" } });
+    return send(response, 200, {
+      documentId: "019ffbf1-610e-738a-b087-6775ff97568c",
+      sections: [
+        ["019ffbf1-6112-738a-b087-6775ff97568c", "Introduction", 1, 2],
+        ["019ffbf1-6115-738a-b087-6775ff97568c", "Evaporation", 3, 4],
+        ["019ffbf1-6116-738a-b087-6775ff97568c", "References", 5, 5],
+      ].map(([id, heading, pageStart, pageEnd], index) => ({
+        id,
+        order: index + 1,
+        level: 1,
+        heading,
+        displayHeading: null,
+        included: true,
+        reviewOrder: null,
+        pageStart,
+        pageEnd,
+        revision: 0,
+      })),
+    });
+  }
+  const tableCellMatch = url.pathname.match(
+    /^\/projects\/([^/]+)\/source-tables\/([^/]+)\/cells(\/restore)?$/,
+  );
+  if (
+    tableCellMatch !== null &&
+    (request.method === "PATCH" || request.method === "POST")
+  ) {
+    if (
+      projects.get(tableCellMatch[1]) === undefined ||
+      decodeURIComponent(tableCellMatch[2]) !== evaporationTableId
+    )
+      return send(response, 404, { error: { code: "not_found" } });
+    let body = "";
+    for await (const chunk of request) body += chunk;
+    const input = JSON.parse(body);
+    const key = `${input.rowIndex}:${input.columnIndex}`;
+    const current = tableCellState.get(key);
+    if ((current?.revision ?? 0) !== input.revision)
+      return send(response, 409, {
+        error: {
+          code: "bad_request",
+          message: "The table cell changed. Please refresh and try again.",
+        },
+      });
+    const restoring = tableCellMatch[3] !== undefined;
+    if (!restoring || current?.correctedText != null)
+      tableCellState.set(key, {
+        revision: (current?.revision ?? 0) + 1,
+        correctedText: restoring ? null : input.correctedText,
+      });
+    return send(response, 200, evaporationTable());
   }
   const sectionMatch = url.pathname.match(
     /^\/projects\/([^/]+)\/parsed-document\/sections\/([^/]+)$/,
@@ -912,7 +997,7 @@ const server = createServer(async (request, response) => {
             },
           ],
           figures: [],
-          tables: [],
+          tables: [evaporationTable()],
         },
       });
     }
