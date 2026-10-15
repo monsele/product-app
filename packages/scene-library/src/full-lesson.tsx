@@ -713,9 +713,17 @@ function TransitionedScene({
         }}
       >
         {runtimeMode === "render" ? (
-          <SceneRenderRuntime resolvedAssets={resolvedAssets} scene={scene} />
+          <SceneRenderRuntime
+            resolvedAssets={resolvedAssets}
+            scene={scene}
+            sceneCaptions={sceneCaptions}
+          />
         ) : (
-          <ScenePreviewRuntime resolvedAssets={resolvedAssets} scene={scene} />
+          <ScenePreviewRuntime
+            resolvedAssets={resolvedAssets}
+            scene={scene}
+            sceneCaptions={sceneCaptions}
+          />
         )}
       </div>
     );
@@ -727,6 +735,7 @@ function TransitionedScene({
       resolvedAssets={resolvedAssets}
       runtimeMode={runtimeMode}
       scene={scene}
+      sceneCaptions={sceneCaptions}
     />
   );
 }
@@ -744,6 +753,7 @@ export function CreativeScene({
   resolvedAssets,
   runtimeMode,
   scene,
+  sceneCaptions,
 }: Readonly<{
   creativeDesign: z.infer<typeof creativeDesignManifestSchema>;
   durationInFrames: number;
@@ -751,6 +761,8 @@ export function CreativeScene({
   resolvedAssets: Readonly<Record<string, ResolvedSceneAsset>>;
   runtimeMode: "preview" | "render";
   scene: LessonSpec["scenes"][number];
+  /** ST-114: measured caption cues, for motion keyed to spoken narration. */
+  sceneCaptions?: readonly CinemaCaptionCue[];
 }>): JSX.Element {
   const frame = useCurrentFrame();
   const selection = creativeDesign.selections[scene.id];
@@ -777,6 +789,7 @@ export function CreativeScene({
     surface: creativeDesign.settings.colors.surface,
     text: creativeDesign.settings.colors.text,
     variant: treatment.variant,
+    packId: pack,
   };
   const content =
     runtimeMode === "render" ? (
@@ -784,12 +797,14 @@ export function CreativeScene({
         creativePresentation={creativePresentation}
         resolvedAssets={resolvedAssets}
         scene={scene}
+        {...(sceneCaptions === undefined ? {} : { sceneCaptions })}
       />
     ) : (
       <ScenePreviewRuntime
         creativePresentation={creativePresentation}
         resolvedAssets={resolvedAssets}
         scene={scene}
+        {...(sceneCaptions === undefined ? {} : { sceneCaptions })}
       />
     );
   const accent = creativeDesign.settings.colors.accent;

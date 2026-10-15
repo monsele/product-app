@@ -38,6 +38,7 @@ import {
   reconciledLessonDurationToleranceSeconds,
   validationIssueAcknowledgementInputSchema,
   lessonValidationRunSchema,
+  resolveDataChart,
   validationIssueSchema,
   type LessonStoryboard,
   type LessonValidationRun,
@@ -106,6 +107,15 @@ type ValidationInput = Readonly<{
   narrationDurationSecondsByBlockId: ReadonlyMap<string, number>;
   resolvedAssetIds: ReadonlySet<string>;
   citationIssueCountsByStableSceneId: ReadonlyMap<string, readonly number[]>;
+  /**
+   * ST-114. Data-chart scenes whose selected cells do not resolve against the
+   * current approved snapshot's table, with a teacher-facing reason naming
+   * the cell. Absent for a lesson without charts.
+   */
+  chartFailuresByStableSceneId?: ReadonlyMap<
+    string,
+    Readonly<{ fieldPath: string; message: string }>
+  >;
   mediaByStableSceneId: ReadonlyMap<string, SceneMedia>;
   grounding: Readonly<{
     exact: boolean;
@@ -311,6 +321,7 @@ export const validationRuleDependencies = Object.freeze({
     "invalid_scene",
     "text_overflow",
     "diagram_collision",
+    "chart_data_invalid",
     "scene_duration_out_of_range",
     "narration_duration_mismatch",
     // Editorial: depends only on the sequence of scene templates, so any edit
@@ -511,6 +522,22 @@ export function evaluateLessonValidation(
             details: { suggestedCorrection: libraryIssue.suggestedCorrection },
           },
         ),
+      );
+    const chartFailure = input.chartFailuresByStableSceneId?.get(sceneId);
+    if (chartFailure !== undefined)
+      issues.push(
+        issue("chart_data_invalid", {
+          severity: "error",
+          scopeType: "scene",
+          scopeId: sceneId,
+          sceneId,
+          fieldPath: `${basePath}.${chartFailure.fieldPath}`,
+          message: chartFailure.message,
+          details: {
+            suggestedCorrection:
+              "Select only rows and columns whose cells are numbers.",
+          },
+        }),
       );
     if (scene.durationSeconds !== storyboardScene.durationSeconds)
       issues.push(
@@ -1450,6 +1477,28 @@ export class PostgresLessonValidationService implements LessonValidationService 
             ).map((citation) => citation.issues.length),
       ]),
     );
+    // ST-114: every chart value is copied from the approved table, so a chart
+    // is checked against the current snapshot's table, exactly as preview and
+    // render will resolve it. A missing table is reported as an unresolved
+    // asset binding instead.
+    const chartFailuresByStableSceneId = new Map<
+      string,
+      { fieldPath: string; message: string }
+    >();
+    for (const storyboardScene of storyboard.scenes) {
+      const scene = storyboardScene.scene;
+      if (scene.template !== "data-chart") continue;
+      const table = sourceSnapshot?.tables.find(
+        (entry) => entry.tableId === scene.visual.tableId,
+      );
+      if (table === undefined) continue;
+      const resolution = resolveDataChart(table, scene.visual);
+      if (!resolution.ok)
+        chartFailuresByStableSceneId.set(storyboardScene.stableSceneId, {
+          fieldPath: resolution.failure.fieldPath,
+          message: resolution.failure.message,
+        });
+    }
     const [exactGrounding] =
       currentSnapshot === undefined
         ? []
@@ -1499,6 +1548,13 @@ export class PostgresLessonValidationService implements LessonValidationService 
       sourceSnapshotContentHash: currentSnapshot?.contentHash ?? null,
       issues: [...citationIssueCountsByStableSceneId.entries()],
     });
+    // Hashed only when the lesson has a chart, so every other lesson's runs
+    // keep their input hash.
+    if (storyboard.scenes.some((entry) => entry.scene.template === "data-chart"))
+      artifactHashes.charts = hashValidationArtifact({
+        sourceSnapshotContentHash: currentSnapshot?.contentHash ?? null,
+        failures: [...chartFailuresByStableSceneId.entries()],
+      });
     artifactHashes.grounding = hashValidationArtifact({
       id: exactGrounding?.id ?? null,
       claims: exactGrounding?.claims ?? null,
@@ -1541,6 +1597,9 @@ export class PostgresLessonValidationService implements LessonValidationService 
         ),
         resolvedAssetIds,
         citationIssueCountsByStableSceneId,
+        ...(chartFailuresByStableSceneId.size === 0
+          ? {}
+          : { chartFailuresByStableSceneId }),
         mediaByStableSceneId,
         grounding: groundingState(exactGrounding),
         ...(decorativeAssetsOptional ? { decorativeAssetsOptional } : {}),

@@ -47,7 +47,7 @@ import {
   storyboardSceneCountMinimum,
   storyboardSceneMaximumSeconds,
   storyboardSceneMinimumSeconds,
-  storyboardTemplateCatalog,
+  storyboardTemplateCatalogFor,
   type LessonStoryboard,
   type ModelCallParams,
   type ModelCallRecord,
@@ -67,6 +67,15 @@ import {
 import { allocateDurationsToTarget } from "./duration-allocation.js";
 import { computeOutlineSetContentHash } from "./narration-job.js";
 import { resolveObjectiveSourceRefs as resolveSourceRefs } from "./objectives-job.js";
+import {
+  chartSceneGrounding,
+  chartSceneProblem,
+  chartTablesFromSnapshot,
+  chartTablesPromptVariable,
+  promptOffersDataCharts,
+  withChartCitation,
+  type ChartTableContext,
+} from "./chart-tables.js";
 
 /**
  * Deterministic storyboard rule failure. The job classifies this as a terminal
@@ -85,6 +94,7 @@ export class StoryboardDeterministicCheckError extends Error {
     | "BLOCK_ORDER_VIOLATED"
     | "OUTLINE_ITEM_UNCOVERED"
     | "SCENE_TEXT_OVERFLOW"
+    | "CHART_DATA_INVALID"
     | "DURATION_UNREACHABLE";
 
   public constructor(
@@ -130,6 +140,8 @@ export type StoryboardOperationContext = {
       objectiveIds: readonly Identifier[];
     }[];
   };
+  /** ST-114: the approved tables this prompt version offered for charts. */
+  chartTables?: readonly ChartTableContext[];
 };
 
 export type LoadedStoryboardContext =
@@ -451,6 +463,13 @@ export function assertStoryboardDeterministicChecks(
           "UNSUPPORTED_SOURCE_BLOCK",
           `scenes[${sceneIndex}] cites unsupported source block ${blockId}.`,
         );
+    const chartTables = operationContext.chartTables ?? [];
+    const chartProblem = chartSceneProblem(scene, chartTables);
+    if (chartProblem !== undefined)
+      throw new StoryboardDeterministicCheckError(
+        "CHART_DATA_INVALID",
+        `scenes[${sceneIndex}] ${chartProblem}`,
+      );
     const layoutScene = sceneSpecSchema.parse({
       id: "019ffbf1-ffff-7000-8000-000000000099",
       order: sceneIndex + 1,
@@ -459,7 +478,10 @@ export function assertStoryboardDeterministicChecks(
       durationSeconds: storyboardSceneMinimumSeconds,
       onScreenText: scene.onScreenText,
       transition: scene.transition,
-      assetBindings: [],
+      assetBindings:
+        scene.template === "data-chart"
+          ? [chartSceneGrounding(scene.visual, chartTables).binding]
+          : [],
       sourceRefs: [],
       generatedAdditions: scene.generatedAdditions,
       template: scene.template,
@@ -640,10 +662,19 @@ async function persistLessonStoryboardDraft(input: {
       const block = blockById.get(blockId);
       return block === undefined ? [] : [block];
     });
-    const sourceRefs = resolveSourceRefs(
+    const citedRefs = resolveSourceRefs(
       input.sourcePackage,
       sceneSourceBlockIds(scene.sourceBlockIds, sceneBlocks, input.sourcePackage),
     );
+    // ST-114: application code, not the model, binds a chart to its table
+    // and cites it; the deterministic checks already refused any chart whose
+    // table was not offered or whose cells are not numeric.
+    const chart =
+      scene.template === "data-chart"
+        ? chartSceneGrounding(scene.visual, operationContext.chartTables ?? [])
+        : undefined;
+    const sourceRefs =
+      chart === undefined ? citedRefs : withChartCitation(citedRefs, chart.sourceRef);
     const generatedAdditions = sceneGeneratedAdditions(
       scene.generatedAdditions,
       sceneBlocks,
@@ -656,7 +687,7 @@ async function persistLessonStoryboardDraft(input: {
       durationSeconds: allocation.durations[index],
       onScreenText: scene.onScreenText,
       transition: scene.transition,
-      assetBindings: [],
+      assetBindings: chart === undefined ? [] : [chart.binding],
       sourceRefs,
       generatedAdditions,
       template: scene.template,
@@ -990,6 +1021,11 @@ export function createStoryboardGenerationJobHandler(input: {
   pricing?: ModelPricingTable;
   maxRepairs?: number;
   now?: () => Date;
+  /** Test seam (as in the visual-plan job): repositories and snapshot loader. */
+  modelCallOverrides?: Pick<
+    ModelCallHandlerOptions<StoryboardOutputV1>,
+    "modelCalls" | "usageMeter" | "auditWriter" | "sourceSnapshotLoader"
+  >;
 }): ReturnType<typeof createModelCallGenerationHandler<StoryboardOutputV1>> {
   const options: ModelCallHandlerOptions<StoryboardOutputV1> = {
     jobType: "storyboard.generate",
@@ -1000,8 +1036,21 @@ export function createStoryboardGenerationJobHandler(input: {
     promptRegistry: input.promptRegistry,
     quotaGuard: input.quotaGuard,
     database: input.database,
-    loadOperationContext: async ({ params, context }) => {
+    loadOperationContext: async ({
+      params,
+      context,
+      snapshot,
+      sourcePackage,
+      promptId,
+      promptVersion,
+    }) => {
       const parsedParams = storyboardGenerationParamsSchema.parse(params);
+      // ST-114: only a chart-aware prompt version is shown tables, and only
+      // then does its catalogue include data-chart. Pinned v1-v3 jobs keep
+      // exactly the ten-template catalogue they were written against.
+      const chartTables = promptOffersDataCharts(promptId, promptVersion)
+        ? chartTablesFromSnapshot(snapshot, sourcePackage)
+        : [];
       const loaded = await loadStoryboardOperationContext({
         executor: input.database,
         ownerUserId: context.ownerUserId,
@@ -1028,12 +1077,15 @@ export function createStoryboardGenerationJobHandler(input: {
       }));
       return {
         variables: {
-          templateCatalog: JSON.stringify(storyboardTemplateCatalog),
+          templateCatalog: JSON.stringify(
+            storyboardTemplateCatalogFor({ dataCharts: chartTables.length > 0 }),
+          ),
           narration: JSON.stringify(narration),
           outline: JSON.stringify(outline),
           configuration: JSON.stringify(parsedParams),
+          tables: chartTablesPromptVariable(chartTables),
         },
-        context: loaded.context,
+        context: { ...loaded.context, chartTables },
       };
     },
     deterministicChecks: (value, sourcePackage, operationContext) =>
@@ -1074,6 +1126,7 @@ export function createStoryboardGenerationJobHandler(input: {
     ...(input.pricing === undefined ? {} : { pricing: input.pricing }),
     ...(input.maxRepairs === undefined ? {} : { maxRepairs: input.maxRepairs }),
     ...(input.now === undefined ? {} : { now: input.now }),
+    ...input.modelCallOverrides,
   };
   return createModelCallGenerationHandler<StoryboardOutputV1>(options);
 }

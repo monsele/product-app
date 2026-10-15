@@ -146,3 +146,36 @@ table" consequence above for the library step of §6 only:
   never changes a saved version.
 - The library copy is not a paid call and is not metered; the failed
   generation that preceded it is metered once, as before.
+
+### ST-114 — data-chart compositions (2026-10-15)
+
+ST-114 adds the `data-chart` scene type and its two v2 arrangements, both in
+the `hero-diagram` family so the eight-family set of §2 is unchanged:
+
+- `hero-chart` (chart centred, full width) and `hero-chart-keyed` (chart on
+  the left, a key with the series and the narrated values on the right). Two
+  arrangements keep the rule that every scene type has at least two genuinely
+  different placements. Both use no illustration (`imageUse: "none"`), so the
+  §7 illustration budget never spends on a chart, and a chart counts as an
+  evidence picture: a pinned presentation illustration cannot replace it.
+- **Per-composition versions.** A composition keeps the version that
+  introduced it. The ten earlier compositions stay `1.0.0` and the two chart
+  compositions are `1.1.0` (`cinemaCompositionVersion` is now the newest
+  version, `1.1.0`). A scene design records its composition's own version, so
+  every stored manifest, and every new plan for a lesson without charts, is
+  byte-identical to before. A design that names a version other than its
+  composition's registered one fails `validateCreativeDesignManifestV2`. The
+  composition release stays `cinema-1.0.0`.
+- Chart motion uses the existing beats: each category is an `item-N` target
+  (one per charted row) whose bars grow (`transform`) or line segment draws in
+  (`path-build`) to reach its value on the beat frame; the highlighted
+  category is emphasised on the `emphasis` beat, never before its own item.
+- Chart colours are not identity tokens chosen per lesson: each pack (and the
+  legacy theme) has a fixed, accessibility-checked chart palette painted on
+  the chart's own panel, so a teacher's colour customisation cannot reduce
+  chart contrast.
+- The v1 treatment catalogue gains two `data-chart` treatments per pack
+  (additive; the frozen treatments are unchanged), so a v1 lesson can still
+  render a chart scene.
+- No migration: LessonSpec 1.10 is a JSON-document version read beside 1.8 and
+  1.9 in place, and manifests do not change shape.

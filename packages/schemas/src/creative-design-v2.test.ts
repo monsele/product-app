@@ -168,10 +168,14 @@ const familyOf = (id: Parameters<typeof cinemaComposition>[0]) =>
   cinemaComposition(id).family;
 
 describe("ST-109 composition catalogue", () => {
-  it("registers eight families across ten compositions with fixed versions", () => {
+  it("registers eight families across twelve compositions with fixed versions", () => {
     expect(new Set(cinemaCompositionCatalogue.map((entry) => entry.family)).size).toBe(8);
+    // ST-114: a composition keeps the version that introduced it; only the
+    // two chart arrangements are 1.1.0.
     for (const entry of cinemaCompositionCatalogue)
-      expect(entry.version).toBe("1.0.0");
+      expect(entry.version, entry.id).toBe(
+        entry.id === "hero-chart" || entry.id === "hero-chart-keyed" ? "1.1.0" : "1.0.0",
+      );
   });
 
   it("offers every semantic scene type at least two arrangements that differ in placement", () => {
@@ -248,6 +252,27 @@ describe("ST-109 composition catalogue", () => {
     expect(cinemaCompositionEligibility("sequence", branching).eligible).toBe(false);
     expect(cinemaCompositionEligibility("connected", branching).eligible).toBe(true);
     expect(linearGraphOrder([{ id: "a" }, { id: "b" }], [{ from: "a", to: "b" }])).toEqual(["a", "b"]);
+  });
+});
+
+describe("ST-114 composition versions", () => {
+  it("plans every earlier composition at 1.0.0, so lessons without charts are unchanged", () => {
+    const scenes = investigatedLesson();
+    const manifest = planCinemaDesign({ packId: "systems", scenes, seed: "0123456789abcdef" });
+    for (const design of Object.values(manifest.scenes))
+      expect(design.compositionVersion).toBe("1.0.0");
+    expect(validateCreativeDesignManifestV2(manifest, scenes)).toEqual([]);
+  });
+
+  it("refuses a design that claims a composition version it was not registered at", () => {
+    const scenes = investigatedLesson();
+    const manifest = planCinemaDesign({ packId: "systems", scenes, seed: "0123456789abcdef" });
+    const [sceneId, design] = Object.entries(manifest.scenes)[0]!;
+    const tampered = {
+      ...manifest,
+      scenes: { ...manifest.scenes, [sceneId]: { ...design, compositionVersion: "1.1.0" as const } },
+    };
+    expect(validateCreativeDesignManifestV2(tampered, scenes).join(" ")).toMatch(/version 1\.1\.0/u);
   });
 });
 

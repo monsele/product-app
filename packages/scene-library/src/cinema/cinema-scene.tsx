@@ -33,6 +33,10 @@ import {
   HeroAnnotatedComposition,
   HeroIndexedComposition,
 } from "./compositions/hero.js";
+import {
+  HeroChartComposition,
+  HeroChartKeyedComposition,
+} from "./compositions/chart.js";
 import { SequenceComposition } from "./compositions/sequence.js";
 import { TakeawayComposition } from "./compositions/takeaway.js";
 import {
@@ -42,6 +46,7 @@ import {
 } from "./content.js";
 import type { CinemaCompositionProps } from "./frame.js";
 import { resolveCinemaIdentity } from "./identity.js";
+import { resolveSceneChart } from "../data-chart/resolve.js";
 
 /** The registered implementation of every composition of `cinema-1.0.0`. */
 export const cinemaCompositionComponents: Readonly<
@@ -57,6 +62,8 @@ export const cinemaCompositionComponents: Readonly<
   "hero-annotated": HeroAnnotatedComposition,
   "hero-indexed": HeroIndexedComposition,
   takeaway: TakeawayComposition,
+  "hero-chart": HeroChartComposition,
+  "hero-chart-keyed": HeroChartKeyedComposition,
 });
 
 const settle = Easing.bezier(0.22, 1, 0.36, 1);
@@ -156,6 +163,14 @@ export function CinemaScene({
   const itemIcons = resolveCinemaItemIcons({ scene, assets: resolvedAssets, mode });
   const sequenceIcons = resolveCinemaItemIcons({ scene, assets: resolvedAssets, mode, forSequence: true });
   const subjects = resolveCinemaSubjectImages({ scene, assets: resolvedAssets, mode });
+  // ST-114: a chart that cannot be drawn from its approved table blocks the
+  // render; preview shows the reason in place of the chart.
+  const chart =
+    scene.template === "data-chart" ? resolveSceneChart(scene, resolvedAssets) : undefined;
+  if (chart !== undefined && !chart.ok && mode === "render")
+    throw new Error(
+      `Scene render blocked for ${scene.id}: ${chart.failure.message}`,
+    );
   const Composition = cinemaCompositionComponents[design.compositionId];
   const transition = transitionStyle(scene.transition, frame, durationInFrames, energy);
   return (
@@ -194,6 +209,7 @@ export function CinemaScene({
               scene={scene}
               sequenceIcons={sequenceIcons}
               subjects={subjects}
+              chart={chart}
             />
           </CinemaBeatProvider>
         </div>

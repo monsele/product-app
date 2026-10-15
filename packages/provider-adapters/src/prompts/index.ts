@@ -19,9 +19,11 @@ import { outlinePromptV2 } from "./outline/v2.js";
 import { outlinePromptV3 } from "./outline/v3.js";
 import { sceneRegenerationPromptV1 } from "./scene-regeneration/v1.js";
 import { sceneRegenerationPromptV2 } from "./scene-regeneration/v2.js";
+import { sceneRegenerationPromptV3 } from "./scene-regeneration/v3.js";
 import { storyboardPromptV1 } from "./storyboard/v1.js";
 import { storyboardPromptV2 } from "./storyboard/v2.js";
 import { storyboardPromptV3 } from "./storyboard/v3.js";
+import { storyboardPromptV4 } from "./storyboard/v4.js";
 import { lessonIntentPromptV1 } from "./lesson-intent/v1.js";
 import { oneShotBriefPromptV1 } from "./one-shot-brief/v1.js";
 
@@ -46,8 +48,10 @@ export const repositoryPrompts: readonly PromptDefinition[] = [
   storyboardPromptV1,
   storyboardPromptV2,
   storyboardPromptV3,
+  storyboardPromptV4,
   sceneRegenerationPromptV1,
   sceneRegenerationPromptV2,
+  sceneRegenerationPromptV3,
   groundingPromptV1,
   groundingPromptV2,
   creativeDesignPromptV1,

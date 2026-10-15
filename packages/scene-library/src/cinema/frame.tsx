@@ -14,6 +14,7 @@ import {
 import type { CSSProperties, JSX } from "react";
 import { arrival, useCinemaBeats } from "./beats.js";
 import type { CinemaIdentity } from "./identity.js";
+import type { SceneChartResolution } from "../data-chart/resolve.js";
 import {
   DisplayText,
   EmphasisText,
@@ -42,6 +43,8 @@ export type CinemaCompositionProps = Readonly<{
   itemIcons: readonly (CinemaIcon | undefined)[];
   sequenceIcons: readonly (CinemaIcon | undefined)[];
   subjects: Readonly<{ left?: CinemaIcon | undefined; right?: CinemaIcon | undefined }>;
+  /** ST-114: a data-chart scene's chart, resolved from its approved table. */
+  chart?: SceneChartResolution | undefined;
 }>;
 
 export function absolute(

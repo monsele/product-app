@@ -11,10 +11,14 @@ import {
   type PreviewAsset,
   summaryVisualSchema,
   workedExampleVisualSchema,
+  dataChartUnselectedTableId,
+  dataChartVisualSchema,
   sceneSpecSchema,
   sceneEditorMetadata,
   sceneTemplateSchema,
   sceneTemplateValues,
+  type CinemaCaptionCue,
+  type CreativeDesignPackId,
   type SceneSpec,
   type SceneEditorControl,
   type SceneTemplate,
@@ -24,6 +28,7 @@ import { z, type ZodType } from "zod";
 import {
   measureSceneContent,
   measureSceneText,
+  measureTextLayout,
   type LayoutMeasurement,
   type SceneContentMeasurement,
   type SceneTextBlock,
@@ -38,6 +43,8 @@ import { LabelledDiagramScene } from "./labelled-diagram-scene.js";
 import { AnalogyScene } from "./analogy-scene.js";
 import { WorkedExampleScene } from "./worked-example-scene.js";
 import { SummaryScene } from "./summary-scene.js";
+import { DataChartScene } from "./data-chart-scene.js";
+import { resolveSceneChart } from "./data-chart/resolve.js";
 import { planDiagramCallouts } from "./diagram-layout.js";
 import { planGraphLayout } from "./graph-layout.js";
 
@@ -47,7 +54,8 @@ export type SceneValidationIssue = Readonly<{
     | "invalid_scene"
     | "text_overflow"
     | "missing_asset"
-    | "diagram_collision";
+    | "diagram_collision"
+    | "chart_data_invalid";
   fieldPath: string;
   message: string;
   sceneId: string;
@@ -91,6 +99,8 @@ export type CreativeScenePresentation = Readonly<{
   surface: string;
   text: string;
   variant: "primary" | "alternate";
+  /** ST-114: the pack, so a chart can paint with its pack's chart palette. */
+  packId?: CreativeDesignPackId;
 }>;
 /**
  * The colour roles a scene paints with. Without a creative design these are
@@ -134,6 +144,12 @@ export type SceneComponentProps = Readonly<{
   resolvedAssets?: Readonly<Record<string, ResolvedSceneAsset>>;
   runtimeMode?: SceneRuntimeMode;
   scene: SceneSpec;
+  /**
+   * ST-114: the scene's measured caption cues (scene-relative frames), so a
+   * v1 scene can key motion to the narration as spoken. Only the data chart
+   * reads them; without cues it falls back to the narration estimate.
+   */
+  sceneCaptions?: readonly CinemaCaptionCue[];
 }>;
 
 export type SceneDefinition<TVisual extends z.ZodTypeAny> = Readonly<{
@@ -164,6 +180,7 @@ const visualSchemas = {
   analogy: analogyVisualSchema,
   "worked-example": workedExampleVisualSchema,
   summary: summaryVisualSchema,
+  "data-chart": dataChartVisualSchema,
 } satisfies Record<SceneTemplate, ZodType<unknown>>;
 
 const defaults = {
@@ -205,6 +222,13 @@ const defaults = {
     answer: "Answer",
   },
   summary: { takeaways: [{ text: "Key takeaway" }] },
+  "data-chart": {
+    tableId: dataChartUnselectedTableId,
+    chartKind: "bar",
+    categoryColumn: 0,
+    valueColumns: [1],
+    rowIndexes: [0, 1],
+  },
 } as const;
 
 // Kept as a preview-safe fallback helper for future registered templates.
@@ -326,6 +350,9 @@ const layouts: Record<SceneTemplate, SceneLayout> = {
       "visual.callToAction",
     ],
   },
+  // Category and value text comes from the resolved table and is fitted by
+  // `layoutDataChart`; only the unit label is scene text.
+  "data-chart": { visualTextPaths: ["visual.unitLabel"] },
 };
 
 const metadataByTemplate: Record<SceneTemplate, TemplateMetadataBase> = {
@@ -472,6 +499,16 @@ const metadataByTemplate: Record<SceneTemplate, TemplateMetadataBase> = {
       "visual.callToAction": 120,
     },
   },
+  "data-chart": {
+    assetSlots: ["chart-table"],
+    itemLimits: { "visual.valueColumns": 3, "visual.rowIndexes": 8 },
+    migrationBehavior: "none",
+    textLimits: {
+      narration: 5000,
+      onScreenText: 300,
+      "visual.unitLabel": 24,
+    },
+  },
 };
 
 function metadata(template: SceneTemplate): TemplateFormMetadata {
@@ -520,7 +557,9 @@ export const sceneRegistry: SceneRegistry = Object.freeze(
                           ? AnalogyScene
                           : template === "worked-example"
                             ? WorkedExampleScene
-                            : SummaryScene,
+                            : template === "data-chart"
+                              ? DataChartScene
+                              : SummaryScene,
         createDefault: () => makeDefault(template),
         durationGuidance: Object.freeze({
           maximumSeconds: 60,
@@ -820,6 +859,10 @@ export function validateScene(
         }),
       ];
   }
+  if (parsed.data.template === "data-chart") {
+    const chartIssues = validateDataChartScene(parsed.data, options);
+    if (chartIssues.length > 0) return chartIssues;
+  }
   const values: SceneTextBlock[] = [];
   if (parsed.data.title !== undefined)
     values.push({ path: "title", value: parsed.data.title });
@@ -955,6 +998,83 @@ export function validateScene(
   return [textOverflowIssue(measurement, parsed.data.id, "visual")];
 }
 
+/** The header band above a chart panel: a two-line title at 48 px. */
+const dataChartTitleFit = Object.freeze({
+  fontSize: 48,
+  lineHeight: 1.1,
+  maxLines: 2,
+  width:
+    videoTheme.canvas.width -
+    videoTheme.safeAreas.title.left -
+    videoTheme.safeAreas.title.right,
+});
+
+/**
+ * ST-114. A chart's numbers come only from its resolved table, so validation
+ * resolves it whenever resolved assets are supplied (preview and render) and
+ * refuses a missing table or any non-numeric selected cell with a message
+ * naming the cell. Category labels never overflow: `layoutDataChart` wraps,
+ * shrinks and then abbreviates them, keeping the full text in the alt text.
+ * The title is the only scene text that shares the frame with the chart.
+ */
+function validateDataChartScene(
+  scene: Extract<SceneSpec, { template: "data-chart" }>,
+  options: SceneValidationOptions,
+): readonly SceneValidationIssue[] {
+  if (!scene.assetBindings.some((binding) => binding.slot === "chart-table"))
+    return [
+      Object.freeze({
+        code: "missing_asset" as const,
+        fieldPath: "assetBindings.chart-table",
+        message: "Choose an approved source table for this chart.",
+        sceneId: scene.id,
+        severity: "error" as const,
+        suggestedCorrection:
+          "Pick a source table, its category column, value columns and rows.",
+      }),
+    ];
+  if (options.requireResolvedAssets === true || options.resolvedAssets !== undefined) {
+    const resolution = resolveSceneChart(scene, options.resolvedAssets);
+    if (!resolution.ok)
+      return [
+        resolution.failure.code === "table_missing"
+          ? Object.freeze({
+              code: "missing_asset" as const,
+              fieldPath: resolution.failure.fieldPath,
+              message: resolution.failure.message,
+              sceneId: scene.id,
+              severity: "error" as const,
+              suggestedCorrection:
+                "Choose a table from this project's approved source.",
+            })
+          : Object.freeze({
+              code: "chart_data_invalid" as const,
+              fieldPath: resolution.failure.fieldPath,
+              message: resolution.failure.message,
+              sceneId: scene.id,
+              severity: "error" as const,
+              suggestedCorrection:
+                "Select only rows and columns whose cells are numbers.",
+            }),
+      ];
+  }
+  if (
+    scene.title !== undefined &&
+    !measureTextLayout(scene.title, dataChartTitleFit).fits
+  )
+    return [
+      Object.freeze({
+        code: "text_overflow" as const,
+        fieldPath: "title",
+        message: "The title is too long to sit above the chart.",
+        sceneId: scene.id,
+        severity: "error" as const,
+        suggestedCorrection: "Shorten the title to two lines.",
+      }),
+    ];
+  return [];
+}
+
 /**
  * When no single block is too long but the stack is too tall, the last block
  * measured is only where the space ran out; blaming it misleads the teacher,
@@ -995,11 +1115,13 @@ export function SceneRuntime({
   resolvedAssets,
   runtimeMode,
   scene,
+  sceneCaptions,
 }: SceneComponentProps): JSX.Element {
   return createElement(resolveSceneDefinition(scene).component, {
     ...(creativePresentation === undefined ? {} : { creativePresentation }),
     ...(resolvedAssets === undefined ? {} : { resolvedAssets }),
     ...(runtimeMode === undefined ? {} : { runtimeMode }),
+    ...(sceneCaptions === undefined ? {} : { sceneCaptions }),
     scene,
   });
 }
@@ -1008,10 +1130,12 @@ export function ScenePreviewRuntime({
   creativePresentation,
   resolvedAssets,
   scene,
+  sceneCaptions,
 }: SceneComponentProps): JSX.Element {
   return createElement(SceneRuntime, {
     ...(creativePresentation === undefined ? {} : { creativePresentation }),
     ...(resolvedAssets === undefined ? {} : { resolvedAssets }),
+    ...(sceneCaptions === undefined ? {} : { sceneCaptions }),
     runtimeMode: "preview",
     scene,
   });
@@ -1021,6 +1145,7 @@ export function SceneRenderRuntime({
   creativePresentation,
   resolvedAssets,
   scene,
+  sceneCaptions,
 }: SceneComponentProps): JSX.Element {
   const issues = validateScene(scene, {
     requireResolvedAssets: true,
@@ -1034,6 +1159,7 @@ export function SceneRenderRuntime({
   return createElement(SceneRuntime, {
     ...(creativePresentation === undefined ? {} : { creativePresentation }),
     ...(resolvedAssets === undefined ? {} : { resolvedAssets }),
+    ...(sceneCaptions === undefined ? {} : { sceneCaptions }),
     runtimeMode: "render",
     scene,
   });

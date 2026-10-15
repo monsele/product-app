@@ -4,7 +4,7 @@
     "LessonSpec": {
       "type": "object",
       "properties": {
-        "schemaVersion": { "type": "string", "enum": ["1.8", "1.9"] },
+        "schemaVersion": { "type": "string", "enum": ["1.8", "1.9", "1.10"] },
         "lessonId": {
           "type": "string",
           "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
@@ -1199,6 +1199,107 @@
                       }
                     },
                     "required": ["takeaways"],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "id",
+                  "order",
+                  "narration",
+                  "durationSeconds",
+                  "onScreenText",
+                  "transition",
+                  "assetBindings",
+                  "sourceRefs",
+                  "generatedAdditions",
+                  "template",
+                  "visual"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                  },
+                  "order": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/order"
+                  },
+                  "title": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/title"
+                  },
+                  "narration": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/narration"
+                  },
+                  "durationSeconds": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/durationSeconds"
+                  },
+                  "onScreenText": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/onScreenText"
+                  },
+                  "transition": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/transition"
+                  },
+                  "assetBindings": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/assetBindings"
+                  },
+                  "sourceRefs": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/sourceRefs"
+                  },
+                  "generatedAdditions": {
+                    "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/0/properties/generatedAdditions"
+                  },
+                  "template": { "type": "string", "const": "data-chart" },
+                  "visual": {
+                    "type": "object",
+                    "properties": {
+                      "tableId": {
+                        "$ref": "#/definitions/LessonSpec/properties/lessonId"
+                      },
+                      "chartKind": {
+                        "type": "string",
+                        "enum": ["bar", "line"]
+                      },
+                      "categoryColumn": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 7
+                      },
+                      "valueColumns": {
+                        "type": "array",
+                        "items": {
+                          "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/10/properties/visual/properties/categoryColumn"
+                        },
+                        "minItems": 1,
+                        "maxItems": 3
+                      },
+                      "rowIndexes": {
+                        "type": "array",
+                        "items": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 11
+                        },
+                        "minItems": 2,
+                        "maxItems": 8
+                      },
+                      "highlightCategory": {
+                        "$ref": "#/definitions/LessonSpec/properties/scenes/items/anyOf/10/properties/visual/properties/rowIndexes/items"
+                      },
+                      "unitLabel": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 24
+                      }
+                    },
+                    "required": [
+                      "tableId",
+                      "chartKind",
+                      "categoryColumn",
+                      "valueColumns",
+                      "rowIndexes"
+                    ],
                     "additionalProperties": false
                   }
                 },

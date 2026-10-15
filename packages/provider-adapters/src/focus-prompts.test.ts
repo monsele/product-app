@@ -95,7 +95,8 @@ describe("ST-104 focus-aware prompt versions", () => {
     expect(currentObjectiveGenerationCompatibility.promptVersion).toBe("v3");
     expect(currentOutlineGenerationCompatibility.promptVersion).toBe("v3");
     expect(currentNarrationGenerationCompatibility.promptVersion).toBe("v5");
-    expect(currentStoryboardGenerationCompatibility.promptVersion).toBe("v3");
+    // ST-114 moved storyboard generation to v4 (data charts); v3 stays registered.
+    expect(currentStoryboardGenerationCompatibility.promptVersion).toBe("v4");
     for (const [promptId, version] of [
       ["objectives", "v2"],
       ["outline", "v2"],

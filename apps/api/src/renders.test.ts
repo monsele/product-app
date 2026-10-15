@@ -9,7 +9,8 @@ import {
   type AuthGateway,
 } from "@avlp/auth";
 import { createApp, sessionCookieName } from "./app.js";
-import { cinemaCaptionsSha256 } from "@avlp/schemas";
+import { cinemaCaptionsSha256, type PreviewAsset, type SceneSpec } from "@avlp/schemas";
+import { resolveSceneChart } from "@avlp/scene-library";
 import {
   assertPinnedCaptionsUnchanged,
   PostgresRenderService,
@@ -522,6 +523,183 @@ describe("render API authorization and explicit commands", () => {
     const jobWrite = writes.find((value) => value.jobType === "lesson.render");
     expect(jobWrite).toBeDefined();
     expect(updates[0]?.jobId).toBe(jobWrite?.id);
+  });
+
+  it("ST-114: renders a 1.10 data-chart scene from its bound table with values identical to the cells", async () => {
+    const fixture = createCrossUserProjectFixture();
+    const now = new Date("2026-08-25T08:00:00.000Z");
+    const lessonSpecId = createId(now);
+    const sceneId = createId(new Date("2026-08-25T08:00:01.000Z"));
+    const tableAssetId = createId(new Date("2026-08-25T08:00:02.000Z"));
+    const versionId = createId(new Date("2026-08-25T08:00:04.000Z"));
+    const validationId = createId(new Date("2026-08-25T08:00:05.000Z"));
+    const audioId = createId(new Date("2026-08-25T08:00:06.000Z"));
+    const trackId = createId(new Date("2026-08-25T08:00:07.000Z"));
+    const renderId = createId(new Date("2026-08-25T08:00:08.000Z"));
+    const correlationId = createId(new Date("2026-08-25T08:00:09.000Z"));
+    const lesson = {
+      schemaVersion: "1.10",
+      lessonId: lessonSpecId,
+      projectId: fixture.projectId,
+      title: "Group 1 elements",
+      subject: "Chemistry",
+      audience: {
+        ageBand: "11-13",
+        difficulty: "introductory",
+        priorKnowledge: [],
+      },
+      targetDurationSeconds: 180,
+      tone: "friendly",
+      themeId: "mvp-default",
+      objectiveIds: [sceneId],
+      voice: { providerVoiceId: "mvp-default", speakingRate: 1 },
+      scenes: [
+        {
+          id: sceneId,
+          order: 1,
+          narration: "Alkali metals share one outer electron.",
+          durationSeconds: 180,
+          onScreenText: [],
+          transition: "cut",
+          assetBindings: [
+            { assetId: tableAssetId, role: "diagram", slot: "chart-table" },
+          ],
+          sourceRefs: [
+            {
+              documentId: createId(new Date("2026-08-25T08:00:03.000Z")),
+              parsedDocumentVersion: 1,
+              pageStart: 3,
+              blockIds: [sceneId],
+            },
+          ],
+          generatedAdditions: [],
+          template: "data-chart",
+          visual: {
+            tableId: tableAssetId,
+            chartKind: "bar",
+            categoryColumn: 0,
+            valueColumns: [1],
+            rowIndexes: [0, 1],
+          },
+        },
+      ],
+    };
+    const writes: Array<Record<string, unknown>> = [];
+    const latestApprovedVisuals = vi.fn().mockResolvedValue({
+      snapshotId: createId(new Date("2026-08-25T08:00:10.000Z")),
+      parsedDocumentId: createId(new Date("2026-08-25T08:00:11.000Z")),
+      figures: [],
+      tables: [
+        {
+          tableId: tableAssetId,
+          sectionId: createId(new Date("2026-08-25T08:00:12.000Z")),
+          order: 1,
+          pageStart: 3,
+          columns: ["Element", "Density (g/cm³)"],
+          rows: [
+            ["Lithium", "0.53"],
+            ["Sodium", "0.97"],
+          ],
+        },
+      ],
+    });
+    const database = databaseForRenderCommand({
+      writes,
+      rows: [
+        [
+          {
+            id: versionId,
+            contentHash: "a".repeat(64),
+            lessonSpecId,
+            lessonSpecRevision: 1,
+            sceneLibraryVersion: "mvp-v1",
+            snapshot: { lessonSpec: lesson },
+          },
+        ],
+        [{ id: validationId, inputHash: "b".repeat(64) }],
+        [], // blocking validation issues
+        [{ id: createId(new Date("2026-08-25T08:00:13.000Z")) }], // document (direct)
+        [], // projectAssetRows
+        [], // sourceFigureRows
+        [
+          {
+            stableSceneId: sceneId,
+            audio: {
+              id: audioId,
+              storageKey: `users/${fixture.ownerUserId}/projects/${fixture.projectId}/audio/${sceneId}/a.mp3`,
+              checksumSha256: "c".repeat(64),
+              contentType: "audio/mpeg",
+              updatedAt: now,
+            },
+          },
+        ],
+        [{ audioId, track: { id: trackId, updatedAt: now } }],
+        [{ startMs: 0, endMs: 30_000, text: "Alkali metals." }],
+        [], // existing render lookup
+        [], // existing (manifest hash) render lookup
+        [], // activeRenders
+        [], // recentRenders
+        [
+          {
+            render: {
+              id: renderId,
+              lessonVersionId: versionId,
+              validationRunId: validationId,
+              createdAt: now,
+              errorCode: null,
+            },
+            job: {
+              state: "queued",
+              progress: 0,
+              attempts: 0,
+              errorMetadata: null,
+              errorClassification: null,
+              correlationId,
+              startedAt: null,
+              completedAt: null,
+            },
+            video: null,
+            thumbnail: null,
+          },
+        ],
+      ],
+    });
+    const service = new PostgresRenderService(
+      database,
+      undefined,
+      undefined,
+      () => now,
+      undefined,
+      { latestApprovedVisuals },
+    );
+
+    await expect(
+      service.start({
+        ownerUserId: fixture.ownerUserId,
+        projectId: fixture.projectId,
+        correlationId,
+        body: { lessonVersionId: versionId },
+      }),
+    ).resolves.toMatchObject({ id: renderId, status: "queued" });
+
+    expect(latestApprovedVisuals).toHaveBeenCalledWith({
+      ownerUserId: fixture.ownerUserId,
+      projectId: fixture.projectId,
+    });
+    const jobWrite = writes.find((value) => value.jobType === "lesson.render");
+    const payload = jobWrite?.payload as {
+      manifest?: { visualAssets?: unknown[] };
+      assetManifest?: { assets?: unknown[] };
+    };
+    const [asset] = (payload.manifest?.visualAssets ?? []) as PreviewAsset[];
+    expect(asset).toMatchObject({ assetId: tableAssetId, source: "source_table" });
+    // The renderer draws the chart from exactly this manifest entry.
+    const chart = resolveSceneChart(
+      lesson.scenes[0] as unknown as SceneSpec,
+      { [tableAssetId]: asset! },
+    );
+    expect(chart.ok && chart.chart.series[0]!.values.map((value) => value.text)).toEqual(["0.53", "0.97"]);
+    expect(payload.assetManifest?.assets).toHaveLength(1);
   });
 
   it("includes a bound source_table visual in the render manifest with no media fetch", async () => {

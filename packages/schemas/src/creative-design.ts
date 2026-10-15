@@ -48,6 +48,9 @@ export const creativeDesignSceneTypes = [
   "analogy",
   "worked-example",
   "summary",
+  // ST-114: additive. Existing treatments are unchanged; a data-chart scene
+  // in a v1 lesson gets its own two treatments.
+  "data-chart",
 ] as const;
 const legacyCreativeDesignSceneTypes = [
   "hook",
@@ -346,7 +349,9 @@ export type CreativeDesignCandidate = Readonly<{
     | "stepwise"
     | "walkthrough"
     | "recap-cards"
-    | "central-takeaway";
+    | "central-takeaway"
+    | "plotted"
+    | "keyed";
   variant: "primary" | "alternate";
   minDurationSeconds: number;
   supportedApproaches: readonly ["standard"];
@@ -385,6 +390,8 @@ const familyFor = (
     return variant === "primary" ? "parallel" : "metaphor";
   if (sceneType === "worked-example")
     return variant === "primary" ? "stepwise" : "walkthrough";
+  if (sceneType === "data-chart")
+    return variant === "primary" ? "plotted" : "keyed";
   return variant === "primary" ? "recap-cards" : "central-takeaway";
 };
 
@@ -393,7 +400,8 @@ const minDurationFor = (sceneType: CreativeDesignSceneType): number => {
   if (
     sceneType === "process" ||
     sceneType === "cause-effect" ||
-    sceneType === "labelled-diagram"
+    sceneType === "labelled-diagram" ||
+    sceneType === "data-chart"
   )
     return 6;
   if (
@@ -413,6 +421,7 @@ const textLimitsFor = (
     return { maxCharacters: 400, maxItems: 12 };
   if (sceneType === "labelled-diagram")
     return { maxCharacters: 320, maxItems: 12 };
+  if (sceneType === "data-chart") return { maxCharacters: 320, maxItems: 8 };
   if (sceneType === "comparison" || sceneType === "cause-effect")
     return { maxCharacters: 300, maxItems: 8 };
   if (sceneType === "input-process-output" || sceneType === "summary")
@@ -448,7 +457,8 @@ const timingFor = (
   if (
     sceneType === "process" ||
     sceneType === "cause-effect" ||
-    sceneType === "labelled-diagram"
+    sceneType === "labelled-diagram" ||
+    sceneType === "data-chart"
   )
     return {
       establishFrames: 12,
@@ -484,7 +494,8 @@ const densityFor = (sceneType: CreativeDesignSceneType): "low" | "medium" => {
     sceneType === "comparison" ||
     sceneType === "cause-effect" ||
     sceneType === "labelled-diagram" ||
-    sceneType === "worked-example"
+    sceneType === "worked-example" ||
+    sceneType === "data-chart"
   )
     return "medium";
   return "low";
@@ -666,7 +677,8 @@ const holdFramesForScene = (sceneType: CreativeDesignSceneType): number => {
   if (
     sceneType === "process" ||
     sceneType === "cause-effect" ||
-    sceneType === "labelled-diagram"
+    sceneType === "labelled-diagram" ||
+    sceneType === "data-chart"
   )
     return 90;
   if (sceneType === "summary") return 80;

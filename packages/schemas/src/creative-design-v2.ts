@@ -31,7 +31,17 @@ const text = (maximum: number) => z.string().trim().min(1).max(maximum);
 export const creativeDesignManifestV2Version = "2.0" as const;
 /** The implementation release every v2 composition belongs to (CR-03). */
 export const cinemaCompositionRelease = "cinema-1.0.0" as const;
-export const cinemaCompositionVersion = "1.0.0" as const;
+/**
+ * The newest composition version. Each composition keeps the version that
+ * introduced it (`CinemaCompositionDefinition.version`), and a saved scene
+ * design records that version, so adding compositions never rewrites a
+ * stored or newly planned design for an existing one. ST-114 added the two
+ * chart compositions at 1.1.0; every earlier composition is still 1.0.0.
+ */
+export const cinemaCompositionVersion = "1.1.0" as const;
+export const cinemaCompositionVersions = ["1.0.0", cinemaCompositionVersion] as const;
+export const cinemaCompositionVersionSchema = z.enum(cinemaCompositionVersions);
+export type CinemaCompositionVersion = z.infer<typeof cinemaCompositionVersionSchema>;
 export const cinemaPlannerVersion = "st-109-cinema-planner-v1" as const;
 export const visualPlanVersion = "visual-plan-v1" as const;
 
@@ -59,6 +69,8 @@ export const cinemaCompositionIds = [
   "hero-annotated",
   "hero-indexed",
   "takeaway",
+  "hero-chart",
+  "hero-chart-keyed",
 ] as const;
 export const cinemaCompositionIdSchema = z.enum(cinemaCompositionIds);
 export type CinemaCompositionId = z.infer<typeof cinemaCompositionIdSchema>;
@@ -189,7 +201,7 @@ export type CinemaSceneDisplay = z.infer<typeof cinemaSceneDisplaySchema>;
 export const cinemaSceneDesignSchema = z
   .object({
     compositionId: cinemaCompositionIdSchema,
-    compositionVersion: z.literal(cinemaCompositionVersion),
+    compositionVersion: cinemaCompositionVersionSchema,
     locked: z.boolean(),
     requiredHoldFrames: z.number().int().min(30).max(600),
     chapter: z.number().int().min(1).max(99).nullable(),
@@ -398,7 +410,8 @@ export function cinemaArtDirectionBrief(
 export type CinemaCompositionDefinition = Readonly<{
   id: CinemaCompositionId;
   family: CinemaCompositionFamily;
-  version: typeof cinemaCompositionVersion;
+  /** The composition version that introduced this arrangement. */
+  version: CinemaCompositionVersion;
   label: string;
   description: string;
   sceneTypes: readonly SceneTemplate[];
@@ -413,8 +426,8 @@ export type CinemaCompositionDefinition = Readonly<{
 
 const composition = (
   value: Omit<CinemaCompositionDefinition, "version">,
-): CinemaCompositionDefinition =>
-  Object.freeze({ ...value, version: cinemaCompositionVersion });
+  version: CinemaCompositionVersion = "1.0.0",
+): CinemaCompositionDefinition => Object.freeze({ ...value, version });
 
 export const cinemaCompositionCatalogue: readonly CinemaCompositionDefinition[] =
   Object.freeze([
@@ -544,6 +557,38 @@ export const cinemaCompositionCatalogue: readonly CinemaCompositionDefinition[] 
       weight: "center",
       minDurationSeconds: 3,
     }),
+    // ST-114: the two chart arrangements. Both draw the same native chart
+    // from the approved table; they differ in placement.
+    composition(
+      {
+        id: "hero-chart",
+        family: "hero-diagram",
+        label: "Hero chart",
+        description:
+          "One chart fills the frame; bars grow or the line draws in as each value is narrated, and the highlighted category is called out.",
+        sceneTypes: ["data-chart"],
+        imageUse: "none",
+        capacity: "high",
+        weight: "center",
+        minDurationSeconds: 4,
+      },
+      "1.1.0",
+    ),
+    composition(
+      {
+        id: "hero-chart-keyed",
+        family: "hero-diagram",
+        label: "Keyed chart",
+        description:
+          "The chart sits on one side; a key naming each series and the highlighted value fills the other.",
+        sceneTypes: ["data-chart"],
+        imageUse: "none",
+        capacity: "high",
+        weight: "left",
+        minDurationSeconds: 4,
+      },
+      "1.1.0",
+    ),
   ]);
 
 export function cinemaComposition(
@@ -601,7 +646,19 @@ export function cinemaSceneItems(scene: AnyScene): readonly string[] {
       return scene.visual.steps;
     case "summary":
       return scene.visual.takeaways.map((takeaway) => takeaway.text);
+    case "data-chart":
+      // A chart's category labels live in the approved table, not the scene,
+      // so it has no item text of its own; see `cinemaSceneItemCount`.
+      return [];
   }
+}
+
+/** Number of addressable `item-N` elements: one per item text, or one per
+ * charted category (table row) for a data chart. */
+export function cinemaSceneItemCount(scene: AnyScene): number {
+  return scene.template === "data-chart"
+    ? scene.visual.rowIndexes.length
+    : cinemaSceneItems(scene).length;
 }
 
 /** Number of addressable relationship links a scene's content defines. */
@@ -893,6 +950,8 @@ export function cinemaApprovedSceneText(scene: AnyScene): readonly string[] {
     "objectiveId",
     "from",
     "to",
+    "tableId",
+    "chartKind",
   ]);
   const collect = (value: unknown, key?: string) => {
     if (key !== undefined && structural.has(key)) return;
@@ -963,6 +1022,7 @@ const kickerByTemplate: Readonly<Record<SceneTemplate, string>> = {
   analogy: "an analogy",
   "worked-example": "worked example",
   summary: "in summary",
+  "data-chart": "compare",
 };
 
 const defaultHeadline = (scene: AnyScene): string => {
@@ -984,6 +1044,8 @@ const defaultHeadline = (scene: AnyScene): string => {
       return "Parts and relationships";
     case "input-process-output":
       return scene.visual.process.label;
+    case "data-chart":
+      return "What the numbers show";
     default:
       return "How it happens";
   }
@@ -1013,7 +1075,11 @@ function authoredEmphasis(scene: AnyScene, primary: string): string[] {
 
 export function authoredCinemaDisplay(scene: AnyScene): CinemaSceneDisplay {
   const headline = defaultHeadline(scene).slice(0, 160);
-  const display = { headline, emphasis: [] as string[], kicker: kickerByTemplate[scene.template] };
+  const kicker =
+    scene.template === "data-chart" && scene.visual.chartKind === "line"
+      ? "what changes"
+      : kickerByTemplate[scene.template];
+  const display = { headline, emphasis: [] as string[], kicker };
   return cinemaSceneDisplaySchema.parse({
     ...display,
     emphasis: authoredEmphasis(scene, cinemaPrimaryText(scene, display)),
@@ -1120,14 +1186,14 @@ export function cinemaBeatTargets(
   const targets = new Set<string>(["headline", "emphasis"]);
   const definition = cinemaComposition(id);
   if (definition.imageUse !== "none") targets.add("image");
-  const items =
+  const itemCount =
     id === "sequence"
-      ? (cinemaSequenceStops(scene) ?? [])
-      : cinemaSceneItems(scene);
-  items.forEach((_, index) => targets.add(`item-${index + 1}`));
+      ? (cinemaSequenceStops(scene) ?? []).length
+      : cinemaSceneItemCount(scene);
+  for (let index = 1; index <= itemCount; index += 1) targets.add(`item-${index}`);
   const links =
     id === "sequence"
-      ? Math.max(0, items.length - 1)
+      ? Math.max(0, itemCount - 1)
       : cinemaSceneLinkCount(scene);
   for (let index = 1; index <= links; index += 1) targets.add(`link-${index}`);
   if (
@@ -1165,7 +1231,7 @@ export function authoredCinemaBeats(
   const itemCount =
     id === "sequence"
       ? (cinemaSequenceStops(scene) ?? []).length
-      : cinemaSceneItems(scene).length;
+      : cinemaSceneItemCount(scene);
   const beats: CinemaBeat[] = [];
   const at = (index: number, total: number) =>
     Math.min(sentenceCount - 1, Math.floor((index * sentenceCount) / Math.max(1, total)));
@@ -1178,8 +1244,16 @@ export function authoredCinemaBeats(
       anchor: { sentence: Math.min(1, sentenceCount - 1) },
     });
   }
+  // ST-114: a bar grows (transform) and a line draws in (path-build) on its
+  // category's beat.
   const itemMotion: CinemaMotionFamily =
-    id === "connected" || id === "sequence" ? "path-build" : "sequential-reveal";
+    id === "connected" || id === "sequence"
+      ? "path-build"
+      : scene.template === "data-chart"
+        ? scene.visual.chartKind === "line"
+          ? "path-build"
+          : "transform"
+        : "sequential-reveal";
   for (let index = 0; index < itemCount; index += 1) {
     beats.push({
       target: `item-${index + 1}`,
@@ -1695,6 +1769,7 @@ const typeAffinity: Readonly<
   analogy: { "comparison-split": 1.5, "illustrated-headline": 1, statement: 0.5, "comparison-stacked": 1 },
   "worked-example": { sequence: 1.5, takeaway: 1.5 },
   summary: { takeaway: 1.5, sequence: 1, "illustrated-headline": 0.5, statement: 0.5, chapter: 0.5 },
+  "data-chart": { "hero-chart": 1.5, "hero-chart-keyed": 1 },
 };
 
 const capacityRank = { low: 0, medium: 1, high: 2 } as const;
@@ -1805,6 +1880,7 @@ const motifByTemplate: Readonly<Record<SceneTemplate, readonly CinemaMotifKind[]
   analogy: ["split", "wave"],
   "worked-example": ["stack", "grid"],
   summary: ["grid", "spark"],
+  "data-chart": ["grid", "stack"],
 };
 
 export function cinemaHoldFrames(
@@ -1928,7 +2004,7 @@ export function planCinemaDesign(
       entry.sectionId === undefined ? -1 : sectionOrder.indexOf(entry.sectionId);
     scenes[scene.id] = cinemaSceneDesignSchema.parse({
       compositionId: selection.compositionId,
-      compositionVersion: cinemaCompositionVersion,
+      compositionVersion: cinemaComposition(selection.compositionId).version,
       locked: selection.locked,
       requiredHoldFrames: cinemaHoldFrames(selection.compositionId, scene),
       chapter: isChapter
@@ -1989,6 +2065,10 @@ export function validateCreativeDesignManifestV2(
       issues.push(`Scene ${scene.id} has no resolved composition.`);
       continue;
     }
+    if (design.compositionVersion !== cinemaComposition(design.compositionId).version)
+      issues.push(
+        `Scene ${scene.id} names version ${design.compositionVersion} of a composition registered at ${cinemaComposition(design.compositionId).version}.`,
+      );
     const eligibility = cinemaCompositionEligibility(design.compositionId, scene);
     if (!eligibility.eligible) {
       issues.push(`Scene ${scene.id}: ${eligibility.reason}`);
@@ -2152,7 +2232,9 @@ export function cinemaHeroSlotBinding(scene: AnyScene): SceneAssetBinding | unde
  * pinned there (ST-110 AC5).
  */
 export function cinemaSceneHasEvidencePicture(scene: AnyScene): boolean {
-  if (scene.template === "labelled-diagram") return true;
+  // ST-114: a chart is drawn from an approved table; it is the evidence.
+  if (scene.template === "labelled-diagram" || scene.template === "data-chart")
+    return true;
   const binding = cinemaHeroSlotBinding(scene);
   return (
     binding !== undefined &&

@@ -102,8 +102,9 @@ describe("ST-104 audience values", () => {
 });
 
 describe("ST-104 LessonSpec 1.8/1.9 compatibility", () => {
-  it("writes 1.9 and still reads a stored 1.8 document byte-for-byte", () => {
-    expect(lessonSpecVersion).toBe("1.9");
+  it("writes the current version and still reads a stored 1.8 document byte-for-byte", () => {
+    // ST-114 moved the current version to 1.10; 1.9 is read in place.
+    expect(lessonSpecVersion).toBe("1.10");
     expect(legacyAudienceLessonSpecVersion).toBe("1.8");
     const parsed = lessonSpecSchema.parse(legacyLesson);
     expect(parsed).toEqual(legacyLesson);

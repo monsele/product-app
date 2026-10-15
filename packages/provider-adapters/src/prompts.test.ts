@@ -101,11 +101,15 @@ describe("prompt registry", () => {
       configuration: JSON.stringify({ targetDurationSeconds: 300 }),
       focus: "none",
       audience: "learners aged 11-13; introductory depth.",
+      tables: "[]",
     });
     expect(system).toContain("storyboard planner");
     expect(system).toContain("pixel coordinates");
     expect(system).toContain("Return ONLY a JSON object");
-    expect(definition.version).toBe("v3");
+    // ST-114: v4 adds data charts and the {{tables}} slot.
+    expect(definition.version).toBe("v4");
+    expect(user).toContain("Approved source tables you may chart");
+    expect(system).toContain("never write a number");
     expect(user).toContain("storyboard-v1");
     expect(user).toContain("narrationBlockIds");
     expect(user).toContain("assetRequirements");

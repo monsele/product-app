@@ -26,6 +26,7 @@ import {
 } from "@avlp/provider-adapters";
 import {
   buildSourcePackage,
+  dataChartTableSlot,
   lessonStoryboardSceneSchema,
   lessonStoryboardSchema,
   sceneRegenerationOutputSchema,
@@ -44,6 +45,11 @@ import {
   SceneRegenerationDeterministicCheckError,
   type SceneRegenerationOperationContext,
 } from "./scene-regeneration-job.js";
+import {
+  chartSceneGrounding,
+  chartTablesFromSnapshot,
+  withChartCitation,
+} from "./chart-tables.js";
 
 const projectId = "019ffbf1-ffff-7000-8000-000000000001";
 const ownerUserId = "019ffbf1-aaaa-7000-8000-000000000001";
@@ -502,6 +508,85 @@ function operationContext(
   };
 }
 
+// ST-114: a numeric table in the same section, for the data-chart cases.
+const chartTableId = "019ffbf1-4444-7000-8000-000000000001";
+
+function chartSnapshot(): SourceSnapshot {
+  const base = sampleSnapshot();
+  return sourceSnapshotSchema.parse({
+    ...base,
+    sections: base.sections.map((section) => ({
+      ...section,
+      tableIds: [chartTableId],
+    })),
+    tables: [
+      {
+        tableId: chartTableId,
+        sectionId,
+        order: 1,
+        pageStart: 2,
+        pageEnd: 2,
+        columns: ["Stage", "Days", "Notes"],
+        rows: [
+          ["Evaporation", "4", "warm"],
+          ["Condensation", "2", "cool"],
+          ["Precipitation", "1", "wet"],
+        ],
+      },
+    ],
+  });
+}
+
+function chartTables() {
+  const snapshot = chartSnapshot();
+  return chartTablesFromSnapshot(snapshot, buildSourcePackage(snapshot));
+}
+
+const chartVisual = (valueColumn: number) => ({
+  tableId: chartTableId,
+  chartKind: "bar",
+  categoryColumn: 0,
+  valueColumns: [valueColumn],
+  rowIndexes: [0, 1, 2],
+});
+
+function chartOutput(valueColumn = 1): SceneRegenerationOutput {
+  return sceneRegenerationOutputSchema.parse({
+    schemaVersion: "scene-regeneration-v1",
+    mode: "improve-visual",
+    scene: {
+      template: "data-chart",
+      narrationBlockIds: [blockA],
+      onScreenText: [],
+      visual: chartVisual(valueColumn),
+      estimatedSeconds: 30,
+      transition: "fade",
+      sourceBlockIds: [blockA],
+      generatedAdditions: [],
+      assetRequirements: [],
+    },
+  });
+}
+
+/** The current scene already a chart, bound and cited by the application. */
+function currentChartScene(): LessonStoryboardScene {
+  const base = currentScene();
+  const grounding = chartSceneGrounding(
+    chartVisual(1) as Parameters<typeof chartSceneGrounding>[0],
+    chartTables(),
+  );
+  return currentScene({
+    template: "data-chart",
+    scene: {
+      ...base.scene,
+      template: "data-chart",
+      visual: chartVisual(1),
+      assetBindings: [grounding.binding],
+      sourceRefs: withChartCitation(base.scene.sourceRefs, grounding.sourceRef),
+    },
+  });
+}
+
 describe("assertSceneRegenerationChecks", () => {
   const pkg = buildSourcePackage(sampleSnapshot());
   const context = operationContext();
@@ -561,6 +646,43 @@ describe("assertSceneRegenerationChecks", () => {
     expect(() => assertSceneRegenerationChecks(output, pkg, context)).toThrow(
       /outside the supported bounds/,
     );
+  });
+});
+
+describe("scene-regeneration-v3-chart-fit-table", () => {
+  const pkg = buildSourcePackage(chartSnapshot());
+  const context = operationContext({ chartTables: chartTables() });
+
+  it("accepts a regenerated chart over an offered table's numeric column", () => {
+    expect(() =>
+      assertSceneRegenerationChecks(chartOutput(1), pkg, context),
+    ).not.toThrow();
+  });
+
+  it("rejects a non-numeric selection by index, never quoting the cell", () => {
+    let caught: unknown;
+    try {
+      assertSceneRegenerationChecks(chartOutput(2), pkg, context);
+    } catch (error) {
+      caught = error;
+    }
+    expect(caught).toBeInstanceOf(SceneRegenerationDeterministicCheckError);
+    expect(caught).toMatchObject({ code: "CHART_DATA_INVALID" });
+    const message = (caught as Error).message;
+    expect(message).toContain(
+      "the cell at row index 0 and column index 2 is not a number",
+    );
+    expect(message).not.toContain("warm");
+    expect(message).not.toContain("Notes");
+  });
+});
+
+describe("scene-regeneration-v3-chart-non-fit-table", () => {
+  it("refuses a chart when no table was offered (a v2-pinned job)", () => {
+    const pkg = buildSourcePackage(chartSnapshot());
+    expect(() =>
+      assertSceneRegenerationChecks(chartOutput(1), pkg, operationContext()),
+    ).toThrow(/is not one of the tables listed/);
   });
 });
 
@@ -763,11 +885,14 @@ describe("persistSceneCandidate", () => {
   function callPersist(input: {
     executor: DatabaseExecutor;
     idempotencyKey: string;
+    value?: SceneRegenerationOutput;
+    snapshot?: SourceSnapshot;
+    operationContext?: SceneRegenerationOperationContext;
   }) {
     return persistSceneCandidate({
       executor: input.executor,
-      value: validOutput(),
-      sourcePackage: buildSourcePackage(sampleSnapshot()),
+      value: input.value ?? validOutput(),
+      sourcePackage: buildSourcePackage(input.snapshot ?? sampleSnapshot()),
       params: sceneRegenerationParams(),
       modelCall: {
         id: "019ffbf1-eeee-7000-8000-000000000004",
@@ -775,7 +900,7 @@ describe("persistSceneCandidate", () => {
         promptVersion: "v1",
         model: "mock-model-1",
       } as never,
-      operationContext: operationContext(),
+      operationContext: input.operationContext ?? operationContext(),
       context: { ownerUserId, projectId, idempotencyKey: input.idempotencyKey },
       now: new Date("2026-08-18T10:00:00.000Z"),
     });
@@ -806,14 +931,85 @@ describe("persistSceneCandidate", () => {
     expect(second.id).toBe(first.id);
     expect(idsByKey.size).toBe(1);
   });
+
+  type CandidateRow = { afterScene: LessonStoryboardScene };
+
+  it("ST-114: binds and cites the table of a scene regenerated into a chart", async () => {
+    const { executor, inserted } = storeCapture();
+    await callPersist({
+      executor,
+      idempotencyKey: "chart-1",
+      value: chartOutput(1),
+      snapshot: chartSnapshot(),
+      operationContext: operationContext({ chartTables: chartTables() }),
+    });
+    const after = (inserted[0] as CandidateRow).afterScene.scene;
+    expect(after.template).toBe("data-chart");
+    expect(after.assetBindings).toEqual([
+      expect.objectContaining({
+        assetId: chartTableId,
+        slot: dataChartTableSlot,
+        role: "diagram",
+        provenance: "source_table",
+        visualRole: "grounding_critical",
+      }),
+    ]);
+    // The narration's citation and the table join in the one section.
+    expect(after.sourceRefs).toEqual([
+      expect.objectContaining({
+        sectionId,
+        pageStart: 1,
+        pageEnd: 2,
+        blockIds: [blockA],
+        tableIds: [chartTableId],
+      }),
+    ]);
+  });
+
+  it("ST-114: drops the chart-table binding when a chart is regenerated into another template", async () => {
+    const { executor, inserted } = storeCapture();
+    await callPersist({
+      executor,
+      idempotencyKey: "chart-2",
+      snapshot: chartSnapshot(),
+      operationContext: operationContext({
+        currentScene: currentChartScene(),
+        chartTables: chartTables(),
+      }),
+    });
+    const after = (inserted[0] as CandidateRow).afterScene.scene;
+    expect(after.template).toBe("labelled-diagram");
+    expect(
+      after.assetBindings.some((binding) => binding.slot === dataChartTableSlot),
+    ).toBe(false);
+    expect(after.sourceRefs.some((ref) => ref.tableIds !== undefined)).toBe(false);
+  });
+
+  it("ST-114: rebinds a chart regenerated into a chart to its new table selection", async () => {
+    const { executor, inserted } = storeCapture();
+    await callPersist({
+      executor,
+      idempotencyKey: "chart-3",
+      value: chartOutput(1),
+      snapshot: chartSnapshot(),
+      operationContext: operationContext({
+        currentScene: currentChartScene(),
+        chartTables: chartTables(),
+      }),
+    });
+    const after = (inserted[0] as CandidateRow).afterScene.scene;
+    expect(
+      after.assetBindings.filter((binding) => binding.slot === dataChartTableSlot),
+    ).toHaveLength(1);
+  });
 });
 
 describe("createSceneRegenerationJobHandler", () => {
-  function fakeDatabase() {
+  function fakeDatabase(snapshot: SourceSnapshot = sampleSnapshot()) {
     const candidateIdsByKey = new Map<string, { id: string }>();
     const rowsFor = (table: unknown): unknown[] => {
       if (table === sourceSnapshots)
-        return [{ payload: sampleSnapshot(), snapshotVersion: 1 }];
+        return [{ payload: snapshot, snapshotVersion: 1 }];
       if (table === lessonSpecs) return [lessonSpecRow()];
       if (table === scenes)
         return [
@@ -995,5 +1191,45 @@ describe("createSceneRegenerationJobHandler", () => {
       "The model output failed deterministic checks",
     );
     expect(error).toMatchObject({ code: "MODEL_OUTPUT_DETERMINISTIC_FAILURE" });
+  });
+
+  function chartHandler(output: SceneRegenerationOutput) {
+    const provider = new MockLanguageModelProvider({
+      model: "mock-model-1",
+      completion: jsonCompletion(output),
+    });
+    const handler = createSceneRegenerationJobHandler({
+      database: fakeDatabase(chartSnapshot()) as never,
+      provider,
+      promptRegistry: new StaticPromptRegistry(repositoryPrompts),
+      quotaGuard: new InMemoryQuotaGuard([]),
+      pricing: mockPricing,
+      now: () => new Date("2026-08-18T10:00:00.000Z"),
+    });
+    return { handler, provider };
+  }
+
+  const promptText = (provider: MockLanguageModelProvider) =>
+    provider.requests[0]!.messages.map((message) => message.content).join("\n");
+
+  it("ST-114: v3 offers the numeric table and saves a regenerated chart", async () => {
+    const { handler, provider } = chartHandler(chartOutput(1));
+    const result = await execute(handler, jobPayload({ promptVersion: "v3" }));
+    expect(result.outcome).toBe("succeeded");
+    const prompt = promptText(provider);
+    expect(prompt).toContain('"template":"data-chart"');
+    expect(prompt).toContain(`"tableId":"${chartTableId}"`);
+  });
+
+  it("ST-114: a job pinned to v2 is never offered charts and cannot save one", async () => {
+    const { handler, provider } = chartHandler(chartOutput(1));
+    const result = await execute(handler, jobPayload({ promptVersion: "v2" }));
+    expect(result.outcome).toBe("failed");
+    expect(result.outcome === "failed" && result.error).toMatchObject({
+      code: "MODEL_OUTPUT_DETERMINISTIC_FAILURE",
+    });
+    const prompt = promptText(provider);
+    expect(prompt).not.toContain('"template":"data-chart"');
+    expect(prompt).not.toContain(chartTableId);
   });
 });

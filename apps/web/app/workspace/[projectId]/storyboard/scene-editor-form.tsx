@@ -21,6 +21,7 @@ import { Button } from "../../../../components/ui/button";
 import { ApprovedAssetPicker } from "./approved-asset-picker";
 import { TeacherAssetPicker } from "./teacher-asset-picker";
 import { SourceVisualPicker } from "./source-visual-picker";
+import { DataChartEditor } from "./data-chart-editor";
 
 type SaveState = "saved" | "saving" | "conflict" | "failed";
 
@@ -36,6 +37,15 @@ const legacyOnlyVisualPaths = new Set([
   "visual.mechanism.label",
 ]);
 const graphOnlyVisualPaths = new Set(["visual.nodes"]);
+// ST-114: a chart's table references are edited by the table-backed pickers
+// of `DataChartEditor`, never as free fields.
+const chartPickerPaths = new Set([
+  "visual.tableId",
+  "visual.categoryColumn",
+  "visual.valueColumns",
+  "visual.rowIndexes",
+  "visual.highlightCategory",
+]);
 
 export type GraphEditorValue = {
   nodes: readonly {
@@ -65,6 +75,8 @@ export function editorFieldsForScene(
   scene: SceneSpec,
 ): readonly SceneEditorField[] {
   const fields = sceneEditorMetadata(scene.template).fields;
+  if (scene.template === "data-chart")
+    return fields.filter((field) => !chartPickerPaths.has(field.path));
   return isGraphShapeScene(scene)
     ? fields.filter((field) => !legacyOnlyVisualPaths.has(field.path))
     : fields.filter((field) => !graphOnlyVisualPaths.has(field.path));
@@ -754,7 +766,9 @@ export function SceneEditorForm({
   const visibleAssetSlots =
     draft.template === "labelled-diagram" && draft.visual.kind === "shapes"
       ? metadata.assetSlots.filter((slot) => slot !== "diagram")
-      : metadata.assetSlots;
+      : draft.template === "data-chart"
+        ? []
+        : metadata.assetSlots;
   const visibleFields = useMemo(() => editorFieldsForScene(draft), [draft]);
 
   useEffect(() => {
@@ -1108,6 +1122,16 @@ export function SceneEditorForm({
           </label>
         ),
       )}
+
+      {draft.template === "data-chart" ? (
+        <DataChartEditor
+          disabled={disabled || saveState === "saving"}
+          inputStyle={inputStyle}
+          onChange={(scene) => setDraft(scene)}
+          projectId={projectId}
+          scene={draft}
+        />
+      ) : null}
 
       {draft.template === "labelled-diagram" && draft.visual.kind === "shapes" ? (
         <div

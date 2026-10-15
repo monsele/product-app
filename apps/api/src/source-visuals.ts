@@ -6,6 +6,9 @@ import {
   type DatabaseClient,
 } from "@avlp/database";
 import {
+  boundedDataChartTable,
+  dataChartNumericColumns,
+  isDataChartEligibleTable,
   sourceVisualPickerResponseSchema,
   type SourceVisualPickerResponse,
 } from "@avlp/schemas";
@@ -130,6 +133,7 @@ export class PostgresSourceVisualsService implements SourceVisualsService {
 
     const tableEntries = latest.tables.map((table) => {
       const sectionHeading = headingBySectionId.get(table.sectionId);
+      const grid = boundedDataChartTable(table);
       return {
         kind: "table" as const,
         tableId: table.tableId,
@@ -139,6 +143,16 @@ export class PostgresSourceVisualsService implements SourceVisualsService {
         ...(table.pageEnd === undefined ? {} : { pageEnd: table.pageEnd }),
         columns: table.columns,
         rowCount: table.rows.length,
+        // ST-114: the grid a chart can reference, for the editor's pickers.
+        ...(isDataChartEligibleTable(table)
+          ? {
+              chartGrid: {
+                columns: [...grid.columns],
+                rows: grid.rows.map((row) => [...row]),
+                numericColumns: dataChartNumericColumns(table),
+              },
+            }
+          : {}),
       };
     });
 

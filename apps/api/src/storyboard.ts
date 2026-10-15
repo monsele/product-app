@@ -36,6 +36,12 @@ import { validateScene } from "@avlp/scene-library";
 import { createModelCallProviderApproval } from "./model-call-approval.js";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
+  dataChartAltText,
+  dataChartTableSlot,
+  dataChartUnselectedTableId,
+  sceneSpecSchema,
+  sourceTableCitation,
+  withSourceTableCitation,
   focusPromptParam,
   createDefaultStoryboardSceneSpec,
   currentSceneRegenerationCompatibility,
@@ -1229,22 +1235,33 @@ export class PostgresStoryboardService implements StoryboardService {
         )
       )
         throw sceneTextOverflow(overflow);
+      // ST-114: the teacher picks a chart's table; the server records its
+      // binding and citation from the approved snapshot.
+      const scene =
+        parsed.scene.template === "data-chart"
+          ? await this.canonicalChartScene(
+              input.ownerUserId,
+              input.projectId,
+              parsed.scene,
+              input.sceneId,
+            )
+          : parsed.scene;
       if (
-        JSON.stringify(parsed.scene.assetBindings) !==
+        JSON.stringify(scene.assetBindings) !==
         JSON.stringify(current.scene.assetBindings)
       )
         await this.assertAuthorizedAssetBindings(
           transaction,
           input.ownerUserId,
           input.projectId,
-          parsed.scene,
+          scene,
           input.sceneId,
         );
       const edited = lessonStoryboardSceneSchema.parse({
         ...current,
-        template: parsed.scene.template,
-        durationSeconds: parsed.scene.durationSeconds,
-        scene: parsed.scene,
+        template: scene.template,
+        durationSeconds: scene.durationSeconds,
+        scene,
       });
       const nextScenes = [...storyboard.scenes];
       nextScenes[index] = edited;
@@ -2205,6 +2222,61 @@ export class PostgresStoryboardService implements StoryboardService {
   }
 
   /**
+   * ST-114. A data-chart scene as saved: bound to the table its visual names
+   * with the binding's provenance, role and citation taken from the current
+   * approved snapshot, and citing that table. A scene still on the
+   * placeholder table carries no binding. A table outside the project's
+   * approved snapshot is refused (AC8).
+   */
+  private async canonicalChartScene(
+    ownerUserId: Identifier,
+    projectId: Identifier,
+    scene: Extract<LessonStoryboardScene["scene"], { template: "data-chart" }>,
+    sceneRef: string,
+  ): Promise<LessonStoryboardScene["scene"]> {
+    const others = scene.assetBindings.filter(
+      (binding) => binding.slot !== dataChartTableSlot,
+    );
+    if (scene.visual.tableId === dataChartUnselectedTableId)
+      return sceneSpecSchema.parse({ ...scene, assetBindings: others });
+    const visuals =
+      this.latestApprovedVisuals === undefined
+        ? undefined
+        : await this.latestApprovedVisuals({ ownerUserId, projectId });
+    const table = visuals?.tables.find(
+      (entry) => entry.tableId === scene.visual.tableId,
+    );
+    const citation =
+      visuals === undefined || table === undefined
+        ? undefined
+        : sourceTableCitation({
+            parsedDocumentId: visuals.parsedDocumentId,
+            parsedDocumentVersion: visuals.parsedDocumentVersion ?? 1,
+            table,
+            firstBlockIdBySection: visuals.firstBlockIdBySection ?? {},
+          });
+    if (table === undefined || citation === undefined)
+      throw chartTableUnavailable(sceneRef);
+    return sceneSpecSchema.parse({
+      ...scene,
+      assetBindings: [
+        ...others,
+        {
+          assetId: table.tableId,
+          role: "diagram",
+          slot: dataChartTableSlot,
+          provenance: "source_table",
+          visualRole: "grounding_critical",
+          sourceRef: citation,
+          // The chart summary, so the lesson stores a text equivalent.
+          altText: dataChartAltText(table, scene.visual),
+        },
+      ],
+      sourceRefs: withSourceTableCitation(scene.sourceRefs, citation),
+    });
+  }
+
+  /**
    * Catalog bindings are global immutable approved assets. Any non-catalog
    * binding must be a private teacher asset or an included source figure in
    * this tenant; IDs are never trusted across project boundaries.
@@ -2216,6 +2288,30 @@ export class PostgresStoryboardService implements StoryboardService {
     scene: LessonStoryboardScene["scene"],
     sceneRef: string = scene.id,
   ): Promise<void> {
+    // ST-114: a chart's numbers come from the table in its `chart-table`
+    // slot, so that slot accepts only a table from this project's current
+    // approved snapshot — never a catalogue, uploaded or generated picture,
+    // and never another project's table.
+    const chartBindings = scene.assetBindings.filter(
+      (binding) => binding.slot === dataChartTableSlot,
+    );
+    if (chartBindings.length > 0) {
+      if (scene.template !== "data-chart") throw incompatibleSceneAssetSlot();
+      const visuals =
+        this.latestApprovedVisuals === undefined
+          ? undefined
+          : await this.latestApprovedVisuals({ ownerUserId, projectId });
+      const approvedTableIds = new Set(
+        (visuals?.tables ?? []).map((table) => table.tableId),
+      );
+      for (const binding of chartBindings)
+        if (
+          !approvedTableIds.has(binding.assetId) ||
+          binding.provenance !== "source_table" ||
+          binding.role !== "diagram"
+        )
+          throw chartTableUnavailable(sceneRef);
+    }
     const catalogBindings = scene.assetBindings.filter(
       (binding) => approvedAssetById(binding.assetId) !== undefined,
     );
@@ -3278,6 +3374,19 @@ function sceneTextOverflow(issue: {
     {
       [issue.fieldPath === "scene" ? "scene" : `scene.${issue.fieldPath}`]:
         `${issue.message} ${issue.suggestedCorrection}`,
+    },
+  );
+}
+
+function chartTableUnavailable(sceneRef: string): PublicError {
+  return new PublicError(
+    "validation_failed",
+    "A chart must use a table from this project's approved source.",
+    400,
+    false,
+    {
+      [`scenes.${sceneRef}.assetBindings`]:
+        "Choose a table from the approved source for the chart-table slot.",
     },
   );
 }

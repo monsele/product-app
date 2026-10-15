@@ -19,6 +19,7 @@ import {
 } from "@avlp/database";
 import { PostgresAuditWriter } from "@avlp/observability";
 import {
+  firstSnapshotBlockIdBySection,
   citationIssueSchema,
   resolvedCitationSchema,
   sourceApprovalResponseSchema,
@@ -376,6 +377,9 @@ export interface SourceSnapshotService {
         parsedDocumentId: Identifier;
         figures: readonly SourceSnapshotFigure[];
         tables: readonly SourceSnapshotTable[];
+        /** ST-114: what a chart's table citation needs. */
+        parsedDocumentVersion?: number;
+        firstBlockIdBySection?: Readonly<Record<string, string>>;
       }
     | undefined
   >;
@@ -605,6 +609,9 @@ export class PostgresSourceSnapshotService implements SourceSnapshotService {
         parsedDocumentId: Identifier;
         figures: readonly SourceSnapshotFigure[];
         tables: readonly SourceSnapshotTable[];
+        /** ST-114: what a chart's table citation needs. */
+        parsedDocumentVersion?: number;
+        firstBlockIdBySection?: Readonly<Record<string, string>>;
       }
     | undefined
   > {
@@ -620,6 +627,8 @@ export class PostgresSourceSnapshotService implements SourceSnapshotService {
       parsedDocumentId: snapshot.parsedDocumentId,
       figures: snapshot.figures,
       tables: snapshot.tables,
+      parsedDocumentVersion: snapshot.parsedDocumentVersion,
+      firstBlockIdBySection: firstSnapshotBlockIdBySection(snapshot),
     };
   }
 

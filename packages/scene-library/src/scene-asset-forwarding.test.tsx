@@ -59,6 +59,32 @@ describe("scene runtime asset forwarding", () => {
     );
   });
 
+  it("hands the resolved table to the data-chart scene and its render runtime (ST-114)", async () => {
+    const { barDataChartFixture, dataChartFixtureAssets } = await import(
+      "./data-chart-scene.fixtures.js"
+    );
+    for (const runtimeMode of ["preview", "render"] as const) {
+      const markup = renderToStaticMarkup(
+        createElement(SceneRuntime, {
+          resolvedAssets: dataChartFixtureAssets,
+          runtimeMode,
+          scene: barDataChartFixture,
+        }),
+      );
+      expect(markup).toContain('data-data-chart="bar"');
+      expect(markup).not.toContain("data-data-chart-error");
+    }
+    // Without the table the render runtime refuses rather than drawing.
+    expect(() =>
+      renderToStaticMarkup(
+        createElement(SceneRuntime, {
+          runtimeMode: "render",
+          scene: barDataChartFixture,
+        }),
+      ),
+    ).toThrow(/Scene render blocked/u);
+  });
+
   it("hands resolved assets to the summary scene", () => {
     const markup = renderToStaticMarkup(
       createElement(SceneRuntime, {

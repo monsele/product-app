@@ -169,6 +169,8 @@ describe("PostgresSourceVisualsService", () => {
         pageStart: 1,
         columns: ["A", "B"],
         rowCount: 2,
+        // ST-114: a numeric table carries the grid a chart can reference.
+        chartGrid: { columns: ["A", "B"], rows: [["1", "2"], ["3", "4"]], numericColumns: [0, 1] },
       },
     ]);
   });

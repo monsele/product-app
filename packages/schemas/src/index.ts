@@ -9,19 +9,32 @@ import {
 } from "./sound-bed.js";
 import { z } from "zod";
 import { zodToJsonSchema } from "zod-to-json-schema";
+import {
+  dataChartTableSlot,
+  dataChartUnselectedTableId,
+  dataChartVisualSchema,
+} from "./data-chart.js";
 export * from "./creative-design.js";
 export * from "./creative-design-v2.js";
 export * from "./sound-bed.js";
+export * from "./data-chart.js";
+export * from "./chart-palette.js";
 
-export const lessonSpecVersion = "1.9" as const;
+export const lessonSpecVersion = "1.10" as const;
 /**
  * ST-104. 1.9 only widens `audience`; a 1.8 document is still read *in place*
  * (not migrated) so stored lesson versions keep byte-identical content and
  * render identity. 1.8 remains restricted to the audience values it defined.
  */
 export const legacyAudienceLessonSpecVersion = "1.8" as const;
+/**
+ * ST-114. 1.10 only adds the `data-chart` template; 1.8 and 1.9 documents are
+ * read in place, and neither may contain a `data-chart` scene.
+ */
+export const preChartLessonSpecVersion = "1.9" as const;
 export const readableLessonSpecVersions = [
   legacyAudienceLessonSpecVersion,
+  preChartLessonSpecVersion,
   lessonSpecVersion,
 ] as const;
 export const previousLessonSpecVersion = "1.7" as const;
@@ -248,6 +261,7 @@ export const sceneTemplateValues = [
   "analogy",
   "worked-example",
   "summary",
+  "data-chart",
 ] as const;
 export const sceneTemplateSchema = z.enum(sceneTemplateValues);
 export type SceneTemplate = z.infer<typeof sceneTemplateSchema>;
@@ -819,6 +833,13 @@ export const sceneSpecSchema = z
         visual: summaryVisualSchema,
       })
       .strict(),
+    z
+      .object({
+        ...sceneBaseShape,
+        template: z.literal("data-chart"),
+        visual: dataChartVisualSchema,
+      })
+      .strict(),
   ])
   .superRefine((scene, context) => {
     // ST-085: enforce the slot's epistemic role structurally, on the scene
@@ -830,6 +851,22 @@ export const sceneSpecSchema = z
       scene.assetBindings,
     ))
       context.addIssue({ code: z.ZodIssueCode.custom, ...issue });
+    // ST-114: a chart's table binding is the table the visual names. The
+    // binding is what preview and render resolve (tenant-scoped), so the two
+    // can never point at different tables. A missing binding is a validation
+    // (render-blocking) issue, not a contract violation, so a new scene can be
+    // drafted before its table is chosen.
+    if (scene.template === "data-chart")
+      for (const [index, binding] of scene.assetBindings.entries())
+        if (
+          binding.slot === dataChartTableSlot &&
+          binding.assetId !== scene.visual.tableId
+        )
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["assetBindings", index, "assetId"],
+            message: "The chart table binding must match the chart's tableId.",
+          });
   });
 export type SceneBase = Omit<
   z.infer<typeof sceneSpecSchema>,
@@ -966,6 +1003,15 @@ export const lessonSpecSchema = z
     const seenIds = new Set<string>();
     const seenOrders = new Set<number>();
     for (const [index, scene] of value.scenes.entries()) {
+      if (
+        scene.template === "data-chart" &&
+        value.schemaVersion !== lessonSpecVersion
+      )
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["scenes", index, "template"],
+          message: `LessonSpec ${value.schemaVersion} does not support data-chart scenes; use ${lessonSpecVersion}.`,
+        });
       if (seenIds.has(scene.id))
         context.addIssue({
           code: z.ZodIssueCode.custom,
@@ -3369,6 +3415,93 @@ export function buildSourcePackage(
     language: "en",
     sections,
   });
+}
+
+/**
+ * ST-114. The first block of each section of a snapshot, in reading order:
+ * the block a table citation falls back to when the table has no caption.
+ */
+export function firstSnapshotBlockIdBySection(
+  snapshot: Pick<SourceSnapshot, "sections">,
+): Readonly<Record<string, string>> {
+  const first: Record<string, string> = {};
+  for (const section of snapshot.sections) {
+    const blockId = section.blockIds[0];
+    if (blockId !== undefined) first[section.sectionId] = blockId;
+  }
+  return first;
+}
+
+/**
+ * ST-114. The citation a chart of an approved table carries: the table's own
+ * pages and section, its caption block (or the first block of its section)
+ * and the table itself. `undefined` when the section has no block to cite.
+ */
+export function sourceTableCitation(input: {
+  parsedDocumentId: Identifier;
+  parsedDocumentVersion: number;
+  table: Pick<
+    SourceSnapshotTable,
+    "tableId" | "sectionId" | "pageStart" | "pageEnd" | "captionBlockId"
+  >;
+  firstBlockIdBySection: Readonly<Record<string, string>>;
+}): SourceRef | undefined {
+  const blockId =
+    input.table.captionBlockId ?? input.firstBlockIdBySection[input.table.sectionId];
+  if (blockId === undefined) return undefined;
+  return {
+    documentId: input.parsedDocumentId,
+    parsedDocumentVersion: input.parsedDocumentVersion,
+    pageStart: input.table.pageStart,
+    ...(input.table.pageEnd === undefined ? {} : { pageEnd: input.table.pageEnd }),
+    sectionId: input.table.sectionId,
+    blockIds: [blockId as Identifier],
+    tableIds: [input.table.tableId],
+  };
+}
+
+/** Grounding claims carry at most this many citations per scene. */
+const sceneCitationLimit = 20;
+
+/**
+ * ST-114. A scene's citations with a table cited. Earlier table citations
+ * are dropped first (a chart names one table). The table joins the citation
+ * of its own section when the scene already cites it; otherwise it is
+ * appended, dropping the scene's last other citation if the scene would
+ * exceed the grounding limit, so the table is always cited.
+ */
+export function withSourceTableCitation(
+  sourceRefs: readonly SourceRef[],
+  tableRef: SourceRef,
+): SourceRef[] {
+  const stripped = sourceRefs.map((ref) => {
+    if (ref.tableIds === undefined) return ref;
+    const rest: SourceRef = { ...ref };
+    delete rest.tableIds;
+    return rest;
+  });
+  const index = stripped.findIndex(
+    (ref) =>
+      ref.sectionId !== undefined &&
+      ref.sectionId === tableRef.sectionId &&
+      ref.documentId === tableRef.documentId &&
+      ref.parsedDocumentVersion === tableRef.parsedDocumentVersion,
+  );
+  if (index < 0) return [...stripped.slice(0, sceneCitationLimit - 1), tableRef];
+  const existing = stripped[index]!;
+  const pageStart = Math.min(existing.pageStart, tableRef.pageStart);
+  const pageEnd = Math.max(
+    existing.pageEnd ?? existing.pageStart,
+    tableRef.pageEnd ?? tableRef.pageStart,
+  );
+  const merged: SourceRef = {
+    ...existing,
+    pageStart,
+    ...(pageEnd > pageStart || existing.pageEnd !== undefined ? { pageEnd } : {}),
+    blockIds: [...new Set([...existing.blockIds, ...tableRef.blockIds])],
+    tableIds: [...(tableRef.tableIds ?? [])],
+  };
+  return stripped.map((ref, position) => (position === index ? merged : ref));
 }
 
 export function parseSourceSnapshot(input: unknown): SourceSnapshot {
@@ -5938,6 +6071,37 @@ export const storyboardTemplateCatalog: readonly StoryboardTemplateCatalogEntry[
     },
   ];
 
+/**
+ * ST-114. The `data-chart` catalogue entry. It is offered only by prompt
+ * versions that also receive the chart-eligible tables (storyboard v4,
+ * scene-regeneration v3) and only when at least one approved table has a
+ * numeric column; `storyboardTemplateCatalog` above stays the ten-template
+ * catalogue earlier pinned prompt versions were written against.
+ */
+export const dataChartStoryboardCatalogEntry: StoryboardTemplateCatalogEntry =
+  {
+    template: "data-chart",
+    purpose:
+      "Show numbers from one approved source table as an animated bar chart (comparison) or line chart (trend) while the narration explains them.",
+    assetSlots: [],
+    itemLimits: {
+      "visual.valueColumns": 3,
+      "visual.rowIndexes": 8,
+    },
+    textLimits: { "visual.unitLabel": 24 },
+    guidance:
+      "Use only a table listed in the request. Never write a number: give tableId, chartKind ('bar' to compare categories, 'line' for a trend over ordered rows), categoryColumn (0-based column index of the labels), valueColumns (1-3 column indexes whose cells are all numeric), rowIndexes (2-8 distinct 0-based row indexes, in the order to show them), an optional highlightCategory (one of rowIndexes) and an optional unitLabel without digits. Values are copied from the table by the application; a selected non-numeric cell rejects the scene.",
+  };
+
+/** The catalogue a storyboard or scene-regeneration prompt version receives. */
+export function storyboardTemplateCatalogFor(options: {
+  dataCharts: boolean;
+}): readonly StoryboardTemplateCatalogEntry[] {
+  return options.dataCharts
+    ? [...storyboardTemplateCatalog, dataChartStoryboardCatalogEntry]
+    : storyboardTemplateCatalog;
+}
+
 const storyboardSceneOutputBase = {
   narrationBlockIds: z.array(identifierSchema).min(1).max(100),
   onScreenText: z.array(boundedText(300)).max(12),
@@ -6035,6 +6199,13 @@ export const storyboardSceneOutputSchema = z.discriminatedUnion("template", [
       ...storyboardSceneOutputBase,
       template: z.literal("summary"),
       visual: summaryVisualSchema,
+    })
+    .strict(),
+  z
+    .object({
+      ...storyboardSceneOutputBase,
+      template: z.literal("data-chart"),
+      visual: dataChartVisualSchema,
     })
     .strict(),
 ]);
@@ -6533,7 +6704,8 @@ export type SceneRegenerationCompatibility = z.infer<
 export const currentSceneRegenerationCompatibility =
   sceneRegenerationCompatibilitySchema.parse({
     promptId: "scene-regeneration",
-    promptVersion: "v2",
+    // ST-114: v3 adds data charts over approved numeric tables.
+    promptVersion: "v3",
     model: togetherModelDefaults.llm,
   });
 
@@ -6580,7 +6752,8 @@ export type StoryboardGenerationCompatibility = z.infer<
 export const currentStoryboardGenerationCompatibility =
   storyboardGenerationCompatibilitySchema.parse({
     promptId: "storyboard",
-    promptVersion: "v3",
+    // ST-114: v4 adds data charts over approved numeric tables.
+    promptVersion: "v4",
     model: togetherModelDefaults.llm,
   });
 
@@ -6810,6 +6983,19 @@ export const sourceVisualPickerTableEntrySchema = z
     pageEnd: z.number().int().positive().optional(),
     columns: z.array(boundedText(1_000)).min(1).max(500),
     rowCount: z.number().int().nonnegative(),
+    /**
+     * ST-114. The bounded grid a data chart can reference (the same view the
+     * preview manifest carries), for the scene editor's column and row
+     * pickers. Present only when the table can back a chart.
+     */
+    chartGrid: z
+      .object({
+        columns: z.array(z.string().max(160)).min(1).max(8),
+        rows: z.array(z.array(z.string().max(160)).max(8)).max(12),
+        numericColumns: z.array(z.number().int().min(0).max(7)).max(8),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 export type SourceVisualPickerTableEntry = z.infer<
@@ -6973,6 +7159,13 @@ const sceneEditorControlValues = [
   "text-list",
   "select",
   "graph",
+  // ST-114: pickers over an approved source table. A chart field is always a
+  // reference into the table; no control accepts a typed number.
+  "source-table",
+  "table-column",
+  "table-columns",
+  "table-rows",
+  "table-row",
 ] as const;
 export const sceneEditorControlSchema = z.enum(sceneEditorControlValues);
 export type SceneEditorControl = z.infer<typeof sceneEditorControlSchema>;
@@ -7400,6 +7593,51 @@ const templateEditorFields: Record<SceneTemplate, readonly SceneEditorField[]> =
         required: false,
       },
     ],
+    "data-chart": [
+      {
+        path: "visual.tableId",
+        label: "Source table",
+        control: "source-table",
+        required: true,
+      },
+      {
+        path: "visual.chartKind",
+        label: "Chart type",
+        control: "select",
+        options: ["bar", "line"],
+        required: true,
+      },
+      {
+        path: "visual.categoryColumn",
+        label: "Category column",
+        control: "table-column",
+        required: true,
+      },
+      {
+        path: "visual.valueColumns",
+        label: "Value columns",
+        control: "table-columns",
+        required: true,
+      },
+      {
+        path: "visual.rowIndexes",
+        label: "Rows",
+        control: "table-rows",
+        required: true,
+      },
+      {
+        path: "visual.highlightCategory",
+        label: "Highlighted category",
+        control: "table-row",
+        required: false,
+      },
+      {
+        path: "visual.unitLabel",
+        label: "Unit label",
+        control: "text",
+        required: false,
+      },
+    ],
   };
 
 const templateAssetSlots: Record<SceneTemplate, readonly string[]> = {
@@ -7438,6 +7676,7 @@ const templateAssetSlots: Record<SceneTemplate, readonly string[]> = {
   analogy: ["central-visual"],
   "worked-example": [],
   summary: ["central-visual"],
+  "data-chart": [dataChartTableSlot],
 };
 
 function slotRequirement(
@@ -7561,6 +7800,19 @@ const templateAssetSlotRequirements: Record<
       ["square", "landscape"],
       false,
       decorative,
+    ),
+  ],
+  // ST-114: the chart's numbers come from this table, so it is the factual
+  // content of the scene. Only an approved source table may fill it (enforced
+  // by the binding authorization); catalogue and generated assets never can.
+  "data-chart": [
+    slotRequirement(
+      dataChartTableSlot,
+      "diagram",
+      ["shape"],
+      ["landscape", "wide"],
+      true,
+      "grounding_critical",
     ),
   ],
 };
@@ -7969,6 +8221,13 @@ const storyboardSceneDefaultVisuals: Record<
     answer: "Answer",
   },
   summary: { takeaways: [{ text: "Key takeaway" }] },
+  "data-chart": {
+    tableId: dataChartUnselectedTableId,
+    chartKind: "bar",
+    categoryColumn: 0,
+    valueColumns: [1],
+    rowIndexes: [0, 1],
+  },
 };
 
 const storyboardSceneDefaultNarration: Record<SceneTemplate, string> = {
@@ -7982,6 +8241,7 @@ const storyboardSceneDefaultNarration: Record<SceneTemplate, string> = {
   analogy: "Explain this concept with an analogy.",
   "worked-example": "Work through an example step by step.",
   summary: "Summarize the key takeaways.",
+  "data-chart": "Explain what the numbers in this table show.",
 };
 
 /**
@@ -8296,6 +8556,9 @@ export const validationIssueCodeSchema = z.enum([
   "grounding_unsupported_claim",
   "generated_addition_unlabelled",
   "scene_monotony",
+  // ST-114: a data-chart scene references a table cell that is missing or
+  // not numeric. The message names the cell.
+  "chart_data_invalid",
 ]);
 export type ValidationIssueCode = z.infer<typeof validationIssueCodeSchema>;
 

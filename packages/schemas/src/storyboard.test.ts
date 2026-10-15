@@ -33,6 +33,7 @@ import {
   storyboardSceneUpdateInputSchema,
   storyboardTemplateCatalog,
   storyboardTemplateCatalogEntrySchema,
+  storyboardTemplateCatalogFor,
   type LessonStoryboard,
   type LessonStoryboardScene,
   type StoryboardSceneOutput,
@@ -146,8 +147,19 @@ function sampleStoryboard(): LessonStoryboard {
 
 describe("storyboard template catalog", () => {
   it("provides one entry for every supported template with positive limits", () => {
-    expect(storyboardTemplateCatalog).toHaveLength(sceneTemplateValues.length);
-    for (const entry of storyboardTemplateCatalog) {
+    // ST-114: the base catalogue stays the ten templates earlier prompt
+    // versions were written against; data-chart is added only on request.
+    const preChart = sceneTemplateValues.filter((template) => template !== "data-chart");
+    expect(storyboardTemplateCatalog).toHaveLength(preChart.length);
+    expect(storyboardTemplateCatalogFor({ dataCharts: false })).toBe(
+      storyboardTemplateCatalog,
+    );
+    const withCharts = storyboardTemplateCatalogFor({ dataCharts: true });
+    expect(withCharts.map((entry) => entry.template)).toEqual([
+      ...preChart,
+      "data-chart",
+    ]);
+    for (const entry of withCharts) {
       const parsed = storyboardTemplateCatalogEntrySchema.parse(entry);
       expect(sceneTemplateValues).toContain(parsed.template);
       expect(Object.values(parsed.itemLimits).every((limit) => limit > 0)).toBe(
@@ -160,7 +172,7 @@ describe("storyboard template catalog", () => {
     }
     expect(
       new Set(storyboardTemplateCatalog.map((entry) => entry.template)).size,
-    ).toBe(sceneTemplateValues.length);
+    ).toBe(preChart.length);
   });
 
   it("catalog guidance steers asset-dependent templates to storyboard-safe defaults", () => {
@@ -209,6 +221,13 @@ describe("storyboard scene output schema", () => {
         answer: "Answer",
       },
       summary: { takeaways: [{ text: "Takeaway" }] },
+      "data-chart": {
+        tableId: "019ffbf1-2222-7000-8000-0000000000aa",
+        chartKind: "bar",
+        categoryColumn: 0,
+        valueColumns: [1],
+        rowIndexes: [0, 1],
+      },
     };
     for (const template of sceneTemplateValues) {
       expect(() =>
@@ -633,7 +652,8 @@ describe("scene regeneration schemas", () => {
     expect(currentSceneRegenerationCompatibility.promptId).toBe(
       "scene-regeneration",
     );
-    expect(currentSceneRegenerationCompatibility.promptVersion).toBe("v2");
+    // ST-114: v3 adds data charts over approved numeric tables.
+    expect(currentSceneRegenerationCompatibility.promptVersion).toBe("v3");
   });
 
   it("accepts the queued scene-regeneration response", () => {

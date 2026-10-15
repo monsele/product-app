@@ -89,7 +89,8 @@ describe("ST-110 visual-plan job", () => {
       }[];
     };
     expect(input.identity.style).toBe("Field Notes");
-    expect(input.catalogue).toHaveLength(10);
+    // Every registered composition, including the ST-114 chart arrangements.
+    expect(input.catalogue).toHaveLength(12);
     const process = input.scenes[1]!;
     expect(process.narration.map((entry) => entry.sentence)).toEqual([0, 1, 2]);
     expect(process.hasPicture).toBe(false);

@@ -38,6 +38,7 @@ const frameComponents = {
   analogy: lib.AnalogySceneFrame,
   "worked-example": lib.WorkedExampleSceneFrame,
   summary: lib.SummarySceneFrame,
+  "data-chart": lib.DataChartSceneFrame,
 };
 
 const args = new Map();
@@ -140,7 +141,8 @@ function loadFixtures() {
     if (typeof value.template !== "string") continue;
     if (frameComponents[value.template] === undefined) continue;
     for (const binding of value.assetBindings ?? [])
-      resolvedAssets[binding.assetId] = {
+      // A chart's table is structured data, not a picture (ST-114).
+      resolvedAssets[binding.assetId] = lib.dataChartFixtureAssets?.[binding.assetId] ?? {
         assetId: binding.assetId,
         altText: binding.altText ?? "Fixture asset",
         source: "source",
@@ -265,7 +267,10 @@ for (const { label, scene } of source.scenes) {
     captionSafeTop,
   );
 
-  const bound = (scene.assetBindings ?? []).length;
+  // A data chart's table binding is drawn as SVG, never as an <img>.
+  const bound = (scene.assetBindings ?? []).filter(
+    (binding) => binding.slot !== "chart-table",
+  ).length;
   const unpainted = bound - report.imagesPainted;
   const problems = [];
   if (report.spilling.length > 0)

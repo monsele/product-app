@@ -15,8 +15,8 @@ import {
 const id = (tail: string) => `0198d270-0000-7000-8000-000000000${tail}`;
 
 describe("ST-101 creative-design contract", () => {
-  it("registers two bounded compositions for every style pack and all ten scene types", () => {
-    expect(creativeDesignCatalogue).toHaveLength(120);
+  it("registers two bounded compositions for every style pack and all eleven scene types", () => {
+    expect(creativeDesignCatalogue).toHaveLength(132);
     for (const pack of [
       "essential",
       "editorial",
@@ -36,6 +36,7 @@ describe("ST-101 creative-design contract", () => {
         "analogy",
         "worked-example",
         "summary",
+        "data-chart",
       ] as const)
         expect(
           creativeDesignCatalogue.filter(

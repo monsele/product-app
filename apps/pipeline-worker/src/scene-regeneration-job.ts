@@ -30,7 +30,8 @@ import {
   sceneSpecSchema,
   storyboardSceneMaximumSeconds,
   storyboardSceneMinimumSeconds,
-  storyboardTemplateCatalog,
+  dataChartTableSlot,
+  storyboardTemplateCatalogFor,
   type LessonStoryboard,
   type LessonStoryboardScene,
   type ModelCallParams,
@@ -41,6 +42,15 @@ import {
   type SourcePackage,
 } from "@avlp/schemas";
 import { validateScene } from "@avlp/scene-library";
+import {
+  chartSceneGrounding,
+  chartSceneProblem,
+  chartTablesFromSnapshot,
+  chartTablesPromptVariable,
+  promptOffersDataCharts,
+  withChartCitation,
+  type ChartTableContext,
+} from "./chart-tables.js";
 import { and, eq } from "drizzle-orm";
 import { sceneGeneratedAdditions, sceneSourceBlockIds } from "./storyboard-job.js";
 import {
@@ -63,6 +73,7 @@ export class SceneRegenerationDeterministicCheckError extends Error {
     | "SCENE_UNGROUNDED"
     | "UNSUPPORTED_SOURCE_BLOCK"
     | "SCENE_TEXT_OVERFLOW"
+    | "CHART_DATA_INVALID"
     | "DURATION_OUT_OF_BOUNDS";
 
   public constructor(
@@ -107,7 +118,22 @@ export type SceneRegenerationOperationContext = {
     estimatedSeconds: number;
   }[];
   storyboard: LessonStoryboard;
+  /** ST-114: the approved tables this prompt version offered for charts. */
+  chartTables?: readonly ChartTableContext[];
 };
+
+/**
+ * ST-114. The bindings a regenerated scene keeps: a chart is bound only to
+ * its own table, and a scene that stops being a chart drops that binding.
+ */
+function regeneratedSceneBindings(
+  current: LessonStoryboardScene["scene"]["assetBindings"],
+  template: string,
+  chart: ReturnType<typeof chartSceneGrounding> | undefined,
+): LessonStoryboardScene["scene"]["assetBindings"] {
+  if (template === "data-chart" && chart !== undefined) return [chart.binding];
+  return current.filter((binding) => binding.slot !== dataChartTableSlot);
+}
 
 export type LoadedSceneRegenerationContext =
   | { status: "ok"; context: SceneRegenerationOperationContext }
@@ -387,6 +413,13 @@ export function assertSceneRegenerationChecks(
         "UNSUPPORTED_SOURCE_BLOCK",
         `The regenerated scene cites unsupported source block ${blockId}.`,
       );
+  const chartTables = operationContext.chartTables ?? [];
+  const chartProblem = chartSceneProblem(output.scene, chartTables);
+  if (chartProblem !== undefined)
+    throw new SceneRegenerationDeterministicCheckError(
+      "CHART_DATA_INVALID",
+      `The regenerated scene ${chartProblem}`,
+    );
   const layoutScene = sceneSpecSchema.parse({
     id: operationContext.currentScene.scene.id,
     order: operationContext.currentScene.scene.order,
@@ -395,7 +428,13 @@ export function assertSceneRegenerationChecks(
     durationSeconds: operationContext.currentScene.durationSeconds,
     onScreenText: output.scene.onScreenText,
     transition: output.scene.transition,
-    assetBindings: operationContext.currentScene.scene.assetBindings,
+    assetBindings: regeneratedSceneBindings(
+      operationContext.currentScene.scene.assetBindings,
+      output.scene.template,
+      output.scene.template === "data-chart"
+        ? chartSceneGrounding(output.scene.visual, chartTables)
+        : undefined,
+    ),
     sourceRefs: [],
     generatedAdditions: output.scene.generatedAdditions,
     template: output.scene.template,
@@ -446,6 +485,21 @@ export async function persistSceneCandidate(input: {
   const timestamp = input.now;
   const currentScene = operationContext.currentScene;
   const narrationText = currentScene.scene.narration;
+  const chart =
+    input.value.scene.template === "data-chart"
+      ? chartSceneGrounding(
+          input.value.scene.visual,
+          operationContext.chartTables ?? [],
+        )
+      : undefined;
+  const citedRefs = resolveSourceRefs(
+    input.sourcePackage,
+    sceneSourceBlockIds(
+      input.value.scene.sourceBlockIds,
+      [currentScene.scene],
+      input.sourcePackage,
+    ),
+  );
   const sceneSpec = sceneSpecSchema.parse({
     id: currentScene.scene.id,
     order: currentScene.scene.order,
@@ -454,17 +508,16 @@ export async function persistSceneCandidate(input: {
     durationSeconds: currentScene.durationSeconds,
     onScreenText: input.value.scene.onScreenText,
     transition: input.value.scene.transition,
-    assetBindings: currentScene.scene.assetBindings,
-    // The narration is unchanged, so its citations and labelled additions
-    // still apply: keep them alongside the regenerated scene's own.
-    sourceRefs: resolveSourceRefs(
-      input.sourcePackage,
-      sceneSourceBlockIds(
-        input.value.scene.sourceBlockIds,
-        [currentScene.scene],
-        input.sourcePackage,
-      ),
+    assetBindings: regeneratedSceneBindings(
+      currentScene.scene.assetBindings,
+      input.value.scene.template,
+      chart,
     ),
+    // The narration is unchanged, so its citations and labelled additions
+    // still apply: keep them alongside the regenerated scene's own. A chart
+    // also cites its table (ST-114).
+    sourceRefs:
+      chart === undefined ? citedRefs : withChartCitation(citedRefs, chart.sourceRef),
     generatedAdditions: sceneGeneratedAdditions(
       input.value.scene.generatedAdditions,
       [currentScene.scene],
@@ -604,8 +657,18 @@ export function createSceneRegenerationJobHandler(input: {
     promptRegistry: input.promptRegistry,
     quotaGuard: input.quotaGuard,
     database: input.database,
-    loadOperationContext: async ({ params, context }) => {
+    loadOperationContext: async ({
+      params,
+      context,
+      snapshot,
+      sourcePackage,
+      promptId,
+      promptVersion,
+    }) => {
       const parsedParams = sceneRegenerationParamsSchema.parse(params);
+      const chartTables = promptOffersDataCharts(promptId, promptVersion)
+        ? chartTablesFromSnapshot(snapshot, sourcePackage)
+        : [];
       const loaded = await loadSceneRegenerationContext({
         executor: input.database,
         ownerUserId: context.ownerUserId,
@@ -616,7 +679,10 @@ export function createSceneRegenerationJobHandler(input: {
       const { context: operationContext } = loaded;
       return {
         variables: {
-          templateCatalog: JSON.stringify(storyboardTemplateCatalog),
+          templateCatalog: JSON.stringify(
+            storyboardTemplateCatalogFor({ dataCharts: chartTables.length > 0 }),
+          ),
+          tables: chartTablesPromptVariable(chartTables),
           currentScene: JSON.stringify({
             id: operationContext.currentScene.stableSceneId,
             order: operationContext.currentScene.order,
@@ -638,7 +704,7 @@ export function createSceneRegenerationJobHandler(input: {
               ? "No additional instruction."
               : `Teacher instruction: ${operationContext.params.instruction}`,
         },
-        context: operationContext,
+        context: { ...operationContext, chartTables },
       };
     },
     deterministicChecks: (value, sourcePackage, operationContext) =>

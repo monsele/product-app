@@ -219,6 +219,9 @@ export type ModelCallHandlerOptions<T> = {
     snapshot: SourceSnapshot;
     sourcePackage: SourcePackage;
     params: ModelCallParams;
+    /** ST-114: the pinned prompt, so a context can match what it offers. */
+    promptId: string;
+    promptVersion: string;
     context: {
       ownerUserId: Identifier;
       projectId: Identifier;
@@ -316,6 +319,8 @@ export function createModelCallGenerationHandler<T>(
       snapshot: snapshotResult.snapshot,
       sourcePackage,
       params: payload.params ?? {},
+      promptId: payload.promptId,
+      promptVersion: payload.promptVersion,
       context: {
         ownerUserId: context.ownerUserId,
         projectId: context.projectId,

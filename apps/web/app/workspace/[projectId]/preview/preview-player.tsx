@@ -31,6 +31,7 @@ const templateDisplayNames: Record<string, string> = {
   analogy: "Analogy",
   "worked-example": "Worked Example",
   summary: "Summary",
+  "data-chart": "Data Chart",
 };
 
 const scopeLabels: Record<string, string> = {

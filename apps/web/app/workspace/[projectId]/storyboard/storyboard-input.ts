@@ -69,6 +69,8 @@ export function sceneTemplateLabel(template: SceneTemplate): string {
       return "Worked example";
     case "summary":
       return "Summary";
+    case "data-chart":
+      return "Data chart";
   }
 }
 
