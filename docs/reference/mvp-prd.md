@@ -1186,6 +1186,15 @@ Allow teachers to review output before expensive final rendering.
 
 # Epic E16: Quality Validation
 
+### Storyboard preparation and recovery (ADR-016)
+
+Valid drafts are immediately editable and partially previewable while the app
+prepares media. Show unavailable/stale dependencies honestly and group related
+technical findings into actionable scene preparation tasks. Automatically recover
+authorized audio, captions, timing and validation work without rewriting teaching
+content or teacher edits. Paid recovery uses a displayed capped allowance; merely
+opening the editor grants none. Final rendering still requires current validation.
+
 ## Objective
 
 Prevent broken, ungrounded, or incomplete lessons from being rendered.

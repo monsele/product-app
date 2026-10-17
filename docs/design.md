@@ -674,6 +674,12 @@ a narrow contextual panel for source support, duration, and rewrite actions.
 
 ### 10.10 Storyboard editor
 
+ADR-016: a valid draft opens for editing and available-work preview immediately.
+Use one compact preparation status with scene-level progress and contextual
+recovery actions. Keep the canvas dominant; individual validation findings live
+under Details. Technical repairs happen within explicit preparation authority;
+content changes require review. Render readiness remains a separate final gate.
+
 **Mode:** Focus Studio.
 
 This is the main creative workspace. Use the full viewport with three adaptive

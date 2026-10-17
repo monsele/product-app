@@ -168,3 +168,5 @@ Follow-up: restored the web server and API after the build replaced the running
 development server's generated output. After owner approval, pipeline and render
 workers were also restored and verified connected to their queues; see ST-082's
 development server recovery record.
+
+| 118 | Storyboard Recovery | [ST-118 - Readiness and recovery foundation](stories/12-storyboard-recovery/ST-118-recovery-foundation.md) | ST-063, ST-064, ST-066, ST-067, ST-107 | Done |

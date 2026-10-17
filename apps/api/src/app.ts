@@ -104,6 +104,7 @@ import type { ExportService } from "./exports.js";
 import type { ShareLinkService } from "./share-links.js";
 import type { SoundBedService } from "./sound-beds.js";
 import type { OneShotService } from "./one-shot.js";
+import type { LessonReadinessService } from "./lesson-readiness.js";
 import type { EditThreadService } from "./edit-thread.js";
 import { oneShotEligibilitySchema } from "@avlp/schemas/one-shot";
 import { searchApprovedAssets } from "./approved-assets.js";
@@ -154,6 +155,7 @@ const DEMONSTRATION_TEST_LESSON_SERVICE = Symbol(
   "DEMONSTRATION_TEST_LESSON_SERVICE",
 );
 const ONE_SHOT_SERVICE = Symbol("ONE_SHOT_SERVICE");
+const LESSON_READINESS_SERVICE = Symbol("LESSON_READINESS_SERVICE");
 const EDIT_THREAD_SERVICE = Symbol("EDIT_THREAD_SERVICE");
 export const sessionCookieName = "avlp_session";
 type ApiDatabaseConnection = Pick<DatabaseConnection, "healthCheck" | "close">;
@@ -608,6 +610,7 @@ class ProjectsController {
     private readonly previewManifests: PreviewManifestApiService,
     @Inject(LESSON_VALIDATION_SERVICE)
     private readonly validations: LessonValidationApiService,
+    @Inject(LESSON_READINESS_SERVICE) private readonly readiness: Pick<LessonReadinessService, "read">,
     @Inject(RENDER_SERVICE)
     private readonly renders: RenderApiService,
     @Inject(EXPORT_SERVICE)
@@ -2957,6 +2960,11 @@ class ProjectsController {
     return { deleted: true };
   }
 
+  @Get(":projectId/readiness")
+  public async lessonReadiness(@Param("projectId") projectId: string, @Req() request: RequestWithAuth & AuthorizedProjectRequest): Promise<unknown> {
+    return this.readiness.read(assertAuthorizedProject(request, projectId));
+  }
+
   private async authenticatedUser(request: RequestWithAuth) {
     const token = request.cookies[sessionCookieName];
     const user =
@@ -3472,6 +3480,7 @@ function createAppModule(
   demonstrationPilotCohort: DemonstrationPilotCohort,
   oneShotService: OneShotService,
   editThreadService: EditThreadService,
+  readinessService: Pick<LessonReadinessService, "read">,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -3545,6 +3554,7 @@ function createAppModule(
       },
       { provide: ONE_SHOT_SERVICE, useValue: oneShotService },
       { provide: EDIT_THREAD_SERVICE, useValue: editThreadService },
+      { provide: LESSON_READINESS_SERVICE, useValue: readinessService },
     ],
   };
 }
@@ -3591,6 +3601,7 @@ export type CreateAppOptions = {
   demonstrationPilotCohort?: DemonstrationPilotCohort;
   oneShotService?: OneShotService;
   editThreadService?: EditThreadService;
+  readinessService?: Pick<LessonReadinessService, "read">;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -4904,6 +4915,7 @@ export async function createApp(
       options.demonstrationPilotCohort ?? closedDemonstrationPilotCohort,
       options.oneShotService ?? unavailableOneShotService,
       options.editThreadService ?? unavailableEditThreadService,
+      options.readinessService ?? { read: async () => { throw new PublicError("not_found", "Lesson preparation is unavailable.", 404); } },
     ),
     new FastifyAdapter({
       logger: {

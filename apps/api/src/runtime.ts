@@ -39,6 +39,7 @@ import { PostgresGroundingService } from "./grounding.js";
 import { PostgresCitationHistoryService } from "./citation-history.js";
 import { PostgresLessonVersionsService } from "./lesson-versions.js";
 import { PostgresVoiceConfigurationService } from "./voice-configuration.js";
+import { LessonReadinessService } from "./lesson-readiness.js";
 import { SceneAudioService } from "./scene-audio.js";
 import { PreviewManifestService } from "./preview-manifest.js";
 import { PostgresLessonValidationService } from "./lesson-validation.js";
@@ -469,6 +470,7 @@ export async function runApi(input: {
       groundingService,
       lessonVersionsService,
       voiceConfigurationService,
+      readinessService: new LessonReadinessService(database.client, lessonValidationService, process.env.STORYBOARD_RECOVERY_ENABLED === "true"),
       sceneAudioService,
       previewManifestService: new PreviewManifestService(
         database.client,

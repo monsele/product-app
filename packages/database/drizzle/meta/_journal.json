@@ -519,6 +519,13 @@
       "when": 1790000530000,
       "tag": "0073_table_cell_corrections",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1790000540000,
+      "tag": "0074_lesson_recovery",
+      "breakpoints": true
     }
   ]
 }

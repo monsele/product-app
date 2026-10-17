@@ -1718,6 +1718,12 @@ The epic is complete only when its domain rules, database migration, API behavio
 
 ## E16. Quality Validation
 
+ADR-016 adds a durable technical recovery coordinator alongside validation.
+Use shared readiness contracts for independent editing, preview and rendering
+capabilities. Group symptoms for display without weakening validation rules.
+Repair work uses existing idempotent jobs, revision/fingerprint guards and
+project-scoped usage reservations. Persist progress across browser closure.
+
 ### Required product outcome
 
 A deterministic validation system identifies blocking errors and warnings before rendering and guides the teacher directly to fixes.

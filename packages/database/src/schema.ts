@@ -37,6 +37,36 @@ export const projectOwnershipColumns = () => ({
   ownerUserId: ownershipColumn(),
 });
 
+/** ST-118. Authority is explicit and bounded; opening the editor creates none. */
+export const lessonRecoveryRuns = pgTable("lesson_recovery_runs", {
+  id: primaryId(), ...projectOwnershipColumns(), ...auditColumns(),
+  lessonSpecId: uuid("lesson_spec_id").notNull(), revision: integer("revision").notNull(),
+  idempotencyKey: text("idempotency_key").notNull(),
+  state: text("state").notNull().default("queued"),
+  allowanceUsd: numeric("allowance_usd", { precision: 12, scale: 6 }).notNull(),
+  reservedUsd: numeric("reserved_usd", { precision: 12, scale: 6 }).notNull().default("0"),
+  oneShotRunId: uuid("one_shot_run_id"), correlationId: uuid("correlation_id").notNull(),
+  validationRunId: uuid("validation_run_id"), sequence: integer("sequence").notNull().default(0),
+  leaseUntil: utcTimestamp("lease_until"), leaseJobId: uuid("lease_job_id"),
+  stoppedAt: utcTimestamp("stopped_at"), failureCode: text("failure_code"),
+}, (table) => [
+  uniqueIndex("recovery_run_request_unique").on(table.ownerUserId, table.projectId, table.idempotencyKey),
+  uniqueIndex("recovery_run_active_unique").on(table.ownerUserId, table.projectId).where(sql`${table.stoppedAt} is null`),
+]);
+
+export const lessonRecoveryTasks = pgTable("lesson_recovery_tasks", {
+  id: primaryId(), ...projectOwnershipColumns(), ...auditColumns(),
+  runId: uuid("run_id").notNull().references(() => lessonRecoveryRuns.id, { onDelete: "cascade" }),
+  sceneId: uuid("scene_id"), operation: text("operation").notNull(),
+  fingerprint: text("fingerprint").notNull(), issueCodes: jsonb("issue_codes").notNull().default([]),
+  state: text("state").notNull().default("queued"), attempts: integer("attempts").notNull().default(0),
+  jobId: uuid("job_id"), failureCode: text("failure_code"),
+  reservedUsd: numeric("reserved_usd", { precision: 12, scale: 6 }).notNull().default("0"),
+}, (table) => [
+  uniqueIndex("recovery_task_operation_unique").on(table.ownerUserId, table.projectId, table.operation, table.fingerprint),
+  index("recovery_task_run_idx").on(table.runId),
+]);
+
 /**
  * Infrastructure-only smoke table. Feature stories own all domain tables.
  * JSONB is available for versioned metadata without making it an ownership or
