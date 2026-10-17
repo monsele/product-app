@@ -407,6 +407,7 @@ export class TogetherKokoroTtsProvider implements SceneAudioTtsProvider {
   }
 
   public async synthesize(input: {
+    beforeDispatch?: (costUsd: number) => Promise<void>;
     narration: string;
     speakingRate: number;
     voiceId?: string;
@@ -422,7 +423,7 @@ export class TogetherKokoroTtsProvider implements SceneAudioTtsProvider {
     // the PCM, so every word of the approved narration is voiced.
     const pieces: Uint8Array[] = [];
     for (const chunk of narrationChunks(input.narration))
-      pieces.push(await this.speak(chunk, voice, pronunciationDict));
+      pieces.push(await this.speak(chunk, voice, pronunciationDict, input.beforeDispatch));
     const bytes = retimePcm16Wav(
       pieces.length === 1 ? pieces[0]! : concatPcm16Wavs(pieces),
       input.speakingRate,
@@ -448,9 +449,12 @@ export class TogetherKokoroTtsProvider implements SceneAudioTtsProvider {
     text: string,
     voice: string,
     pronunciationDict: readonly string[],
+    beforeDispatch?: (costUsd: number) => Promise<void>,
   ): Promise<Uint8Array> {
     const startedAt = Date.now();
-    for (let attempt = 0; attempt <= this.parsed.maxRetries; attempt += 1) {
+    const maxRetries = beforeDispatch ? 0 : this.parsed.maxRetries;
+    for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+      await beforeDispatch?.((text.length / 1_000_000) * this.parsed.costUsdPerMillionCharacters);
       const controller = new AbortController();
       const timeout = setTimeout(
         () => controller.abort(),
@@ -483,7 +487,7 @@ export class TogetherKokoroTtsProvider implements SceneAudioTtsProvider {
           const error = await providerError(response);
           if (
             !shouldRetry(response.status) ||
-            attempt >= this.parsed.maxRetries
+            attempt >= maxRetries
           )
             throw error;
           await wait(Math.min(4_000, 250 * 2 ** attempt));
@@ -492,7 +496,7 @@ export class TogetherKokoroTtsProvider implements SceneAudioTtsProvider {
         return new Uint8Array(await response.arrayBuffer());
       } catch (error) {
         if (error instanceof ProviderCallError) throw error;
-        if (attempt >= this.parsed.maxRetries)
+        if (attempt >= maxRetries)
           throw new ProviderCallError({
             code: "PROVIDER_TRANSPORT_FAILED",
             message: "The Together provider request could not be completed.",

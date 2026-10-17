@@ -39,6 +39,7 @@ import { PostgresGroundingService } from "./grounding.js";
 import { PostgresCitationHistoryService } from "./citation-history.js";
 import { PostgresLessonVersionsService } from "./lesson-versions.js";
 import { PostgresVoiceConfigurationService } from "./voice-configuration.js";
+import { LessonRecoveryService } from "./lesson-recovery.js";
 import { LessonReadinessService } from "./lesson-readiness.js";
 import { SceneAudioService } from "./scene-audio.js";
 import { PreviewManifestService } from "./preview-manifest.js";
@@ -383,11 +384,14 @@ export async function runApi(input: {
         maxBriefRevisions: environment.ONE_SHOT_MAX_BRIEF_REVISIONS,
       },
     );
+    const readinessService = new LessonReadinessService(database.client, lessonValidationService, process.env.STORYBOARD_RECOVERY_ENABLED === "true");
+    const recoveryService = new LessonRecoveryService(database.client, readinessService, lessonValidationService, sceneAudioService, oneShotPricingFromEnvironment(environment));
     const consumer = registerJobConsumer({
       queueName: "orchestration",
       connection: redisConnectionFromUrl(environment.REDIS_URL),
       repository: new PostgresJobRepository(database.client),
       handlers: [
+        recoveryService.handler(),
         createOneShotAdvanceJobHandler(
           new OneShotRunnerHost(
             database.client,
@@ -470,7 +474,8 @@ export async function runApi(input: {
       groundingService,
       lessonVersionsService,
       voiceConfigurationService,
-      readinessService: new LessonReadinessService(database.client, lessonValidationService, process.env.STORYBOARD_RECOVERY_ENABLED === "true"),
+      readinessService,
+      recoveryService,
       sceneAudioService,
       previewManifestService: new PreviewManifestService(
         database.client,

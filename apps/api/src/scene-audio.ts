@@ -6,6 +6,8 @@ import {
   type Identifier,
 } from "@avlp/config";
 import {
+  lessonRecoveryRuns,
+  lessonRecoveryTasks,
   captionCues,
   captionTracks,
   jobs,
@@ -41,11 +43,12 @@ const maxGenerationsPerHour = 50;
 // BullMQ controls actual provider concurrency. This limit bounds durable queued
 // work and must accommodate one complete 50-scene storyboard.
 const maxConcurrentGenerations = 50;
-const provider =
+export const sceneAudioProvider =
   process.env.TOGETHER_API_KEY?.trim() === undefined ||
   process.env.TOGETHER_API_KEY.trim().length === 0
     ? ({ providerId: "fixture-v1", outputFormat: "wav" } as const)
     : togetherTtsProviderOptions;
+const provider = sceneAudioProvider;
 const hash = (value: unknown) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
 
@@ -111,11 +114,7 @@ export class SceneAudioService {
         ),
       )
       .limit(1);
-    if (
-      row === undefined ||
-      row.status !== "ready" ||
-      row.storageKey === null
-    )
+    if (row === undefined || row.status !== "ready" || row.storageKey === null)
       throw new PublicError(
         "not_found",
         "The requested resource was not found.",
@@ -245,6 +244,9 @@ export class SceneAudioService {
     body: unknown;
     correlationId: Identifier;
     oneShotRunId?: Identifier | undefined;
+    recoveryTaskId?: Identifier;
+    expectedRevision?: number;
+    repairCaptions?: boolean;
   }): Promise<SceneAudioStatusResponse> {
     const command = parseBoundary(sceneAudioGenerationInputSchema, input.body);
     const now = this.now();
@@ -252,6 +254,56 @@ export class SceneAudioService {
       await tx.execute(
         sql`select pg_advisory_xact_lock(hashtext(${input.projectId}))`,
       );
+      const [recoveryTask] = input.recoveryTaskId
+        ? await tx
+            .select()
+            .from(lessonRecoveryTasks)
+            .where(
+              and(
+                eq(lessonRecoveryTasks.id, input.recoveryTaskId),
+                eq(lessonRecoveryTasks.ownerUserId, input.ownerUserId),
+                eq(lessonRecoveryTasks.projectId, input.projectId),
+              ),
+            )
+            .for("update")
+        : [];
+      if (input.recoveryTaskId) {
+        const [run] = recoveryTask
+          ? await tx
+              .select()
+              .from(lessonRecoveryRuns)
+              .where(
+                and(
+                  eq(lessonRecoveryRuns.id, recoveryTask.runId),
+                  eq(lessonRecoveryRuns.ownerUserId, input.ownerUserId),
+                  eq(lessonRecoveryRuns.projectId, input.projectId),
+                ),
+              )
+          : [];
+        if (!run || run.stoppedAt !== null || recoveryTask?.state !== "queued")
+          throw new PublicError(
+            "edit_conflict",
+            "Preparation was stopped or changed.",
+            409,
+          );
+        const [spec] = await tx
+          .select({ revision: lessonSpecs.revision })
+          .from(lessonSpecs)
+          .where(
+            and(
+              eq(lessonSpecs.id, run.lessonSpecId),
+              eq(lessonSpecs.ownerUserId, input.ownerUserId),
+              eq(lessonSpecs.projectId, input.projectId),
+            ),
+          )
+          .for("update");
+        if (spec?.revision !== input.expectedRevision)
+          throw new PublicError(
+            "edit_conflict",
+            "The lesson changed; preparation will refresh.",
+            409,
+          );
+      }
       const [scene] = await tx
         .select({
           id: scenes.id,
@@ -347,7 +399,7 @@ export class SceneAudioService {
           .limit(1);
         // A legacy/interrupted completion may have audio but no captions. Queue
         // the same durable job path so the worker repairs it from saved timing.
-        if (readyCue !== undefined)
+        if (readyCue !== undefined && !input.repairCaptions)
           return response(scene.stableSceneId as Identifier, matchingAudio);
       }
       if (action === "in_flight" && matchingAudio !== undefined)
@@ -423,6 +475,10 @@ export class SceneAudioService {
       const jobId = createId(now);
       const payload = sceneAudioGenerationJobPayloadSchema.parse({
         schemaVersion: 1,
+        ...(input.recoveryTaskId
+          ? { recoveryTaskId: input.recoveryTaskId }
+          : {}),
+        ...(input.repairCaptions ? { repairCaptions: true } : {}),
         sceneAudioId: audioId,
         narrationHash,
         voiceConfigurationHash: voiceHash,
@@ -471,9 +527,18 @@ export class SceneAudioService {
           .update(sceneAudio)
           .set(audioValues)
           .where(eq(sceneAudio.id, matchingAudio.id));
+      if (recoveryTask)
+        await tx
+          .update(lessonRecoveryTasks)
+          .set({ jobId, state: "running", updatedAt: now })
+          .where(eq(lessonRecoveryTasks.id, recoveryTask.id));
+      const maxAttempts = recoveryTask
+        ? Math.max(1, 3 - recoveryTask.priorAttempts)
+        : 3;
       await tx.insert(jobs).values({
         id: jobId,
         jobType: envelope.jobType,
+        maxAttempts,
         queueName: "pipeline",
         projectId: input.projectId,
         ownerUserId: input.ownerUserId,
@@ -489,7 +554,7 @@ export class SceneAudioService {
         eventType: "tts.generation.requested.v1",
         queueName: "pipeline",
         envelope,
-        deliveryOptions: { maxAttempts: 3, retryDelayMs: 5000 },
+        deliveryOptions: { maxAttempts, retryDelayMs: 5000 },
       });
       await new PostgresAuditWriter(tx).write({
         ownerUserId: input.ownerUserId,

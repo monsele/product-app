@@ -4,6 +4,7 @@ import {
   lessonRecoveryRuns,
   lessonRecoveryTasks,
   type DatabaseClient,
+  type DatabaseExecutor,
 } from "@avlp/database";
 import {
   lessonStoryboardSchema,
@@ -111,10 +112,13 @@ export class LessonReadinessService {
     public readonly enabled: boolean,
   ) {}
 
-  async currentSpec(scope: RecoveryScope) {
+  async currentSpec(
+    scope: RecoveryScope,
+    database: DatabaseExecutor = this.database,
+  ) {
     const find = async (status: "draft" | "approved") =>
       (
-        await this.database
+        await database
           .select()
           .from(lessonSpecs)
           .where(
@@ -142,7 +146,15 @@ export class LessonReadinessService {
 
   async read(scope: RecoveryScope): Promise<LessonReadiness> {
     const { row, storyboard } = await this.currentSpec(scope);
-    const validation = await this.validation.latest(scope);
+    let validation = await this.validation.latest(scope);
+    if (this.enabled && (!validation || validation.stale))
+      validation = await this.validation.run({ ...scope, body: {} });
+    if (
+      validation &&
+      (validation.lessonSpecRevision !== row.revision ||
+        validation.lessonSpecId !== row.id)
+    )
+      validation = { ...validation, stale: true };
     const [run] = this.enabled
       ? await this.database
           .select()
@@ -185,6 +197,11 @@ export class LessonReadinessService {
         task.state = recoveryTaskSchema.shape.state.parse(saved.state);
         task.attempts = saved.attempts;
         task.failureCode = saved.failureCode;
+        if (saved.failureCode === "RECOVERY_ALLOWANCE_EXHAUSTED") {
+          task.action = "approve_usage";
+          task.message =
+            "The approved preparation allowance has been used. Approve more usage to continue.";
+        }
         if (["queued", "running", "retry_wait"].includes(saved.state)) {
           task.action = null;
           task.message =
@@ -192,10 +209,28 @@ export class LessonReadinessService {
               ? "Retrying narration preparation. You can keep editing."
               : "Preparing audio, captions and timing. You can keep editing.";
         } else if (saved.state === "failed") {
-          task.action = "retry";
+          task.action =
+            saved.attempts >= 3 || saved.failureCode === "RECOVERY_NO_PROGRESS"
+              ? "review_content"
+              : "retry";
           task.message =
             "Preparation could not finish. Your work is saved. Review the scene or retry when the service is available.";
         }
+      }
+      if (task.operation === "audio" && run?.failureCode === "VOICE_REQUIRED") {
+        task.state = "needs_action";
+        task.action = "choose_voice";
+        task.message =
+          "Choose a narration voice to finish preparing this lesson.";
+      }
+      if (
+        run?.failureCode === "RECOVERY_SERVICE_UNAVAILABLE" &&
+        task.operation !== "review"
+      ) {
+        task.state = "failed";
+        task.action = "retry";
+        task.message =
+          "Preparation is unavailable. Your work is saved. Retry when the service is available.";
       }
     }
     const capabilities = readinessCapabilities(

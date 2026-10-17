@@ -45,6 +45,17 @@ function audioResponse(
 }
 
 describe("Together TTS adapter", () => {
+  it("checks recovery authorization before dispatch and avoids nested retries", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(audioResponse(new Uint8Array(), 503));
+    const provider = new TogetherKokoroTtsProvider({ apiKey: "test-key", fetcher, maxRetries: 2 });
+    const denied = new Error("Allowance exhausted");
+    await expect(provider.synthesize({ narration: "A sentence.", speakingRate: 1, beforeDispatch: async () => { throw denied; } })).rejects.toBe(denied);
+    expect(fetcher).not.toHaveBeenCalled();
+    const authorize = vi.fn(async () => {});
+    await expect(provider.synthesize({ narration: "A sentence.", speakingRate: 1, beforeDispatch: authorize })).rejects.toThrow();
+    expect(authorize).toHaveBeenCalledTimes(1);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
   it("synthesizes WAV audio, maps public voices, and defers timing to alignment", async () => {
     const audio = wavOneSecond();
     const fetcher = vi

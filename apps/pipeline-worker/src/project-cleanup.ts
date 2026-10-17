@@ -1,5 +1,6 @@
 import type { Identifier } from "@avlp/config";
 import {
+  lessonRecoveryRuns,
   inTransaction,
   jobs,
   projects,
@@ -164,6 +165,7 @@ export function createProjectCleanupJobHandler(
             deletedObjectCount: 0,
           };
 
+        await transaction.delete(lessonRecoveryRuns).where(and(eq(lessonRecoveryRuns.ownerUserId, context.ownerUserId), eq(lessonRecoveryRuns.projectId, context.projectId)));
         const deletedJobs = await transaction
           .delete(jobs)
           .where(

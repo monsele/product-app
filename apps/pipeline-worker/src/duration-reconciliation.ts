@@ -21,6 +21,16 @@ import {
   type SceneDurationReconciliation,
 } from "@avlp/schemas";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { defineJobHandler, JobExecutionError } from "@avlp/jobs";
+import { lessonTimingRepairPayloadSchema } from "@avlp/schemas";
+
+export function createLessonTimingRepairHandler(database: DatabaseClient) {
+  return defineJobHandler("lesson.timing.reconcile", 1, lessonTimingRepairPayloadSchema, async (_payload, context) => {
+    const result = await reconcileLessonSceneDurations({ database, ownerUserId: context.ownerUserId, projectId: context.projectId, correlationId: context.correlationId, now: new Date() });
+    if (result.status === "conflict") throw new JobExecutionError("retryable", "TIMING_REVISION_CHANGED", "The lesson changed; timing will be refreshed.");
+    return { status: result.status };
+  });
+}
 
 /**
  * ST-084 — re-time scenes from the audio that was actually synthesized.

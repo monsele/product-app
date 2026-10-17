@@ -4059,6 +4059,8 @@ export const sceneAudioGenerationJobPayloadSchema = z
     provider: sceneAudioProviderOptionsSchema,
     /** ST-105. The prompt-to-video run that authorised this paid call. */
     oneShotRunId: identifierSchema.optional(),
+    recoveryTaskId: identifierSchema.optional(),
+    repairCaptions: z.boolean().optional(),
   })
   .strict();
 export type SceneAudioGenerationJobPayload = z.infer<

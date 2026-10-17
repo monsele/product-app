@@ -1,3 +1,4 @@
+import { authorizeRecoveryCall, RecoveryAuthorityError } from "@avlp/database";
 import { createHash } from "node:crypto";
 import { createId, type Identifier } from "@avlp/config";
 import {
@@ -66,6 +67,7 @@ export interface SceneAudioTtsProvider {
   readonly contentType: "audio/mpeg" | "audio/wav";
   readonly model?: string;
   synthesize(input: {
+    beforeDispatch?: (costUsd: number) => Promise<void>;
     narration: string;
     speakingRate: number;
     voiceId?: string;
@@ -81,6 +83,7 @@ export interface SceneAudioAlignmentProvider {
   readonly providerId?: string;
   readonly model?: string;
   align(input: {
+    beforeDispatch?: (costUsd: number) => Promise<void>;
     audio: Uint8Array;
     narration: string;
     durationMs: number;
@@ -255,7 +258,10 @@ export function createSceneAudioGenerationJobHandler(input: {
           "The scene audio request was not found.",
         );
       if (audio.status === "ready") {
-        if (await hasReadyCaptions(input.database, audio.id, context)) {
+        if (
+          !payload.repairCaptions &&
+          (await hasReadyCaptions(input.database, audio.id, context))
+        ) {
           await advanceOrRetry(input.database, context, now());
           return { status: "ready", reused: true };
         }
@@ -273,6 +279,7 @@ export function createSceneAudioGenerationJobHandler(input: {
           );
         await input.database.transaction(async (tx) => {
           await persistCaptions({
+            repair: payload.repairCaptions === true,
             database: tx,
             ownerUserId: context.ownerUserId,
             projectId: context.projectId,
@@ -296,6 +303,9 @@ export function createSceneAudioGenerationJobHandler(input: {
             or(
               eq(sceneAudio.status, "queued"),
               eq(sceneAudio.status, "failed"),
+              ...(audio.jobId === context.jobId
+                ? [eq(sceneAudio.status, "generating")]
+                : []),
             ),
           ),
         )
@@ -359,10 +369,20 @@ export function createSceneAudioGenerationJobHandler(input: {
             .where(eq(sceneAudio.id, audio.id));
           return { status: "stale" };
         }
-        const recoverableTiming = persistedTiming(
-          audio.timing,
-          audio.durationMs,
-        );
+        const savedTiming = persistedTiming(audio.timing, audio.durationMs);
+        // Legacy/interrupted audio remains usable even without alignment metadata.
+        // Rebuild estimated captions from the unchanged narration, without TTS.
+        const recoverableTiming =
+          savedTiming ??
+          (audio.storageKey !== null &&
+          audio.durationMs !== null &&
+          audio.durationMs > 0
+            ? alignSentences({
+                narration,
+                durationMs: audio.durationMs,
+                timing: [],
+              })
+            : undefined);
         if (
           audio.storageKey !== null &&
           audio.durationMs !== null &&
@@ -381,6 +401,7 @@ export function createSceneAudioGenerationJobHandler(input: {
                 // Records created before provenance existed remain usable. We
                 // conservatively surface their restored captions as estimated.
                 captionTimingSource:
+                  savedTiming !== undefined &&
                   audio.captionTimingSource === "provider"
                     ? "provider"
                     : "estimated",
@@ -398,6 +419,7 @@ export function createSceneAudioGenerationJobHandler(input: {
                 ),
               );
             await persistCaptions({
+              repair: payload.repairCaptions === true,
               database: tx,
               ownerUserId: context.ownerUserId,
               projectId: context.projectId,
@@ -427,12 +449,91 @@ export function createSceneAudioGenerationJobHandler(input: {
           adapter: provider,
           approvedProvider: payload.provider.providerId,
         });
+        let dispatchIndex = 0;
+        const beforeDispatch = payload.recoveryTaskId
+          ? async (maximumCostUsd: number) => {
+              try {
+                const [current] = await input.database
+                  .select({ status: sceneAudio.status })
+                  .from(sceneAudio)
+                  .where(
+                    and(
+                      eq(sceneAudio.id, audio.id),
+                      eq(sceneAudio.ownerUserId, context.ownerUserId),
+                      eq(sceneAudio.projectId, context.projectId),
+                    ),
+                  );
+                if (current?.status !== "generating")
+                  throw new JobExecutionError(
+                    "terminal",
+                    "RECOVERY_INPUT_SUPERSEDED",
+                    "The scene changed during preparation.",
+                  );
+                await authorizeRecoveryCall(input.database, {
+                  ownerUserId: context.ownerUserId,
+                  projectId: context.projectId,
+                  taskId: payload.recoveryTaskId!,
+                  jobId: context.jobId,
+                  attempt: context.attempt,
+                  phase: `provider:${dispatchIndex++}`,
+                  maximumCostUsd,
+                });
+              } catch (error) {
+                if (error instanceof RecoveryAuthorityError)
+                  throw new JobExecutionError(
+                    "terminal",
+                    error.code,
+                    "Preparation needs renewed authorization or current inputs.",
+                  );
+                throw error;
+              }
+            }
+          : undefined;
+        if (provider.providerId === "fixture-v1") await beforeDispatch?.(0);
         const output = await resolvedProvider.adapter.synthesize({
+          ...(beforeDispatch ? { beforeDispatch } : {}),
           narration,
           speakingRate: voice.speakingRate,
           voiceId: voice.voiceId,
           pronunciationOverrides: overrides,
         });
+        await input.database
+          .insert(usageRecords)
+          .values({
+            id: createId(now()),
+            ownerUserId: context.ownerUserId,
+            projectId: context.projectId,
+            operationType: "tts.generation",
+            idempotencyKey: `tts:${audio.id}`,
+            provider: provider.providerId,
+            model: provider.model ?? null,
+            unit: "audio_second",
+            quantity: (output.durationMs / 1000).toFixed(4),
+            inputUnits: narration.length,
+            outputUnits: null,
+            estimatedCostUsd: (output.costUsd ?? 0).toFixed(6),
+            latencyMs: null,
+            retryCount: 0,
+            status: "succeeded",
+            correlationId: context.correlationId,
+            metadata: {
+              sceneAudioId: audio.id,
+              durationMs: output.durationMs,
+              providerSelection: {
+                contractVersion: "provider-envelope-v1",
+                ...providerSelectionReason(payload.oneShotRunId),
+                approvalReference: context.jobId,
+                estimatedCostUsd: output.costUsd ?? 0,
+                actualCostUsd: output.costUsd ?? 0,
+              },
+              ...(output.providerCallId === undefined
+                ? {}
+                : { providerCallId: output.providerCallId }),
+            },
+            occurredAt: now(),
+          })
+          .onConflictDoNothing();
+
         const key = storageKeys.sceneAudio({
           userId: context.ownerUserId as Identifier,
           projectId: context.projectId as Identifier,
@@ -454,6 +555,25 @@ export function createSceneAudioGenerationJobHandler(input: {
             sha256: audioChecksumSha256,
           },
         });
+        // Persist successful synthesis before alignment so interrupted completion
+        // can rebuild captions from this exact output without another paid call.
+        await input.database
+          .update(sceneAudio)
+          .set({
+            storageKey: key,
+            checksumSha256: stored.checksumSha256 ?? audioChecksumSha256,
+            contentType: provider.contentType,
+            durationMs: output.durationMs,
+            timing: output.timing.length > 0 ? output.timing : null,
+            updatedAt: now(),
+          })
+          .where(
+            and(
+              eq(sceneAudio.id, audio.id),
+              eq(sceneAudio.status, "generating"),
+              eq(sceneAudio.jobId, context.jobId),
+            ),
+          );
         alignmentAttempted = output.timing.length === 0;
         let aligned: SceneAudioAlignmentResult;
         let captionTimingSource: CaptionTimingSource;
@@ -473,6 +593,7 @@ export function createSceneAudioGenerationJobHandler(input: {
               output.bytes,
               narration,
               output.durationMs,
+              beforeDispatch,
             );
             captionTimingSource = "provider";
           } catch (error) {
@@ -507,13 +628,16 @@ export function createSceneAudioGenerationJobHandler(input: {
             sceneAudioFitToleranceMs
             ? "Audio is ready. Scene timing will follow the narration when all scene audio is ready."
             : null;
-        const warning = [
-          fitWarning,
-          captionTimingSource === "estimated"
-            ? "Captions use estimated sentence timing; review recommended."
-            : null,
-          narrationPauseNote(output.bytes),
-        ].filter((value): value is string => value !== null).join(" ") || null;
+        const warning =
+          [
+            fitWarning,
+            captionTimingSource === "estimated"
+              ? "Captions use estimated sentence timing; review recommended."
+              : null,
+            narrationPauseNote(output.bytes),
+          ]
+            .filter((value): value is string => value !== null)
+            .join(" ") || null;
         await input.database.transaction(async (tx) => {
           const [completed] = await tx
             .update(sceneAudio)
@@ -532,6 +656,7 @@ export function createSceneAudioGenerationJobHandler(input: {
             .where(
               and(
                 eq(sceneAudio.id, audio.id),
+                eq(sceneAudio.status, "generating"),
                 eq(sceneAudio.narrationHash, payload.narrationHash),
                 eq(
                   sceneAudio.voiceConfigurationHash,
@@ -541,42 +666,6 @@ export function createSceneAudioGenerationJobHandler(input: {
             )
             .returning({ id: sceneAudio.id });
           if (completed === undefined) return;
-          await tx
-            .insert(usageRecords)
-            .values({
-              id: createId(now()),
-              ownerUserId: context.ownerUserId,
-              projectId: context.projectId,
-              operationType: "tts.generation",
-              idempotencyKey: `tts:${audio.id}`,
-              provider: provider.providerId,
-              model: provider.model ?? null,
-              unit: "audio_second",
-              quantity: (output.durationMs / 1000).toFixed(4),
-              inputUnits: narration.length,
-              outputUnits: null,
-              estimatedCostUsd: (output.costUsd ?? 0).toFixed(6),
-              latencyMs: null,
-              retryCount: 0,
-              status: "succeeded",
-              correlationId: context.correlationId,
-              metadata: {
-                sceneAudioId: audio.id,
-                durationMs: output.durationMs,
-                providerSelection: {
-                  contractVersion: "provider-envelope-v1",
-                  ...providerSelectionReason(payload.oneShotRunId),
-                  approvalReference: context.jobId,
-                  estimatedCostUsd: output.costUsd ?? 0,
-                  actualCostUsd: output.costUsd ?? 0,
-                },
-                ...(output.providerCallId === undefined
-                  ? {}
-                  : { providerCallId: output.providerCallId }),
-              },
-              occurredAt: now(),
-            })
-            .onConflictDoNothing();
           if (
             aligned.providerCallId !== undefined ||
             aligned.costUsd !== undefined ||
@@ -620,6 +709,7 @@ export function createSceneAudioGenerationJobHandler(input: {
               .onConflictDoNothing();
           }
           await persistCaptions({
+            repair: payload.repairCaptions === true,
             database: tx,
             ownerUserId: context.ownerUserId,
             projectId: context.projectId,
@@ -700,7 +790,13 @@ export function createSceneAudioGenerationJobHandler(input: {
             failureCode,
             updatedAt: now(),
           })
-          .where(eq(sceneAudio.id, audio.id));
+          .where(
+            and(
+              eq(sceneAudio.id, audio.id),
+              eq(sceneAudio.jobId, context.jobId),
+              eq(sceneAudio.status, "generating"),
+            ),
+          );
         await input.database
           .insert(usageRecords)
           .values({
@@ -775,6 +871,7 @@ function alignWithoutProvider(
   audio: Uint8Array,
   narration: string,
   durationMs: number,
+  beforeDispatch?: (costUsd: number) => Promise<void>,
 ): Promise<SceneAudioAlignmentResult> {
   if (provider === undefined)
     throw new JobExecutionError(
@@ -787,7 +884,12 @@ function alignWithoutProvider(
       jobType: sceneAudioGenerationJobType,
       adapterFamily: "forced-alignment",
       adapter: provider as SceneAudioAlignmentProvider & { providerId: string },
-    }).adapter.align({ audio, narration, durationMs }),
+    }).adapter.align({
+      audio,
+      narration,
+      durationMs,
+      ...(beforeDispatch ? { beforeDispatch } : {}),
+    }),
   ).then((result) => {
     const alignment = Array.isArray(result) ? { timing: result } : result;
     const validTiming =
@@ -817,6 +919,7 @@ function alignWithoutProvider(
 }
 
 async function persistCaptions(input: {
+  repair?: boolean;
   database: DatabaseExecutor;
   ownerUserId: string;
   projectId: string;
@@ -827,10 +930,17 @@ async function persistCaptions(input: {
   durationMs: number;
   now: () => Date;
 }): Promise<void> {
-  const contentHash = captionContentHash({
+  const baseContentHash = captionContentHash({
     narrationHash: input.narrationHash,
     audioContentHash: input.audioContentHash,
   });
+  const contentHash = input.repair
+    ? digest({
+        baseContentHash,
+        repair: "caption-recovery-v1",
+        timing: input.timing,
+      })
+    : baseContentHash;
   await input.database
     .insert(captionTracks)
     .values({

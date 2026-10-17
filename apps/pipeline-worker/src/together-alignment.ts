@@ -475,12 +475,15 @@ export class TogetherWhisperAlignmentProvider implements SceneAudioAlignmentProv
   }
 
   public async align(input: {
+    beforeDispatch?: (costUsd: number) => Promise<void>;
     audio: Uint8Array;
     narration: string;
     durationMs: number;
   }): Promise<SceneAudioAlignmentResult> {
     const startedAt = Date.now();
-    for (let attempt = 0; attempt <= this.parsed.maxRetries; attempt += 1) {
+    const maxRetries = input.beforeDispatch ? 0 : this.parsed.maxRetries;
+    for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+      await input.beforeDispatch?.((input.durationMs / 60_000) * this.parsed.costUsdPerAudioMinute);
       const controller = new AbortController();
       const timeout = setTimeout(
         () => controller.abort(),
@@ -512,7 +515,7 @@ export class TogetherWhisperAlignmentProvider implements SceneAudioAlignmentProv
           const error = await providerError(response);
           if (
             !shouldRetry(response.status) ||
-            attempt >= this.parsed.maxRetries
+            attempt >= maxRetries
           )
             throw error;
           await wait(Math.min(4_000, 250 * 2 ** attempt));
@@ -536,7 +539,7 @@ export class TogetherWhisperAlignmentProvider implements SceneAudioAlignmentProv
         };
       } catch (error) {
         if (error instanceof ProviderCallError) throw error;
-        if (attempt >= this.parsed.maxRetries)
+        if (attempt >= maxRetries)
           throw new ProviderCallError({
             code: "PROVIDER_TRANSPORT_FAILED",
             message: "The Together alignment request could not be completed.",

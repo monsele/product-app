@@ -68,6 +68,7 @@ import {
   createCinemaIllustrationJobHandler,
   createIllustrationGenerationJobHandler,
 } from "./illustration-generation-job.js";
+import { createLessonTimingRepairHandler } from "./duration-reconciliation.js";
 import { createSceneAudioGenerationJobHandler } from "./scene-audio-job.js";
 import { createCreativeDesignInterpretationJobHandler } from "./creative-design-job.js";
 import { createVisualPlanJobHandler } from "./visual-plan-job.js";
@@ -404,6 +405,7 @@ export async function runPipelineWorker(
           }),
           pricing: togetherPricing,
         }),
+        createLessonTimingRepairHandler(database.client),
         createSceneAudioGenerationJobHandler({
           database: database.client,
           storage,

@@ -49,6 +49,7 @@ export const lessonRecoveryRuns = pgTable("lesson_recovery_runs", {
   validationRunId: uuid("validation_run_id"), sequence: integer("sequence").notNull().default(0),
   leaseUntil: utcTimestamp("lease_until"), leaseJobId: uuid("lease_job_id"),
   stoppedAt: utcTimestamp("stopped_at"), failureCode: text("failure_code"),
+  authorizationRequests: jsonb("authorization_requests").notNull().default({}),
 }, (table) => [
   uniqueIndex("recovery_run_request_unique").on(table.ownerUserId, table.projectId, table.idempotencyKey),
   uniqueIndex("recovery_run_active_unique").on(table.ownerUserId, table.projectId).where(sql`${table.stoppedAt} is null`),
@@ -61,6 +62,7 @@ export const lessonRecoveryTasks = pgTable("lesson_recovery_tasks", {
   fingerprint: text("fingerprint").notNull(), issueCodes: jsonb("issue_codes").notNull().default([]),
   state: text("state").notNull().default("queued"), attempts: integer("attempts").notNull().default(0),
   jobId: uuid("job_id"), failureCode: text("failure_code"),
+  calls: jsonb("calls").notNull().default({}), priorAttempts: integer("prior_attempts").notNull().default(0),
   reservedUsd: numeric("reserved_usd", { precision: 12, scale: 6 }).notNull().default("0"),
 }, (table) => [
   uniqueIndex("recovery_task_operation_unique").on(table.ownerUserId, table.projectId, table.operation, table.fingerprint),

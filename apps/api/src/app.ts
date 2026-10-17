@@ -104,6 +104,7 @@ import type { ExportService } from "./exports.js";
 import type { ShareLinkService } from "./share-links.js";
 import type { SoundBedService } from "./sound-beds.js";
 import type { OneShotService } from "./one-shot.js";
+import type { LessonRecoveryApi } from "./lesson-recovery.js";
 import type { LessonReadinessService } from "./lesson-readiness.js";
 import type { EditThreadService } from "./edit-thread.js";
 import { oneShotEligibilitySchema } from "@avlp/schemas/one-shot";
@@ -155,6 +156,8 @@ const DEMONSTRATION_TEST_LESSON_SERVICE = Symbol(
   "DEMONSTRATION_TEST_LESSON_SERVICE",
 );
 const ONE_SHOT_SERVICE = Symbol("ONE_SHOT_SERVICE");
+const recoveryUnavailable = async (): Promise<never> => { throw new PublicError("not_found", "Lesson preparation is unavailable.", 404); };
+const LESSON_RECOVERY_SERVICE = Symbol("LESSON_RECOVERY_SERVICE");
 const LESSON_READINESS_SERVICE = Symbol("LESSON_READINESS_SERVICE");
 const EDIT_THREAD_SERVICE = Symbol("EDIT_THREAD_SERVICE");
 export const sessionCookieName = "avlp_session";
@@ -611,6 +614,7 @@ class ProjectsController {
     @Inject(LESSON_VALIDATION_SERVICE)
     private readonly validations: LessonValidationApiService,
     @Inject(LESSON_READINESS_SERVICE) private readonly readiness: Pick<LessonReadinessService, "read">,
+    @Inject(LESSON_RECOVERY_SERVICE) private readonly recovery: LessonRecoveryApi,
     @Inject(RENDER_SERVICE)
     private readonly renders: RenderApiService,
     @Inject(EXPORT_SERVICE)
@@ -2960,6 +2964,23 @@ class ProjectsController {
     return { deleted: true };
   }
 
+  @Get(":projectId/recovery/estimate")
+  public async estimateRecovery(@Param("projectId") projectId: string, @Req() request: RequestWithAuth & AuthorizedProjectRequest): Promise<unknown> {
+    return this.recovery.estimate(assertAuthorizedProject(request, projectId));
+  }
+  @Post(":projectId/recovery")
+  @HttpCode(200)
+  public async startRecovery(@Param("projectId") projectId: string, @Body() body: unknown, @Req() request: RequestWithAuth & AuthorizedProjectRequest): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.recovery.start({ ...assertAuthorizedProject(request, projectId), body, correlationId: request.correlationId ?? "00000000-0000-7000-8000-000000000000" });
+  }
+  @Post(":projectId/recovery/stop")
+  @HttpCode(200)
+  public async stopRecovery(@Param("projectId") projectId: string, @Body() body: unknown, @Req() request: RequestWithAuth & AuthorizedProjectRequest): Promise<unknown> {
+    assertTrustedOrigin(request, this.trustedOrigin);
+    return this.recovery.stop({ ...assertAuthorizedProject(request, projectId), body });
+  }
+
   @Get(":projectId/readiness")
   public async lessonReadiness(@Param("projectId") projectId: string, @Req() request: RequestWithAuth & AuthorizedProjectRequest): Promise<unknown> {
     return this.readiness.read(assertAuthorizedProject(request, projectId));
@@ -3481,6 +3502,7 @@ function createAppModule(
   oneShotService: OneShotService,
   editThreadService: EditThreadService,
   readinessService: Pick<LessonReadinessService, "read">,
+  recoveryService: LessonRecoveryApi,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -3555,6 +3577,7 @@ function createAppModule(
       { provide: ONE_SHOT_SERVICE, useValue: oneShotService },
       { provide: EDIT_THREAD_SERVICE, useValue: editThreadService },
       { provide: LESSON_READINESS_SERVICE, useValue: readinessService },
+      { provide: LESSON_RECOVERY_SERVICE, useValue: recoveryService },
     ],
   };
 }
@@ -3602,6 +3625,7 @@ export type CreateAppOptions = {
   oneShotService?: OneShotService;
   editThreadService?: EditThreadService;
   readinessService?: Pick<LessonReadinessService, "read">;
+  recoveryService?: LessonRecoveryApi;
   configure?: (app: NestFastifyApplication) => void | Promise<void>;
 };
 
@@ -4915,7 +4939,8 @@ export async function createApp(
       options.demonstrationPilotCohort ?? closedDemonstrationPilotCohort,
       options.oneShotService ?? unavailableOneShotService,
       options.editThreadService ?? unavailableEditThreadService,
-      options.readinessService ?? { read: async () => { throw new PublicError("not_found", "Lesson preparation is unavailable.", 404); } },
+      options.readinessService ?? { read: recoveryUnavailable },
+      options.recoveryService ?? { estimate: recoveryUnavailable, start: recoveryUnavailable, stop: recoveryUnavailable },
     ),
     new FastifyAdapter({
       logger: {

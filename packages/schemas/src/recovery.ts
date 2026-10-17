@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { identifierSchema } from "@avlp/config";
 
+export const lessonTimingRepairPayloadSchema = z
+  .object({ schemaVersion: z.literal(1) })
+  .strict();
+
 export const recoveryTaskStates = [
   "queued",
   "running",
@@ -45,7 +49,7 @@ export const recoveryTaskSchema = z
 export const lessonReadinessSchema = z
   .object({
     enabled: z.boolean(),
-    revision: z.number().int().positive().nullable(),
+    revision: z.number().int().nonnegative().nullable(),
     capabilities: z
       .object({ edit: z.boolean(), preview: z.boolean(), render: z.boolean() })
       .strict(),
@@ -68,13 +72,13 @@ export const lessonReadinessSchema = z
   .strict();
 export const recoveryCommandSchema = z
   .object({
-    expectedRevision: z.number().int().positive(),
+    expectedRevision: z.number().int().nonnegative(),
     idempotencyKey: z.string().min(1).max(160),
   })
   .strict();
 export const recoveryEstimateSchema = z
   .object({
-    revision: z.number().int().positive(),
+    revision: z.number().int().nonnegative(),
     fingerprint: z.string().length(64),
     maximumCostUsd: z.number().finite().nonnegative(),
     scenes: z.number().int().nonnegative(),
@@ -84,6 +88,7 @@ export const recoveryEstimateSchema = z
   .strict();
 export const recoveryStartSchema = recoveryCommandSchema
   .extend({
+    intent: z.enum(["prepare", "retry", "increase_allowance"]).optional(),
     estimateFingerprint: z.string().length(64),
     acceptedMaximumCostUsd: z.number().finite().nonnegative(),
   })
@@ -99,3 +104,5 @@ export type RecoveryTask = z.infer<typeof recoveryTaskSchema>;
 export type RecoveryOperation = z.infer<typeof recoveryOperationSchema>;
 export type LessonReadiness = z.infer<typeof lessonReadinessSchema>;
 export type RecoveryEstimate = z.infer<typeof recoveryEstimateSchema>;
+
+export const recoveryCallsSchema = z.record(z.number().finite().nonnegative());
