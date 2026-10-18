@@ -1,0 +1,90 @@
+C:\Users\eoaikhina\Documents\repos\product-app\apps\api\src\lesson-readiness.ts:3
+import { lessonStoryboardSchema, lessonReadinessSchema, recoveryTaskSchema, type LessonReadiness, type RecoveryTask, type ValidationIssue, type LessonValidationRun } from "@avlp/schemas";
+                                 ^
+SyntaxError: The requested module '@avlp/schemas' does not provide an export named 'lessonReadinessSchema'
+    at #asyncInstantiate (node:internal/modules/esm/module_job:319:21)
+    at async ModuleJob.run (node:internal/modules/esm/module_job:422:5)
+    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)
+    at async bootstrap (C:\Users\eoaikhina\Documents\repos\product-app\apps\api\src\main.ts:11:24)
+
+Node.js v24.14.0
+node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'zod' imported from C:\Users\eoaikhina\Documents\repos\product-app\packages\database\dist\recovery-authority.js
+Did you mean to import "zod/index.cjs"?
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:991:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:719:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveBaseSync (file:///C:/Users/eoaikhina/Documents/repos/product-app/node_modules/.pnpm/tsx@4.23.10/node_modules/tsx/dist/register-DdgZzFJi.mjs:2:10932)
+    at resolveDirectorySync (file:///C:/Users/eoaikhina/Documents/repos/product-app/node_modules/.pnpm/tsx@4.23.10/node_modules/tsx/dist/register-DdgZzFJi.mjs:2:12238)
+    at resolveTsPathsSync (file:///C:/Users/eoaikhina/Documents/repos/product-app/node_modules/.pnpm/tsx@4.23.10/node_modules/tsx/dist/register-DdgZzFJi.mjs:2:13445) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.14.0
+node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'zod' imported from C:\Users\eoaikhina\Documents\repos\product-app\packages\database\dist\recovery-authority.js
+Did you mean to import "zod/index.cjs"?
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:991:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:719:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveBaseSync (file:///C:/Users/eoaikhina/Documents/repos/product-app/node_modules/.pnpm/tsx@4.23.10/node_modules/tsx/dist/register-DdgZzFJi.mjs:2:10932)
+    at resolveDirectorySync (file:///C:/Users/eoaikhina/Documents/repos/product-app/node_modules/.pnpm/tsx@4.23.10/node_modules/tsx/dist/register-DdgZzFJi.mjs:2:12238)
+    at resolveTsPathsSync (file:///C:/Users/eoaikhina/Documents/repos/product-app/node_modules/.pnpm/tsx@4.23.10/node_modules/tsx/dist/register-DdgZzFJi.mjs:2:13445) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.14.0
+node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'zod' imported from C:\Users\eoaikhina\Documents\repos\product-app\packages\database\dist\recovery-authority.js
+Did you mean to import "zod/index.cjs"?
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:991:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:719:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveBaseSync (file:///C:/Users/eoaikhina/Documents/repos/product-app/node_modules/.pnpm/tsx@4.23.10/node_modules/tsx/dist/register-DdgZzFJi.mjs:2:10932)
+    at resolveDirectorySync (file:///C:/Users/eoaikhina/Documents/repos/product-app/node_modules/.pnpm/tsx@4.23.10/node_modules/tsx/dist/register-DdgZzFJi.mjs:2:12238)
+    at resolveTsPathsSync (file:///C:/Users/eoaikhina/Documents/repos/product-app/node_modules/.pnpm/tsx@4.23.10/node_modules/tsx/dist/register-DdgZzFJi.mjs:2:13445) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.14.0
+node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'zod' imported from C:\Users\eoaikhina\Documents\repos\product-app\packages\database\dist\recovery-authority.js
+Did you mean to import "zod/index.cjs"?
+    at Object.getPackageJSONURL (node:internal/modules/package_json_reader:301:9)
+    at packageResolve (node:internal/modules/esm/resolve:768:81)
+    at moduleResolve (node:internal/modules/esm/resolve:859:18)
+    at defaultResolve (node:internal/modules/esm/resolve:991:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:719:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:736:38)
+    at nextStep (node:internal/modules/customization_hooks:189:26)
+    at resolveBaseSync (file:///C:/Users/eoaikhina/Documents/repos/product-app/node_modules/.pnpm/tsx@4.23.10/node_modules/tsx/dist/register-DdgZzFJi.mjs:2:10932)
+    at resolveDirectorySync (file:///C:/Users/eoaikhina/Documents/repos/product-app/node_modules/.pnpm/tsx@4.23.10/node_modules/tsx/dist/register-DdgZzFJi.mjs:2:12238)
+    at resolveTsPathsSync (file:///C:/Users/eoaikhina/Documents/repos/product-app/node_modules/.pnpm/tsx@4.23.10/node_modules/tsx/dist/register-DdgZzFJi.mjs:2:13445) {
+  code: 'ERR_MODULE_NOT_FOUND'
+}
+
+Node.js v24.14.0

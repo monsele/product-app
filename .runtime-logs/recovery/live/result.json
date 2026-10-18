@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "actualDurationSeconds": 238,
+  "targetDurationSeconds": 180,
+  "audioJobs": 7,
+  "repairedScenes": 1,
+  "groundingTasks": 1,
+  "metrics": {
+    "timeToEditableMs": 49602,
+    "timeToPreviewMs": 53793,
+    "successfulRepairs": 2,
+    "unresolvedTasks": 0,
+    "retryCount": 1,
+    "recoveryCostUsd": 0.00825
+  }
+}

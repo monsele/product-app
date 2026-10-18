@@ -1,0 +1,19 @@
+   ▲ Next.js 15.5.23
+   - Local:        http://localhost:3100
+   - Network:      http://172.17.16.1:3100
+   - Experiments (use with caution):
+     · optimizePackageImports
+
+ ✓ Starting...
+ ✓ Ready in 6.6s
+ ○ Compiling /sign-in ...
+ ✓ Compiled /sign-in in 6.4s (1546 modules)
+ GET /sign-in 200 in 8349ms
+ ✓ Compiled /middleware in 445ms (158 modules)
+ ○ Compiling /workspace/[projectId]/storyboard ...
+ ✓ Compiled /workspace/[projectId]/storyboard in 11.6s (2173 modules)
+ GET /workspace/019ffbf1-cccc-7000-8000-000000000108/storyboard 200 in 16343ms
+ ○ Compiling /workspace/[projectId]/preview ...
+ ✓ Compiled /workspace/[projectId]/preview in 2.9s (2183 modules)
+ GET /workspace/019ffbf1-cccc-7000-8000-000000000108/preview 200 in 6602ms
+ GET /workspace/019ffbf1-cccc-7000-8000-000000000108/preview 200 in 710ms
