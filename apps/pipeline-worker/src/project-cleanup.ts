@@ -1,6 +1,9 @@
 import type { Identifier } from "@avlp/config";
 import {
   lessonRecoveryRuns,
+  lessonPreparationGrants,
+  lessonPreparationMilestones,
+  lessonRecoverySignals,
   inTransaction,
   jobs,
   projects,
@@ -165,7 +168,20 @@ export function createProjectCleanupJobHandler(
             deletedObjectCount: 0,
           };
 
-        await transaction.delete(lessonRecoveryRuns).where(and(eq(lessonRecoveryRuns.ownerUserId, context.ownerUserId), eq(lessonRecoveryRuns.projectId, context.projectId)));
+        for (const table of [
+          lessonPreparationGrants,
+          lessonPreparationMilestones,
+          lessonRecoverySignals,
+          lessonRecoveryRuns,
+        ])
+          await transaction
+            .delete(table)
+            .where(
+              and(
+                eq(table.ownerUserId, context.ownerUserId),
+                eq(table.projectId, context.projectId),
+              ),
+            );
         const deletedJobs = await transaction
           .delete(jobs)
           .where(

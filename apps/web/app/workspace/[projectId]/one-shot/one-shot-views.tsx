@@ -610,7 +610,9 @@ export function AttentionCard({
         type={failed ? "error" : "warning"}
         {...(attention === null
           ? {}
-          : { title: `Stopped at ${displayStepLabelForStage(attention.stage)}` })}
+          : {
+              title: `Stopped at ${displayStepLabelForStage(attention.stage)}`,
+            })}
         message={
           attention?.message ??
           "The run stopped. Open the editor to check the lesson, then resume."
@@ -831,6 +833,7 @@ export function revisionsLeftText(revisions: {
 }
 
 export interface BriefCardProps {
+  preparationEnabled?: boolean;
   brief: OneShotBrief;
   revisions: { used: number; max: number };
   stylePackIds: readonly CreativeDesignPackId[];
@@ -848,6 +851,7 @@ export interface BriefCardProps {
 }
 
 export function BriefCard({
+  preparationEnabled = false,
   brief,
   revisions,
   stylePackIds,
@@ -933,7 +937,10 @@ export function BriefCard({
       </div>
 
       {brief.notCovered.length > 0 && (
-        <div className={styles.fieldset} data-testid="one-shot-brief-not-covered">
+        <div
+          className={styles.fieldset}
+          data-testid="one-shot-brief-not-covered"
+        >
           <h3 className={styles.label} style={{ margin: 0 }}>
             What it will leave out
           </h3>
@@ -1002,11 +1009,19 @@ export function BriefCard({
 
       <EstimatePanel
         state={{ kind: "ready", estimate: brief.estimate }}
-        lead={`An upper bound for about ${brief.plannedSceneCount} scenes, including automatic fixes the checks may need. You are charged only for what the run uses, and it stops before any step that would go past its budget.`}
+        lead={
+          preparationEnabled
+            ? `An upper bound for about ${brief.plannedSceneCount} scenes, including automatic preparation and technical fixes. The same allowance covers preparation after saved edits in the storyboard; switching screens does not create another allowance. You are charged only for what is used. You can stop further preparation, and additional usage requires approval.`
+            : `An upper bound for about ${brief.plannedSceneCount} scenes, including automatic fixes the checks may need. You are charged only for what the run uses, and it stops before any step that would go past its budget.`
+        }
       />
 
       {blockedReason !== null && (
-        <Notice type="warning" title="New runs are paused" message={blockedReason} />
+        <Notice
+          type="warning"
+          title="New runs are paused"
+          message={blockedReason}
+        />
       )}
       {confirmError !== null && (
         <Notice
@@ -1104,7 +1119,9 @@ export function BudgetCapCard({
       <Notice
         type="warning"
         title="Budget reached"
-        message={run.needsAttention?.message ?? "The next step would pass the budget."}
+        message={
+          run.needsAttention?.message ?? "The next step would pass the budget."
+        }
       />
       <RunSteps run={run} />
       <RunMeta run={run} />
@@ -1230,7 +1247,10 @@ export function DecisionPanel({
       ) : (
         <>
           {state.log.ledger.length > 0 && (
-            <table className={styles.estimateTable} data-testid="one-shot-ledger">
+            <table
+              className={styles.estimateTable}
+              data-testid="one-shot-ledger"
+            >
               <caption className={styles.srOnly}>
                 Estimated and actual cost by step
               </caption>
@@ -1252,7 +1272,9 @@ export function DecisionPanel({
                     <td className={styles.amount}>
                       {formatUsd(line.estimateUsd)}
                     </td>
-                    <td className={styles.amount}>{formatUsd(line.actualUsd)}</td>
+                    <td className={styles.amount}>
+                      {formatUsd(line.actualUsd)}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1261,12 +1283,21 @@ export function DecisionPanel({
                   <td>Total</td>
                   <td className={styles.amount}>
                     {formatUsd(
-                      state.log.ledger.reduce((sum, line) => sum + line.estimateUsd, 0),
+                      state.log.ledger.reduce(
+                        (sum, line) => sum + line.estimateUsd,
+                        0,
+                      ),
                     )}
                   </td>
-                  <td className={styles.amount} data-testid="one-shot-ledger-actual">
+                  <td
+                    className={styles.amount}
+                    data-testid="one-shot-ledger-actual"
+                  >
                     {formatUsd(
-                      state.log.ledger.reduce((sum, line) => sum + line.actualUsd, 0),
+                      state.log.ledger.reduce(
+                        (sum, line) => sum + line.actualUsd,
+                        0,
+                      ),
                     )}
                   </td>
                 </tr>
@@ -1295,7 +1326,9 @@ export function DecisionPanel({
                     {(decision.model !== null || decision.costUsd !== null) && (
                       <p className={styles.helper}>
                         {[
-                          decision.model === null ? null : `Model: ${decision.model}`,
+                          decision.model === null
+                            ? null
+                            : `Model: ${decision.model}`,
                           decision.costUsd === null
                             ? null
                             : `Cost: ${formatUsd(decision.costUsd)}`,

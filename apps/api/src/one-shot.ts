@@ -91,7 +91,19 @@ import {
   type OneShotRunStatus,
   type OneShotRunView,
 } from "@avlp/schemas/one-shot";
-import { and, asc, desc, eq, gte, inArray, isNull, lt, max, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  inArray,
+  isNull,
+  lt,
+  max,
+  or,
+  sql,
+} from "drizzle-orm";
 import { z } from "zod";
 import { maximumModelCallCostUsd } from "./model-call-approval.js";
 import type { OneShotBriefGenerator } from "./one-shot-brief.js";
@@ -331,7 +343,10 @@ export interface OneShotService {
   ): Promise<OneShotResponse>;
 }
 
-function parseBody<S extends z.ZodTypeAny>(schema: S, body: unknown): z.output<S> {
+function parseBody<S extends z.ZodTypeAny>(
+  schema: S,
+  body: unknown,
+): z.output<S> {
   const result = schema.safeParse(body);
   if (result.success) return result.data;
   throw new PublicError(
@@ -678,6 +693,9 @@ export class PostgresOneShotService implements OneShotService {
         revisionsUsed: 0,
         maxRevisions: this.options.maxBriefRevisions,
         stylePackIds: oneShotStylePackIds,
+        ...(process.env.STORYBOARD_RECOVERY_ENABLED === "true"
+          ? { preparationEnabled: true }
+          : {}),
       });
     return this.briefResponse(input, run.id as Identifier);
   }
@@ -700,7 +718,11 @@ export class PostgresOneShotService implements OneShotService {
     const run = await this.latest(input);
     if (run === undefined)
       throw conflict("Prepare a video brief before creating the video.");
-    const brief = await this.briefRow(input, run.id as Identifier, body.briefRevision);
+    const brief = await this.briefRow(
+      input,
+      run.id as Identifier,
+      body.briefRevision,
+    );
     if (brief === undefined)
       throw conflict(
         "That brief revision does not exist. Review the current brief and confirm it.",
@@ -798,6 +820,8 @@ export class PostgresOneShotService implements OneShotService {
         .set({
           status: "queued",
           confirmedBriefRevision: body.briefRevision,
+          preparationAuthorized:
+            process.env.STORYBOARD_RECOVERY_ENABLED === "true",
           focusPrompt: brief.focusPrompt,
           audience: brief.audience,
           targetDurationSeconds: brief.targetDurationSeconds,
@@ -866,7 +890,9 @@ export class PostgresOneShotService implements OneShotService {
       current.confirmedBriefRevision === body.briefRevision
     )
       return this.respond(input, current);
-    throw conflict("The brief changed while it was being confirmed. Review it and try again.");
+    throw conflict(
+      "The brief changed while it was being confirmed. Review it and try again.",
+    );
   }
 
   /** ST-107. Accepts the raised estimate a budget-capped run proposes. */
@@ -876,10 +902,15 @@ export class PostgresOneShotService implements OneShotService {
     this.assertCohort(input.ownerUserId);
     const body = parseBody(oneShotBudgetAcceptInputSchema, input.body);
     const run = await this.requireLatest(input);
-    if (run.status !== "needs_attention" || run.errorCode !== "ONE_SHOT_BUDGET_CAP")
+    if (
+      run.status !== "needs_attention" ||
+      run.errorCode !== "ONE_SHOT_BUDGET_CAP"
+    )
       throw conflict("This run is not waiting for a new budget.");
     if (run.reservationRevision !== body.reservationRevision)
-      throw conflict("The budget changed. Refresh and review the new estimate.");
+      throw conflict(
+        "The budget changed. Refresh and review the new estimate.",
+      );
     const proposal = Number(run.budgetProposalUsd ?? 0);
     if (body.acceptedEstimateUsd + 1e-9 < proposal)
       throw new PublicError(
@@ -892,18 +923,21 @@ export class PostgresOneShotService implements OneShotService {
     const reservedUsd = roundUsd(body.acceptedEstimateUsd);
     const capUsd = budgetCapUsd(reservedUsd, this.options.budgetTolerance);
     const timestamp = this.now();
-    const steps = oneShotStepsSchema
-      .parse(run.steps)
-      .map((entry) =>
-        entry.state === "needs_attention" || entry.state === "failed"
-          ? { step: entry.step, state: "pending" as const, startedAt: entry.startedAt }
-          : entry,
-      );
+    const steps = oneShotStepsSchema.parse(run.steps).map((entry) =>
+      entry.state === "needs_attention" || entry.state === "failed"
+        ? {
+            step: entry.step,
+            state: "pending" as const,
+            startedAt: entry.startedAt,
+          }
+        : entry,
+    );
     const decisions: OneShotDecisionDraft[] = [
       {
         kind: "budget_reservation",
         summary: `Raised the reservation to $${reservedUsd.toFixed(2)} (revision ${run.reservationRevision + 1}); the run stops before any step that would pass $${capUsd.toFixed(2)}.`,
-        reason: "You accepted a new estimate after the run reached its budget cap.",
+        reason:
+          "You accepted a new estimate after the run reached its budget cap.",
       },
     ];
     const updated = await this.database.transaction(async (transaction) => {
@@ -1122,17 +1156,15 @@ export class PostgresOneShotService implements OneShotService {
     const timestamp = this.now();
     // Resuming is the user's explicit retry: the stopped step forgets the job
     // it stopped on, so the stage runs again under the next resume key.
-    const steps = oneShotStepsSchema
-      .parse(run.steps)
-      .map((entry) =>
-        entry.state === "needs_attention" || entry.state === "failed"
-          ? {
-              step: entry.step,
-              state: "pending" as const,
-              startedAt: entry.startedAt,
-            }
-          : entry,
-      );
+    const steps = oneShotStepsSchema.parse(run.steps).map((entry) =>
+      entry.state === "needs_attention" || entry.state === "failed"
+        ? {
+            step: entry.step,
+            state: "pending" as const,
+            startedAt: entry.startedAt,
+          }
+        : entry,
+    );
     const updated = await this.database.transaction(async (transaction) => {
       const [updated] = await transaction
         .update(oneShotRuns)
@@ -1409,6 +1441,9 @@ export class PostgresOneShotService implements OneShotService {
       revisionsUsed: run?.briefAttempts ?? 0,
       maxRevisions: this.options.maxBriefRevisions,
       stylePackIds: oneShotStylePackIds,
+      ...(process.env.STORYBOARD_RECOVERY_ENABLED === "true"
+        ? { preparationEnabled: true }
+        : {}),
     });
   }
 }
@@ -1590,7 +1625,10 @@ export function createOneShotAdvanceJobHandler(
 // Row mapping
 // ---------------------------------------------------------------------------
 
-function toRunState(row: RunRow, brief: OneShotRunBrief | null): OneShotRunState {
+function toRunState(
+  row: RunRow,
+  brief: OneShotRunBrief | null,
+): OneShotRunState {
   return {
     id: identifierSchema.parse(row.id),
     ownerUserId: identifierSchema.parse(row.ownerUserId),
@@ -1609,7 +1647,13 @@ function toRunState(row: RunRow, brief: OneShotRunBrief | null): OneShotRunState
     budget:
       brief === null || row.reservedUsd === null || row.capUsd === null
         ? null
-        : { reservedUsd: Number(row.reservedUsd), capUsd: Number(row.capUsd) },
+        : {
+            reservedUsd: Number(row.reservedUsd),
+            capUsd: Math.max(
+              0,
+              Number(row.capUsd) - Number(row.preparationAllowanceUsd ?? 0),
+            ),
+          },
     repair: readOneShotRepairState(row.repairState),
     coverageGaps: readCoverageGaps(row.coverageGaps),
   };
@@ -1667,7 +1711,8 @@ function toView(row: RunRow): OneShotRunView {
                 : Number(row.budgetProposalUsd),
           },
     coverageGaps: readCoverageGaps(row.coverageGaps),
-    stylePackId: creativeDesignPackIdSchema.safeParse(row.stylePackId).data ?? null,
+    stylePackId:
+      creativeDesignPackIdSchema.safeParse(row.stylePackId).data ?? null,
     soundBed: soundBedChoiceSchema.safeParse(row.soundBed).data ?? null,
     correlationId: row.correlationId as Identifier,
     createdAt: serializeUtcTimestamp(row.createdAt),
@@ -1702,9 +1747,15 @@ export async function oneShotCostSoFar(
 
 type BriefRow = typeof oneShotRunBriefs.$inferSelect;
 
-const briefStatuses: readonly OneShotRunStatus[] = ["brief_pending", "brief_ready"];
+const briefStatuses: readonly OneShotRunStatus[] = [
+  "brief_pending",
+  "brief_ready",
+];
 
-function requireIdempotencyKey(value: string | undefined, message: string): string {
+function requireIdempotencyKey(
+  value: string | undefined,
+  message: string,
+): string {
   const key = value?.trim();
   if (key === undefined || key.length === 0 || key.length > 200)
     throw new PublicError("validation_failed", message, 400, false, {
@@ -1787,7 +1838,8 @@ async function loadConfirmedBrief(
     stylePackId:
       creativeDesignPackIdSchema.safeParse(run.stylePackId).data ??
       view.stylePackId,
-    soundBed: soundBedChoiceSchema.safeParse(run.soundBed).data ?? view.soundBed,
+    soundBed:
+      soundBedChoiceSchema.safeParse(run.soundBed).data ?? view.soundBed,
     estimate: view.estimate,
   };
 }
@@ -1909,7 +1961,8 @@ export async function insertDecisions(
         reason: decision.reason ?? null,
         model: decision.model ?? null,
         promptVersion: decision.promptVersion ?? null,
-        costUsd: decision.costUsd === undefined ? null : decision.costUsd.toFixed(6),
+        costUsd:
+          decision.costUsd === undefined ? null : decision.costUsd.toFixed(6),
         relatedIds: decision.relatedIds,
         createdAt: now,
       };

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { generationPreparationEstimateSchema } from "@avlp/schemas";
 import Link from "next/link";
 import { motion, useReducedMotion } from "motion/react";
 import { ScenePreviewPlayer } from "@avlp/scene-library";
@@ -218,6 +219,9 @@ export function StoryboardPanel({
     useState<AnyCreativeDesignManifest | null>(null);
   const [pending, setPending] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [generationQuote, setGenerationQuote] = useState<ReturnType<
+    typeof generationPreparationEstimateSchema.parse
+  > | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [editorMessage, setEditorMessage] = useState<string | null>(null);
   const [pendingScenes, setPendingScenes] = useState<Set<string>>(new Set());
@@ -445,6 +449,7 @@ export function StoryboardPanel({
   const [requestedInspector, setRequestedInspector] = useState<{
     tab: InspectorTab;
     request: number;
+    sourceReference?: number;
   }>({ tab: "content", request: 0 });
   const preparationSignature = readiness?.enabled
     ? JSON.stringify([
@@ -456,7 +461,15 @@ export function StoryboardPanel({
     : null;
   useEffect(() => {
     if (!preparationSignature) return;
+    let cancelled = false;
     invalidateStoryboardSceneList(projectId);
+    // Media completion need not change the draft revision. Refresh the list as
+    // well as the inspector, preserving the existing editor while it loads.
+    void fetchStoryboardSceneList(projectId)
+      .then((value) => {
+        if (!cancelled) setSceneList({ kind: "ready", value });
+      })
+      .catch(() => undefined);
     setDetailAttempt((current) => current + 1);
     setPreviewManifestAttempt((current) => current + 1);
     void refresh().catch(() =>
@@ -465,6 +478,9 @@ export function StoryboardPanel({
       ),
     );
     void loadValidation().catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
   }, [preparationSignature, projectId, refresh, loadValidation]);
   useEffect(() => {
     if (!recoveryEnabled) return;
@@ -633,8 +649,31 @@ export function StoryboardPanel({
   const generate = useCallback(async () => {
     setActionMessage(null);
     setSubmitting(true);
-    setPending(true);
     try {
+      if (!generationQuote) {
+        const estimateResponse = await fetch(
+          apiUrl(
+            `/projects/${encodeURIComponent(projectId)}/recovery/generation-estimate`,
+          ),
+          { credentials: "include", cache: "no-store" },
+        );
+        if (!estimateResponse.ok && estimateResponse.status !== 404)
+          throw new Error("Unable to estimate preparation. Try again.");
+        const quote =
+          estimateResponse.status === 404
+            ? null
+            : generationPreparationEstimateSchema.parse(
+                await estimateResponse.json(),
+              );
+        if (quote?.enabled) {
+          setGenerationQuote(quote);
+          setActionMessage(
+            `Generation includes an additional preparation allowance capped at $${quote.maximumCostUsd.toFixed(4)} for audio, captions, technical retries and source checks. It covers saved edits in this preparation session. Approve below to generate; you can stop further preparation at any time.`,
+          );
+          return;
+        }
+      }
+      setPending(true);
       const response = await fetch(
         apiUrl(
           `/projects/${encodeURIComponent(projectId)}/storyboard/generate`,
@@ -643,7 +682,20 @@ export function StoryboardPanel({
           method: "POST",
           credentials: "include",
           cache: "no-store",
-          headers: { "idempotency-key": globalThis.crypto.randomUUID() },
+          headers: {
+            "idempotency-key": globalThis.crypto.randomUUID(),
+            ...(generationQuote?.enabled
+              ? { "content-type": "application/json" }
+              : {}),
+          },
+          ...(generationQuote?.enabled
+            ? {
+                body: JSON.stringify({
+                  estimateFingerprint: generationQuote.fingerprint,
+                  acceptedMaximumCostUsd: generationQuote.maximumCostUsd,
+                }),
+              }
+            : {}),
         },
       );
       const payload: unknown = await response.json().catch(() => null);
@@ -655,8 +707,10 @@ export function StoryboardPanel({
           ),
         );
       toast.info("Storyboard generation started.");
+      setGenerationQuote(null);
       await refresh().catch(() => undefined);
     } catch (error) {
+      setGenerationQuote(null);
       setPending(false);
       const errorMsg =
         error instanceof Error
@@ -667,7 +721,7 @@ export function StoryboardPanel({
     } finally {
       setSubmitting(false);
     }
-  }, [projectId, refresh]);
+  }, [projectId, refresh, generationQuote]);
 
   // Load scene list keyed by project and revision
   useEffect(() => {
@@ -980,8 +1034,12 @@ export function StoryboardPanel({
     () =>
       value === null || storyboard === null
         ? []
-        : storyboardValidationWarnings(value.validation),
-    [value, storyboard],
+        : storyboardValidationWarnings(
+            recoveryEnabled
+              ? { ...value.validation, durationWarning: null }
+              : value.validation,
+          ),
+    [value, storyboard, recoveryEnabled],
   );
 
   const selectedDetail = detail.kind === "ready" ? detail.value : null;
@@ -1108,7 +1166,9 @@ export function StoryboardPanel({
     );
 
   return (
-    <div className={`${styles.panel} ${recoveryEnabled ? preparationStyles.editor : ""}`}>
+    <div
+      className={`${styles.panel} ${recoveryEnabled ? preparationStyles.editor : ""}`}
+    >
       <header className={styles.header}>
         <div className={styles.headerIdentity}>
           <h1 id="storyboard-heading" className={styles.title}>
@@ -1149,7 +1209,9 @@ export function StoryboardPanel({
               >
                 {submitting || generating
                   ? "Starting generation…"
-                  : "Generate storyboard"}
+                  : generationQuote
+                    ? "Approve preparation & generate"
+                    : "Generate storyboard"}
               </button>
             ) : null}
             {storyboard !== null ? (
@@ -1169,9 +1231,11 @@ export function StoryboardPanel({
                     >
                       {submitting || generating
                         ? "Starting generation…"
-                        : storyboard === null
-                          ? "Generate storyboard"
-                          : "Regenerate storyboard"}
+                        : generationQuote
+                          ? "Approve preparation & generate"
+                          : storyboard === null
+                            ? "Generate storyboard"
+                            : "Regenerate storyboard"}
                     </button>
                   ) : null}
                   {storyboard !== null ? (
@@ -1260,6 +1324,14 @@ export function StoryboardPanel({
             if (task.sceneId) selectScene(task.sceneId);
             setRequestedInspector((current) => ({
               request: current.request + 1,
+              ...(task.fieldPath?.match(/\.sourceRefs\.(\d+)/)?.[1] !==
+              undefined
+                ? {
+                    sourceReference: Number(
+                      task.fieldPath.match(/\.sourceRefs\.(\d+)/)![1],
+                    ),
+                  }
+                : {}),
               tab:
                 task.action === "review_sources"
                   ? "sources"

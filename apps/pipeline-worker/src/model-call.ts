@@ -1,5 +1,9 @@
 import { createId, serializeUtcTimestamp, type Identifier } from "@avlp/config";
 import {
+  recoveryDispatch,
+  recoveryLanguageModelProvider,
+} from "./recovery-dispatch.js";
+import {
   sourceSnapshots,
   type DatabaseClient,
   type DatabaseExecutor,
@@ -363,10 +367,16 @@ export function createModelCallGenerationHandler<T>(
       params,
     });
     try {
+      const recovery =
+        payload.operationType === "ai.grounding"
+          ? await recoveryDispatch(options.database, context)
+          : undefined;
       const resolvedProvider = resolveJobAdapter({
         jobType: options.jobType,
         adapterFamily: "language-model",
-        adapter: options.provider,
+        adapter: recovery
+          ? recoveryLanguageModelProvider(options.provider, recovery, pricing)
+          : options.provider,
         approvedProvider: payload.providerApproval.providerId,
         approvedModel: payload.providerApproval.model,
         executingModel: payload.model,
@@ -408,9 +418,11 @@ export function createModelCallGenerationHandler<T>(
         provider: resolvedProvider.adapter,
         request: generationRequest,
         schema: options.outputSchema,
-        ...(options.maxRepairs === undefined
-          ? {}
-          : { maxRepairs: options.maxRepairs }),
+        ...(recovery
+          ? { maxRepairs: 0 }
+          : options.maxRepairs === undefined
+            ? {}
+            : { maxRepairs: options.maxRepairs }),
       });
       structured = normalize(structured);
       const executed = structured.responses.at(-1);
@@ -441,8 +453,9 @@ export function createModelCallGenerationHandler<T>(
         // every round remains a clear failure rather than an unbounded loop.
         let error: unknown = initialError;
         let repairedSuccessfully = false;
-        const maxRounds =
-          options.maxDeterministicRepairs ?? defaultMaxDeterministicRepairs;
+        const maxRounds = recovery
+          ? 0
+          : (options.maxDeterministicRepairs ?? defaultMaxDeterministicRepairs);
         for (let round = 0; round < maxRounds; round += 1) {
           const patchRepair = options.deterministicRepair?.({
             error,
@@ -551,7 +564,7 @@ ${JSON.stringify(structured.value)}`,
       // every check too; otherwise the checked draft stands, so this round can
       // never fail a job. Its provider calls are metered either way.
       const improvement =
-        warnings.length === 0
+        recovery || warnings.length === 0
           ? undefined
           : options.warningRepairInstruction?.({
               warnings,

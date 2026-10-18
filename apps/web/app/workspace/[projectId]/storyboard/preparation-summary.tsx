@@ -13,6 +13,9 @@ import styles from "./preparation.module.css";
 export const preparationTime = (seconds: number) =>
   `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 export function preparationHeadline(state: LessonReadiness): string {
+  const active = state.tasks.filter((task) =>
+    ["queued", "running", "retry_wait"].includes(task.state),
+  );
   const count = state.tasks.filter((task) =>
     ["queued", "running", "retry_wait"].includes(task.state),
   ).length;
@@ -20,6 +23,13 @@ export function preparationHeadline(state: LessonReadiness): string {
     return `Ready to render · ${preparationTime(state.actualDurationSeconds)}`;
   if (state.state === "unavailable")
     return "Preparation is unavailable. Your work is saved.";
+  if (
+    active.length > 0 &&
+    active.every((task) => task.operation === "grounding")
+  )
+    return "Checking lesson source references.";
+  if (active.length > 0 && active.every((task) => task.operation === "asset"))
+    return "Preparing visual assets.";
   if (state.state === "recovering")
     return `Retrying preparation for ${count} ${count === 1 ? "scene" : "scenes"}.`;
   if (state.state === "preparing")
@@ -233,11 +243,39 @@ export function PreparationSummary({
             </li>
           ))}
         </ul>
+        {readiness.activity?.length ? (
+          <details>
+            <summary>Preparation activity</summary>
+            <ol className={styles.tasks}>
+              {readiness.activity.map((entry) => (
+                <li key={entry.id}>
+                  {entry.sceneId ? (
+                    <strong>{sceneLabels[entry.sceneId] ?? "Scene"}: </strong>
+                  ) : null}
+                  {entry.message}{" "}
+                  <time dateTime={entry.occurredAt}>
+                    {new Date(entry.occurredAt).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </time>
+                </li>
+              ))}
+            </ol>
+          </details>
+        ) : null}
         <p className={styles.help}>
           Planning estimate: {preparationTime(readiness.targetDurationSeconds)}.
           Current running time:{" "}
           {preparationTime(readiness.actualDurationSeconds)}.
         </p>
+        {readiness.runId ? (
+          <p className={styles.help}>
+            Preparation allowance: ${readiness.allowanceUsd.toFixed(4)}.
+            Reserved for completed and in-flight calls: $
+            {readiness.reservedUsd.toFixed(4)}.
+          </p>
+        ) : null}
         {readiness.runId ? (
           <button
             type="button"

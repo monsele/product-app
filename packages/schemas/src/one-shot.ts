@@ -138,9 +138,9 @@ export const oneShotStepRecordSchema = z
   .strict();
 export type OneShotStepRecord = z.infer<typeof oneShotStepRecordSchema>;
 
-export const oneShotStepsSchema = z.array(oneShotStepRecordSchema).max(
-  oneShotStepValues.length,
-);
+export const oneShotStepsSchema = z
+  .array(oneShotStepRecordSchema)
+  .max(oneShotStepValues.length);
 
 export const oneShotErrorCodeValues = [
   "FOCUS_NOT_COVERED",
@@ -317,7 +317,6 @@ export type OneShotBriefCoveragePoint = z.infer<
   typeof oneShotBriefCoveragePointSchema
 >;
 
-
 /** An itemised estimate carried by a brief (declared after the estimate). */
 export const oneShotBriefSchema = z
   .object({
@@ -360,6 +359,7 @@ export const oneShotBriefResponseSchema = z
     revisionsUsed: z.number().int().nonnegative(),
     maxRevisions: z.number().int().positive(),
     stylePackIds: z.array(creativeDesignPackIdSchema).min(1),
+    preparationEnabled: z.boolean().optional(),
   })
   .strict();
 export type OneShotBriefResponse = z.infer<typeof oneShotBriefResponseSchema>;

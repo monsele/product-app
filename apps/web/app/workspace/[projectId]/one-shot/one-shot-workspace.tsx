@@ -223,7 +223,10 @@ export function OneShotWorkspace({
       );
     } catch (error) {
       setActionError(
-        errorMessage(error, "The new estimate could not be accepted. Try again."),
+        errorMessage(
+          error,
+          "The new estimate could not be accepted. Try again.",
+        ),
       );
       await refresh();
     } finally {
@@ -390,7 +393,10 @@ export function OneShotWorkspace({
           </section>
           <CoverageGapNotice gaps={run.coverageGaps} />
           <CoverageNotice coverage={run.focusCoverage} />
-          <Decisions projectId={projectId} runKey={`${run.id}:${run.updatedAt}`} />
+          <Decisions
+            projectId={projectId}
+            runKey={`${run.id}:${run.updatedAt}`}
+          />
         </div>
       )}
 
@@ -486,7 +492,10 @@ export function OneShotWorkspace({
             projectTitle={projectTitle}
             lessonVersionId={run.lessonVersionId}
           />
-          <Decisions projectId={projectId} runKey={`${run.id}:${run.updatedAt}`} />
+          <Decisions
+            projectId={projectId}
+            runKey={`${run.id}:${run.updatedAt}`}
+          />
         </div>
       )}
 
@@ -514,7 +523,10 @@ function Decisions({
         if (!cancelled)
           setState({
             kind: "error",
-            message: errorMessage(error, "The decision log could not be loaded."),
+            message: errorMessage(
+              error,
+              "The decision log could not be loaded.",
+            ),
           });
       });
     return () => {
@@ -674,7 +686,11 @@ function BriefStage({
           </p>
         )}
         {brief.kind === "error" && (
-          <Notice type="error" title="The brief could not be loaded" message={brief.message} />
+          <Notice
+            type="error"
+            title="The brief could not be loaded"
+            message={brief.message}
+          />
         )}
         <RequestForm
           projectId={projectId}
@@ -706,7 +722,11 @@ function BriefStage({
     confirmInFlight.current = true;
     setConfirming(true);
     setConfirmError(null);
-    const signature = JSON.stringify([current.revision, chosenStyle, chosenSound]);
+    const signature = JSON.stringify([
+      current.revision,
+      chosenStyle,
+      chosenSound,
+    ]);
     if (confirmKey.current?.signature !== signature)
       confirmKey.current = { signature, key: newIdempotencyKey() };
     try {
@@ -745,9 +765,16 @@ function BriefStage({
   return (
     <div className={styles.column}>
       <BriefCard
+        preparationEnabled={
+          brief.kind === "ready" && brief.response.preparationEnabled === true
+        }
         brief={current}
         revisions={revisions ?? { used: 1, max: 1 }}
-        stylePackIds={brief.kind === "ready" ? brief.response.stylePackIds : [current.stylePackId]}
+        stylePackIds={
+          brief.kind === "ready"
+            ? brief.response.stylePackIds
+            : [current.stylePackId]
+        }
         stylePackId={chosenStyle}
         soundBed={chosenSound}
         soundBedOptions={soundBedOptions(tracks, current.soundBed)}
@@ -794,7 +821,10 @@ function RequestForm({
   const [values, setValues] = useState<RequestFormValues>(() =>
     fromBrief === null
       ? initialValues(previous)
-      : initialValues({ ...(previous ?? ({} as OneShotRunView)), ...fromBrief }),
+      : initialValues({
+          ...(previous ?? ({} as OneShotRunView)),
+          ...fromBrief,
+        }),
   );
   const [showErrors, setShowErrors] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -889,8 +919,8 @@ function RequestForm({
         <StatusLabel status="success" label="Ready" size="compact" />
       </div>
       <p className={styles.helper}>
-        The video is built from this document. The brief is prepared once it
-        has been read, which usually takes under a minute.
+        The video is built from this document. The brief is prepared once it has
+        been read, which usually takes under a minute.
       </p>
     </section>
   ) : (

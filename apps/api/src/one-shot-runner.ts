@@ -95,12 +95,7 @@ export type OneShotCallContext = OneShotScope & {
 };
 
 export type OneShotJobState =
-  | "queued"
-  | "running"
-  | "retry_wait"
-  | "succeeded"
-  | "failed"
-  | "cancelled";
+  "queued" | "running" | "retry_wait" | "succeeded" | "failed" | "cancelled";
 
 export type OneShotJobStatus = {
   id: Identifier;
@@ -176,6 +171,7 @@ export type GroundingState = {
 };
 
 export type AudioState = {
+  recovery?: "available" | "preparing" | "complete" | "needs_action";
   total: number;
   ready: number;
   pending: number;
@@ -359,7 +355,11 @@ export interface OneShotStageGateway {
   /** ST-107. Queues the existing scene-regeneration job for one fix. */
   requestSceneRepair(
     context: OneShotCallContext,
-    repair: { sceneId: string; mode: PlannedRepair["mode"]; instruction: string },
+    repair: {
+      sceneId: string;
+      mode: PlannedRepair["mode"];
+      instruction: string;
+    },
   ): Promise<{ jobId: Identifier }>;
   sceneRepairStatus(
     scope: OneShotScope,
@@ -557,7 +557,10 @@ const repairCodeLabels: Readonly<Record<string, string>> = {
 };
 
 /** "Round 1", "Round 2", or "Coverage fix" for the brief-coverage round. */
-function roundLabel(active: { round: number; kind: "validation" | "coverage" }): string {
+function roundLabel(active: {
+  round: number;
+  kind: "validation" | "coverage";
+}): string {
   return active.kind === "coverage" ? "Coverage fix" : `Round ${active.round}`;
 }
 
@@ -595,8 +598,7 @@ function recordedJobId(
   step: OneShotStep,
 ): Identifier | undefined {
   return steps.find((entry) => entry.step === step)?.jobId as
-    | Identifier
-    | undefined;
+    Identifier | undefined;
 }
 
 /**
@@ -800,7 +802,13 @@ export async function advanceOneShotRun(input: {
     if (brief === null || budget === null) return null;
     const next = paidActionEstimateUsd(brief.estimate, action);
     const actualUsd = await gateway.costSoFar(scope, run.correlationId);
-    if (!wouldExceedCap({ actualUsd, nextCallEstimateUsd: next, capUsd: budget.capUsd }))
+    if (
+      !wouldExceedCap({
+        actualUsd,
+        nextCallEstimateUsd: next,
+        capUsd: budget.capUsd,
+      })
+    )
       return null;
     budgetProposalUsd = proposedBudgetUsd({
       actualUsd,
@@ -824,9 +832,7 @@ export async function advanceOneShotRun(input: {
   const failedStage = async (
     stage: ApprovalStage | "storyboard" | "grounding",
     failed: OneShotJobStatus,
-    regenerate: (suffix: string) => Promise<{ jobId: Identifier }> = (
-      suffix,
-    ) =>
+    regenerate: (suffix: string) => Promise<{ jobId: Identifier }> = (suffix) =>
       gateway.generate(
         context(stage, suffix),
         stage as ApprovalStage | "storyboard",
@@ -903,13 +909,21 @@ export async function advanceOneShotRun(input: {
         detail: { progress: 1 },
       });
       const warnings =
-        render.review?.findings.filter((finding) => finding.severity === "warning") ??
-        [];
+        render.review?.findings.filter(
+          (finding) => finding.severity === "warning",
+        ) ?? [];
       if (warnings.length > 0)
         decisions.push({
           kind: "render_review",
-          summary: `The finished video passed its review with ${warnings.length} warning${warnings.length === 1 ? "" : "s"}: ${warnings.map((finding) => finding.code).join(", ")}.`.slice(0, 500),
-          reason: warnings.map((finding) => finding.detail).join(" ").slice(0, 500),
+          summary:
+            `The finished video passed its review with ${warnings.length} warning${warnings.length === 1 ? "" : "s"}: ${warnings.map((finding) => finding.code).join(", ")}.`.slice(
+              0,
+              500,
+            ),
+          reason: warnings
+            .map((finding) => finding.detail)
+            .join(" ")
+            .slice(0, 500),
           relatedIds: [run.renderJobId],
         });
       return finish({
@@ -931,8 +945,15 @@ export async function advanceOneShotRun(input: {
       record("render", "needs_attention", { jobId: run.renderJobId });
       decisions.push({
         kind: "render_review",
-        summary: `The finished video failed its review: ${errors.map((finding) => finding.code).join(", ")}.`.slice(0, 500),
-        reason: errors.map((finding) => finding.detail).join(" ").slice(0, 500),
+        summary:
+          `The finished video failed its review: ${errors.map((finding) => finding.code).join(", ")}.`.slice(
+            0,
+            500,
+          ),
+        reason: errors
+          .map((finding) => finding.detail)
+          .join(" ")
+          .slice(0, 500),
         relatedIds: [run.renderJobId],
       });
       return finish({
@@ -945,9 +966,10 @@ export async function advanceOneShotRun(input: {
           // addressed: the same lesson renders to the same result, so the
           // lesson must change before a retry can succeed. That instruction
           // leads, so trimming long findings never cuts it.
-          message: `The finished video failed its quality review. Fix these in the editor, then retry the render: ${errors
-            .map((finding) => `${finding.code}: ${finding.detail}`)
-            .join("; ")}`.slice(0, 500),
+          message:
+            `The finished video failed its quality review. Fix these in the editor, then retry the render: ${errors
+              .map((finding) => `${finding.code}: ${finding.detail}`)
+              .join("; ")}`.slice(0, 500),
         },
         reschedule: false,
       });
@@ -1013,7 +1035,11 @@ export async function advanceOneShotRun(input: {
     }
 
     if (outcome.kind === "done") {
-      record(step, "done", outcome.detail === undefined ? {} : { detail: outcome.detail });
+      record(
+        step,
+        "done",
+        outcome.detail === undefined ? {} : { detail: outcome.detail },
+      );
       continue;
     }
     if (outcome.kind === "attention") {
@@ -1057,7 +1083,9 @@ export async function advanceOneShotRun(input: {
 
   // -------------------------------------------------------------------------
 
-  async function evaluateStep(step: (typeof pipelineSteps)[number]): Promise<Outcome> {
+  async function evaluateStep(
+    step: (typeof pipelineSteps)[number],
+  ): Promise<Outcome> {
     switch (step) {
       case "ingestion":
         return evaluateIngestion();
@@ -1124,7 +1152,9 @@ export async function advanceOneShotRun(input: {
     // Before that, only one that already matches this run's request counts
     // (a tick that died after saving). A configuration left by an earlier run
     // on the same project, as after "Edit prompt", is replaced by this run's.
-    const ownConfiguration = steps.some((entry) => entry.step === "configuration");
+    const ownConfiguration = steps.some(
+      (entry) => entry.step === "configuration",
+    );
     const matchesRequest =
       configuration !== null &&
       configuration.focusPrompt === run.focusPrompt &&
@@ -1165,7 +1195,10 @@ export async function advanceOneShotRun(input: {
       await gateway.saveDefaultVoice(context("configuration", ":voice"));
       return { kind: "acted" };
     }
-    return { kind: "done", detail: { configurationVersion: configuration.version } };
+    return {
+      kind: "done",
+      detail: { configurationVersion: configuration.version },
+    };
   }
 
   async function evaluateApprovalStage(stage: ApprovalStage): Promise<Outcome> {
@@ -1197,10 +1230,11 @@ export async function advanceOneShotRun(input: {
           kind: "attention",
           stage: "objectives",
           errorCode: "FOCUS_NOT_COVERED",
-          message: `The document does not cover this focus: ${current.focusCoverage.reason}`.slice(
-            0,
-            500,
-          ),
+          message:
+            `The document does not cover this focus: ${current.focusCoverage.reason}`.slice(
+              0,
+              500,
+            ),
         };
       if (!current.canApprove || current.revision === null)
         return {
@@ -1403,7 +1437,8 @@ export async function advanceOneShotRun(input: {
             ? {}
             : {
                 reused: requested.cinema.reused,
-                ...(requested.cinema.library === undefined || requested.cinema.library === 0
+                ...(requested.cinema.library === undefined ||
+                requested.cinema.library === 0
                   ? {}
                   : {
                       library: requested.cinema.library,
@@ -1417,7 +1452,10 @@ export async function advanceOneShotRun(input: {
     }
     const illustrations = await gateway.illustrations(scope);
     if (illustrations.pending > 0)
-      return { kind: "wait", detail: { ...previous?.detail, pending: illustrations.pending } };
+      return {
+        kind: "wait",
+        detail: { ...previous?.detail, pending: illustrations.pending },
+      };
     const [next] = illustrations.acceptable;
     if (next !== undefined) {
       await gateway.acceptIllustration(context("illustrations"), next);
@@ -1508,7 +1546,10 @@ export async function advanceOneShotRun(input: {
     )
       return failedStage("grounding", current.latestJob, (suffix) =>
         gateway.requestGrounding(
-          context("grounding", `:${spec.lessonSpecId}:${spec.revision}${suffix}`),
+          context(
+            "grounding",
+            `:${spec.lessonSpecId}:${spec.revision}${suffix}`,
+          ),
           spec,
         ),
       );
@@ -1529,6 +1570,19 @@ export async function advanceOneShotRun(input: {
       pending: audio.pending,
       failed: audio.failed,
     };
+    if (audio.recovery === "preparing") return { kind: "wait", detail };
+    if (audio.recovery === "available") {
+      await gateway.requestAudio(context("audio"));
+      return { kind: "acted", detail };
+    }
+    if (audio.recovery === "needs_action")
+      return {
+        kind: "attention",
+        stage: "audio",
+        errorCode: "STAGE_JOB_FAILED",
+        message:
+          "Preparation needs your review. Open the storyboard to review progress, retry availability, or approve additional usage. Editing remains available.",
+      };
     if (audio.total > 0 && audio.ready === audio.total)
       return { kind: "done", detail };
     if (audio.pending > 0) {
@@ -1550,7 +1604,12 @@ export async function advanceOneShotRun(input: {
     // After a repair round only the touched scenes are missing audio, so this
     // re-voices exactly those; the key changes with the round.
     await gateway.requestAudio(
-      context("audio", repair.roundsDone > 0 || repair.coverageRoundUsed ? `:repair:${repairRoundCount()}` : ""),
+      context(
+        "audio",
+        repair.roundsDone > 0 || repair.coverageRoundUsed
+          ? `:repair:${repairRoundCount()}`
+          : "",
+      ),
     );
     return { kind: "acted", detail };
   }
@@ -1604,8 +1663,13 @@ export async function advanceOneShotRun(input: {
     );
     const onlyUnsupportedClaims =
       (unsupportedClaims.length > 0 || blockingUnrepairable.length > 0) &&
-      blockingUnrepairable.every((finding) => finding.code === "grounding_missing");
-    if (onlyUnsupportedClaims && removalRounds < oneShotMaxSentenceRemovalRounds) {
+      blockingUnrepairable.every(
+        (finding) => finding.code === "grounding_missing",
+      );
+    if (
+      onlyUnsupportedClaims &&
+      removalRounds < oneShotMaxSentenceRemovalRounds
+    ) {
       const outcome = await gateway.removeUnverifiedSentences(
         context("validation", `:unverified:${removalRounds + 1}`),
       );
@@ -1614,7 +1678,11 @@ export async function advanceOneShotRun(input: {
         for (const sentence of outcome.removed)
           decisions.push({
             kind: "repair",
-            summary: `Removed a sentence we couldn't verify against your document: "${sentence.text}"`.slice(0, 500),
+            summary:
+              `Removed a sentence we couldn't verify against your document: "${sentence.text}"`.slice(
+                0,
+                500,
+              ),
             reason: "grounding_unsupported",
           });
         return { kind: "acted", detail };
@@ -1655,8 +1723,9 @@ export async function advanceOneShotRun(input: {
               items: planned.map((entry) => ({
                 ...entry,
                 order:
-                  repairContext.scenes.find((scene) => scene.sceneId === entry.sceneId)
-                    ?.order ?? 0,
+                  repairContext.scenes.find(
+                    (scene) => scene.sceneId === entry.sceneId,
+                  )?.order ?? 0,
                 state: "planned" as const,
               })),
             },
@@ -1699,7 +1768,8 @@ export async function advanceOneShotRun(input: {
             : reason === "failed"
               ? "Stopped automatic fixes: a fix did not finish."
               : `Stopped automatic fixes: no scene could be regenerated for the ${remaining} remaining finding${remaining === 1 ? "" : "s"}.`,
-      reason: "Repair is bounded to two rounds of at most four scenes, and a round must reduce the findings to continue.",
+      reason:
+        "Repair is bounded to two rounds of at most four scenes, and a round must reduce the findings to continue.",
     });
   }
 
@@ -1756,9 +1826,13 @@ export async function advanceOneShotRun(input: {
           message: `An automatic fix for scene ${item.order} couldn't finish on our side. Select Try again, or fix the scene from the preview.`,
         };
       }
-      const repairContext = context("validation", `:repair:${active.round}:${item.sceneId}`);
+      const repairContext = context(
+        "validation",
+        `:repair:${active.round}:${item.sceneId}`,
+      );
       if (status.candidate.status !== "pending") {
-        item.state = status.candidate.status === "accepted" ? "applied" : "discarded";
+        item.state =
+          status.candidate.status === "accepted" ? "applied" : "discarded";
         save();
         continue;
       }
@@ -1837,8 +1911,9 @@ export async function advanceOneShotRun(input: {
                 items: planned.map((entry) => ({
                   ...entry,
                   order:
-                    state.sceneSections.find((scene) => scene.sceneId === entry.sceneId)
-                      ?.order ?? 0,
+                    state.sceneSections.find(
+                      (scene) => scene.sceneId === entry.sceneId,
+                    )?.order ?? 0,
                   state: "planned" as const,
                 })),
               },
@@ -1887,6 +1962,8 @@ const approvalTarget: Record<ApprovalStage, string> = {
 };
 
 /** The status a run returns to when the user resumes it. */
-export function resumedStatus(status: OneShotRunStatus): OneShotRunStatus | null {
+export function resumedStatus(
+  status: OneShotRunStatus,
+): OneShotRunStatus | null {
   return status === "needs_attention" || status === "failed" ? "running" : null;
 }

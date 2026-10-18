@@ -10,6 +10,8 @@ import {
   jobs,
   lessonSpecs,
   outboxEvents,
+  lessonRecoveryRuns,
+  lessonRecoveryTasks,
   type DatabaseClient,
   type DatabaseExecutor,
 } from "@avlp/database";
@@ -28,7 +30,7 @@ import {
   type GroundingCheckResultResponse,
   type SourceRef,
 } from "@avlp/schemas";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import type { SourceSnapshotService } from "./source-snapshot.js";
 import { requestActor } from "./audit-actor.js";
 
@@ -52,6 +54,7 @@ function sortCanonical(value: unknown): unknown {
 
 export interface GroundingService {
   check(input: {
+    recoveryTaskId?: Identifier;
     ownerUserId: Identifier;
     projectId: Identifier;
     body: unknown;
@@ -84,6 +87,7 @@ export class PostgresGroundingService implements GroundingService {
   ) {}
 
   public async check(input: {
+    recoveryTaskId?: Identifier;
     ownerUserId: Identifier;
     projectId: Identifier;
     body: unknown;
@@ -114,6 +118,38 @@ export class PostgresGroundingService implements GroundingService {
       throw groundingSourceNotConfirmed();
     const timestamp = this.now();
     return this.database.transaction(async (transaction) => {
+      let maximumAttempts = 3;
+      if (input.recoveryTaskId) {
+        await transaction.execute(
+          sql`select pg_advisory_xact_lock(hashtext(${input.projectId}))`,
+        );
+        const [task] = await transaction
+          .select({ priorAttempts: lessonRecoveryTasks.priorAttempts })
+          .from(lessonRecoveryTasks)
+          .innerJoin(
+            lessonRecoveryRuns,
+            eq(lessonRecoveryRuns.id, lessonRecoveryTasks.runId),
+          )
+          .where(
+            and(
+              eq(lessonRecoveryTasks.id, input.recoveryTaskId),
+              eq(lessonRecoveryTasks.ownerUserId, input.ownerUserId),
+              eq(lessonRecoveryTasks.projectId, input.projectId),
+              eq(lessonRecoveryTasks.state, "queued"),
+              eq(lessonRecoveryTasks.operation, "grounding"),
+              isNull(lessonRecoveryRuns.stoppedAt),
+              eq(lessonRecoveryRuns.lessonSpecId, parsed.lessonSpecId),
+            ),
+          )
+          .for("update");
+        if (!task)
+          throw new PublicError(
+            "edit_conflict",
+            "Preparation was stopped or changed.",
+            409,
+          );
+        maximumAttempts = Math.max(1, 3 - task.priorAttempts);
+      }
       const lessonSpec = await this.mutableLessonSpecRow(
         transaction,
         input.ownerUserId,
@@ -214,6 +250,7 @@ export class PostgresGroundingService implements GroundingService {
           correlationId: envelope.correlationId,
           payloadVersion: envelope.payloadVersion,
           payload: envelope.payload,
+          maxAttempts: maximumAttempts,
         })
         .onConflictDoNothing()
         .returning({ id: jobs.id });
@@ -236,6 +273,11 @@ export class PostgresGroundingService implements GroundingService {
         throw new Error(
           "The idempotent grounding check job could not be read.",
         );
+      if (input.recoveryTaskId)
+        await transaction
+          .update(lessonRecoveryTasks)
+          .set({ jobId, state: "running", updatedAt: timestamp })
+          .where(eq(lessonRecoveryTasks.id, input.recoveryTaskId));
       if (created !== undefined) {
         await transaction.insert(outboxEvents).values({
           id: createId(timestamp),
@@ -243,7 +285,10 @@ export class PostgresGroundingService implements GroundingService {
           eventType: "grounding.check_requested.v1",
           queueName: "pipeline",
           envelope,
-          deliveryOptions: { maxAttempts: 3, retryDelayMs: 5_000 },
+          deliveryOptions: {
+            maxAttempts: maximumAttempts,
+            retryDelayMs: 5_000,
+          },
         });
         await new PostgresAuditWriter(transaction).write({
           ownerUserId: input.ownerUserId,

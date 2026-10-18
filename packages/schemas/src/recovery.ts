@@ -44,6 +44,7 @@ export const recoveryTaskSchema = z
     message: z.string(),
     action: recoveryActionSchema.nullable(),
     failureCode: z.string().nullable(),
+    fieldPath: z.string().optional(),
   })
   .strict();
 export const lessonReadinessSchema = z
@@ -68,6 +69,32 @@ export const lessonReadinessSchema = z
     completedTasks: z.number().int().nonnegative(),
     allowanceUsd: z.number().nonnegative(),
     reservedUsd: z.number().nonnegative(),
+    activity: z
+      .array(
+        z
+          .object({
+            id: z.string().uuid(),
+            sceneId: identifierSchema.nullable(),
+            operation: recoveryOperationSchema,
+            state: z.enum(recoveryTaskStates),
+            attempts: z.number().int().nonnegative(),
+            occurredAt: z.string().datetime(),
+            message: z.string(),
+          })
+          .strict(),
+      )
+      .optional(),
+    metrics: z
+      .object({
+        timeToEditableMs: z.number().nonnegative(),
+        timeToPreviewMs: z.number().nonnegative().nullable(),
+        successfulRepairs: z.number().int().nonnegative(),
+        unresolvedTasks: z.number().int().nonnegative(),
+        retryCount: z.number().int().nonnegative(),
+        recoveryCostUsd: z.number().nonnegative(),
+      })
+      .strict()
+      .optional(),
   })
   .strict();
 export const recoveryCommandSchema = z
@@ -106,3 +133,17 @@ export type LessonReadiness = z.infer<typeof lessonReadinessSchema>;
 export type RecoveryEstimate = z.infer<typeof recoveryEstimateSchema>;
 
 export const recoveryCallsSchema = z.record(z.number().finite().nonnegative());
+
+export const generationPreparationEstimateSchema = z
+  .object({
+    enabled: z.boolean(),
+    fingerprint: z.string().length(64),
+    maximumCostUsd: z.number().finite().nonnegative(),
+  })
+  .strict();
+export const generationPreparationConsentSchema = z
+  .object({
+    estimateFingerprint: z.string().length(64),
+    acceptedMaximumCostUsd: z.number().finite().nonnegative(),
+  })
+  .strict();

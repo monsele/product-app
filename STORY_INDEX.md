@@ -175,4 +175,4 @@ development server recovery record.
 
 | 120 | Storyboard Recovery | [ST-120 - Immediate editing and partial preview](stories/12-storyboard-recovery/ST-120-immediate-editing.md) | ST-119 | Done |
 
-| 121 | Storyboard Recovery | [ST-121 - Recovery workflow integration and release](stories/12-storyboard-recovery/ST-121-recovery-integration.md) | ST-120 | In Progress |
+| 121 | Storyboard Recovery | [ST-121 - Recovery workflow integration and release](stories/12-storyboard-recovery/ST-121-recovery-integration.md) | ST-120 | In Review |

@@ -680,6 +680,14 @@ recovery actions. Keep the canvas dominant; individual validation findings live
 under Details. Technical repairs happen within explicit preparation authority;
 content changes require review. Render readiness remains a separate final gate.
 
+The planning estimate stays secondary to measured runtime. Do not repeat target
+duration drift as a prominent warning beside the preparation summary. Generate
+shows the capped preparation quote before confirmation. Under View progress, show
+the allowance, reservations and Preparation activity; retain native disclosures,
+keyboard focus and screen-reader labels. Source actions focus the affected citation
+when a reference index is available. Terminal asset/source failures open their
+existing review controls. No automatic warning acknowledgement or content rewrite.
+
 **Mode:** Focus Studio.
 
 This is the main creative workspace. Use the full viewport with three adaptive

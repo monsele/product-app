@@ -60,6 +60,7 @@ export interface LanguageModelProvider {
   readonly supportedModels?: readonly string[];
   complete(
     request: ProviderCompletionRequest,
+    options?: { disableRetries?: boolean },
   ): Promise<ProviderCompletionResponse>;
 }
 
@@ -99,7 +100,10 @@ export type IllustrationResponse = z.infer<typeof illustrationResponseSchema>;
 export interface IllustrationProvider {
   readonly providerId: string;
   readonly model?: string;
-  generate(request: IllustrationRequest): Promise<IllustrationResponse>;
+  generate(
+    request: IllustrationRequest,
+    options?: { disableRetries?: boolean },
+  ): Promise<IllustrationResponse>;
 }
 
 /**
@@ -129,7 +133,8 @@ export class ProviderCallError extends Error {
     this.retryable = input.retryable ?? false;
     if (input.providerStatus !== undefined)
       this.providerStatus = input.providerStatus;
-    if (input.providerCode !== undefined) this.providerCode = input.providerCode;
+    if (input.providerCode !== undefined)
+      this.providerCode = input.providerCode;
     if (input.providerReason !== undefined)
       this.providerReason = input.providerReason;
   }

@@ -1734,6 +1734,14 @@ never create authorization, expand an allowance, or reopen a stopped session.
 Visual-only changes revalidate while matching narration media is reused. Captions
 that exceed planned timing wait for measured-duration reconciliation before repair.
 
+Generation preparation grants, prompt-to-video cap earmarking and task-state
+activity/milestones are additive contracts and persistence (0077–0078). Grounding
+fingerprints include the approved source snapshot; audio fingerprints exclude
+visual-only edits. Recovery adapters reserve before dispatch, bound model output
+tokens and disable independent transport retries. See
+[the recovery release guide](storyboard-recovery-release.md) for endpoints,
+deployment ordering, metrics definitions and the running-app release command.
+
 ### Required product outcome
 
 A deterministic validation system identifies blocking errors and warnings before rendering and guides the teacher directly to fixes.

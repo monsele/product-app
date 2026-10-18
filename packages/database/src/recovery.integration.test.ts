@@ -1,7 +1,7 @@
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import { createTestDatabase, type TestDatabase } from "./testing.js";
 import { migrateDatabase } from "./migrations.js";
-import { lessonRecoveryRuns, lessonRecoveryTasks } from "./schema.js";
+import { lessonRecoveryRuns, lessonRecoveryTasks, lessonRecoveryActivity, users, projects } from "./schema.js";
 
 const suite = process.env.TEST_DATABASE_URL ? describe : describe.skip;
 suite("recovery persistence", () => {
@@ -18,6 +18,8 @@ suite("recovery persistence", () => {
     const id = "01989a3d-8e00-7000-8000-000000000001";
     const other = "01989a3d-8e00-7000-8000-000000000002";
     const db = database.client;
+    await db.insert(users).values([{ id, emailNormalized: "recovery-owner@example.test", displayName: "Recovery owner" }, { id: other, emailNormalized: "recovery-other@example.test", displayName: "Other owner" }]);
+    await db.insert(projects).values({ id, ownerUserId: id, title: "Recovery persistence" });
     const run = {
       id,
       ownerUserId: id,
@@ -46,6 +48,7 @@ suite("recovery persistence", () => {
       fingerprint: "same",
     };
     await db.insert(lessonRecoveryTasks).values(task);
+    expect(await db.select().from(lessonRecoveryActivity)).toHaveLength(1);
     await expect(
       db.insert(lessonRecoveryTasks).values({ ...task, id: other }),
     ).rejects.toThrow();

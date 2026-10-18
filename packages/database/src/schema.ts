@@ -38,42 +38,154 @@ export const projectOwnershipColumns = () => ({
 });
 
 /** ST-118. Authority is explicit and bounded; opening the editor creates none. */
-export const lessonRecoveryRuns = pgTable("lesson_recovery_runs", {
-  id: primaryId(), ...projectOwnershipColumns(), ...auditColumns(),
-  lessonSpecId: uuid("lesson_spec_id").notNull(), revision: integer("revision").notNull(),
-  idempotencyKey: text("idempotency_key").notNull(),
-  state: text("state").notNull().default("queued"),
-  allowanceUsd: numeric("allowance_usd", { precision: 12, scale: 6 }).notNull(),
-  reservedUsd: numeric("reserved_usd", { precision: 12, scale: 6 }).notNull().default("0"),
-  oneShotRunId: uuid("one_shot_run_id"), correlationId: uuid("correlation_id").notNull(),
-  validationRunId: uuid("validation_run_id"), sequence: integer("sequence").notNull().default(0),
-  leaseUntil: utcTimestamp("lease_until"), leaseJobId: uuid("lease_job_id"),
-  stoppedAt: utcTimestamp("stopped_at"), failureCode: text("failure_code"),
-  authorizationRequests: jsonb("authorization_requests").notNull().default({}),
-}, (table) => [
-  uniqueIndex("recovery_run_request_unique").on(table.ownerUserId, table.projectId, table.idempotencyKey),
-  uniqueIndex("recovery_run_active_unique").on(table.ownerUserId, table.projectId).where(sql`${table.stoppedAt} is null`),
-]);
+export const lessonRecoveryRuns = pgTable(
+  "lesson_recovery_runs",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    ...auditColumns(),
+    lessonSpecId: uuid("lesson_spec_id").notNull(),
+    revision: integer("revision").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    state: text("state").notNull().default("queued"),
+    allowanceUsd: numeric("allowance_usd", {
+      precision: 12,
+      scale: 6,
+    }).notNull(),
+    reservedUsd: numeric("reserved_usd", { precision: 12, scale: 6 })
+      .notNull()
+      .default("0"),
+    oneShotRunId: uuid("one_shot_run_id"),
+    correlationId: uuid("correlation_id").notNull(),
+    validationRunId: uuid("validation_run_id"),
+    sequence: integer("sequence").notNull().default(0),
+    leaseUntil: utcTimestamp("lease_until"),
+    leaseJobId: uuid("lease_job_id"),
+    stoppedAt: utcTimestamp("stopped_at"),
+    failureCode: text("failure_code"),
+    authorizationRequests: jsonb("authorization_requests")
+      .notNull()
+      .default({}),
+  },
+  (table) => [
+    uniqueIndex("recovery_run_request_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.idempotencyKey,
+    ),
+    uniqueIndex("recovery_run_active_unique")
+      .on(table.ownerUserId, table.projectId)
+      .where(sql`${table.stoppedAt} is null`),
+  ],
+);
 
-export const lessonRecoverySignals = pgTable("lesson_recovery_signals", {
-  projectId: uuid("project_id").primaryKey(),
-  ownerUserId: ownershipColumn(),
-  changedAt: utcTimestamp("changed_at").notNull().defaultNow(),
+export const lessonRecoverySignals = pgTable(
+  "lesson_recovery_signals",
+  {
+    projectId: uuid("project_id").primaryKey(),
+    ownerUserId: ownershipColumn(),
+    changedAt: utcTimestamp("changed_at").notNull().defaultNow(),
+  },
+  (table) => [index("recovery_signals_changed_at").on(table.changedAt)],
+);
+
+export const lessonPreparationGrants = pgTable(
+  "lesson_preparation_grants",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    ...auditColumns(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    fingerprint: text("fingerprint").notNull(),
+    allowanceUsd: numeric("allowance_usd", {
+      precision: 12,
+      scale: 6,
+    }).notNull(),
+    correlationId: uuid("correlation_id").notNull(),
+    jobId: uuid("job_id"),
+    runId: uuid("run_id"),
+    stoppedAt: utcTimestamp("stopped_at"),
+  },
+  (table) => [
+    uniqueIndex("preparation_grant_request_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.idempotencyKey,
+    ),
+    index("preparation_grants_pending")
+      .on(table.createdAt)
+      .where(sql`${table.runId} is null and ${table.stoppedAt} is null`),
+  ],
+);
+
+export const lessonRecoveryTasks = pgTable(
+  "lesson_recovery_tasks",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    ...auditColumns(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => lessonRecoveryRuns.id, { onDelete: "cascade" }),
+    sceneId: uuid("scene_id"),
+    operation: text("operation").notNull(),
+    fingerprint: text("fingerprint").notNull(),
+    issueCodes: jsonb("issue_codes").notNull().default([]),
+    state: text("state").notNull().default("queued"),
+    attempts: integer("attempts").notNull().default(0),
+    jobId: uuid("job_id"),
+    failureCode: text("failure_code"),
+    calls: jsonb("calls").notNull().default({}),
+    priorAttempts: integer("prior_attempts").notNull().default(0),
+    reservedUsd: numeric("reserved_usd", { precision: 12, scale: 6 })
+      .notNull()
+      .default("0"),
+  },
+  (table) => [
+    uniqueIndex("recovery_task_operation_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.operation,
+      table.fingerprint,
+    ),
+    index("recovery_task_run_idx").on(table.runId),
+    uniqueIndex("recovery_task_job_unique")
+      .on(table.ownerUserId, table.projectId, table.jobId)
+      .where(sql`${table.jobId} is not null`),
+  ],
+);
+
+export const lessonRecoveryActivity = pgTable("lesson_recovery_activity", {
+  id: primaryId(),
+  ...projectOwnershipColumns(),
+  runId: uuid("run_id").notNull(),
+  taskId: uuid("task_id").notNull(),
+  sceneId: uuid("scene_id"),
+  operation: text("operation").notNull(),
+  state: text("state").notNull(),
+  attempts: integer("attempts").notNull(),
+  failureCode: text("failure_code"),
+  occurredAt: utcTimestamp("occurred_at").notNull().defaultNow(),
 });
 
-export const lessonRecoveryTasks = pgTable("lesson_recovery_tasks", {
-  id: primaryId(), ...projectOwnershipColumns(), ...auditColumns(),
-  runId: uuid("run_id").notNull().references(() => lessonRecoveryRuns.id, { onDelete: "cascade" }),
-  sceneId: uuid("scene_id"), operation: text("operation").notNull(),
-  fingerprint: text("fingerprint").notNull(), issueCodes: jsonb("issue_codes").notNull().default([]),
-  state: text("state").notNull().default("queued"), attempts: integer("attempts").notNull().default(0),
-  jobId: uuid("job_id"), failureCode: text("failure_code"),
-  calls: jsonb("calls").notNull().default({}), priorAttempts: integer("prior_attempts").notNull().default(0),
-  reservedUsd: numeric("reserved_usd", { precision: 12, scale: 6 }).notNull().default("0"),
-}, (table) => [
-  uniqueIndex("recovery_task_operation_unique").on(table.ownerUserId, table.projectId, table.operation, table.fingerprint),
-  index("recovery_task_run_idx").on(table.runId),
-]);
+export const lessonPreparationMilestones = pgTable(
+  "lesson_preparation_milestones",
+  {
+    id: primaryId(),
+    ...projectOwnershipColumns(),
+    lessonSpecId: uuid("lesson_spec_id").notNull(),
+    generatedAt: utcTimestamp("generated_at").notNull(),
+    firstEditableAt: utcTimestamp("first_editable_at").notNull(),
+    firstPreviewAt: utcTimestamp("first_preview_at"),
+  },
+  (table) => [
+    uniqueIndex("preparation_milestone_spec_unique").on(
+      table.ownerUserId,
+      table.projectId,
+      table.lessonSpecId,
+    ),
+  ],
+);
 
 /**
  * Infrastructure-only smoke table. Feature stories own all domain tables.
@@ -2965,6 +3077,15 @@ export const oneShotRuns = pgTable(
       onDelete: "restrict",
     }),
     correlationId: uuid("correlation_id").notNull(),
+    preparationAuthorized: boolean("preparation_authorized")
+      .notNull()
+      .default(false),
+    preparationAllowanceUsd: numeric("preparation_allowance_usd", {
+      precision: 12,
+      scale: 6,
+    })
+      .notNull()
+      .default("0"),
     // ---- ST-107 ----------------------------------------------------------
     /** Brief calls made for this run, counted before each call. */
     briefAttempts: integer("brief_attempts").notNull().default(0),

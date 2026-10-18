@@ -52,7 +52,7 @@ describe("text overflow reporting", () => {
   });
 
   it("fits once the title is removed, so layout checks must include it", () => {
-    const untitled = { ...stackedProcessScene };
+    const untitled: Omit<typeof stackedProcessScene, "title"> & { title?: string } = { ...stackedProcessScene };
     delete untitled.title;
     expect(validateScene(untitled)).toEqual([]);
   });

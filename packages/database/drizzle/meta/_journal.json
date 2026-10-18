@@ -540,6 +540,20 @@
       "when": 1790000560000,
       "tag": "0076_recovery_dependency_signals",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1790000570000,
+      "tag": "0077_recovery_workflow_authorization",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1790000580000,
+      "tag": "0078_recovery_activity",
+      "breakpoints": true
     }
   ]
 }

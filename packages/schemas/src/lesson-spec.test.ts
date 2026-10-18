@@ -585,7 +585,11 @@ describe("LessonSpec v1", () => {
       new URL("../lesson-spec-v1.schema.json", import.meta.url),
       "utf8",
     );
-    expect(committed).toBe(generated);
+    // Git may check out CRLF on Windows; still require identical generated
+    // schema content and formatting after normalizing only line endings.
+    expect(committed.replaceAll("\r\n", "\n")).toBe(
+      generated.replaceAll("\r\n", "\n"),
+    );
   });
 
   it("accepts only bounded semantic labelled-diagram anchors", () => {

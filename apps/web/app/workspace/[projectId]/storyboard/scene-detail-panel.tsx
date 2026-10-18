@@ -125,7 +125,11 @@ export function SceneDetailPanel({
   onPreviewVersion?: (versionId: string) => void;
   onRestoreVersion?: (versionId: string) => void;
   initialTab?: InspectorTab;
-  requestedTab?: { tab: InspectorTab; request: number };
+  requestedTab?: {
+    tab: InspectorTab;
+    request: number;
+    sourceReference?: number;
+  };
   preparationEnabled?: boolean;
 }): JSX.Element {
   const scene = detail.scene;
@@ -656,7 +660,13 @@ export function SceneDetailPanel({
           <div
             style={{ display: "flex", flexDirection: "column", gap: "16px" }}
           >
-            <SceneCitations projectId={projectId} sceneId={sceneId} />
+            <SceneCitations
+              projectId={projectId}
+              sceneId={sceneId}
+              {...(requestedTab?.sourceReference !== undefined
+                ? { focusReference: requestedTab.sourceReference }
+                : {})}
+            />
             <SceneGrounding
               projectId={projectId}
               sceneId={sceneId}

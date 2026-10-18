@@ -24,11 +24,21 @@ function apiUrl(path: string): string {
 export function SceneCitations({
   projectId,
   sceneId,
+  focusReference,
 }: {
   projectId: string;
   sceneId: string;
+  focusReference?: number;
 }) {
   const [state, setState] = useState<State>({ kind: "loading" });
+  useEffect(() => {
+    if (focusReference === undefined || state.kind !== "ready") return;
+    const reference = document.getElementById(
+      `citation-${sceneId}-${focusReference}`,
+    );
+    reference?.focus();
+    reference?.scrollIntoView({ block: "nearest" });
+  }, [focusReference, sceneId, state]);
 
   const refresh = useCallback(async () => {
     try {
@@ -42,8 +52,7 @@ export function SceneCitations({
       const parsed = response.ok
         ? sceneCitationsResponseSchema.safeParse(payload)
         : undefined;
-      if (parsed === undefined || !parsed.success)
-        throw new Error("citations");
+      if (parsed === undefined || !parsed.success) throw new Error("citations");
       setState({ kind: "ready", value: parsed.data });
     } catch {
       setState({
@@ -68,8 +77,7 @@ export function SceneCitations({
       </p>
     );
 
-  if (state.kind === "failed")
-    return <p role="alert">{state.message}</p>;
+  if (state.kind === "failed") return <p role="alert">{state.message}</p>;
 
   const { citations, generatedAdditions } = state.value;
 
@@ -82,7 +90,12 @@ export function SceneCitations({
       ) : (
         <ul aria-label="Resolved citations">
           {citations.map((citation, index) => (
-            <li key={index} data-testid={`citation-${sceneId}-${index}`}>
+            <li
+              key={index}
+              id={`citation-${sceneId}-${index}`}
+              tabIndex={-1}
+              data-testid={`citation-${sceneId}-${index}`}
+            >
               <p>
                 {citationPageLabel(citation.pageStart, citation.pageEnd)}
                 {citation.sectionHeading !== undefined
@@ -117,9 +130,7 @@ export function SceneCitations({
                       {figure.altText !== undefined
                         ? ` — ${figure.altText}`
                         : ""}{" "}
-                      <a
-                        href={citationDeepLink(projectId, figure.sectionId)}
-                      >
+                      <a href={citationDeepLink(projectId, figure.sectionId)}>
                         Open in source
                       </a>
                     </li>

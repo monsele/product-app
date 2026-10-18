@@ -1,7 +1,12 @@
 import { and, eq, sql } from "drizzle-orm";
 import { recoveryCallsSchema as callsSchema } from "@avlp/schemas";
 import type { DatabaseClient } from "./client.js";
-import { lessonRecoveryRuns, lessonRecoveryTasks, projects } from "./schema.js";
+import {
+  lessonRecoveryRuns,
+  lessonRecoveryTasks,
+  projects,
+  oneShotRuns,
+} from "./schema.js";
 
 export class RecoveryAuthorityError extends Error {
   constructor(public readonly code: string) {
@@ -75,6 +80,20 @@ export async function authorizeRecoveryCall(
       throw new RecoveryAuthorityError("RECOVERY_CANCELLED");
     if (input.attempt + task.priorAttempts > 3)
       throw new RecoveryAuthorityError("RECOVERY_ATTEMPTS_EXHAUSTED");
+    if (run.oneShotRunId) {
+      const [generation] = await tx
+        .select({ status: oneShotRuns.status })
+        .from(oneShotRuns)
+        .where(
+          and(
+            eq(oneShotRuns.id, run.oneShotRunId),
+            eq(oneShotRuns.ownerUserId, input.ownerUserId),
+            eq(oneShotRuns.projectId, input.projectId),
+          ),
+        );
+      if (!generation || generation.status === "cancelled")
+        throw new RecoveryAuthorityError("RECOVERY_CANCELLED");
+    }
     const calls = callsSchema.parse(task.calls);
     const key = `${input.jobId}:${input.attempt}:${input.phase}`;
     // A replayed dispatch cannot silently spend twice. Worker retry gets a new attempt.

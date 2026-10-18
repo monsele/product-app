@@ -8,7 +8,12 @@ import {
   type OneShotRunState,
   type OneShotTickResult,
 } from "./one-shot-runner.js";
-import { FakePipeline, fakeSpecId, idleStage, nextId } from "./one-shot-test-pipeline.js";
+import {
+  FakePipeline,
+  fakeSpecId,
+  idleStage,
+  nextId,
+} from "./one-shot-test-pipeline.js";
 
 const ownerUserId = "019ffc10-aaaa-7000-8000-000000000105" as Identifier;
 const projectId = "019ffc10-bbbb-7000-8000-000000000105" as Identifier;
@@ -25,7 +30,11 @@ function initialRun(overrides: Partial<OneShotRunState> = {}): OneShotRunState {
     correlationId,
     status: "queued",
     focusPrompt: "How do trusses carry load?",
-    audience: { ageBand: "adult-professional", difficulty: "advanced", tone: "academic" },
+    audience: {
+      ageBand: "adult-professional",
+      difficulty: "advanced",
+      tone: "academic",
+    },
     targetDurationSeconds: 180,
     steps: [],
     resumeCount: 0,
@@ -35,7 +44,11 @@ function initialRun(overrides: Partial<OneShotRunState> = {}): OneShotRunState {
   };
 }
 
-function apply(run: OneShotRunState, result: OneShotTickResult, now: Date): OneShotRunState {
+function apply(
+  run: OneShotRunState,
+  result: OneShotTickResult,
+  now: Date,
+): OneShotRunState {
   return {
     ...run,
     status: result.status,
@@ -49,7 +62,12 @@ async function drive(
   fake: FakePipeline,
   start: OneShotRunState,
   limit = 60,
-): Promise<{ run: OneShotRunState; last: OneShotTickResult; ticks: number; actionsPerTick: number[] }> {
+): Promise<{
+  run: OneShotRunState;
+  last: OneShotTickResult;
+  ticks: number;
+  actionsPerTick: number[];
+}> {
   let run = start;
   let last: OneShotTickResult | undefined;
   const actionsPerTick: number[] = [];
@@ -128,7 +146,10 @@ describe("ST-105 prompt-to-video runner", () => {
       "validation",
     ]);
     expect(last.steps.every((entry) => entry.state === "done")).toBe(true);
-    expect(step(last, "validation")?.detail).toMatchObject({ errors: 0, warnings: 1 });
+    expect(step(last, "validation")?.detail).toMatchObject({
+      errors: 0,
+      warnings: 1,
+    });
     expect(last.focusCoverage).toEqual({ status: "covered" });
     expect(last.actualCostUsd).toBe(0.42);
   });
@@ -146,7 +167,12 @@ describe("ST-105 prompt-to-video runner", () => {
     fake.voice = true;
     for (const stage of ["objectives", "outline", "narration"] as const)
       fake.stages[stage] = { ...idleStage(), state: "approved", revision: 3 };
-    fake.storyboardFake = { ...idleStage(), state: "draft", revision: 4, lessonSpecId: specId };
+    fake.storyboardFake = {
+      ...idleStage(),
+      state: "draft",
+      revision: 4,
+      lessonSpecId: specId,
+    };
     fake.groundingCurrent = true;
     fake.audioFake = { total: 2, ready: 2, pending: 0, failed: 0, missing: 0 };
     const run = initialRun({
@@ -160,54 +186,156 @@ describe("ST-105 prompt-to-video runner", () => {
         },
       ],
     });
-    const result = await advanceOneShotRun({ run, gateway: fake, now: new Date("2026-09-27T10:00:03.000Z") });
+    const result = await advanceOneShotRun({
+      run,
+      gateway: fake,
+      now: new Date("2026-09-27T10:00:03.000Z"),
+    });
 
     expect(result.status).toBe("awaiting_render_approval");
     expect(fake.calls).toEqual(["validate"]);
   });
 
+  it.each(["preparing", "needs_action"] as const)(
+    "waits for caption/timing recovery even when narration is ready (%s)",
+    async (recovery) => {
+      const fake = new FakePipeline();
+      fake.snapshot = { approved: true, stale: false };
+      fake.config = {
+        version: 2,
+        focusPrompt: "How do trusses carry load?",
+        ageBand: "adult-professional",
+        difficulty: "advanced",
+        targetDurationSeconds: 180,
+      };
+      fake.voice = true;
+      for (const stage of ["objectives", "outline", "narration"] as const)
+        fake.stages[stage] = { ...idleStage(), state: "approved", revision: 3 };
+      fake.storyboardFake = {
+        ...idleStage(),
+        state: "draft",
+        revision: 4,
+        lessonSpecId: specId,
+      };
+      fake.groundingCurrent = true;
+      fake.audio = async () => ({
+        total: 2,
+        ready: 2,
+        pending: 0,
+        failed: 0,
+        missing: 0,
+        recovery,
+      });
+      const result = await advanceOneShotRun({
+        run: initialRun({
+          steps: [
+            {
+              step: "illustrations",
+              state: "done",
+              startedAt: "2026-09-27T09:00:00.000Z",
+              finishedAt: "2026-09-27T09:00:00.000Z",
+              detail: { requestedFor: specId },
+            },
+          ],
+        }),
+        gateway: fake,
+        now: new Date("2026-09-27T10:00:03.000Z"),
+      });
+      expect(result.status).toBe(
+        recovery === "preparing" ? "running" : "needs_attention",
+      );
+      expect(fake.calls).not.toContain("validate");
+    },
+  );
   it("waits while ingestion runs and stops when it fails", async () => {
     const fake = new FakePipeline();
     fake.ingestionState = "pending";
-    const waiting = await advanceOneShotRun({ run: initialRun(), gateway: fake, now: new Date("2026-09-27T10:00:03.000Z") });
-    expect(waiting).toMatchObject({ status: "running", currentStep: "ingestion", reschedule: true });
+    const waiting = await advanceOneShotRun({
+      run: initialRun(),
+      gateway: fake,
+      now: new Date("2026-09-27T10:00:03.000Z"),
+    });
+    expect(waiting).toMatchObject({
+      status: "running",
+      currentStep: "ingestion",
+      reschedule: true,
+    });
 
     fake.ingestionState = "failed";
-    const stopped = await advanceOneShotRun({ run: initialRun(), gateway: fake, now: new Date("2026-09-27T10:00:06.000Z") });
+    const stopped = await advanceOneShotRun({
+      run: initialRun(),
+      gateway: fake,
+      now: new Date("2026-09-27T10:00:06.000Z"),
+    });
     expect(stopped.status).toBe("needs_attention");
-    expect(stopped.needsAttention).toMatchObject({ stage: "ingestion", errorCode: "INGESTION_FAILED" });
+    expect(stopped.needsAttention).toMatchObject({
+      stage: "ingestion",
+      errorCode: "INGESTION_FAILED",
+    });
     expect(stopped.reschedule).toBe(false);
   });
 
   it("stops after objectives when the source does not cover the focus", async () => {
     const fake = new FakePipeline();
-    fake.coverageOnGenerate = { status: "not_covered", reason: "The document is about bridges, not trusses." };
+    fake.coverageOnGenerate = {
+      status: "not_covered",
+      reason: "The document is about bridges, not trusses.",
+    };
     const { last } = await drive(fake, initialRun());
 
     expect(last.status).toBe("needs_attention");
-    expect(last.needsAttention).toMatchObject({ stage: "objectives", errorCode: "FOCUS_NOT_COVERED" });
+    expect(last.needsAttention).toMatchObject({
+      stage: "objectives",
+      errorCode: "FOCUS_NOT_COVERED",
+    });
     expect(last.focusCoverage).toMatchObject({ status: "not_covered" });
     expect(fake.calls).not.toContain("approve:objectives");
-    for (const call of ["generate:storyboard", "requestIllustrations", "requestAudio", "requestGrounding"])
+    for (const call of [
+      "generate:storyboard",
+      "requestIllustrations",
+      "requestAudio",
+      "requestGrounding",
+    ])
       expect(fake.calls).not.toContain(call);
   });
 
   it("stops at preview on a blocking validation issue and continues the same run on resume", async () => {
     const fake = new FakePipeline();
-    fake.validation = { runId: nextId(), status: "failed", errors: 2, warnings: 0 };
+    fake.validation = {
+      runId: nextId(),
+      status: "failed",
+      errors: 2,
+      warnings: 0,
+    };
     const { run, last } = await drive(fake, initialRun());
     expect(last.status).toBe("needs_attention");
-    expect(last.needsAttention).toMatchObject({ stage: "preview", errorCode: "VALIDATION_BLOCKING" });
+    expect(last.needsAttention).toMatchObject({
+      stage: "preview",
+      errorCode: "VALIDATION_BLOCKING",
+    });
     expect(step(last, "validation")?.state).toBe("needs_attention");
 
     // The user fixes the issue in the wizard, then resumes.
-    fake.validation = { runId: nextId(), status: "passed", errors: 0, warnings: 0 };
+    fake.validation = {
+      runId: nextId(),
+      status: "passed",
+      errors: 0,
+      warnings: 0,
+    };
     expect(resumedStatus(run.status)).toBe("running");
-    const generationsBefore = fake.calls.filter((call) => call.startsWith("generate:")).length;
-    const resumed = await drive(fake, { ...run, status: "running", resumeCount: 1 });
+    const generationsBefore = fake.calls.filter((call) =>
+      call.startsWith("generate:"),
+    ).length;
+    const resumed = await drive(fake, {
+      ...run,
+      status: "running",
+      resumeCount: 1,
+    });
     expect(resumed.last.status).toBe("awaiting_render_approval");
     // Nothing already done was paid for again.
-    expect(fake.calls.filter((call) => call.startsWith("generate:")).length).toBe(generationsBefore);
+    expect(
+      fake.calls.filter((call) => call.startsWith("generate:")).length,
+    ).toBe(generationsBefore);
   });
 
   it("stops at the stage whose job failed instead of paying again", async () => {
@@ -215,71 +343,132 @@ describe("ST-105 prompt-to-video runner", () => {
     fake.failNext.add("outline");
     const { last } = await drive(fake, initialRun());
     expect(last.status).toBe("needs_attention");
-    expect(last.needsAttention).toMatchObject({ stage: "outline", errorCode: "STAGE_JOB_FAILED" });
-    expect(fake.calls.filter((call) => call === "generate:outline")).toHaveLength(1);
+    expect(last.needsAttention).toMatchObject({
+      stage: "outline",
+      errorCode: "STAGE_JOB_FAILED",
+    });
+    expect(
+      fake.calls.filter((call) => call === "generate:outline"),
+    ).toHaveLength(1);
   });
 
   it.each(["objectives", "outline", "narration", "storyboard", "grounding"])(
     "recovers the %s step from one rejected draft without stopping",
     async (stage) => {
       const fake = new FakePipeline();
-      fake.failWith.set(stage, { errorCode: "MODEL_OUTPUT_DETERMINISTIC_FAILURE", times: 1 });
+      fake.failWith.set(stage, {
+        errorCode: "MODEL_OUTPUT_DETERMINISTIC_FAILURE",
+        times: 1,
+      });
       const { last } = await drive(fake, initialRun());
       expect(last.status).toBe("awaiting_render_approval");
-      expect(fake.keys.filter((key) => key.includes(`:${stage}:r0`) && key.endsWith(":auto1"))).toHaveLength(1);
+      expect(
+        fake.keys.filter(
+          (key) => key.includes(`:${stage}:r0`) && key.endsWith(":auto1"),
+        ),
+      ).toHaveLength(1);
     },
   );
 
   it("names the step the user sees, never the internal stage, when grounding stops", async () => {
     const fake = new FakePipeline();
-    fake.failWith.set("grounding", { errorCode: "MODEL_OUTPUT_DETERMINISTIC_FAILURE", times: 2 });
+    fake.failWith.set("grounding", {
+      errorCode: "MODEL_OUTPUT_DETERMINISTIC_FAILURE",
+      times: 2,
+    });
     const { last } = await drive(fake, initialRun());
-    expect(last.needsAttention).toMatchObject({ stage: "grounding", errorCode: "STAGE_JOB_FAILED" });
+    expect(last.needsAttention).toMatchObject({
+      stage: "grounding",
+      errorCode: "STAGE_JOB_FAILED",
+    });
     expect(last.needsAttention?.message).toContain("The Visuals step");
     expect(last.needsAttention?.message).not.toMatch(/grounding/i);
   });
 
   it("regenerates once when the checks reject a draft, then carries on", async () => {
     const fake = new FakePipeline();
-    fake.failWith.set("narration", { errorCode: "MODEL_OUTPUT_DETERMINISTIC_FAILURE", times: 1 });
+    fake.failWith.set("narration", {
+      errorCode: "MODEL_OUTPUT_DETERMINISTIC_FAILURE",
+      times: 1,
+    });
     const { last } = await drive(fake, initialRun());
     expect(last.status).toBe("awaiting_render_approval");
-    expect(fake.calls.filter((call) => call === "generate:narration")).toHaveLength(2);
-    expect(fake.keys.filter((key) => key.endsWith(":narration:r0:auto1"))).toHaveLength(1);
+    expect(
+      fake.calls.filter((call) => call === "generate:narration"),
+    ).toHaveLength(2);
+    expect(
+      fake.keys.filter((key) => key.endsWith(":narration:r0:auto1")),
+    ).toHaveLength(1);
   });
 
   it("stops in plain language when the regenerated draft is rejected too", async () => {
     const fake = new FakePipeline();
-    fake.failWith.set("narration", { errorCode: "MODEL_OUTPUT_DETERMINISTIC_FAILURE", times: 2 });
+    fake.failWith.set("narration", {
+      errorCode: "MODEL_OUTPUT_DETERMINISTIC_FAILURE",
+      times: 2,
+    });
     const { run, last } = await drive(fake, initialRun());
     expect(last.status).toBe("needs_attention");
-    expect(last.needsAttention).toMatchObject({ stage: "narration", errorCode: "STAGE_JOB_FAILED" });
-    expect(last.needsAttention?.message).toContain("even after we tried again automatically");
+    expect(last.needsAttention).toMatchObject({
+      stage: "narration",
+      errorCode: "STAGE_JOB_FAILED",
+    });
+    expect(last.needsAttention?.message).toContain(
+      "even after we tried again automatically",
+    );
     expect(last.needsAttention?.message).not.toMatch(/[A-Z]{3,}_[A-Z_]+/);
-    expect(fake.calls.filter((call) => call === "generate:narration")).toHaveLength(2);
+    expect(
+      fake.calls.filter((call) => call === "generate:narration"),
+    ).toHaveLength(2);
 
     // A resume earns one more automatic attempt before asking again.
-    fake.failWith.set("narration", { errorCode: "MODEL_OUTPUT_DETERMINISTIC_FAILURE", times: 1 });
+    fake.failWith.set("narration", {
+      errorCode: "MODEL_OUTPUT_DETERMINISTIC_FAILURE",
+      times: 1,
+    });
     // As `OneShotService.resume` does: the stopped step forgets its job and detail.
     const steps = run.steps.map((entry) =>
       entry.state === "needs_attention"
-        ? { step: entry.step, state: "pending" as const, startedAt: entry.startedAt }
+        ? {
+            step: entry.step,
+            state: "pending" as const,
+            startedAt: entry.startedAt,
+          }
         : entry,
     );
-    const resumed = await drive(fake, { ...run, steps, status: "running", resumeCount: 1 });
+    const resumed = await drive(fake, {
+      ...run,
+      steps,
+      status: "running",
+      resumeCount: 1,
+    });
     expect(resumed.last.status).toBe("awaiting_render_approval");
-    expect(fake.calls.filter((call) => call === "generate:narration")).toHaveLength(4);
-    expect(fake.keys.filter((key) => key.endsWith(":narration:r1:auto1"))).toHaveLength(1);
+    expect(
+      fake.calls.filter((call) => call === "generate:narration"),
+    ).toHaveLength(4);
+    expect(
+      fake.keys.filter((key) => key.endsWith(":narration:r1:auto1")),
+    ).toHaveLength(1);
   });
 
   it("does not regenerate a job that failed for another reason", async () => {
     const fake = new FakePipeline();
-    fake.failWith.set("narration", { errorCode: "SOURCE_SNAPSHOT_STALE", times: 1 });
+    fake.failWith.set("narration", {
+      errorCode: "SOURCE_SNAPSHOT_STALE",
+      times: 1,
+    });
     const { last } = await drive(fake, initialRun());
-    expect(last.needsAttention).toMatchObject({ stage: "narration", errorCode: "STAGE_JOB_FAILED" });
-    expect(last.needsAttention?.message).toContain("couldn't finish on our side");
+    expect(last.needsAttention).toMatchObject({
+      stage: "narration",
+      errorCode: "STAGE_JOB_FAILED",
+    });
+    expect(last.needsAttention?.message).toContain(
+      "couldn't finish on our side",
+    );
     expect(last.needsAttention?.message).not.toContain("SOURCE_SNAPSHOT_STALE");
-    expect(fake.calls.filter((call) => call === "generate:narration")).toHaveLength(1);
+    expect(
+      fake.calls.filter((call) => call === "generate:narration"),
+    ).toHaveLength(1);
   });
 
   it("fails a step with no progress for 20 minutes, and the run can be resumed", async () => {
@@ -303,31 +492,47 @@ describe("ST-105 prompt-to-video runner", () => {
     const stalled = initialRun({
       status: "running",
       steps: [
-        ...(["ingestion", "source_snapshot", "configuration"] as const).map((name) => ({
-          step: name,
-          state: "done" as const,
+        ...(["ingestion", "source_snapshot", "configuration"] as const).map(
+          (name) => ({
+            step: name,
+            state: "done" as const,
+            startedAt: earlier,
+            finishedAt: earlier,
+            ...(name === "configuration"
+              ? { detail: { configurationVersion: 1 } }
+              : {}),
+          }),
+        ),
+        {
+          step: "objectives",
+          state: "running",
           startedAt: earlier,
-          finishedAt: earlier,
-          ...(name === "configuration" ? { detail: { configurationVersion: 1 } } : {}),
-        })),
-        { step: "objectives", state: "running", startedAt: earlier, jobId: stuckJob },
+          jobId: stuckJob,
+        },
       ],
       lastProgressAt: new Date(earlier),
     });
     const within = await advanceOneShotRun({
       run: stalled,
       gateway: fake,
-      now: new Date(stalled.lastProgressAt.getTime() + oneShotStepTimeoutMs - 1_000),
+      now: new Date(
+        stalled.lastProgressAt.getTime() + oneShotStepTimeoutMs - 1_000,
+      ),
     });
     expect(within.status).toBe("running");
 
     const result = await advanceOneShotRun({
       run: stalled,
       gateway: fake,
-      now: new Date(stalled.lastProgressAt.getTime() + oneShotStepTimeoutMs + 1_000),
+      now: new Date(
+        stalled.lastProgressAt.getTime() + oneShotStepTimeoutMs + 1_000,
+      ),
     });
     expect(result.status).toBe("failed");
-    expect(result.needsAttention).toMatchObject({ stage: "objectives", errorCode: "ONE_SHOT_STEP_TIMEOUT" });
+    expect(result.needsAttention).toMatchObject({
+      stage: "objectives",
+      errorCode: "ONE_SHOT_STEP_TIMEOUT",
+    });
     expect(result.reschedule).toBe(false);
     expect(resumedStatus("failed")).toBe("running");
   });
@@ -337,8 +542,16 @@ describe("ST-105 prompt-to-video runner", () => {
     let run = initialRun();
     let result: OneShotTickResult | undefined;
     // Advance until the outline has been approved.
-    for (let tick = 0; tick < 40 && fake.stages.outline.state !== "approved"; tick += 1) {
-      result = await advanceOneShotRun({ run, gateway: fake, now: new Date("2026-09-27T10:01:00.000Z") });
+    for (
+      let tick = 0;
+      tick < 40 && fake.stages.outline.state !== "approved";
+      tick += 1
+    ) {
+      result = await advanceOneShotRun({
+        run,
+        gateway: fake,
+        now: new Date("2026-09-27T10:01:00.000Z"),
+      });
       run = apply(run, result, new Date("2026-09-27T10:01:00.000Z"));
       fake.completeJobs();
     }
@@ -346,9 +559,15 @@ describe("ST-105 prompt-to-video runner", () => {
 
     // The user edits the configuration in the wizard: objectives are stale.
     fake.stages.objectives.stale = true;
-    const next = await advanceOneShotRun({ run, gateway: fake, now: new Date("2026-09-27T10:02:00.000Z") });
+    const next = await advanceOneShotRun({
+      run,
+      gateway: fake,
+      now: new Date("2026-09-27T10:02:00.000Z"),
+    });
     expect(next.currentStep).toBe("objectives");
-    expect(fake.calls.filter((call) => call === "generate:objectives")).toHaveLength(2);
+    expect(
+      fake.calls.filter((call) => call === "generate:objectives"),
+    ).toHaveLength(2);
     expect(step(next, "objectives")?.state).toBe("running");
   });
 
@@ -366,8 +585,16 @@ describe("ST-105 prompt-to-video runner", () => {
     };
     fake.voice = true;
     let run = initialRun();
-    for (let tick = 0; tick < 4 && step(run, "configuration")?.state !== "done"; tick += 1) {
-      const result = await advanceOneShotRun({ run, gateway: fake, now: new Date("2026-09-27T10:00:30.000Z") });
+    for (
+      let tick = 0;
+      tick < 4 && step(run, "configuration")?.state !== "done";
+      tick += 1
+    ) {
+      const result = await advanceOneShotRun({
+        run,
+        gateway: fake,
+        now: new Date("2026-09-27T10:00:30.000Z"),
+      });
       run = apply(run, result, new Date("2026-09-27T10:00:30.000Z"));
       fake.completeJobs();
     }
@@ -395,8 +622,16 @@ describe("ST-105 prompt-to-video runner", () => {
     const run = initialRun({
       status: "running",
       steps: [
-        { step: "ingestion", state: "done", startedAt: "2026-09-27T09:00:00.000Z" },
-        { step: "source_snapshot", state: "done", startedAt: "2026-09-27T09:00:00.000Z" },
+        {
+          step: "ingestion",
+          state: "done",
+          startedAt: "2026-09-27T09:00:00.000Z",
+        },
+        {
+          step: "source_snapshot",
+          state: "done",
+          startedAt: "2026-09-27T09:00:00.000Z",
+        },
         {
           step: "configuration",
           state: "done",
@@ -405,7 +640,11 @@ describe("ST-105 prompt-to-video runner", () => {
         },
       ],
     });
-    await advanceOneShotRun({ run, gateway: fake, now: new Date("2026-09-27T10:00:30.000Z") });
+    await advanceOneShotRun({
+      run,
+      gateway: fake,
+      now: new Date("2026-09-27T10:00:30.000Z"),
+    });
     expect(fake.calls).not.toContain("saveConfiguration");
     expect(fake.config?.focusPrompt).toBe("How do trusses carry wind load?");
   });
@@ -416,14 +655,30 @@ describe("ST-105 prompt-to-video runner", () => {
       method: "approveSourceSnapshot",
       error: new PublicError("edit_conflict", "Changed.", 409),
     };
-    const retried = await advanceOneShotRun({ run: initialRun(), gateway: fake, now: new Date("2026-09-27T10:00:03.000Z") });
-    expect(retried).toMatchObject({ status: "running", reschedule: true, needsAttention: null });
+    const retried = await advanceOneShotRun({
+      run: initialRun(),
+      gateway: fake,
+      now: new Date("2026-09-27T10:00:03.000Z"),
+    });
+    expect(retried).toMatchObject({
+      status: "running",
+      reschedule: true,
+      needsAttention: null,
+    });
 
     fake.throwOn = {
       method: "approveSourceSnapshot",
-      error: new PublicError("bad_request", "Review at least one section before approving.", 409),
+      error: new PublicError(
+        "bad_request",
+        "Review at least one section before approving.",
+        409,
+      ),
     };
-    const stopped = await advanceOneShotRun({ run: initialRun(), gateway: fake, now: new Date("2026-09-27T10:00:06.000Z") });
+    const stopped = await advanceOneShotRun({
+      run: initialRun(),
+      gateway: fake,
+      now: new Date("2026-09-27T10:00:06.000Z"),
+    });
     expect(stopped.status).toBe("needs_attention");
     expect(stopped.needsAttention).toEqual({
       stage: "source_snapshot",
@@ -435,25 +690,50 @@ describe("ST-105 prompt-to-video runner", () => {
   it("requests missing illustrations once per storyboard", async () => {
     const fake = new FakePipeline();
     await drive(fake, initialRun());
-    expect(fake.calls.filter((call) => call === "requestIllustrations")).toHaveLength(1);
+    expect(
+      fake.calls.filter((call) => call === "requestIllustrations"),
+    ).toHaveLength(1);
   });
 
   it("tracks an approved render to completed or failed", async () => {
     const fake = new FakePipeline();
     const rendering = initialRun({ status: "rendering", renderJobId });
 
-    const inFlight = await advanceOneShotRun({ run: rendering, gateway: fake, now: new Date("2026-09-27T10:00:03.000Z") });
-    expect(inFlight).toMatchObject({ status: "rendering", reschedule: true, progressed: true });
+    const inFlight = await advanceOneShotRun({
+      run: rendering,
+      gateway: fake,
+      now: new Date("2026-09-27T10:00:03.000Z"),
+    });
+    expect(inFlight).toMatchObject({
+      status: "rendering",
+      reschedule: true,
+      progressed: true,
+    });
 
     fake.renderFake = { status: "completed", progress: 1, errorCode: null };
-    const completed = await advanceOneShotRun({ run: rendering, gateway: fake, now: new Date("2026-09-27T10:00:06.000Z") });
+    const completed = await advanceOneShotRun({
+      run: rendering,
+      gateway: fake,
+      now: new Date("2026-09-27T10:00:06.000Z"),
+    });
     expect(completed).toMatchObject({ status: "completed", reschedule: false });
     expect(step(completed, "render")?.state).toBe("done");
 
-    fake.renderFake = { status: "failed", progress: 0.4, errorCode: "RENDER_TIMEOUT" };
-    const failed = await advanceOneShotRun({ run: rendering, gateway: fake, now: new Date("2026-09-27T10:00:09.000Z") });
+    fake.renderFake = {
+      status: "failed",
+      progress: 0.4,
+      errorCode: "RENDER_TIMEOUT",
+    };
+    const failed = await advanceOneShotRun({
+      run: rendering,
+      gateway: fake,
+      now: new Date("2026-09-27T10:00:09.000Z"),
+    });
     expect(failed.status).toBe("failed");
-    expect(failed.needsAttention).toMatchObject({ stage: "render", errorCode: "RENDER_FAILED" });
+    expect(failed.needsAttention).toMatchObject({
+      stage: "render",
+      errorCode: "RENDER_FAILED",
+    });
     // No pipeline stage is touched while rendering.
     expect(fake.calls).toEqual([]);
   });
@@ -461,7 +741,14 @@ describe("ST-105 prompt-to-video runner", () => {
   it("only resumes a stopped run", () => {
     expect(resumedStatus("needs_attention")).toBe("running");
     expect(resumedStatus("failed")).toBe("running");
-    for (const status of ["queued", "running", "awaiting_render_approval", "rendering", "completed", "cancelled"] as const)
+    for (const status of [
+      "queued",
+      "running",
+      "awaiting_render_approval",
+      "rendering",
+      "completed",
+      "cancelled",
+    ] as const)
       expect(resumedStatus(status)).toBeNull();
   });
 });

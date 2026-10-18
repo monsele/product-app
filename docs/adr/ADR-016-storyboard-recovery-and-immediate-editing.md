@@ -34,3 +34,28 @@ LessonSpec or NormalizedDocument shape change. ADR-004 measured duration,
 ADR-011 design editing and ADR-014 advisory grounding policies remain in force.
 The feature is gated by STORYBOARD_RECOVERY_ENABLED; disabled means legacy
 behavior for new requests. Existing authorized jobs retain their safety gates.
+
+## Workflow and metering details (ST-121)
+
+The storyboard Generate flow displays a separate capped preparation quote before
+confirmation. A durable generation grant enrolls only the authoritative completed
+draft, using the job's candidate identity. Legacy clients that submit no consent
+receive no automatic paid preparation authority. Prompt-to-video confirmations
+include preparation within their existing displayed cap: a bounded portion is
+earmarked for the shared coordinator and removed from the generation runner's
+remaining budget. Preparation uses a distinct correlation identity so those calls
+are not charged against both portions. Explicit additional preparation approval
+adds to the same project session; switching screens alone adds nothing.
+
+Grounding is checked after media/timing settle, within the approved allowance.
+Model judgments remain advisory under ADR-014. Deterministic missing citations
+open source review instead of a model call. Asset recovery requeues only the exact
+authorized retryable job within its lifetime limit; an intervening scene edit
+requires review. Existing candidate review and approved fallback policies apply.
+Evidence imagery is never replaced by decorative generated imagery.
+
+Recovery model/image adapters disable transport retries; durable jobs own retry
+counts. Model output tokens are bounded by the per-attempt reservation and
+configured pricing. Provider output is metered before storage/binding work; an
+uncertain failed dispatch retains its reservation. Activity records and first
+editable/preview milestones support release metrics without content or signed URLs.

@@ -1195,6 +1195,13 @@ authorized audio, captions, timing and validation work without rewriting teachin
 content or teacher edits. Paid recovery uses a displayed capped allowance; merely
 opening the editor grants none. Final rendering still requires current validation.
 
+Generate includes an explicit preparation quote. Prompt-to-video preparation draws
+from its confirmed video cap and shares the storyboard session. Saved edits wake
+authorized recovery after a short debounce; visual-only edits reuse narration.
+Stopping prevents further repair dispatches. Exhausted allowance and service
+failures leave editing and available preview open with a contextual next action.
+Progress includes a technical activity history and actual completed-task counts.
+
 ## Objective
 
 Prevent broken, ungrounded, or incomplete lessons from being rendered.

@@ -420,6 +420,7 @@ export class TogetherLanguageModelProvider implements LanguageModelProvider {
 
   public async complete(
     request: ProviderCompletionRequest,
+    dispatch?: { disableRetries?: boolean },
   ): Promise<ProviderCompletionResponse> {
     const startedAt = Date.now();
     const body: TogetherJson = {
@@ -467,7 +468,7 @@ export class TogetherLanguageModelProvider implements LanguageModelProvider {
       body,
       fetcher: this.fetcher,
       timeoutMs: this.timeoutMs,
-      maxRetries: this.maxRetries,
+      maxRetries: dispatch?.disableRetries ? 0 : this.maxRetries,
       consume: readChatResponse,
     });
     const latencyMs = Math.max(0, Date.now() - startedAt);
@@ -567,6 +568,7 @@ export class TogetherIllustrationProvider implements IllustrationProvider {
 
   public async generate(
     request: IllustrationRequest,
+    dispatch?: { disableRetries?: boolean },
   ): Promise<IllustrationResponse> {
     const startedAt = Date.now();
     const parsedRequest = illustrationRequestSchema.parse(request);
@@ -585,7 +587,7 @@ export class TogetherIllustrationProvider implements IllustrationProvider {
       },
       fetcher: this.fetcher,
       timeoutMs: this.timeoutMs,
-      maxRetries: this.maxRetries,
+      maxRetries: dispatch?.disableRetries ? 0 : this.maxRetries,
       consume: async (response) =>
         jsonObject(
           await response.json(),

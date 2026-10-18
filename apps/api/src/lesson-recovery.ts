@@ -11,6 +11,14 @@ import {
   pronunciationEntries,
   oneShotRuns,
   projects,
+  usageRecords,
+  narrationSets,
+  narrationBlocks,
+  lessonPreparationGrants,
+  lessonSpecs,
+  illustrationGenerationCandidates,
+  scenes,
+  sourceSnapshots,
   type DatabaseClient,
   type DatabaseExecutor,
 } from "@avlp/database";
@@ -26,6 +34,8 @@ import {
   recoveryStartSchema,
   recoveryEstimateSchema,
   type RecoveryEstimate,
+  generationPreparationEstimateSchema,
+  generationPreparationConsentSchema,
 } from "@avlp/schemas";
 import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
@@ -36,6 +46,8 @@ import {
 import type { LessonValidationService } from "./lesson-validation.js";
 import { SceneAudioService, sceneAudioProvider } from "./scene-audio.js";
 import type { OneShotPricing } from "./one-shot-budget.js";
+import type { StoryboardService } from "./storyboard.js";
+import type { GroundingService } from "./grounding.js";
 
 type Run = typeof lessonRecoveryRuns.$inferSelect;
 const digest = (value: unknown) =>
@@ -54,6 +66,14 @@ function parse<T>(schema: z.ZodType<T>, input: unknown): T {
   return result.data;
 }
 export interface LessonRecoveryApi {
+  generationEstimate?(scope: RecoveryScope): Promise<unknown>;
+  generatePrepared?(
+    input: RecoveryScope & {
+      body: unknown;
+      idempotencyKey: string | undefined;
+      correlationId: Identifier;
+    },
+  ): Promise<unknown>;
   estimate(scope: RecoveryScope): Promise<RecoveryEstimate>;
   start(
     input: RecoveryScope & { body: unknown; correlationId: Identifier },
@@ -70,6 +90,10 @@ export class LessonRecoveryService implements LessonRecoveryApi {
     private readonly audio: SceneAudioService,
     private readonly pricing: OneShotPricing,
     private readonly now: () => Date = () => new Date(),
+    private readonly integrations: {
+      storyboard?: Pick<StoryboardService, "generate">;
+      grounding?: Pick<GroundingService, "check">;
+    } = {},
   ) {}
 
   private assertEnabled() {
@@ -81,31 +105,523 @@ export class LessonRecoveryService implements LessonRecoveryApi {
       );
   }
 
+  async generationEstimate(
+    scope: RecoveryScope,
+    executor: DatabaseExecutor = this.database,
+  ) {
+    if (!this.readiness.enabled)
+      return generationPreparationEstimateSchema.parse({
+        enabled: false,
+        fingerprint: "0".repeat(64),
+        maximumCostUsd: 0,
+      });
+    const [set] = await executor
+      .select()
+      .from(narrationSets)
+      .where(
+        and(
+          eq(narrationSets.ownerUserId, scope.ownerUserId),
+          eq(narrationSets.projectId, scope.projectId),
+          sql`${narrationSets.status} in ('draft','approved')`,
+        ),
+      )
+      .orderBy(
+        sql`case when ${narrationSets.status} = 'draft' then 0 else 1 end`,
+        desc(narrationSets.generatedAt),
+      )
+      .limit(1);
+    if (!set)
+      throw new PublicError(
+        "not_found",
+        "Prepare narration before generating a storyboard.",
+        404,
+      );
+    const blocks = await executor
+      .select()
+      .from(narrationBlocks)
+      .where(
+        and(
+          eq(narrationBlocks.ownerUserId, scope.ownerUserId),
+          eq(narrationBlocks.projectId, scope.projectId),
+          eq(narrationBlocks.setId, set.id),
+        ),
+      )
+      .orderBy(narrationBlocks.order);
+    const audio =
+      sceneAudioProvider.providerId === "fixture-v1"
+        ? 0
+        : 3 *
+          ((blocks.reduce((sum, block) => sum + block.text.length, 0) /
+            1_000_000) *
+            this.pricing.ttsCostUsdPerMillionCharacters +
+            blocks.length * this.pricing.alignmentCostUsdPerAudioMinute);
+    return generationPreparationEstimateSchema.parse({
+      enabled: true,
+      fingerprint: digest({
+        set: set.id,
+        revision: set.revision,
+        blocks: blocks.map((block) => [block.id, block.revision, block.text]),
+        pricing: this.pricing,
+      }),
+      maximumCostUsd: money(
+        audio +
+          3 * this.pricing.modelCallCostUsd +
+          3 * blocks.length * this.pricing.imageCostUsd,
+      ),
+    });
+  }
+
+  async generatePrepared(
+    input: RecoveryScope & {
+      body: unknown;
+      idempotencyKey: string | undefined;
+      correlationId: Identifier;
+    },
+  ) {
+    this.assertEnabled();
+    const consent = parse(generationPreparationConsentSchema, input.body);
+    if (!input.idempotencyKey?.trim() || input.idempotencyKey.length > 160)
+      throw new PublicError(
+        "validation_failed",
+        "A generation request key is required.",
+        400,
+      );
+    const grant = await this.database.transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${input.projectId}))`,
+      );
+      const [existing] = await tx
+        .select()
+        .from(lessonPreparationGrants)
+        .where(
+          and(
+            eq(lessonPreparationGrants.ownerUserId, input.ownerUserId),
+            eq(lessonPreparationGrants.projectId, input.projectId),
+            eq(lessonPreparationGrants.idempotencyKey, input.idempotencyKey!),
+          ),
+        );
+      if (existing) return existing;
+      const estimate = await this.generationEstimate(input, tx);
+      if (
+        consent.estimateFingerprint !== estimate.fingerprint ||
+        consent.acceptedMaximumCostUsd !== estimate.maximumCostUsd
+      )
+        throw new PublicError(
+          "edit_conflict",
+          "Narration or pricing changed. Review the preparation estimate again.",
+          409,
+        );
+      const [created] = await tx
+        .insert(lessonPreparationGrants)
+        .values({
+          id: createId(),
+          ownerUserId: input.ownerUserId,
+          projectId: input.projectId,
+          idempotencyKey: input.idempotencyKey!,
+          fingerprint: estimate.fingerprint,
+          allowanceUsd: String(estimate.maximumCostUsd),
+          correlationId: input.correlationId,
+        })
+        .returning();
+      return created!;
+    });
+    if (grant.stoppedAt)
+      throw new PublicError(
+        "edit_conflict",
+        "This preparation request was stopped. Start a new request to continue.",
+        409,
+      );
+    return this.dispatchGeneration(grant);
+  }
+
+  private async dispatchGeneration(
+    grant: typeof lessonPreparationGrants.$inferSelect,
+  ) {
+    if (!this.integrations.storyboard)
+      throw new PublicError(
+        "internal_error",
+        "Storyboard generation is unavailable.",
+        503,
+      );
+    if (grant.jobId)
+      return { jobId: grant.jobId as Identifier, status: "queued" as const };
+    const [project] = await this.database
+      .select()
+      .from(projects)
+      .where(
+        and(
+          eq(projects.id, grant.projectId),
+          eq(projects.ownerUserId, grant.ownerUserId),
+          isNull(projects.deletedAt),
+        ),
+      );
+    if (!project)
+      throw new PublicError(
+        "not_found",
+        "The project is no longer available.",
+        404,
+      );
+    const estimate = await this.generationEstimate({
+      ownerUserId: grant.ownerUserId as Identifier,
+      projectId: grant.projectId as Identifier,
+    });
+    if (estimate.fingerprint !== grant.fingerprint)
+      throw new PublicError(
+        "edit_conflict",
+        "Narration changed before generation started. Review a new preparation estimate.",
+        409,
+      );
+    const response = await this.integrations.storyboard.generate({
+      ownerUserId: grant.ownerUserId as Identifier,
+      projectId: grant.projectId as Identifier,
+      correlationId: grant.correlationId as Identifier,
+      idempotencyKey: grant.idempotencyKey,
+    });
+    await this.database
+      .update(lessonPreparationGrants)
+      .set({ jobId: response.jobId, updatedAt: this.now() })
+      .where(eq(lessonPreparationGrants.id, grant.id));
+    return response;
+  }
+
+  private async enrollGenerationGrants() {
+    const grants = await this.database
+      .select()
+      .from(lessonPreparationGrants)
+      .where(
+        and(
+          isNull(lessonPreparationGrants.runId),
+          isNull(lessonPreparationGrants.stoppedAt),
+        ),
+      )
+      .limit(100);
+    for (const grant of grants) {
+      if (!grant.jobId) {
+        try {
+          await this.dispatchGeneration(grant);
+        } catch (error) {
+          if (!(error instanceof PublicError)) throw error;
+          await this.database
+            .update(lessonPreparationGrants)
+            .set({ stoppedAt: this.now() })
+            .where(eq(lessonPreparationGrants.id, grant.id));
+        }
+        continue;
+      }
+      await this.database.transaction(async (tx) => {
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(hashtext(${grant.projectId}))`,
+        );
+        const [fresh] = await tx
+          .select()
+          .from(lessonPreparationGrants)
+          .where(eq(lessonPreparationGrants.id, grant.id))
+          .for("update");
+        if (!fresh || fresh.runId || fresh.stoppedAt) return;
+        const [job] = await tx
+          .select()
+          .from(jobs)
+          .where(
+            and(
+              eq(jobs.id, grant.jobId!),
+              eq(jobs.ownerUserId, grant.ownerUserId),
+              eq(jobs.projectId, grant.projectId),
+            ),
+          );
+        if (!job || activeJob(job.state)) return;
+        const result = z
+          .object({ candidateId: z.string().uuid() })
+          .safeParse(job.resultMetadata);
+        if (job.state !== "succeeded" || !result.success) {
+          await tx
+            .update(lessonPreparationGrants)
+            .set({ stoppedAt: this.now() })
+            .where(eq(lessonPreparationGrants.id, grant.id));
+          return;
+        }
+        const [spec] = await tx
+          .select()
+          .from(lessonSpecs)
+          .where(
+            and(
+              eq(lessonSpecs.id, result.data.candidateId),
+              eq(lessonSpecs.ownerUserId, grant.ownerUserId),
+              eq(lessonSpecs.projectId, grant.projectId),
+            ),
+          );
+        if (!spec || spec.status !== "draft") return;
+        const current = await this.readiness.currentSpec(
+          {
+            ownerUserId: grant.ownerUserId as Identifier,
+            projectId: grant.projectId as Identifier,
+          },
+          tx,
+        );
+        if (current.row.id !== spec.id) {
+          await tx
+            .update(lessonPreparationGrants)
+            .set({ stoppedAt: this.now() })
+            .where(eq(lessonPreparationGrants.id, grant.id));
+          return;
+        }
+        const [active] = await tx
+          .select()
+          .from(lessonRecoveryRuns)
+          .where(
+            and(
+              eq(lessonRecoveryRuns.ownerUserId, grant.ownerUserId),
+              eq(lessonRecoveryRuns.projectId, grant.projectId),
+              isNull(lessonRecoveryRuns.stoppedAt),
+            ),
+          )
+          .for("update");
+        if (active?.leaseUntil) return;
+        const [run] = active
+          ? await tx
+              .update(lessonRecoveryRuns)
+              .set({
+                lessonSpecId: spec.id,
+                revision: spec.revision,
+                state: "queued",
+                failureCode: null,
+                allowanceUsd: String(
+                  money(
+                    Number(active.allowanceUsd) + Number(grant.allowanceUsd),
+                  ),
+                ),
+              })
+              .where(eq(lessonRecoveryRuns.id, active.id))
+              .returning()
+          : await tx
+              .insert(lessonRecoveryRuns)
+              .values({
+                id: createId(),
+                ownerUserId: grant.ownerUserId,
+                projectId: grant.projectId,
+                lessonSpecId: spec.id,
+                revision: spec.revision,
+                idempotencyKey: `generation:${grant.id}`,
+                allowanceUsd: grant.allowanceUsd,
+                correlationId: grant.correlationId,
+                authorizationRequests: {
+                  [grant.idempotencyKey]: grant.fingerprint,
+                },
+              })
+              .returning();
+        await tx
+          .update(lessonPreparationGrants)
+          .set({ runId: run!.id, updatedAt: this.now() })
+          .where(eq(lessonPreparationGrants.id, grant.id));
+        await this.schedule(tx, run!, run!.sequence, 0);
+      });
+    }
+  }
+
+  async oneShotState(
+    scope: RecoveryScope,
+  ): Promise<
+    "available" | "preparing" | "complete" | "needs_action" | undefined
+  > {
+    if (!this.readiness.enabled) return undefined;
+    const [generation] = await this.database
+      .select()
+      .from(oneShotRuns)
+      .where(
+        and(
+          eq(oneShotRuns.ownerUserId, scope.ownerUserId),
+          eq(oneShotRuns.projectId, scope.projectId),
+        ),
+      )
+      .orderBy(desc(oneShotRuns.createdAt))
+      .limit(1);
+    if (!generation?.preparationAuthorized) return undefined;
+    const [run] = await this.database
+      .select()
+      .from(lessonRecoveryRuns)
+      .where(
+        and(
+          eq(lessonRecoveryRuns.ownerUserId, scope.ownerUserId),
+          eq(lessonRecoveryRuns.projectId, scope.projectId),
+          eq(lessonRecoveryRuns.oneShotRunId, generation.id),
+        ),
+      )
+      .orderBy(desc(lessonRecoveryRuns.createdAt))
+      .limit(1);
+    if (!run) return "available";
+    if (run.stoppedAt) return "needs_action";
+    if (["queued", "running", "retry_wait"].includes(run.state))
+      return "preparing";
+    const readiness = await this.readiness.read(scope);
+    return readiness.tasks.some(
+      (task) =>
+        ["audio", "captions", "timing", "asset"].includes(task.operation) &&
+        !["succeeded", "superseded", "cancelled"].includes(task.state),
+    )
+      ? "needs_action"
+      : "complete";
+  }
+
+  /** Transfer a bounded portion of the already-confirmed video cap, never a new grant. */
+  async prepareOneShot(
+    input: RecoveryScope & { oneShotRunId: Identifier },
+  ): Promise<boolean> {
+    if (!this.readiness.enabled) return false;
+    const estimate = await this.estimate(input);
+    await this.database.transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${input.projectId}))`,
+      );
+      const [generation] = await tx
+        .select()
+        .from(oneShotRuns)
+        .where(
+          and(
+            eq(oneShotRuns.id, input.oneShotRunId),
+            eq(oneShotRuns.ownerUserId, input.ownerUserId),
+            eq(oneShotRuns.projectId, input.projectId),
+          ),
+        )
+        .for("update");
+      if (
+        !generation?.preparationAuthorized ||
+        generation.capUsd === null ||
+        generation.status === "cancelled"
+      )
+        throw new PublicError(
+          "edit_conflict",
+          "Confirm a preparation allowance before continuing.",
+          409,
+        );
+      const [existing] = await tx
+        .select()
+        .from(lessonRecoveryRuns)
+        .where(
+          and(
+            eq(lessonRecoveryRuns.ownerUserId, input.ownerUserId),
+            eq(lessonRecoveryRuns.projectId, input.projectId),
+            or(
+              eq(lessonRecoveryRuns.oneShotRunId, generation.id),
+              isNull(lessonRecoveryRuns.stoppedAt),
+            ),
+          ),
+        )
+        .orderBy(desc(lessonRecoveryRuns.createdAt))
+        .limit(1)
+        .for("update");
+      if (existing) {
+        // Switching workflows reuses the session. A stopped session requires an
+        // explicit preparation command; a runner tick is not new authorization.
+        if (!existing.stoppedAt && existing.oneShotRunId !== generation.id)
+          await tx
+            .update(lessonRecoveryRuns)
+            .set({ oneShotRunId: generation.id })
+            .where(eq(lessonRecoveryRuns.id, existing.id));
+        return;
+      }
+      const current = await this.readiness.currentSpec(input, tx);
+      if (current.row.revision !== estimate.revision)
+        throw new PublicError(
+          "edit_conflict",
+          "The lesson changed while preparation was estimated.",
+          409,
+        );
+      const [usage] = await tx
+        .select({
+          total: sql<string>`coalesce(sum(${usageRecords.estimatedCostUsd}), 0)`,
+        })
+        .from(usageRecords)
+        .where(
+          and(
+            eq(usageRecords.ownerUserId, input.ownerUserId),
+            eq(usageRecords.projectId, input.projectId),
+            eq(usageRecords.correlationId, generation.correlationId),
+          ),
+        );
+      const allocation = Math.max(
+        0,
+        Math.min(
+          estimate.maximumCostUsd,
+          money(
+            Number(generation.capUsd) -
+              Number(generation.preparationAllowanceUsd) -
+              Number(usage?.total ?? 0),
+          ),
+        ),
+      );
+      await tx
+        .update(oneShotRuns)
+        .set({
+          preparationAllowanceUsd: String(
+            money(Number(generation.preparationAllowanceUsd) + allocation),
+          ),
+        })
+        .where(eq(oneShotRuns.id, generation.id));
+      const [run] = await tx
+        .insert(lessonRecoveryRuns)
+        .values({
+          id: createId(),
+          ...input,
+          lessonSpecId: current.row.id,
+          revision: current.row.revision,
+          idempotencyKey: `oneshot:${generation.id}`,
+          allowanceUsd: String(allocation),
+          correlationId: createId(),
+          authorizationRequests: {
+            [`oneshot:${generation.id}`]: estimate.fingerprint,
+          },
+        })
+        .returning();
+      await this.schedule(tx, run!, 0, 0);
+    });
+    return true;
+  }
+
   /** Free durable notification delivery; it neither grants nor expands authority. */
   async drainSignals(): Promise<number> {
     if (!this.readiness.enabled) return 0;
-    const candidates = await this.database.select().from(lessonRecoverySignals)
-      .where(sql`${lessonRecoverySignals.changedAt} <= ${new Date(this.now().getTime() - 2000).toISOString()}`)
-      .orderBy(lessonRecoverySignals.changedAt).limit(100);
+    await this.enrollGenerationGrants();
+    const candidates = await this.database
+      .select()
+      .from(lessonRecoverySignals)
+      .where(
+        sql`${lessonRecoverySignals.changedAt} <= ${new Date(this.now().getTime() - 2000).toISOString()}`,
+      )
+      .orderBy(lessonRecoverySignals.changedAt)
+      .limit(100);
     let scheduled = 0;
     for (const candidate of candidates) {
       scheduled += await this.database.transaction(async (tx) => {
-        await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${candidate.projectId}))`);
-        const [run] = await tx.select().from(lessonRecoveryRuns).where(and(
-          eq(lessonRecoveryRuns.ownerUserId, candidate.ownerUserId),
-          eq(lessonRecoveryRuns.projectId, candidate.projectId),
-          isNull(lessonRecoveryRuns.stoppedAt),
-        )).for("update");
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(hashtext(${candidate.projectId}))`,
+        );
+        const [run] = await tx
+          .select()
+          .from(lessonRecoveryRuns)
+          .where(
+            and(
+              eq(lessonRecoveryRuns.ownerUserId, candidate.ownerUserId),
+              eq(lessonRecoveryRuns.projectId, candidate.projectId),
+              isNull(lessonRecoveryRuns.stoppedAt),
+            ),
+          )
+          .for("update");
         // A running coordinator may have already read its inputs. Leave the
         // notification for its successor rather than losing that concurrent edit.
         if (run?.leaseUntil) return 0;
-        const consumed = await tx.delete(lessonRecoverySignals).where(and(
-          eq(lessonRecoverySignals.ownerUserId, candidate.ownerUserId),
-          eq(lessonRecoverySignals.projectId, candidate.projectId),
-          eq(lessonRecoverySignals.changedAt, candidate.changedAt),
-        )).returning();
+        const consumed = await tx
+          .delete(lessonRecoverySignals)
+          .where(
+            and(
+              eq(lessonRecoverySignals.ownerUserId, candidate.ownerUserId),
+              eq(lessonRecoverySignals.projectId, candidate.projectId),
+              eq(lessonRecoverySignals.changedAt, candidate.changedAt),
+            ),
+          )
+          .returning();
         if (!consumed.length || !run) return 0;
-        await tx.update(lessonRecoveryRuns).set({ state: "queued", updatedAt: this.now() })
+        await tx
+          .update(lessonRecoveryRuns)
+          .set({ state: "queued", updatedAt: this.now() })
           .where(eq(lessonRecoveryRuns.id, run.id));
         await this.schedule(tx, run, run.sequence, 0);
         return 1;
@@ -174,7 +690,26 @@ export class LessonRecoveryService implements LessonRecoveryApi {
             );
       return { scene, audio, fingerprint, cost };
     });
-    return { ...current, voice, entries };
+    const [source] = await this.database
+      .select({
+        id: sourceSnapshots.id,
+        contentHash: sourceSnapshots.contentHash,
+      })
+      .from(sourceSnapshots)
+      .where(
+        and(
+          eq(sourceSnapshots.ownerUserId, scope.ownerUserId),
+          eq(sourceSnapshots.projectId, scope.projectId),
+        ),
+      )
+      .orderBy(desc(sourceSnapshots.snapshotVersion))
+      .limit(1);
+    return {
+      ...current,
+      voice,
+      entries,
+      sourceFingerprint: digest(source ?? null),
+    };
   }
 
   async estimate(scope: RecoveryScope): Promise<RecoveryEstimate> {
@@ -189,7 +724,11 @@ export class LessonRecoveryService implements LessonRecoveryApi {
         pricing: this.pricing,
       }),
       maximumCostUsd: money(
-        state.entries.reduce((sum, entry) => sum + entry.cost, 0),
+        state.entries.reduce((sum, entry) => sum + entry.cost, 0) +
+          (this.integrations.grounding
+            ? 3 * this.pricing.modelCallCostUsd +
+              3 * state.entries.length * this.pricing.imageCostUsd
+            : 0),
       ),
       scenes: state.entries.length,
       coversSavedEdits: true,
@@ -210,7 +749,10 @@ export class LessonRecoveryService implements LessonRecoveryApi {
         and(
           eq(lessonRecoveryRuns.ownerUserId, input.ownerUserId),
           eq(lessonRecoveryRuns.projectId, input.projectId),
-          or(eq(lessonRecoveryRuns.idempotencyKey, command.idempotencyKey), sql`${lessonRecoveryRuns.authorizationRequests} ->> ${command.idempotencyKey} is not null`),
+          or(
+            eq(lessonRecoveryRuns.idempotencyKey, command.idempotencyKey),
+            sql`${lessonRecoveryRuns.authorizationRequests} ->> ${command.idempotencyKey} is not null`,
+          ),
         ),
       );
     if (existing) return this.readiness.read(input);
@@ -252,15 +794,6 @@ export class LessonRecoveryService implements LessonRecoveryApi {
         )
         .orderBy(desc(oneShotRuns.createdAt))
         .limit(1);
-      if (
-        oneShot &&
-        ["queued", "running", "preparing", "repairing"].includes(oneShot.status)
-      )
-        throw new PublicError(
-          "edit_conflict",
-          "Lesson generation is already preparing this project. Its allowance will be reused.",
-          409,
-        );
       const [active] = await tx
         .select()
         .from(lessonRecoveryRuns)
@@ -272,6 +805,16 @@ export class LessonRecoveryService implements LessonRecoveryApi {
           ),
         )
         .for("update");
+      if (
+        !active &&
+        oneShot &&
+        ["queued", "running", "preparing", "repairing"].includes(oneShot.status)
+      )
+        throw new PublicError(
+          "edit_conflict",
+          "Lesson generation is already preparing this project. Its allowance will be reused.",
+          409,
+        );
       if (active) {
         const receipts = z
           .record(z.string())
@@ -304,7 +847,7 @@ export class LessonRecoveryService implements LessonRecoveryApi {
           .set({
             state: "needs_action",
             jobId: null,
-            priorAttempts: sql`${lessonRecoveryTasks.attempts}`,
+            priorAttempts: sql`case when ${lessonRecoveryTasks.operation} = 'asset' then 0 else ${lessonRecoveryTasks.attempts} end`,
             failureCode: "RECOVERY_ALLOWANCE_EXHAUSTED",
             calls: {},
             reservedUsd: "0",
@@ -345,7 +888,7 @@ export class LessonRecoveryService implements LessonRecoveryApi {
           runId: run!.id,
           state: "needs_action",
           jobId: null,
-          priorAttempts: sql`${lessonRecoveryTasks.attempts}`,
+          priorAttempts: sql`case when ${lessonRecoveryTasks.operation} = 'asset' then 0 else ${lessonRecoveryTasks.attempts} end`,
           failureCode: "RECOVERY_ALLOWANCE_EXHAUSTED",
           calls: {},
           reservedUsd: "0",
@@ -366,6 +909,19 @@ export class LessonRecoveryService implements LessonRecoveryApi {
 
   async stop(input: RecoveryScope & { body: unknown }) {
     const command = parse(recoveryCommandSchema, input.body);
+    const stopReceipt = `stop:${command.idempotencyKey}`;
+    const [stopped] = await this.database
+      .select({ id: lessonRecoveryRuns.id })
+      .from(lessonRecoveryRuns)
+      .where(
+        and(
+          eq(lessonRecoveryRuns.ownerUserId, input.ownerUserId),
+          eq(lessonRecoveryRuns.projectId, input.projectId),
+          sql`${lessonRecoveryRuns.authorizationRequests} ->> ${stopReceipt} is not null`,
+        ),
+      )
+      .limit(1);
+    if (stopped) return this.readiness.read(input);
     const { row } = await this.readiness.currentSpec(input);
     if (row.revision !== command.expectedRevision)
       throw new PublicError(
@@ -377,11 +933,22 @@ export class LessonRecoveryService implements LessonRecoveryApi {
       await tx.execute(
         sql`select pg_advisory_xact_lock(hashtext(${input.projectId}))`,
       );
+      await tx
+        .update(lessonPreparationGrants)
+        .set({ stoppedAt: this.now(), updatedAt: this.now() })
+        .where(
+          and(
+            eq(lessonPreparationGrants.ownerUserId, input.ownerUserId),
+            eq(lessonPreparationGrants.projectId, input.projectId),
+            isNull(lessonPreparationGrants.stoppedAt),
+          ),
+        );
       const runs = await tx
         .update(lessonRecoveryRuns)
         .set({
           stoppedAt: this.now(),
           state: "cancelled",
+          authorizationRequests: sql`${lessonRecoveryRuns.authorizationRequests} || ${JSON.stringify({ [stopReceipt]: "stopped" })}::jsonb`,
           updatedAt: this.now(),
         })
         .where(
@@ -401,7 +968,7 @@ export class LessonRecoveryService implements LessonRecoveryApi {
               eq(lessonRecoveryTasks.runId, run.id),
               eq(lessonRecoveryTasks.ownerUserId, input.ownerUserId),
               eq(lessonRecoveryTasks.projectId, input.projectId),
-              sql`${lessonRecoveryTasks.state} in ('queued','running','retry_wait')`,
+              sql`${lessonRecoveryTasks.state} in ('queued','running','retry_wait','needs_action')`,
             ),
           );
     });
@@ -454,6 +1021,451 @@ export class LessonRecoveryService implements LessonRecoveryApi {
       });
   }
 
+  private async reserveTechnicalTask(
+    run: Run,
+    scope: RecoveryScope,
+    operation: "grounding" | "asset",
+    fingerprint: string,
+    cost: number,
+    sceneId: string | null,
+    issueCodes: string[],
+  ) {
+    return this.database.transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${scope.projectId}))`,
+      );
+      const [existing] = await tx
+        .select()
+        .from(lessonRecoveryTasks)
+        .where(
+          and(
+            eq(lessonRecoveryTasks.ownerUserId, scope.ownerUserId),
+            eq(lessonRecoveryTasks.projectId, scope.projectId),
+            eq(lessonRecoveryTasks.operation, operation),
+            eq(lessonRecoveryTasks.fingerprint, fingerprint),
+          ),
+        )
+        .for("update");
+      if (
+        existing &&
+        !(
+          existing.state === "needs_action" &&
+          existing.failureCode === "RECOVERY_ALLOWANCE_EXHAUSTED"
+        )
+      )
+        return existing;
+      const [authority] = await tx
+        .select()
+        .from(lessonRecoveryRuns)
+        .where(
+          and(
+            eq(lessonRecoveryRuns.id, run.id),
+            isNull(lessonRecoveryRuns.stoppedAt),
+          ),
+        )
+        .for("update");
+      if (!authority) return undefined;
+      const affordable =
+        Number(authority.reservedUsd) + cost <=
+        Number(authority.allowanceUsd) + 0.0000001;
+      const values = {
+        state: affordable ? "queued" : "needs_action",
+        reservedUsd: String(affordable ? cost : 0),
+        failureCode: affordable ? null : "RECOVERY_ALLOWANCE_EXHAUSTED",
+        updatedAt: this.now(),
+      };
+      const [task] = existing
+        ? await tx
+            .update(lessonRecoveryTasks)
+            .set(values)
+            .where(eq(lessonRecoveryTasks.id, existing.id))
+            .returning()
+        : await tx
+            .insert(lessonRecoveryTasks)
+            .values({
+              id: createId(),
+              ...scope,
+              runId: run.id,
+              operation,
+              fingerprint,
+              sceneId,
+              issueCodes,
+              ...values,
+            })
+            .returning();
+      if (affordable)
+        await tx
+          .update(lessonRecoveryRuns)
+          .set({
+            reservedUsd: String(money(Number(authority.reservedUsd) + cost)),
+          })
+          .where(eq(lessonRecoveryRuns.id, run.id));
+      return task;
+    });
+  }
+
+  private async settleTechnicalTask(
+    task: typeof lessonRecoveryTasks.$inferSelect,
+    state: "succeeded" | "failed",
+    failureCode: string | null = null,
+  ) {
+    await this.database.transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${task.projectId}))`,
+      );
+      const [fresh] = await tx
+        .select()
+        .from(lessonRecoveryTasks)
+        .where(eq(lessonRecoveryTasks.id, task.id))
+        .for("update");
+      if (
+        !fresh ||
+        ["succeeded", "failed", "cancelled", "superseded"].includes(fresh.state)
+      )
+        return;
+      const spent = Object.values(
+        z.record(z.number()).parse(fresh.calls),
+      ).reduce((sum, cost) => sum + cost, 0);
+      const release = Math.max(0, Number(fresh.reservedUsd) - spent);
+      await tx
+        .update(lessonRecoveryTasks)
+        .set({
+          state,
+          failureCode,
+          reservedUsd: String(money(spent)),
+          updatedAt: this.now(),
+        })
+        .where(eq(lessonRecoveryTasks.id, fresh.id));
+      await tx
+        .update(lessonRecoveryRuns)
+        .set({
+          reservedUsd: sql`greatest(0, ${lessonRecoveryRuns.reservedUsd} - ${release})`,
+        })
+        .where(eq(lessonRecoveryRuns.id, fresh.runId));
+    });
+  }
+
+  private async recoverGrounding(
+    run: Run,
+    scope: RecoveryScope,
+    state: Awaited<ReturnType<LessonRecoveryService["inputs"]>>,
+    report: Awaited<ReturnType<LessonValidationService["run"]>>,
+  ) {
+    const stale = report.issues.filter(
+      (issue) =>
+        issue.code === "grounding_recheck_required" &&
+        issue.fieldPath.endsWith(".sourceRefs"),
+    );
+    const fingerprint = digest({
+      spec: state.row.id,
+      revision: state.row.revision,
+      hash: state.row.contentHash,
+      source: state.sourceFingerprint,
+    });
+    if (stale.length === 0) {
+      const completed = await this.database
+        .select()
+        .from(lessonRecoveryTasks)
+        .where(
+          and(
+            eq(lessonRecoveryTasks.runId, run.id),
+            eq(lessonRecoveryTasks.operation, "grounding"),
+            eq(lessonRecoveryTasks.fingerprint, fingerprint),
+            sql`${lessonRecoveryTasks.state} in ('queued','running','retry_wait')`,
+          ),
+        );
+      for (const task of completed)
+        await this.settleTechnicalTask(task, "succeeded");
+    }
+    if (
+      !this.integrations.grounding ||
+      stale.length === 0 ||
+      report.issues.some(
+        (issue) =>
+          issue.code === "grounding_missing" && issue.severity === "error",
+      )
+    )
+      return false;
+    await this.database
+      .update(lessonRecoveryTasks)
+      .set({ state: "superseded", updatedAt: this.now() })
+      .where(
+        and(
+          eq(lessonRecoveryTasks.ownerUserId, scope.ownerUserId),
+          eq(lessonRecoveryTasks.projectId, scope.projectId),
+          eq(lessonRecoveryTasks.operation, "grounding"),
+          sql`${lessonRecoveryTasks.fingerprint} <> ${fingerprint}`,
+          sql`${lessonRecoveryTasks.state} in ('queued','running','retry_wait')`,
+        ),
+      );
+    const task = await this.reserveTechnicalTask(
+      run,
+      scope,
+      "grounding",
+      fingerprint,
+      money(3 * this.pricing.modelCallCostUsd),
+      null,
+      ["grounding_recheck_required"],
+    );
+    if (
+      !task ||
+      [
+        "needs_action",
+        "failed",
+        "succeeded",
+        "cancelled",
+        "superseded",
+      ].includes(task.state)
+    )
+      return false;
+    if (task.jobId) {
+      const [job] = await this.database
+        .select()
+        .from(jobs)
+        .where(
+          and(
+            eq(jobs.id, task.jobId),
+            eq(jobs.ownerUserId, scope.ownerUserId),
+            eq(jobs.projectId, scope.projectId),
+          ),
+        );
+      if (job && activeJob(job.state)) {
+        await this.database
+          .update(lessonRecoveryTasks)
+          .set({
+            state: job.state === "retry_wait" ? "retry_wait" : "running",
+            attempts: Math.min(3, task.priorAttempts + job.attempts),
+            updatedAt: this.now(),
+          })
+          .where(eq(lessonRecoveryTasks.id, task.id));
+        return true;
+      }
+      if (job)
+        await this.database
+          .update(lessonRecoveryTasks)
+          .set({
+            attempts: Math.min(3, task.priorAttempts + job.attempts),
+            updatedAt: this.now(),
+          })
+          .where(eq(lessonRecoveryTasks.id, task.id));
+      await this.settleTechnicalTask(
+        task,
+        "failed",
+        job?.state === "succeeded"
+          ? "RECOVERY_NO_PROGRESS"
+          : "RECOVERY_SERVICE_UNAVAILABLE",
+      );
+      return false;
+    }
+    const response = await this.integrations.grounding.check({
+      ...scope,
+      recoveryTaskId: task.id as Identifier,
+      correlationId: run.correlationId as Identifier,
+      ...(run.oneShotRunId
+        ? { oneShotRunId: run.oneShotRunId as Identifier }
+        : {}),
+      idempotencyKey: `recovery:${task.id}:${task.priorAttempts}:${task.runId}`,
+      body: {
+        scope: "lesson",
+        lessonSpecId: state.row.id,
+        lessonSpecRevision: state.row.revision,
+      },
+    });
+    if (response.cached) await this.settleTechnicalTask(task, "succeeded");
+    return !response.cached;
+  }
+
+  private async recoverAssets(run: Run, scope: RecoveryScope) {
+    const candidates = await this.database
+      .select()
+      .from(illustrationGenerationCandidates)
+      .innerJoin(
+        scenes,
+        eq(scenes.id, illustrationGenerationCandidates.sceneId),
+      )
+      .where(
+        and(
+          eq(illustrationGenerationCandidates.ownerUserId, scope.ownerUserId),
+          eq(illustrationGenerationCandidates.projectId, scope.projectId),
+          eq(scenes.lessonSpecId, run.lessonSpecId),
+          eq(illustrationGenerationCandidates.status, "failed"),
+        ),
+      );
+    let pending = false;
+    for (const candidate of candidates) {
+      const [job] = await this.database
+        .select()
+        .from(jobs)
+        .where(
+          and(
+            eq(jobs.ownerUserId, scope.ownerUserId),
+            eq(jobs.projectId, scope.projectId),
+            eq(jobs.jobType, "illustration.generate"),
+            sql`${jobs.payload} ->> 'candidateId' = ${candidate.illustration_generation_candidates.id}`,
+          ),
+        )
+        .orderBy(desc(jobs.createdAt))
+        .limit(1);
+      if (!job || activeJob(job.state)) {
+        pending ||= !!job && activeJob(job.state);
+        continue;
+      }
+      if (job.state === "succeeded") continue; // An approved fallback already completed this job.
+      const task = await this.reserveTechnicalTask(
+        run,
+        scope,
+        "asset",
+        digest({ job: job.id, input: job.inputVersion }),
+        money(3 * this.pricing.imageCostUsd),
+        candidate.scenes.stableSceneId,
+        ["asset_missing"],
+      );
+      if (
+        !task ||
+        [
+          "needs_action",
+          "failed",
+          "succeeded",
+          "cancelled",
+          "superseded",
+        ].includes(task.state)
+      )
+        continue;
+      // The existing illustration worker builds from the scene. An intervening
+      // teacher edit therefore needs review rather than a changed prompt retry.
+      if (
+        job.state !== "failed" ||
+        job.errorClassification !== "retryable" ||
+        job.attempts >= 3 ||
+        candidate.scenes.updatedAt > job.createdAt
+      ) {
+        await this.settleTechnicalTask(
+          task,
+          "failed",
+          job.attempts >= 3
+            ? "RECOVERY_ATTEMPTS_EXHAUSTED"
+            : "RECOVERY_ASSET_REVIEW_REQUIRED",
+        );
+        continue;
+      }
+      if (task.jobId) {
+        await this.settleTechnicalTask(
+          task,
+          "failed",
+          "RECOVERY_SERVICE_UNAVAILABLE",
+        );
+        continue;
+      }
+      await this.database.transaction(async (tx) => {
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(hashtext(${scope.projectId}))`,
+        );
+        const [authority] = await tx
+          .select()
+          .from(lessonRecoveryRuns)
+          .where(
+            and(
+              eq(lessonRecoveryRuns.id, run.id),
+              isNull(lessonRecoveryRuns.stoppedAt),
+            ),
+          )
+          .for("update");
+        if (!authority) return;
+        const [retried] = await tx
+          .update(jobs)
+          .set({
+            state: "queued",
+            completedAt: null,
+            availableAt: this.now(),
+            updatedAt: this.now(),
+          })
+          .where(
+            and(
+              eq(jobs.id, job.id),
+              eq(jobs.state, "failed"),
+              sql`${jobs.attempts} < 3`,
+            ),
+          )
+          .returning();
+        if (!retried) return;
+        await tx
+          .update(lessonRecoveryTasks)
+          .set({
+            jobId: job.id,
+            state: "running",
+            attempts: job.attempts,
+            updatedAt: this.now(),
+          })
+          .where(eq(lessonRecoveryTasks.id, task.id));
+        const envelope = createJobEnvelope(z.unknown(), {
+          jobId: job.id as Identifier,
+          jobType: job.jobType,
+          ...scope,
+          correlationId: job.correlationId as Identifier,
+          inputVersion: job.inputVersion,
+          idempotencyKey: job.idempotencyKey,
+          payloadVersion: job.payloadVersion,
+          payload: job.payload,
+          requestedAt: this.now(),
+        });
+        await tx.insert(outboxEvents).values({
+          id: createId(),
+          jobId: job.id,
+          queueName: job.queueName,
+          eventType: `recovery.asset_retry.${job.attempts}`,
+          envelope,
+          deliveryOptions: {
+            maxAttempts: Math.max(1, 3 - job.attempts),
+            retryDelayMs: 5000,
+          },
+        });
+      });
+      pending = true;
+    }
+    // Successful candidates still require the existing asset review/apply flow.
+    const active = await this.database
+      .select()
+      .from(lessonRecoveryTasks)
+      .where(
+        and(
+          eq(lessonRecoveryTasks.runId, run.id),
+          eq(lessonRecoveryTasks.operation, "asset"),
+          sql`${lessonRecoveryTasks.state} in ('running','retry_wait')`,
+        ),
+      );
+    for (const task of active) {
+      const [job] = await this.database
+        .select()
+        .from(jobs)
+        .where(
+          and(
+            eq(jobs.id, task.jobId!),
+            eq(jobs.ownerUserId, scope.ownerUserId),
+            eq(jobs.projectId, scope.projectId),
+          ),
+        );
+      if (job)
+        await this.database
+          .update(lessonRecoveryTasks)
+          .set({
+            attempts: Math.min(3, job.attempts),
+            ...(activeJob(job.state)
+              ? { state: job.state === "retry_wait" ? "retry_wait" : "running" }
+              : {}),
+            updatedAt: this.now(),
+          })
+          .where(eq(lessonRecoveryTasks.id, task.id));
+      if (job && activeJob(job.state)) pending = true;
+      else
+        await this.settleTechnicalTask(
+          task,
+          job?.state === "succeeded" ? "succeeded" : "failed",
+          job?.state === "succeeded" ? null : "RECOVERY_SERVICE_UNAVAILABLE",
+        );
+    }
+    return pending;
+  }
+
   handler(): RegisteredJobHandler {
     return defineJobHandler(
       "lesson.recovery.advance",
@@ -498,6 +1510,23 @@ export class LessonRecoveryService implements LessonRecoveryApi {
               updatedAt: this.now(),
             })
             .where(eq(lessonRecoveryRuns.id, run.id));
+          await this.database
+            .update(lessonRecoveryTasks)
+            .set({
+              state: "needs_action",
+              failureCode:
+                error instanceof PublicError
+                  ? "RECOVERY_REVIEW_REQUIRED"
+                  : "RECOVERY_SERVICE_UNAVAILABLE",
+              updatedAt: this.now(),
+            })
+            .where(
+              and(
+                eq(lessonRecoveryTasks.runId, run.id),
+                eq(lessonRecoveryTasks.state, "queued"),
+                isNull(lessonRecoveryTasks.jobId),
+              ),
+            );
           if (!(error instanceof PublicError)) {
             await this.database
               .update(lessonRecoveryRuns)
@@ -616,8 +1645,13 @@ export class LessonRecoveryService implements LessonRecoveryApi {
         entry.audio.durationMs !== null &&
         entry.audio.durationMs > entry.scene.durationSeconds * 1000 &&
         codes.every((code) => code === "caption_timing_invalid") &&
-        report.issues.some((issue) => issue.sceneId === entry.scene.stableSceneId && issue.code === "audio_duration_mismatch")
-      ) continue;
+        report.issues.some(
+          (issue) =>
+            issue.sceneId === entry.scene.stableSceneId &&
+            issue.code === "audio_duration_mismatch",
+        )
+      )
+        continue;
       const operation =
         entry.audio?.status === "ready" && codes.length > 0
           ? "captions"
@@ -819,6 +1853,9 @@ export class LessonRecoveryService implements LessonRecoveryApi {
         sceneId: entry.scene.stableSceneId as Identifier,
         correlationId: run.correlationId as Identifier,
         recoveryTaskId: task.id as Identifier,
+        ...(run.oneShotRunId
+          ? { oneShotRunId: run.oneShotRunId as Identifier }
+          : {}),
         expectedRevision: state.row.revision,
         repairCaptions: codes.includes("caption_timing_invalid"),
         body: {
@@ -876,7 +1913,18 @@ export class LessonRecoveryService implements LessonRecoveryApi {
           })
           .onConflictDoNothing()
           .returning();
-        const [existing] = job ? [job] : await tx.select().from(jobs).where(and(eq(jobs.ownerUserId, scope.ownerUserId), eq(jobs.projectId, scope.projectId), eq(jobs.idempotencyKey, envelope.idempotencyKey)));
+        const [existing] = job
+          ? [job]
+          : await tx
+              .select()
+              .from(jobs)
+              .where(
+                and(
+                  eq(jobs.ownerUserId, scope.ownerUserId),
+                  eq(jobs.projectId, scope.projectId),
+                  eq(jobs.idempotencyKey, envelope.idempotencyKey),
+                ),
+              );
         pending = activeJob(existing?.state);
         if (job)
           await tx.insert(outboxEvents).values({
@@ -889,8 +1937,14 @@ export class LessonRecoveryService implements LessonRecoveryApi {
           });
       });
     }
+    pending = (await this.recoverAssets(run, scope)) || pending;
+    if (!pending)
+      pending = await this.recoverGrounding(run, scope, state, report);
     if (pending) {
-      await this.database.update(lessonRecoveryRuns).set({ state: "running", updatedAt: this.now() }).where(eq(lessonRecoveryRuns.id, run.id));
+      await this.database
+        .update(lessonRecoveryRuns)
+        .set({ state: "running", updatedAt: this.now() })
+        .where(eq(lessonRecoveryRuns.id, run.id));
     } else {
       report = await this.validation.run({ ...scope, body: {} });
       await this.database

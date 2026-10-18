@@ -504,7 +504,9 @@ export function createSceneAudioGenerationJobHandler(input: {
             ownerUserId: context.ownerUserId,
             projectId: context.projectId,
             operationType: "tts.generation",
-            idempotencyKey: `tts:${audio.id}`,
+            idempotencyKey: payload.recoveryTaskId
+              ? `tts:${audio.id}:${context.jobId}:${context.attempt}`
+              : `tts:${audio.id}`,
             provider: provider.providerId,
             model: provider.model ?? null,
             unit: "audio_second",
@@ -678,7 +680,9 @@ export function createSceneAudioGenerationJobHandler(input: {
                 ownerUserId: context.ownerUserId,
                 projectId: context.projectId,
                 operationType: "tts.generation",
-                idempotencyKey: `tts-alignment:${audio.id}`,
+                idempotencyKey: payload.recoveryTaskId
+                  ? `tts-alignment:${audio.id}:${context.jobId}:${context.attempt}`
+                  : `tts-alignment:${audio.id}`,
                 provider: alignmentProvider?.providerId ?? "unknown",
                 model: alignmentProvider?.model ?? null,
                 unit: "audio_minute",

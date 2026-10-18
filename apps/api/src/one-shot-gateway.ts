@@ -72,8 +72,10 @@ import type { SceneAudioService } from "./scene-audio.js";
 import type { SourceSnapshotService } from "./source-snapshot.js";
 import type { StoryboardService } from "./storyboard.js";
 import type { VoiceConfigurationService } from "./voice-configuration.js";
+import type { LessonRecoveryService } from "./lesson-recovery.js";
 
 export type OneShotGatewayServices = {
+  recovery?: Pick<LessonRecoveryService, "oneShotState" | "prepareOneShot">;
   database: DatabaseClient;
   ingestion: Pick<IngestionStatusService, "status">;
   sourceSnapshots: Pick<SourceSnapshotService, "status" | "approve">;
@@ -419,7 +421,10 @@ export class ServiceOneShotGateway
         `The ${stage} could not be approved.`,
         409,
       );
-    return { approvedId: approved.id as Identifier, revision: approved.revision };
+    return {
+      approvedId: approved.id as Identifier,
+      revision: approved.revision,
+    };
   }
 
   // ---- Storyboard and illustrations -------------------------------------
@@ -459,7 +464,9 @@ export class ServiceOneShotGateway
             ? {}
             : {
                 library: cinema.library!.length,
-                libraryExact: cinema.library!.filter((entry) => entry.match === "exact").length,
+                libraryExact: cinema.library!.filter(
+                  (entry) => entry.match === "exact",
+                ).length,
               }),
           motif: cinema.motif.length,
           budget: cinema.budget,
@@ -698,10 +705,15 @@ export class ServiceOneShotGateway
       else if (status.status === "failed") state.failed += 1;
       else state.missing += 1;
     }
-    return state;
+    const recovery = await this.services.recovery?.oneShotState(scope);
+    return { ...state, ...(recovery ? { recovery } : {}) };
   }
 
   public async requestAudio(context: OneShotCallContext) {
+    if (await this.services.recovery?.oneShotState(context)) {
+      await this.services.recovery!.prepareOneShot(context);
+      return;
+    }
     await this.services.sceneAudio.generateAll({
       ownerUserId: context.ownerUserId,
       projectId: context.projectId,
@@ -1188,7 +1200,9 @@ export class ServiceOneShotGateway
   }
 
   /** Document order of every section of the project's latest parse. */
-  private async sectionOrder(scope: OneShotScope): Promise<Map<string, number>> {
+  private async sectionOrder(
+    scope: OneShotScope,
+  ): Promise<Map<string, number>> {
     const document = await findLatestProjectParsedDocument(
       this.services.database,
       scope,

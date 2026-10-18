@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { recoveryDispatch } from "./recovery-dispatch.js";
 import { createId, type Identifier } from "@avlp/config";
 import {
   activeIllustrationLibraryEntries,
@@ -45,7 +46,11 @@ import {
 import { PostgresAuditWriter } from "@avlp/observability";
 import { and, eq, or } from "drizzle-orm";
 import sharp from "sharp";
-import { storageKeySchema, storageKeys, type ObjectStorage } from "@avlp/storage";
+import {
+  storageKeySchema,
+  storageKeys,
+  type ObjectStorage,
+} from "@avlp/storage";
 
 export const illustrationGenerationJobType = "illustration.generate";
 
@@ -119,7 +124,10 @@ export function createIllustrationGenerationJobHandler(input: {
         context,
         candidateId: candidate.id as Identifier,
         oneShotRunId: payload.oneShotRunId,
-        request: { prompt: illustrationPrompt(scene.sceneJson), style: "flat-educational-vector" },
+        request: {
+          prompt: illustrationPrompt(scene.sceneJson),
+          style: "flat-educational-vector",
+        },
         onFailure: "throw",
       });
     },
@@ -181,7 +189,10 @@ async function generateCandidateIllustration(input: {
   request: Pick<IllustrationRequest, "prompt" | "style">;
   onFailure: "throw" | "motif";
   maxAttempts?: number;
-  bind?: (transaction: DatabaseExecutor, assetId: Identifier) => Promise<JobMetadata>;
+  bind?: (
+    transaction: DatabaseExecutor,
+    assetId: Identifier,
+  ) => Promise<JobMetadata>;
   /** ST-113. Tried before the motif when `onFailure` is `"motif"`; returns
    * undefined when no library picture fits. */
   libraryFallback?: () => Promise<JobMetadata | undefined>;
@@ -207,13 +218,17 @@ async function generateCandidateIllustration(input: {
     if (input.libraryFallback === undefined) return { fallback: "motif" };
     try {
       const library = await input.libraryFallback();
-      return library === undefined ? { fallback: "motif" } : { fallback: "library", ...library };
+      return library === undefined
+        ? { fallback: "motif" }
+        : { fallback: "library", ...library };
     } catch (error) {
       // Only a code reaches job metadata, never a storage message or key.
       const code = error instanceof Error ? error.message : "";
       return {
         fallback: "motif",
-        libraryError: /^[A-Z][A-Z0-9_]{2,63}$/u.test(code) ? code : "ILLUSTRATION_LIBRARY_UNAVAILABLE",
+        libraryError: /^[A-Z][A-Z0-9_]{2,63}$/u.test(code)
+          ? code
+          : "ILLUSTRATION_LIBRARY_UNAVAILABLE",
       };
     }
   };
@@ -226,7 +241,7 @@ async function generateCandidateIllustration(input: {
     ownerUserId: context.ownerUserId,
     projectId: context.projectId,
     operationType: "image.generation" as const,
-    idempotencyKey: `illustration:${candidateId}`,
+    idempotencyKey: `illustration:${candidateId}:${context.jobId}:${context.attempt}`,
     provider: result.providerId,
     model: result.model ?? input.provider.model ?? null,
     unit: "image" as const,
@@ -243,7 +258,9 @@ async function generateCandidateIllustration(input: {
       ...extra,
       providerSelection: {
         contractVersion: "provider-envelope-v1",
-        ...providerSelectionReason(input.oneShotRunId as Identifier | undefined),
+        ...providerSelectionReason(
+          input.oneShotRunId as Identifier | undefined,
+        ),
         approvalReference: context.jobId,
         estimatedCostUsd: result.costUsd,
         actualCostUsd: result.costUsd,
@@ -251,17 +268,39 @@ async function generateCandidateIllustration(input: {
     },
     occurredAt: now(),
   });
+  let providerDispatched = false;
+  let usageRecorded = false;
+  let maximumReservedCostUsd = 0;
   try {
     const resolvedProvider = resolveJobAdapter({
       jobType: illustrationGenerationJobType,
       adapterFamily: "illustration",
       adapter: input.provider,
     });
-    const result = await resolvedProvider.adapter.generate({
-      prompt: input.request.prompt,
-      size: "1024x1024",
-      style: input.request.style,
-    });
+    const recovery = await recoveryDispatch(input.database, context);
+    if (recovery) await recovery.authorize("image");
+    maximumReservedCostUsd = recovery?.maximumCostUsd ?? 0;
+    providerDispatched = true;
+    const result = await resolvedProvider.adapter.generate(
+      {
+        prompt: input.request.prompt,
+        size: "1024x1024",
+        style: input.request.style,
+      },
+      recovery ? { disableRetries: true } : undefined,
+    );
+    // Provider output is billable even when subsequent storage or binding fails.
+    await input.database
+      .insert(usageRecords)
+      .values(
+        usage(
+          result,
+          result.moderation.status === "approved" ? "succeeded" : "failed",
+          {},
+        ),
+      )
+      .onConflictDoNothing();
+    usageRecorded = true;
     if (result.moderation.status !== "approved") {
       const moderationCode = result.moderation.code;
       await input.database.transaction(async (transaction) => {
@@ -348,9 +387,35 @@ async function generateCandidateIllustration(input: {
       if (bind !== undefined) bound = await bind(transaction, assetId);
     });
     return bind === undefined
-      ? { status: "pending_review", width: metadata.width, height: metadata.height }
-      : { status: "accepted", width: metadata.width, height: metadata.height, assetId, ...bound };
+      ? {
+          status: "pending_review",
+          width: metadata.width,
+          height: metadata.height,
+        }
+      : {
+          status: "accepted",
+          width: metadata.width,
+          height: metadata.height,
+          assetId,
+          ...bound,
+        };
   } catch (error) {
+    if (providerDispatched && !usageRecorded) {
+      await input.database
+        .insert(usageRecords)
+        .values({
+          ...usage(
+            { providerId: input.provider.providerId, units: 1, costUsd: 0 },
+            "failed",
+            {
+              uncertainProviderCharge: "true",
+              maximumReservedCostUsd: String(maximumReservedCostUsd),
+            },
+          ),
+          idempotencyKey: `illustration:${candidateId}:${context.jobId}:${context.attempt}:failed`,
+        })
+        .onConflictDoNothing();
+    }
     if (
       error instanceof ProviderEnvelopeViolationError ||
       error instanceof ApprovedProviderUnavailableError
@@ -384,7 +449,9 @@ async function generateCandidateIllustration(input: {
       .where(eq(illustrationGenerationCandidates.id, candidateId));
     const retryable = error instanceof ProviderCallError && error.retryable;
     const code =
-      error instanceof ProviderCallError ? error.code : "ILLUSTRATION_GENERATION_FAILED";
+      error instanceof ProviderCallError
+        ? error.code
+        : "ILLUSTRATION_GENERATION_FAILED";
     if (
       input.onFailure === "throw" ||
       (retryable && context.attempt < (input.maxAttempts ?? 3))
@@ -411,7 +478,9 @@ async function bindCinemaHero(
   payload: CinemaIllustrationJobPayload,
   assetId: Identifier,
   now: Date,
-  hero: Readonly<{ origin: "generated" | "library"; altText?: string }> = { origin: "generated" },
+  hero: Readonly<{ origin: "generated" | "library"; altText?: string }> = {
+    origin: "generated",
+  },
 ): Promise<JobMetadata> {
   const [draft] = await transaction
     .select()
@@ -427,7 +496,8 @@ async function bindCinemaHero(
     .for("update");
   if (draft === undefined) return { bound: [], unbound: "draft_missing" };
   const manifest = anyCreativeDesignManifestSchema.parse(draft.manifest);
-  if (!isCreativeDesignManifestV2(manifest)) return { bound: [], unbound: "draft_not_v2" };
+  if (!isCreativeDesignManifestV2(manifest))
+    return { bound: [], unbound: "draft_not_v2" };
   const [spec] = await transaction
     .select({ payload: lessonSpecs.payload })
     .from(lessonSpecs)
@@ -451,8 +521,10 @@ async function bindCinemaHero(
       design === undefined ||
       design.imagery.hero !== null ||
       design.imagery.brief === null ||
-      cinemaIllustrationKey(design.imagery.brief.concept, next.artDirection.treatment) !==
-        payload.key
+      cinemaIllustrationKey(
+        design.imagery.brief.concept,
+        next.artDirection.treatment,
+      ) !== payload.key
     )
       continue;
     const candidate: CreativeDesignManifestV2 = {
@@ -472,7 +544,8 @@ async function bindCinemaHero(
         },
       },
     };
-    if (validateCreativeDesignManifestV2(candidate, sceneSpecs).length > 0) continue;
+    if (validateCreativeDesignManifestV2(candidate, sceneSpecs).length > 0)
+      continue;
     next = candidate;
     bound.push(sceneId);
   }
@@ -486,7 +559,10 @@ async function bindCinemaHero(
         updatedAt: now,
       })
       .where(eq(creativeDesignDrafts.id, draft.id));
-  return { bound, draftRevision: bound.length > 0 ? draft.revision + 1 : draft.revision };
+  return {
+    bound,
+    draftRevision: bound.length > 0 ? draft.revision + 1 : draft.revision,
+  };
 }
 
 /**
@@ -524,7 +600,10 @@ export function createCinemaIllustrationJobHandler(input: {
         .where(
           and(
             eq(illustrationGenerationCandidates.id, payload.candidateId),
-            eq(illustrationGenerationCandidates.ownerUserId, context.ownerUserId),
+            eq(
+              illustrationGenerationCandidates.ownerUserId,
+              context.ownerUserId,
+            ),
             eq(illustrationGenerationCandidates.projectId, context.projectId),
           ),
         )
@@ -551,7 +630,9 @@ export function createCinemaIllustrationJobHandler(input: {
           style: `cinema-${payload.artDirection.treatment}`,
         },
         onFailure: "motif",
-        ...(input.maxAttempts === undefined ? {} : { maxAttempts: input.maxAttempts }),
+        ...(input.maxAttempts === undefined
+          ? {}
+          : { maxAttempts: input.maxAttempts }),
         bind: (transaction, assetId) =>
           bindCinemaHero(transaction, context, payload, assetId, now()),
         ...(input.library === undefined
@@ -595,7 +676,10 @@ async function pinLibraryHero(input: {
     treatment,
     surface,
     humanFigures,
-    entries: await activeIllustrationLibraryEntries(input.database, { treatment, surface }),
+    entries: await activeIllustrationLibraryEntries(input.database, {
+      treatment,
+      surface,
+    }),
   });
   if (found === null) return undefined;
   const copy = await copyLibraryIllustrationIntoProject({
@@ -607,7 +691,8 @@ async function pinLibraryHero(input: {
     now: input.now(),
     storage: {
       readCatalogBytes: async (key, maxBytes) =>
-        (await input.catalog.getBytes(storageKeySchema.parse(key), maxBytes)).body,
+        (await input.catalog.getBytes(storageKeySchema.parse(key), maxBytes))
+          .body,
       writeProjectBytes: async ({ assetId, bytes, sha256 }) => {
         const key = storageKeys.assetOriginal({
           userId: context.ownerUserId as Identifier,
@@ -619,7 +704,11 @@ async function pinLibraryHero(input: {
           key,
           body: bytes,
           contentType: "image/png",
-          metadata: { "library-entry-id": found.entry.entryId, provenance: "ai-generated", sha256 },
+          metadata: {
+            "library-entry-id": found.entry.entryId,
+            provenance: "ai-generated",
+            sha256,
+          },
         });
         return key;
       },
@@ -627,10 +716,17 @@ async function pinLibraryHero(input: {
   });
   if (copy === null) return undefined;
   const bound = await input.database.transaction((transaction) =>
-    bindCinemaHero(transaction, context, payload, copy.assetId as Identifier, input.now(), {
-      origin: "library",
-      altText: copy.altText,
-    }),
+    bindCinemaHero(
+      transaction,
+      context,
+      payload,
+      copy.assetId as Identifier,
+      input.now(),
+      {
+        origin: "library",
+        altText: copy.altText,
+      },
+    ),
   );
   return {
     assetId: copy.assetId,

@@ -58,7 +58,10 @@ import {
 import { ExportService } from "./exports.js";
 import { PostgresShareLinkService } from "./share-links.js";
 import { PostgresSoundBedService } from "./sound-beds.js";
-import { illustrationLibraryPrefix, soundBedCatalogPrefix } from "@avlp/schemas";
+import {
+  illustrationLibraryPrefix,
+  soundBedCatalogPrefix,
+} from "@avlp/schemas";
 import {
   PostgresJobRepository,
   redisConnectionFromUrl,
@@ -67,6 +70,7 @@ import {
 import {
   createStructuredLogger,
   PostgresGenerationQuotaGuard,
+  registerRecoveryReleaseMetrics,
 } from "@avlp/observability";
 import {
   DynamicMockLanguageModelProvider,
@@ -276,8 +280,9 @@ export async function runApi(input: {
       database.client,
       (input) => sourceSnapshotService.status(input),
     );
-    const outlineService = new PostgresOutlineService(database.client, (input) =>
-      sourceSnapshotService.status(input),
+    const outlineService = new PostgresOutlineService(
+      database.client,
+      (input) => sourceSnapshotService.status(input),
     );
     const narrationService = new PostgresNarrationService(
       database.client,
@@ -331,7 +336,23 @@ export async function runApi(input: {
     const creativeDesignService = new PostgresCreativeDesignService(
       database.client,
     );
+    const readinessService = new LessonReadinessService(
+      database.client,
+      lessonValidationService,
+      process.env.STORYBOARD_RECOVERY_ENABLED === "true",
+    );
+    registerRecoveryReleaseMetrics(database.client, readinessService.enabled);
+    const recoveryService = new LessonRecoveryService(
+      database.client,
+      readinessService,
+      lessonValidationService,
+      sceneAudioService,
+      oneShotPricingFromEnvironment(environment),
+      undefined,
+      { storyboard: storyboardService, grounding: groundingService },
+    );
     const oneShotGateway = new ServiceOneShotGateway({
+      recovery: recoveryService,
       database: database.client,
       ingestion: ingestionStatusService,
       sourceSnapshots: sourceSnapshotService,
@@ -386,8 +407,6 @@ export async function runApi(input: {
         maxBriefRevisions: environment.ONE_SHOT_MAX_BRIEF_REVISIONS,
       },
     );
-    const readinessService = new LessonReadinessService(database.client, lessonValidationService, process.env.STORYBOARD_RECOVERY_ENABLED === "true");
-    const recoveryService = new LessonRecoveryService(database.client, readinessService, lessonValidationService, sceneAudioService, oneShotPricingFromEnvironment(environment));
     const consumer = registerJobConsumer({
       queueName: "orchestration",
       connection: redisConnectionFromUrl(environment.REDIS_URL),
@@ -408,9 +427,12 @@ export async function runApi(input: {
     recoverySignalTimer = setInterval(() => {
       if (deliveringRecoverySignals) return;
       deliveringRecoverySignals = true;
-      void recoveryService.drainSignals()
+      void recoveryService
+        .drainSignals()
         .catch(() => logger.error("recovery.notification_delivery_failed", {}))
-        .finally(() => { deliveringRecoverySignals = false; });
+        .finally(() => {
+          deliveringRecoverySignals = false;
+        });
     }, 3000);
     recoverySignalTimer.unref();
     consumer.on("error", () => {

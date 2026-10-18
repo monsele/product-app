@@ -156,7 +156,9 @@ const DEMONSTRATION_TEST_LESSON_SERVICE = Symbol(
   "DEMONSTRATION_TEST_LESSON_SERVICE",
 );
 const ONE_SHOT_SERVICE = Symbol("ONE_SHOT_SERVICE");
-const recoveryUnavailable = async (): Promise<never> => { throw new PublicError("not_found", "Lesson preparation is unavailable.", 404); };
+const recoveryUnavailable = async (): Promise<never> => {
+  throw new PublicError("not_found", "Lesson preparation is unavailable.", 404);
+};
 const LESSON_RECOVERY_SERVICE = Symbol("LESSON_RECOVERY_SERVICE");
 const LESSON_READINESS_SERVICE = Symbol("LESSON_READINESS_SERVICE");
 const EDIT_THREAD_SERVICE = Symbol("EDIT_THREAD_SERVICE");
@@ -613,8 +615,11 @@ class ProjectsController {
     private readonly previewManifests: PreviewManifestApiService,
     @Inject(LESSON_VALIDATION_SERVICE)
     private readonly validations: LessonValidationApiService,
-    @Inject(LESSON_READINESS_SERVICE) private readonly readiness: Pick<LessonReadinessService, "read">,
-    @Inject(LESSON_RECOVERY_SERVICE) private readonly recovery: LessonRecoveryApi,
+    @Inject(LESSON_READINESS_SERVICE)
+    private readonly readiness: Pick<LessonReadinessService, "read"> &
+      Partial<Pick<LessonReadinessService, "recordPreview">>,
+    @Inject(LESSON_RECOVERY_SERVICE)
+    private readonly recovery: LessonRecoveryApi,
     @Inject(RENDER_SERVICE)
     private readonly renders: RenderApiService,
     @Inject(EXPORT_SERVICE)
@@ -1248,10 +1253,14 @@ class ProjectsController {
         "Preview quality must be standard or low.",
         400,
       );
-    return this.previewManifests.get({
+    const manifest = await this.previewManifests.get({
       ...assertAuthorizedProject(request, projectId),
       ...(quality === undefined ? {} : { quality }),
     });
+    await this.readiness.recordPreview?.(
+      assertAuthorizedProject(request, projectId),
+    );
+    return manifest;
   }
 
   @Post(":projectId/validation-runs")
@@ -2697,10 +2706,24 @@ class ProjectsController {
   public async generateStoryboard(
     @Param("projectId") projectId: string,
     @Headers("idempotency-key") idempotencyKey: string | undefined,
+    @Body() body: unknown,
     @Req() request: RequestWithAuth & AuthorizedProjectRequest,
   ): Promise<unknown> {
     assertTrustedOrigin(request, this.trustedOrigin);
     const access = assertAuthorizedProject(request, projectId);
+    if (
+      typeof body === "object" &&
+      body !== null &&
+      "estimateFingerprint" in body &&
+      this.recovery.generatePrepared
+    )
+      return this.recovery.generatePrepared({
+        ...access,
+        body,
+        idempotencyKey,
+        correlationId:
+          request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+      });
     return this.storyboard.generate({
       ownerUserId: access.ownerUserId,
       projectId: access.projectId,
@@ -2965,24 +2988,56 @@ class ProjectsController {
   }
 
   @Get(":projectId/recovery/estimate")
-  public async estimateRecovery(@Param("projectId") projectId: string, @Req() request: RequestWithAuth & AuthorizedProjectRequest): Promise<unknown> {
+  public async estimateRecovery(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
     return this.recovery.estimate(assertAuthorizedProject(request, projectId));
+  }
+  @Get(":projectId/recovery/generation-estimate")
+  public async estimateGenerationPreparation(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
+    const access = assertAuthorizedProject(request, projectId);
+    return this.recovery.generationEstimate
+      ? this.recovery.generationEstimate(access)
+      : { enabled: false, fingerprint: "0".repeat(64), maximumCostUsd: 0 };
   }
   @Post(":projectId/recovery")
   @HttpCode(200)
-  public async startRecovery(@Param("projectId") projectId: string, @Body() body: unknown, @Req() request: RequestWithAuth & AuthorizedProjectRequest): Promise<unknown> {
+  public async startRecovery(
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
     assertTrustedOrigin(request, this.trustedOrigin);
-    return this.recovery.start({ ...assertAuthorizedProject(request, projectId), body, correlationId: request.correlationId ?? "00000000-0000-7000-8000-000000000000" });
+    return this.recovery.start({
+      ...assertAuthorizedProject(request, projectId),
+      body,
+      correlationId:
+        request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    });
   }
   @Post(":projectId/recovery/stop")
   @HttpCode(200)
-  public async stopRecovery(@Param("projectId") projectId: string, @Body() body: unknown, @Req() request: RequestWithAuth & AuthorizedProjectRequest): Promise<unknown> {
+  public async stopRecovery(
+    @Param("projectId") projectId: string,
+    @Body() body: unknown,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
     assertTrustedOrigin(request, this.trustedOrigin);
-    return this.recovery.stop({ ...assertAuthorizedProject(request, projectId), body });
+    return this.recovery.stop({
+      ...assertAuthorizedProject(request, projectId),
+      body,
+    });
   }
 
   @Get(":projectId/readiness")
-  public async lessonReadiness(@Param("projectId") projectId: string, @Req() request: RequestWithAuth & AuthorizedProjectRequest): Promise<unknown> {
+  public async lessonReadiness(
+    @Param("projectId") projectId: string,
+    @Req() request: RequestWithAuth & AuthorizedProjectRequest,
+  ): Promise<unknown> {
     return this.readiness.read(assertAuthorizedProject(request, projectId));
   }
 
@@ -4940,7 +4995,11 @@ export async function createApp(
       options.oneShotService ?? unavailableOneShotService,
       options.editThreadService ?? unavailableEditThreadService,
       options.readinessService ?? { read: recoveryUnavailable },
-      options.recoveryService ?? { estimate: recoveryUnavailable, start: recoveryUnavailable, stop: recoveryUnavailable },
+      options.recoveryService ?? {
+        estimate: recoveryUnavailable,
+        start: recoveryUnavailable,
+        stop: recoveryUnavailable,
+      },
     ),
     new FastifyAdapter({
       logger: {
