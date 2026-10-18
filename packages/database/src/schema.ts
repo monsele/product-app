@@ -55,6 +55,12 @@ export const lessonRecoveryRuns = pgTable("lesson_recovery_runs", {
   uniqueIndex("recovery_run_active_unique").on(table.ownerUserId, table.projectId).where(sql`${table.stoppedAt} is null`),
 ]);
 
+export const lessonRecoverySignals = pgTable("lesson_recovery_signals", {
+  projectId: uuid("project_id").primaryKey(),
+  ownerUserId: ownershipColumn(),
+  changedAt: utcTimestamp("changed_at").notNull().defaultNow(),
+});
+
 export const lessonRecoveryTasks = pgTable("lesson_recovery_tasks", {
   id: primaryId(), ...projectOwnershipColumns(), ...auditColumns(),
   runId: uuid("run_id").notNull().references(() => lessonRecoveryRuns.id, { onDelete: "cascade" }),

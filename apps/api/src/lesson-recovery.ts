@@ -5,6 +5,7 @@ import {
   outboxEvents,
   lessonRecoveryRuns,
   lessonRecoveryTasks,
+  lessonRecoverySignals,
   sceneAudio,
   voiceConfigurations,
   pronunciationEntries,
@@ -78,6 +79,39 @@ export class LessonRecoveryService implements LessonRecoveryApi {
         "Lesson preparation is unavailable.",
         404,
       );
+  }
+
+  /** Free durable notification delivery; it neither grants nor expands authority. */
+  async drainSignals(): Promise<number> {
+    if (!this.readiness.enabled) return 0;
+    const candidates = await this.database.select().from(lessonRecoverySignals)
+      .where(sql`${lessonRecoverySignals.changedAt} <= ${new Date(this.now().getTime() - 2000).toISOString()}`)
+      .orderBy(lessonRecoverySignals.changedAt).limit(100);
+    let scheduled = 0;
+    for (const candidate of candidates) {
+      scheduled += await this.database.transaction(async (tx) => {
+        await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${candidate.projectId}))`);
+        const [run] = await tx.select().from(lessonRecoveryRuns).where(and(
+          eq(lessonRecoveryRuns.ownerUserId, candidate.ownerUserId),
+          eq(lessonRecoveryRuns.projectId, candidate.projectId),
+          isNull(lessonRecoveryRuns.stoppedAt),
+        )).for("update");
+        // A running coordinator may have already read its inputs. Leave the
+        // notification for its successor rather than losing that concurrent edit.
+        if (run?.leaseUntil) return 0;
+        const consumed = await tx.delete(lessonRecoverySignals).where(and(
+          eq(lessonRecoverySignals.ownerUserId, candidate.ownerUserId),
+          eq(lessonRecoverySignals.projectId, candidate.projectId),
+          eq(lessonRecoverySignals.changedAt, candidate.changedAt),
+        )).returning();
+        if (!consumed.length || !run) return 0;
+        await tx.update(lessonRecoveryRuns).set({ state: "queued", updatedAt: this.now() })
+          .where(eq(lessonRecoveryRuns.id, run.id));
+        await this.schedule(tx, run, run.sequence, 0);
+        return 1;
+      });
+    }
+    return scheduled;
   }
 
   private async inputs(scope: RecoveryScope) {
@@ -574,6 +608,16 @@ export class LessonRecoveryService implements LessonRecoveryApi {
             ].includes(issue.code),
         )
         .map((issue) => issue.code);
+      // Captions aligned to valid measured audio can exceed the *planned*
+      // duration while another scene is still preparing. Reconcile the lesson
+      // first, then revalidate cues; rebuilding them now cannot fix that cause.
+      if (
+        entry.audio?.status === "ready" &&
+        entry.audio.durationMs !== null &&
+        entry.audio.durationMs > entry.scene.durationSeconds * 1000 &&
+        codes.every((code) => code === "caption_timing_invalid") &&
+        report.issues.some((issue) => issue.sceneId === entry.scene.stableSceneId && issue.code === "audio_duration_mismatch")
+      ) continue;
       const operation =
         entry.audio?.status === "ready" && codes.length > 0
           ? "captions"

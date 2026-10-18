@@ -533,6 +533,13 @@
       "when": 1790000550000,
       "tag": "0075_recovery_dispatch_authority",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1790000560000,
+      "tag": "0076_recovery_dependency_signals",
+      "breakpoints": true
     }
   ]
 }

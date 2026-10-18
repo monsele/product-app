@@ -1,3 +1,4 @@
+import { setInterval, clearInterval } from "node:timers";
 import { parseEnvironment } from "@avlp/config";
 import {
   InMemoryAuthRateLimiter,
@@ -108,6 +109,7 @@ export async function runApi(input: {
   const database = createDatabaseConnection(environment.DATABASE_URL);
   const logger = createStructuredLogger({ service: "api" });
   let oneShotConsumer: ReturnType<typeof registerJobConsumer> | undefined;
+  let recoverySignalTimer: ReturnType<typeof setInterval> | undefined;
   try {
     await database.healthCheck();
     const projectRepository = new PostgresProjectRepository(database.client);
@@ -402,10 +404,20 @@ export async function runApi(input: {
       ],
     });
     oneShotConsumer = consumer;
+    let deliveringRecoverySignals = false;
+    recoverySignalTimer = setInterval(() => {
+      if (deliveringRecoverySignals) return;
+      deliveringRecoverySignals = true;
+      void recoveryService.drainSignals()
+        .catch(() => logger.error("recovery.notification_delivery_failed", {}))
+        .finally(() => { deliveringRecoverySignals = false; });
+    }, 3000);
+    recoverySignalTimer.unref();
     consumer.on("error", () => {
       logger.error("worker.consumer_failed", { queueName: "orchestration" });
     });
     const closeConsumer = () => {
+      clearInterval(recoverySignalTimer);
       void consumer.close();
     };
     process.once("SIGINT", closeConsumer);
@@ -506,6 +518,7 @@ export async function runApi(input: {
     app.enableShutdownHooks();
     await app.listen({ port: environment.PORT, host: "0.0.0.0" });
   } catch (error) {
+    clearInterval(recoverySignalTimer);
     await oneShotConsumer?.close();
     await database.close();
     throw error;

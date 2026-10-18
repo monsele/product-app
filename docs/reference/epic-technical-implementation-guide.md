@@ -1724,6 +1724,16 @@ capabilities. Group symptoms for display without weakening validation rules.
 Repair work uses existing idempotent jobs, revision/fingerprint guards and
 project-scoped usage reservations. Persist progress across browser closure.
 
+Authorized preparation sessions receive durable dependency notifications through
+`lesson_recovery_signals` (migration 0076). Database triggers coalesce storyboard,
+voice, pronunciation, audio, caption, asset, grounding and completed-job changes.
+The enabled API scheduler debounces two seconds and atomically consumes each
+notification with the existing orchestration job/outbox write. A coordinator lease
+defers consumption so an edit arriving after its input read is not lost. Notifications
+never create authorization, expand an allowance, or reopen a stopped session.
+Visual-only changes revalidate while matching narration media is reused. Captions
+that exceed planned timing wait for measured-duration reconciliation before repair.
+
 ### Required product outcome
 
 A deterministic validation system identifies blocking errors and warnings before rendering and guides the teacher directly to fixes.

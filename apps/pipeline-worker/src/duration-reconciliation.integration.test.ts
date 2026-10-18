@@ -624,18 +624,23 @@ describeWithPostgres("reconcileLessonSceneDurations (Postgres)", () => {
     await seedAudio(database!.client, { [sceneA]: 33_400, [sceneB]: 27_600 });
     const result = await reconcile();
     expect(result.status).toBe("reconciled");
-    expect(await sceneDurations()).toEqual({ [sceneA]: 33, [sceneB]: 28 });
+    // Whole-second scenes round up so the narration tail is never cut off.
+    expect(await sceneDurations()).toEqual({ [sceneA]: 34, [sceneB]: 28 });
     const spec = await specRow();
-    expect(spec.totalDurationSeconds).toBe(61);
+    expect(spec.totalDurationSeconds).toBe(62);
     expect(spec.revision).toBe(1);
     // Every scene now sits inside the audio-fit tolerance of its own audio.
-    for (const outcome of result.outcomes!)
+    for (const outcome of result.outcomes!) {
+      expect(outcome.appliedDurationSeconds * 1_000).toBeGreaterThanOrEqual(
+        outcome.measuredAudioDurationMs,
+      );
       expect(
         Math.abs(
           outcome.appliedDurationSeconds * 1_000 -
             outcome.measuredAudioDurationMs,
         ),
       ).toBeLessThanOrEqual(sceneAudioFitToleranceMs);
+    }
   });
 
   it("re-pins the lesson's style to the reconciled revision", async () => {
@@ -700,7 +705,7 @@ describeWithPostgres("reconcileLessonSceneDurations (Postgres)", () => {
     expect(after.revision).toBe(before.revision);
     expect(after.contentHash).toBe(before.contentHash);
     expect(after.updatedAt).toEqual(before.updatedAt);
-    expect(await sceneDurations()).toEqual({ [sceneA]: 33, [sceneB]: 28 });
+    expect(await sceneDurations()).toEqual({ [sceneA]: 34, [sceneB]: 28 });
   });
 
   it("writes nothing when the audio already matches the planned durations", async () => {
