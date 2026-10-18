@@ -50,6 +50,7 @@ import { CreativeDesignPanel } from "./creative-design-panel";
 import { EditThreadPanel } from "./edit-thread-panel";
 import {
   SceneDetailPanel,
+  type InspectorTab,
   teacherReplacementPreviewForScene,
 } from "./scene-detail-panel";
 import { type VersionBrowserMetadata } from "./version-browser";
@@ -66,6 +67,9 @@ import {
   PageLoading,
 } from "../../../../components/brand/onion-skin-loader";
 import { LoadingImage } from "../../../../components/brand/loading-image";
+import { useLessonReadiness } from "./use-lesson-readiness";
+import { PreparationSummary } from "./preparation-summary";
+import preparationStyles from "./preparation.module.css";
 import styles from "./storyboard.module.css";
 
 type ViewState =
@@ -432,6 +436,44 @@ export function StoryboardPanel({
   const value = view.kind === "ready" ? view.value : null;
   const generating = value !== null && isGenerating(value.state);
   const revision = value?.storyboard?.revision ?? null;
+  const {
+    readiness,
+    error: preparationError,
+    refresh: refreshReadiness,
+  } = useLessonReadiness(projectId, revision);
+  const recoveryEnabled = readiness?.enabled === true;
+  const [requestedInspector, setRequestedInspector] = useState<{
+    tab: InspectorTab;
+    request: number;
+  }>({ tab: "content", request: 0 });
+  const preparationSignature = readiness?.enabled
+    ? JSON.stringify([
+        readiness.revision,
+        readiness.state,
+        readiness.completedTasks,
+        readiness.tasks.map((task) => [task.id, task.state]),
+      ])
+    : null;
+  useEffect(() => {
+    if (!preparationSignature) return;
+    invalidateStoryboardSceneList(projectId);
+    setDetailAttempt((current) => current + 1);
+    setPreviewManifestAttempt((current) => current + 1);
+    void refresh().catch(() =>
+      setActionMessage(
+        "Background refresh is unavailable. Your unsaved edits are preserved.",
+      ),
+    );
+    void loadValidation().catch(() => undefined);
+  }, [preparationSignature, projectId, refresh, loadValidation]);
+  useEffect(() => {
+    if (!recoveryEnabled) return;
+    const timer = globalThis.setInterval(
+      () => setPreviewManifestAttempt((current) => current + 1),
+      240000,
+    );
+    return () => globalThis.clearInterval(timer);
+  }, [recoveryEnabled]);
 
   useTaskStatusNotification({
     taskName: "Storyboard generation",
@@ -830,10 +872,15 @@ export function StoryboardPanel({
       })
       .catch(() => {
         if (!cancelled)
-          setDetail({
-            kind: "failed",
-            message: "The selected scene could not be loaded.",
-          });
+          setDetail((current) =>
+            current.kind === "ready" &&
+            current.value.scene.stableSceneId === selectedSceneId
+              ? current
+              : {
+                  kind: "failed",
+                  message: "The selected scene could not be loaded.",
+                },
+          );
       });
     return () => {
       cancelled = true;
@@ -990,7 +1037,9 @@ export function StoryboardPanel({
             ...buildScenePreviewInput(selectedDetail, previewManifest),
             // The appearance panel's design as edited, applied or not, so a
             // style change shows on the selected scene before it is applied.
-            ...(previewDesign === null ? {} : { creativeDesign: previewDesign }),
+            ...(previewDesign === null
+              ? {}
+              : { creativeDesign: previewDesign }),
           }
         : null,
     [selectedDetail, previewManifest, previewDesign],
@@ -1018,13 +1067,14 @@ export function StoryboardPanel({
     listScenes.length > 0 &&
     missingAudioCount === 0 &&
     missingCaptionCount === 0;
-  const canOpenPreview =
-    storyboard !== null &&
-    value?.stale !== true &&
-    mediaReady &&
-    missingAssetCount === 0 &&
-    invalidSceneCount === 0 &&
-    validationReady;
+  const canOpenPreview = recoveryEnabled
+    ? storyboard !== null
+    : storyboard !== null &&
+      value?.stale !== true &&
+      mediaReady &&
+      missingAssetCount === 0 &&
+      invalidSceneCount === 0 &&
+      validationReady;
 
   if (view.kind === "loading")
     return (
@@ -1058,7 +1108,7 @@ export function StoryboardPanel({
     );
 
   return (
-    <div className={styles.panel}>
+    <div className={`${styles.panel} ${recoveryEnabled ? preparationStyles.editor : ""}`}>
       <header className={styles.header}>
         <div className={styles.headerIdentity}>
           <h1 id="storyboard-heading" className={styles.title}>
@@ -1148,7 +1198,14 @@ export function StoryboardPanel({
               </details>
             ) : null}
 
-            {storyboard !== null && !mediaReady ? (
+            {recoveryEnabled && canOpenPreview ? (
+              <Link
+                href={`/workspace/${encodeURIComponent(projectId)}/preview`}
+                className={`${styles.button} ${styles.buttonPrimary}`}
+              >
+                Preview lesson <ArrowRightIcon size={16} aria-hidden />
+              </Link>
+            ) : storyboard !== null && !mediaReady ? (
               <button
                 type="button"
                 onClick={() => void generateLessonAudio()}
@@ -1186,6 +1243,35 @@ export function StoryboardPanel({
           </div>
         </div>
       </header>
+
+      {recoveryEnabled && readiness ? (
+        <PreparationSummary
+          projectId={projectId}
+          readiness={readiness}
+          error={preparationError}
+          onRefresh={refreshReadiness}
+          sceneLabels={Object.fromEntries(
+            listScenes.map((scene) => [
+              scene.sceneId,
+              `Scene ${scene.order}: ${scene.title}`,
+            ]),
+          )}
+          onNavigate={(task) => {
+            if (task.sceneId) selectScene(task.sceneId);
+            setRequestedInspector((current) => ({
+              request: current.request + 1,
+              tab:
+                task.action === "review_sources"
+                  ? "sources"
+                  : task.action === "review_assets"
+                    ? "visual"
+                    : task.action === "choose_voice"
+                      ? "audio"
+                      : "content",
+            }));
+          }}
+        />
+      ) : null}
 
       {storyboard !== null && listScenes.length > 0 ? (
         <SceneTimeline
@@ -1425,6 +1511,13 @@ export function StoryboardPanel({
                     <span className={styles.stageMeta}>
                       {selectedDetail?.scene.template ?? ""}
                     </span>
+                    {recoveryEnabled &&
+                    selectedDetail &&
+                    selectedDetail.status.audio !== "ready" ? (
+                      <span role="status" className={styles.stageMeta}>
+                        Audio preparing
+                      </span>
+                    ) : null}
                   </div>
 
                   <span className={`${styles.stageMeta} tabular-nums`}>
@@ -1436,7 +1529,7 @@ export function StoryboardPanel({
 
                 <section
                   aria-label="Selected scene preview"
-                  className={styles.canvas}
+                  className={`${styles.canvas} ${recoveryEnabled ? preparationStyles.canvas : ""}`}
                 >
                   {selectedSceneId === null ? (
                     <p role="status" className={styles.canvasNote}>
@@ -1445,7 +1538,9 @@ export function StoryboardPanel({
                   ) : detail.kind === "loading" ? (
                     <div role="status" className={styles.loadingNote}>
                       <OnionSkinLoader size={56} />
-                      <p className={styles.canvasNote}>Loading scene preview…</p>
+                      <p className={styles.canvasNote}>
+                        Loading scene preview…
+                      </p>
                     </div>
                   ) : detail.kind === "failed" ? (
                     <div className={styles.canvasFallback}>
@@ -1473,7 +1568,12 @@ export function StoryboardPanel({
                   ) : canPreviewScene(detail.value, previewManifest) &&
                     previewInput !== null ? (
                     <div className={styles.canvasFill}>
-                      <ScenePreviewPlayer input={previewInput} />
+                      <ScenePreviewPlayer
+                        input={previewInput}
+                        onMediaError={() =>
+                          setPreviewManifestAttempt((current) => current + 1)
+                        }
+                      />
                     </div>
                   ) : (
                     <section
@@ -1488,7 +1588,7 @@ export function StoryboardPanel({
                           className={styles.fallbackLoader}
                         />
                       )}
-                      <h4>Preview unavailable</h4>
+                      <h4>Scene preview placeholder</h4>
                       <p>
                         {previewManifestError
                           ? "The authorized preview media could not be refreshed."
@@ -1595,6 +1695,8 @@ export function StoryboardPanel({
                 >
                   <SceneDetailPanel
                     projectId={projectId}
+                    preparationEnabled={recoveryEnabled}
+                    requestedTab={requestedInspector}
                     detail={detail.value}
                     lessonSpecId={storyboard.id}
                     lessonSpecRevision={storyboard.revision}

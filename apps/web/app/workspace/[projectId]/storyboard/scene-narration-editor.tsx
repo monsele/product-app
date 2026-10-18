@@ -1,12 +1,17 @@
 "use client";
 
-import React, { useEffect, useState, type JSX } from "react";
+import { mergeEditorRefresh } from "./merge-editor-refresh";
+
+import React, { useEffect, useRef, useState, type JSX } from "react";
 import type {
   LessonValidationRun,
   StoryboardSceneDetailResponse,
   ValidationIssue,
 } from "@avlp/schemas";
-import { SceneMutationError, updateStoryboardScene } from "./storyboard-scene-query";
+import {
+  SceneMutationError,
+  updateStoryboardScene,
+} from "./storyboard-scene-query";
 
 /** Grounding findings a teacher can resolve from this scene's content. */
 const sceneGroundingCodes: ReadonlySet<ValidationIssue["code"]> = new Set([
@@ -71,10 +76,31 @@ export function SceneNarrationEditor({
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
+  const incoming = {
+    narration: scene.narration,
+    onScreen: scene.onScreenText.join("\n"),
+  };
+  const base = useRef(incoming);
+  const local = useRef({ narration, onScreen });
+  local.current = { narration, onScreen };
+  const [conflicts, setConflicts] = useState<string[]>([]);
   useEffect(() => {
-    setNarration(scene.narration);
-    setOnScreen(scene.onScreenText.join("\n"));
-    setMessage(null);
+    const next = {
+      narration: scene.narration,
+      onScreen: scene.onScreenText.join("\n"),
+    };
+    const result = mergeEditorRefresh(base.current, local.current, next);
+    base.current = next;
+    setNarration(result.value.narration);
+    setOnScreen(result.value.onScreen);
+    if (result.conflicts.length) {
+      setConflicts((current) => [
+        ...new Set([...current, ...result.conflicts]),
+      ]);
+      setMessage(
+        "This text also changed elsewhere. Your unsaved edits are preserved for review.",
+      );
+    }
   }, [scene.narration, scene.onScreenText]);
 
   const onScreenLines = onScreen
@@ -88,6 +114,13 @@ export function SceneNarrationEditor({
   const openFlags = flags.filter((issue) => issue.acknowledgedAt === null);
 
   const save = async (): Promise<void> => {
+    if (
+      conflicts.length &&
+      !window.confirm(
+        "This text also changed elsewhere. Replace it with your reviewed edits?",
+      )
+    )
+      return;
     if (narration.trim() === "") {
       setMessage("Narration cannot be empty.");
       return;
@@ -101,9 +134,14 @@ export function SceneNarrationEditor({
         { ...scene, narration: narration.trim(), onScreenText: onScreenLines },
         revision,
       );
+      base.current = {
+        narration: result.scene.scene.narration,
+        onScreen: result.scene.scene.onScreenText.join("\n"),
+      };
+      setConflicts([]);
       onPersisted(
         result.warning ??
-          "Saved. The scene's audio and checks will be redone; run checks again to confirm the fix.",
+          "Saved. Preparation and checks will update for this scene.",
       );
     } catch (error) {
       const mutation = error instanceof SceneMutationError ? error : null;
@@ -151,34 +189,70 @@ export function SceneNarrationEditor({
               ? "You kept every flagged sentence in this scene."
               : `${openFlags.length} sentence${openFlags.length === 1 ? "" : "s"} not clearly backed by your document`}
           </h4>
-          <p style={{ margin: 0, fontSize: "12px", color: "var(--color-text-muted, #BDB5C7)" }}>
-            Edit the text below, or keep a sentence if you&apos;re sure it&apos;s right. Neither stops you rendering.
+          <p
+            style={{
+              margin: 0,
+              fontSize: "12px",
+              color: "var(--color-text-muted, #BDB5C7)",
+            }}
+          >
+            Edit the text below, or keep a sentence if you&apos;re sure
+            it&apos;s right. Neither stops you rendering.
           </p>
-          <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "flex", flexDirection: "column", gap: "8px" }}>
+          <ul
+            style={{
+              margin: 0,
+              padding: 0,
+              listStyle: "none",
+              display: "flex",
+              flexDirection: "column",
+              gap: "8px",
+            }}
+          >
             {flags.map((issue) => (
               <li
                 key={issue.id}
                 data-testid={`grounding-flag-${issue.id}`}
                 style={{ display: "flex", flexDirection: "column", gap: "4px" }}
               >
-                <q style={{ fontSize: "13px", color: "var(--color-text, #F4F1F8)" }}>
+                <q
+                  style={{
+                    fontSize: "13px",
+                    color: "var(--color-text, #F4F1F8)",
+                  }}
+                >
                   {claimText(issue)}
                 </q>
                 {claimReasons(issue).map((reason) => (
-                  <span key={reason} style={{ fontSize: "12px", color: "var(--color-text-muted, #BDB5C7)" }}>
+                  <span
+                    key={reason}
+                    style={{
+                      fontSize: "12px",
+                      color: "var(--color-text-muted, #BDB5C7)",
+                    }}
+                  >
                     {reason}
                   </span>
                 ))}
-                <span style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                <span
+                  style={{ display: "flex", gap: "8px", alignItems: "center" }}
+                >
                   {issue.acknowledgedAt !== null ? (
-                    <span style={{ fontSize: "12px", color: "var(--color-success-fg, #86EFAC)" }}>
+                    <span
+                      style={{
+                        fontSize: "12px",
+                        color: "var(--color-success-fg, #86EFAC)",
+                      }}
+                    >
                       Kept as is.
                     </span>
                   ) : onAcknowledge !== undefined && validation ? (
                     <button
                       type="button"
                       disabled={disabled || saving}
-                      onClick={() => onAcknowledge(issue.id, validation.inputHash)}
+                      onClick={() =>
+                        onAcknowledge(issue.id, validation.inputHash)
+                      }
                       style={{
                         padding: "4px 10px",
                         borderRadius: "4px",
@@ -200,7 +274,14 @@ export function SceneNarrationEditor({
       ) : null}
 
       <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-        <span style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--color-text-muted, #BDB5C7)" }}>
+        <span
+          style={{
+            fontSize: "12px",
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
+            color: "var(--color-text-muted, #BDB5C7)",
+          }}
+        >
           Narration script
         </span>
         <textarea
@@ -214,7 +295,14 @@ export function SceneNarrationEditor({
       </label>
 
       <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-        <span style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--color-text-muted, #BDB5C7)" }}>
+        <span
+          style={{
+            fontSize: "12px",
+            textTransform: "uppercase",
+            letterSpacing: "0.5px",
+            color: "var(--color-text-muted, #BDB5C7)",
+          }}
+        >
           On-screen text (one line each)
         </span>
         <textarea
@@ -269,7 +357,10 @@ export function SceneNarrationEditor({
         ) : null}
       </div>
       {message !== null ? (
-        <p role="alert" style={{ margin: 0, fontSize: "12px", color: "#FCA5A5" }}>
+        <p
+          role="alert"
+          style={{ margin: 0, fontSize: "12px", color: "#FCA5A5" }}
+        >
           {message}
         </p>
       ) : null}

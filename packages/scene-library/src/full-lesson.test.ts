@@ -11,6 +11,7 @@ import {
   getLessonDurationInFrames,
   getTimelineSegmentAtFrame,
   getPreviewCompositionSettings,
+  remapLessonPreviewFrame,
 } from "./full-lesson.js";
 import {
   fivePagePhotosynthesisSourceFixture,
@@ -19,6 +20,16 @@ import {
 } from "./full-lesson.fixture.js";
 
 describe("three-minute photosynthesis full lesson", () => {
+  it("keeps the selected scene and local position when earlier scene timing changes", () => {
+    const next = {
+      ...globalThis.structuredClone(photosynthesisThreeMinutePreview),
+      captions: [],
+    };
+    next.lesson.scenes[0]!.durationSeconds += 10;
+    expect(
+      remapLessonPreviewFrame(photosynthesisThreeMinutePreview, next, 950),
+    ).toBe(1250);
+  });
   it("validates the source-grounded LessonSpec and original five-page fixture", () => {
     expect(lessonSpecSchema.parse(photosynthesisThreeMinuteLesson)).toEqual(
       photosynthesisThreeMinuteLesson,

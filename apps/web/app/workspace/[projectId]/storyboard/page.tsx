@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import type { ProjectStage } from "@avlp/schemas";
+import { lessonReadinessSchema, type ProjectStage } from "@avlp/schemas";
 import { AuthenticatedAppShell } from "../../../../components/layout/authenticated-app-shell";
 import { getPipelineStages } from "../../../../lib/project-pipeline";
 import { getStageDetails } from "../../project-stage-utils";
@@ -49,7 +49,34 @@ export default async function StoryboardPage({
   if (!response.ok || !isProjectPayload(payload)) redirect("/workspace");
 
   const stageDetails = getStageDetails(payload.project.stage);
-  const stages = getPipelineStages(payload.project.stage, "Storyboard", projectId);
+  const readinessResponse = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}/projects/${encodeURIComponent(projectId)}/readiness`,
+    {
+      headers: { cookie: `avlp_session=${encodeURIComponent(token)}` },
+      cache: "no-store",
+    },
+  ).catch(() => null);
+  const readiness = lessonReadinessSchema.safeParse(
+    readinessResponse?.ok
+      ? await readinessResponse.json().catch(() => null)
+      : null,
+  );
+  const stages = getPipelineStages(
+    payload.project.stage,
+    "Storyboard",
+    projectId,
+  ).map((stage) =>
+    stage.id === "Preview" &&
+    readiness.success &&
+    readiness.data.enabled &&
+    readiness.data.capabilities.preview
+      ? {
+          ...stage,
+          status: "available" as const,
+          href: `/workspace/${encodeURIComponent(projectId)}/preview`,
+        }
+      : stage,
+  );
 
   return (
     <AuthenticatedAppShell

@@ -591,6 +591,15 @@ const server = createServer(async (request, response) => {
   response.setHeader("access-control-allow-credentials", "true");
   if (request.method === "GET" && url.pathname === "/health")
     return send(response, 200, { status: "ok" });
+  const previewMatch = url.pathname.match(/^\/projects\/([^/]+)\/preview-manifest$/);
+  if (request.method === "GET" && previewMatch && projects.has(previewMatch[1])) {
+    const storyboard = storyboardDraft(previewMatch[1]);
+    return send(response, 200, {
+      assets: {}, canvas: { fps: 30, height: 1080, width: 1920 }, generatedAt: now,
+      storyboard,
+      scenes: storyboard.scenes.map((scene) => ({ sceneId: scene.stableSceneId, audio: { status: "missing", url: null, expiresAt: null }, captions: [], missingAssetIds: [], stale: true })),
+    });
+  }
   if (await handleOneShot(request, response, url, { send, storyboardDraft }))
     return;
   if (

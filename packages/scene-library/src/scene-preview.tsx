@@ -1,5 +1,6 @@
 "use client";
 
+import { usePreviewRefresh } from "./preview-refresh.js";
 import { Player, type PlayerRef } from "@remotion/player";
 import { Audio, useCurrentFrame } from "remotion";
 import React, { useEffect, useMemo, useRef, useState, type JSX } from "react";
@@ -68,7 +69,8 @@ const scenePreviewAssetSchema = previewAssetSchema.superRefine(
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["src"],
-        message: "Media URLs must be HTTPS signed URLs or approved local fixtures.",
+        message:
+          "Media URLs must be HTTPS signed URLs or approved local fixtures.",
       });
   },
 );
@@ -274,16 +276,41 @@ export function ScenePreviewComposition({
   );
 }
 
+function invalidatesScenePlayback(previous: unknown, next: unknown): boolean {
+  const before = parseScenePreviewInput(previous);
+  const after = parseScenePreviewInput(next);
+  return (
+    before.ok &&
+    (!after.ok ||
+      before.input.scene.narration !== after.input.scene.narration ||
+      (!!before.input.manifest.audio && !after.input.manifest.audio))
+  );
+}
 export function ScenePreviewPlayer({
   input,
   muted = true,
-}: Readonly<{ input: unknown; muted?: boolean }>): JSX.Element {
+  onMediaError,
+}: Readonly<{
+  input: unknown;
+  muted?: boolean;
+  onMediaError?: () => void;
+}>): JSX.Element {
   const playerRef = useRef<PlayerRef>(null);
   const [playbackError, setPlaybackError] = useState<string>();
+  const mediaErrorCallback = useRef(onMediaError);
+  mediaErrorCallback.current = onMediaError;
   const [previewFrame, setPreviewFrame] = useState(0);
   const [isMuted, setIsMuted] = useState(muted);
   const [isPlaying, setIsPlaying] = useState(false);
-  const result = useMemo(() => parseScenePreviewInput(input), [input]);
+  const incoming = useMemo(() => parseScenePreviewInput(input), [input]);
+  const displayed = usePreviewRefresh(
+    input,
+    playerRef,
+    incoming.ok ? incoming.input.scene.id : "invalid",
+    undefined,
+    invalidatesScenePlayback,
+  );
+  const result = useMemo(() => parseScenePreviewInput(displayed), [displayed]);
   // Keep the playback configuration stable while the transport updates its
   // frame/playing state, otherwise Remotion restarts its clock every frame.
   const playerInput = useMemo(
@@ -295,10 +322,17 @@ export function ScenePreviewPlayer({
   );
   useEffect(() => {
     setPlaybackError(undefined);
-    setPreviewFrame(0);
+    setPreviewFrame(playerRef.current?.getCurrentFrame() ?? 0);
+  }, [displayed]);
+  useEffect(() => {
     setIsMuted(muted);
-    setIsPlaying(false);
-  }, [input, muted]);
+  }, [muted]);
+  useEffect(() => {
+    if (playbackError) {
+      playerRef.current?.pause();
+      mediaErrorCallback.current?.();
+    }
+  }, [playbackError]);
   useEffect(() => {
     // Keep the seek control in step with playback; the player is the source of
     // truth for the current frame once it is running.
@@ -319,7 +353,7 @@ export function ScenePreviewPlayer({
       player.removeEventListener("pause", onPause);
       player.removeEventListener("ended", onEnded);
     };
-  }, [input]);
+  }, [result.ok]);
   if (!result.ok)
     return (
       <section data-testid="scene-preview-error" role="alert">

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { PublicError, type Identifier } from "@avlp/config";
 import {
   captionCues,
@@ -136,8 +137,13 @@ export class PreviewManifestService {
               .orderBy(desc(captionTracks.updatedAt))
               .limit(1)
           : [];
+        const narrationHash = createHash("sha256")
+          .update(JSON.stringify(storyboardScene.scene.narration.trim()))
+          .digest("hex");
+        const currentAudio =
+          audio?.status === "ready" && audio.narrationHash === narrationHash;
         const captions =
-          track?.status === "ready"
+          currentAudio && track?.status === "ready"
             ? await this.database
                 .select({
                   startMs: captionCues.startMs,
@@ -155,21 +161,24 @@ export class PreviewManifestService {
                 .orderBy(asc(captionCues.position))
             : [];
         const signed =
-          audio?.status === "ready" && audio.storageKey
+          currentAudio && audio?.storageKey
             ? await this.storage.createSignedDownload({
                 key: storageKeySchema.parse(audio.storageKey),
                 expiresInSeconds: 300,
               })
             : null;
         const stale =
-          audio?.status !== "ready" ||
+          !currentAudio ||
           track?.status !== "ready" ||
           captions.length === 0 ||
           missingAssetIds.length > 0;
         return {
           sceneId: scene.stableSceneId as Identifier,
           audio: {
-            status: audio?.status ?? "missing",
+            status:
+              audio?.status === "ready" && !currentAudio
+                ? "stale"
+                : (audio?.status ?? "missing"),
             url: signed?.url ?? null,
             expiresAt: signed?.expiresAt.toISOString() ?? null,
           },
@@ -195,9 +204,10 @@ export class PreviewManifestService {
       )
       .orderBy(desc(creativeDesignSnapshots.createdAt))
       .limit(1);
-    const creativeDesign = designSnapshot === undefined
-      ? undefined
-      : anyCreativeDesignManifestSchema.parse(designSnapshot.manifest);
+    const creativeDesign =
+      designSnapshot === undefined
+        ? undefined
+        : anyCreativeDesignManifestSchema.parse(designSnapshot.manifest);
     // ADR-015: a v2 design pins presentation illustrations per scene; they
     // resolve exactly like scene pictures. The logo keeps its own path below.
     // A v1 design has none, so its preview issues no extra queries.
@@ -208,7 +218,10 @@ export class PreviewManifestService {
       (assetId) => !(assetId in assets),
     );
     if (pendingDesignPictureIds.length > 0)
-      Object.assign(assets, await this.resolveAssets(input, pendingDesignPictureIds));
+      Object.assign(
+        assets,
+        await this.resolveAssets(input, pendingDesignPictureIds),
+      );
     const logoAssetId = creativeDesign?.settings.logoAssetId;
     if (logoAssetId !== null && logoAssetId !== undefined) {
       const [logo] = await this.database
@@ -242,7 +255,9 @@ export class PreviewManifestService {
         assetId: logoAssetId,
         altText: logo.originalName,
         provenance:
-          logo.provenance === "ai_generated" ? "ai_generated" : "teacher_uploaded",
+          logo.provenance === "ai_generated"
+            ? "ai_generated"
+            : "teacher_uploaded",
         source: "source",
         src: signed.url,
       };
@@ -263,172 +278,176 @@ export class PreviewManifestService {
 
   /** Scene, catalogue, source-table and project pictures as preview assets. */
   private async resolveAssets(
-    input: { ownerUserId: Identifier; projectId: Identifier; quality?: "standard" | "low" },
+    input: {
+      ownerUserId: Identifier;
+      projectId: Identifier;
+      quality?: "standard" | "low";
+    },
     assetIds: readonly string[],
   ) {
-      const projectAssetRows =
-        assetIds.length === 0
-          ? []
-          : await this.database
-              .select()
-              .from(projectAssets)
-              .where(
-                and(
-                  eq(projectAssets.ownerUserId, input.ownerUserId),
-                  eq(projectAssets.projectId, input.projectId),
-                  eq(projectAssets.status, "active"),
-                  isNull(projectAssets.deletedAt),
-                  inArray(projectAssets.id, assetIds),
-                ),
-              );
-      const projectAssetById = new Map(
-        projectAssetRows.map((asset) => [asset.id, asset]),
-      );
-      // ST-093: resolve via the reuse-aware lookup so a same-owner reused
-      // ingestion artifact's figures still preview correctly for this project.
-      const document =
-        assetIds.length === 0
-          ? undefined
-          : await findLatestProjectParsedDocument(this.database, {
-              ownerUserId: input.ownerUserId,
-              projectId: input.projectId,
-            });
-      const sourceFigureRows =
-        assetIds.length === 0 || document === undefined
-          ? []
-          : await this.database
-              .select()
-              .from(extractedFigures)
-              .where(
-                and(
-                  eq(extractedFigures.parsedDocumentId, document.id),
-                  inArray(extractedFigures.id, assetIds),
-                ),
-              );
-      const sourceFigureById = new Map(
-        sourceFigureRows.map((figure) => [figure.id, figure]),
-      );
-      const latestVisuals =
-        assetIds.length === 0 || this.sourceSnapshots === undefined
-          ? undefined
-          : await this.sourceSnapshots.latestApprovedVisuals(input);
-      const tableById = new Map(
-        (latestVisuals?.tables ?? []).map((table) => [table.tableId, table]),
-      );
-      const assetEntries: Array<
-        readonly [
-          string,
-          (
-            | {
-                assetId: string;
-                altText: string;
-                provenance:
-                  | "catalog"
-                  | "source_figure"
-                  | "teacher_uploaded"
-                  | "ai_generated";
-                source: "library" | "source";
-                src: string;
-              }
-            | {
-                assetId: string;
-                altText: string;
-                provenance: "source_table";
-                source: "source_table";
-                table: {
-                  tableId: string;
-                  title?: string;
-                  columns: string[];
-                  rows: string[][];
-                  rowCount: number;
-                  truncated: boolean;
-                };
-              }
-          ),
-        ]
-      > = [];
-      for (const assetId of assetIds) {
-        const table = tableById.get(assetId);
-        if (table !== undefined) {
-          const rows = table.rows
-            .slice(0, sourceTableVisualMaxRows)
-            .map((row) =>
-              row
-                .slice(0, sourceTableVisualMaxColumns)
-                .map((cell) => cell.slice(0, sourceTableVisualMaxCellLength)),
+    const projectAssetRows =
+      assetIds.length === 0
+        ? []
+        : await this.database
+            .select()
+            .from(projectAssets)
+            .where(
+              and(
+                eq(projectAssets.ownerUserId, input.ownerUserId),
+                eq(projectAssets.projectId, input.projectId),
+                eq(projectAssets.status, "active"),
+                isNull(projectAssets.deletedAt),
+                inArray(projectAssets.id, assetIds),
+              ),
             );
-          const truncated =
-            table.rows.length > rows.length ||
-            table.columns.length > sourceTableVisualMaxColumns ||
-            table.rows.some((row) =>
-              row.some((cell) => cell.length > sourceTableVisualMaxCellLength),
+    const projectAssetById = new Map(
+      projectAssetRows.map((asset) => [asset.id, asset]),
+    );
+    // ST-093: resolve via the reuse-aware lookup so a same-owner reused
+    // ingestion artifact's figures still preview correctly for this project.
+    const document =
+      assetIds.length === 0
+        ? undefined
+        : await findLatestProjectParsedDocument(this.database, {
+            ownerUserId: input.ownerUserId,
+            projectId: input.projectId,
+          });
+    const sourceFigureRows =
+      assetIds.length === 0 || document === undefined
+        ? []
+        : await this.database
+            .select()
+            .from(extractedFigures)
+            .where(
+              and(
+                eq(extractedFigures.parsedDocumentId, document.id),
+                inArray(extractedFigures.id, assetIds),
+              ),
             );
-          assetEntries.push([
-            assetId,
-            {
-              assetId,
-              altText: `Table: ${table.columns.join(", ")}`,
-              provenance: "source_table" as const,
-              source: "source_table" as const,
+    const sourceFigureById = new Map(
+      sourceFigureRows.map((figure) => [figure.id, figure]),
+    );
+    const latestVisuals =
+      assetIds.length === 0 || this.sourceSnapshots === undefined
+        ? undefined
+        : await this.sourceSnapshots.latestApprovedVisuals(input);
+    const tableById = new Map(
+      (latestVisuals?.tables ?? []).map((table) => [table.tableId, table]),
+    );
+    const assetEntries: Array<
+      readonly [
+        string,
+        (
+          | {
+              assetId: string;
+              altText: string;
+              provenance:
+                | "catalog"
+                | "source_figure"
+                | "teacher_uploaded"
+                | "ai_generated";
+              source: "library" | "source";
+              src: string;
+            }
+          | {
+              assetId: string;
+              altText: string;
+              provenance: "source_table";
+              source: "source_table";
               table: {
-                tableId: table.tableId,
-                columns: table.columns.slice(0, sourceTableVisualMaxColumns),
-                rows,
-                rowCount: table.rows.length,
-                truncated,
-              },
-            },
-          ]);
-          continue;
-        }
-        const catalogAsset = approvedAssetById(assetId);
-        if (catalogAsset !== undefined) {
-          assetEntries.push([
-            assetId,
-            {
-              assetId,
-              altText: catalogAsset.subject,
-              provenance: "catalog" as const,
-              source: "library",
-              src: catalogAsset.staticLocation,
-            },
-          ]);
-          continue;
-        }
-        const asset = projectAssetById.get(assetId);
-        const sourceFigure = sourceFigureById.get(assetId);
-        const key =
-          asset === undefined
-            ? input.quality === "low" && sourceFigure?.thumbnailStorageKey
-              ? sourceFigure.thumbnailStorageKey
-              : sourceFigure?.storageKey
-            : input.quality === "low" && asset.thumbnailStorageKey !== null
-              ? asset.thumbnailStorageKey
-              : asset.storageKey;
-        if (key === undefined || key === null) continue;
-        const signed = await this.storage.createSignedDownload({
-          key: storageKeySchema.parse(key),
-          expiresInSeconds: 300,
-        });
+                tableId: string;
+                title?: string;
+                columns: string[];
+                rows: string[][];
+                rowCount: number;
+                truncated: boolean;
+              };
+            }
+        ),
+      ]
+    > = [];
+    for (const assetId of assetIds) {
+      const table = tableById.get(assetId);
+      if (table !== undefined) {
+        const rows = table.rows
+          .slice(0, sourceTableVisualMaxRows)
+          .map((row) =>
+            row
+              .slice(0, sourceTableVisualMaxColumns)
+              .map((cell) => cell.slice(0, sourceTableVisualMaxCellLength)),
+          );
+        const truncated =
+          table.rows.length > rows.length ||
+          table.columns.length > sourceTableVisualMaxColumns ||
+          table.rows.some((row) =>
+            row.some((cell) => cell.length > sourceTableVisualMaxCellLength),
+          );
         assetEntries.push([
           assetId,
           {
             assetId,
-            altText:
-              asset?.originalName ?? sourceFigure?.altText ?? "Source figure",
-            // ST-085: surface provenance to the scene layer. A resolved project
-            // asset carries its own; anything else is an included source figure.
-            provenance:
-              asset === undefined
-                ? ("source_figure" as const)
-                : asset.provenance === "ai_generated"
-                  ? ("ai_generated" as const)
-                  : ("teacher_uploaded" as const),
-            source: "source",
-            src: signed.url,
+            altText: `Table: ${table.columns.join(", ")}`,
+            provenance: "source_table" as const,
+            source: "source_table" as const,
+            table: {
+              tableId: table.tableId,
+              columns: table.columns.slice(0, sourceTableVisualMaxColumns),
+              rows,
+              rowCount: table.rows.length,
+              truncated,
+            },
           },
         ]);
+        continue;
       }
-      return Object.fromEntries(assetEntries);
+      const catalogAsset = approvedAssetById(assetId);
+      if (catalogAsset !== undefined) {
+        assetEntries.push([
+          assetId,
+          {
+            assetId,
+            altText: catalogAsset.subject,
+            provenance: "catalog" as const,
+            source: "library",
+            src: catalogAsset.staticLocation,
+          },
+        ]);
+        continue;
+      }
+      const asset = projectAssetById.get(assetId);
+      const sourceFigure = sourceFigureById.get(assetId);
+      const key =
+        asset === undefined
+          ? input.quality === "low" && sourceFigure?.thumbnailStorageKey
+            ? sourceFigure.thumbnailStorageKey
+            : sourceFigure?.storageKey
+          : input.quality === "low" && asset.thumbnailStorageKey !== null
+            ? asset.thumbnailStorageKey
+            : asset.storageKey;
+      if (key === undefined || key === null) continue;
+      const signed = await this.storage.createSignedDownload({
+        key: storageKeySchema.parse(key),
+        expiresInSeconds: 300,
+      });
+      assetEntries.push([
+        assetId,
+        {
+          assetId,
+          altText:
+            asset?.originalName ?? sourceFigure?.altText ?? "Source figure",
+          // ST-085: surface provenance to the scene layer. A resolved project
+          // asset carries its own; anything else is an included source figure.
+          provenance:
+            asset === undefined
+              ? ("source_figure" as const)
+              : asset.provenance === "ai_generated"
+                ? ("ai_generated" as const)
+                : ("teacher_uploaded" as const),
+          source: "source",
+          src: signed.url,
+        },
+      ]);
+    }
+    return Object.fromEntries(assetEntries);
   }
 }

@@ -2,6 +2,9 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useLessonReadiness } from "../storyboard/use-lesson-readiness";
+import { PreparationSummary } from "../storyboard/preparation-summary";
+import { partialPreviewManifest } from "./partial-preview";
 import {
   FullLessonPreviewPlayer,
   type SoundBedCompositionProp,
@@ -135,11 +138,19 @@ export function FullLessonPreview({
 }) {
   const [quality, setQuality] = useState<"standard" | "low">("standard");
   const [manifest, setManifest] = useState(initialManifest as PreviewManifest);
+  const {
+    readiness,
+    error: preparationError,
+    refresh: refreshReadiness,
+  } = useLessonReadiness(projectId, manifest.storyboard.revision);
+  const recoveryEnabled = readiness?.enabled === true;
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
 
   // Preflight validation state
-  const [validation, setValidation] = useState<LessonValidationRun | null>(null);
+  const [validation, setValidation] = useState<LessonValidationRun | null>(
+    null,
+  );
   const [validationLoading, setValidationLoading] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
@@ -262,7 +273,35 @@ export function FullLessonPreview({
     void loadValidation();
   }, [refreshSignedUrls, loadValidation]);
 
-  const input = useMemo(() => previewPlayerInput(manifest), [manifest]);
+  const progressKey = recoveryEnabled
+    ? JSON.stringify([
+        readiness?.revision,
+        readiness?.state,
+        readiness?.completedTasks,
+        readiness?.tasks.map((task) => [task.id, task.state]),
+      ])
+    : null;
+  useEffect(() => {
+    if (!progressKey) return;
+    void refreshSignedUrls();
+    void loadValidation();
+  }, [progressKey, refreshSignedUrls, loadValidation]);
+  useEffect(() => {
+    if (!recoveryEnabled) return;
+    const timer = globalThis.setInterval(
+      () => void refreshSignedUrls(),
+      240000,
+    );
+    return () => globalThis.clearInterval(timer);
+  }, [recoveryEnabled, refreshSignedUrls]);
+  const partial = useMemo(
+    () =>
+      recoveryEnabled
+        ? partialPreviewManifest(manifest)
+        : { manifest, unavailableScenes: undefined },
+    [manifest, recoveryEnabled],
+  );
+  const input = useMemo(() => previewPlayerInput(partial.manifest), [partial]);
 
   const stale = manifest.scenes.filter((entry) => entry.stale);
   const totalDurationSeconds = manifest.storyboard.scenes.reduce(
@@ -276,6 +315,8 @@ export function FullLessonPreview({
   const isStaleValidation = validation?.stale === true;
   const isReadyToRender =
     validation !== null &&
+    validation.status === "passed" &&
+    (!recoveryEnabled || readiness?.capabilities.render === true) &&
     !isStaleValidation &&
     errors.length === 0 &&
     stale.length === 0 &&
@@ -373,7 +414,14 @@ export function FullLessonPreview({
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            flexWrap: "wrap",
+          }}
+        >
           {/* Quality Mode Selector */}
           <label
             style={{
@@ -500,11 +548,14 @@ export function FullLessonPreview({
             gap: "8px",
           }}
         >
-          <span style={{ color: "var(--color-brand, #A883FF)", fontWeight: 600 }}>
+          <span
+            style={{ color: "var(--color-brand, #A883FF)", fontWeight: 600 }}
+          >
             Draft Preview Mode:
           </span>
           <span>
-            Lower quality scales video to 540p for smoother playback. The final video will always render at full 1080p.
+            Lower quality scales video to 540p for smoother playback. The final
+            video will always render at full 1080p.
           </span>
         </div>
       )}
@@ -542,7 +593,15 @@ export function FullLessonPreview({
             gap: "10px",
           }}
         >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "8px",
+            }}
+          >
             <p
               style={{
                 margin: 0,
@@ -551,8 +610,9 @@ export function FullLessonPreview({
                 color: "#FCD34D",
               }}
             >
-              {stale.length} scene{stale.length === 1 ? " is" : "s are"} outdated
-              or missing media. Preview timing is shown, but this is not render-ready.
+              {stale.length} scene{stale.length === 1 ? " is" : "s are"}{" "}
+              outdated or missing media. Preview timing is shown, but this is
+              not render-ready.
             </p>
             <button
               onClick={() => void refreshSignedUrls()}
@@ -592,11 +652,14 @@ export function FullLessonPreview({
                 ...(entry.captions.length > 0 ? [] : ["captions"]),
                 ...(entry.missingAssetIds.length === 0
                   ? []
-                  : [`${entry.missingAssetIds.length} asset${entry.missingAssetIds.length === 1 ? "" : "s"}`]),
+                  : [
+                      `${entry.missingAssetIds.length} asset${entry.missingAssetIds.length === 1 ? "" : "s"}`,
+                    ]),
               ];
               return (
                 <li key={entry.sceneId}>
-                  Scene {index + 1}: missing or outdated {issues.join(", ") || "artifacts"}.
+                  Scene {index + 1}: missing or outdated{" "}
+                  {issues.join(", ") || "artifacts"}.
                 </li>
               );
             })}
@@ -633,6 +696,9 @@ export function FullLessonPreview({
         >
           <FullLessonPreviewPlayer
             input={input}
+            {...(partial.unavailableScenes
+              ? { unavailableScenes: partial.unavailableScenes }
+              : {})}
             onMediaError={() => void refreshSignedUrls()}
             quality={quality}
           />
@@ -652,7 +718,13 @@ export function FullLessonPreview({
           border: "1px solid var(--color-border, #3A3046)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
           <h2
             id="scene-nav-heading"
             style={{
@@ -664,7 +736,12 @@ export function FullLessonPreview({
           >
             Scene navigation
           </h2>
-          <span style={{ fontSize: "12px", color: "var(--color-text-muted, #BDB5C7)" }}>
+          <span
+            style={{
+              fontSize: "12px",
+              color: "var(--color-text-muted, #BDB5C7)",
+            }}
+          >
             Jump to any scene or edit in Focus Studio
           </span>
         </div>
@@ -700,7 +777,13 @@ export function FullLessonPreview({
                   }`,
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
                   <span
                     style={{
                       fontSize: "11px",
@@ -722,11 +805,24 @@ export function FullLessonPreview({
                   </span>
                 </div>
 
-                <div style={{ fontSize: "13px", fontWeight: 600, color: "var(--color-text, #F4F1F8)" }}>
+                <div
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: "var(--color-text, #F4F1F8)",
+                  }}
+                >
                   {templateName}
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "4px" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginTop: "4px",
+                  }}
+                >
                   {isStale ? (
                     <span
                       style={{
@@ -774,335 +870,379 @@ export function FullLessonPreview({
       </section>
 
       {/* Preflight & Quality Center */}
-      <section
-        aria-labelledby="preflight-heading"
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "16px",
-          padding: "20px",
-          backgroundColor: "var(--color-surface, #211A2B)",
-          borderRadius: "12px",
-          border: "1px solid var(--color-border, #3A3046)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
-          <div>
-            <h2
-              id="preflight-heading"
+      {recoveryEnabled && readiness ? (
+        <PreparationSummary
+          projectId={projectId}
+          readiness={readiness}
+          error={preparationError}
+          onRefresh={refreshReadiness}
+          sceneLabels={Object.fromEntries(
+            manifest.storyboard.scenes.map((scene) => [
+              scene.stableSceneId,
+              `Scene ${scene.order}: ${scene.scene.title ?? ""}`,
+            ]),
+          )}
+          onNavigate={(task) => {
+            window.location.href = `/workspace/${encodeURIComponent(projectId)}/storyboard${task.sceneId ? `#scene=${encodeURIComponent(task.sceneId)}` : ""}`;
+          }}
+        />
+      ) : null}
+      <details open={recoveryEnabled ? undefined : true}>
+        <summary>Validation details and troubleshooting</summary>
+        <section
+          aria-labelledby="preflight-heading"
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+            padding: "20px",
+            backgroundColor: "var(--color-surface, #211A2B)",
+            borderRadius: "12px",
+            border: "1px solid var(--color-border, #3A3046)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "8px",
+            }}
+          >
+            <div>
+              <h2
+                id="preflight-heading"
+                style={{
+                  margin: 0,
+                  fontSize: "16px",
+                  fontWeight: 600,
+                  color: "var(--color-text, #F4F1F8)",
+                }}
+              >
+                Preflight check & render readiness
+              </h2>
+              <p
+                style={{
+                  margin: "2px 0 0",
+                  fontSize: "13px",
+                  color: "var(--color-text-muted, #BDB5C7)",
+                }}
+              >
+                Deterministic validation of scene structure, assets, grounding,
+                audio, and render bounds.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void runValidation()}
+              disabled={validationLoading}
               style={{
-                margin: 0,
-                fontSize: "16px",
-                fontWeight: 600,
+                padding: "6px 14px",
+                borderRadius: "6px",
+                backgroundColor: "rgba(255, 255, 255, 0.08)",
+                border: "1px solid var(--color-border, #3A3046)",
                 color: "var(--color-text, #F4F1F8)",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: validationLoading ? "not-allowed" : "pointer",
               }}
             >
-              Preflight check & render readiness
-            </h2>
-            <p
-              style={{
-                margin: "2px 0 0",
-                fontSize: "13px",
-                color: "var(--color-text-muted, #BDB5C7)",
-              }}
-            >
-              Deterministic validation of scene structure, assets, grounding, audio, and render bounds.
-            </p>
+              {validationLoading ? "Running checks…" : "Run checks again"}
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={() => void runValidation()}
-            disabled={validationLoading}
-            style={{
-              padding: "6px 14px",
-              borderRadius: "6px",
-              backgroundColor: "rgba(255, 255, 255, 0.08)",
-              border: "1px solid var(--color-border, #3A3046)",
-              color: "var(--color-text, #F4F1F8)",
-              fontSize: "12px",
-              fontWeight: 600,
-              cursor: validationLoading ? "not-allowed" : "pointer",
-            }}
-          >
-            {validationLoading ? "Running checks…" : "Run checks again"}
-          </button>
-        </div>
+          {validationError !== null && (
+            <p
+              role="alert"
+              style={{
+                margin: 0,
+                padding: "8px 12px",
+                borderRadius: "6px",
+                backgroundColor: "rgba(239, 68, 68, 0.15)",
+                color: "#FCA5A5",
+                fontSize: "13px",
+              }}
+            >
+              {validationError}
+            </p>
+          )}
 
-        {validationError !== null && (
-          <p
-            role="alert"
+          {/* Readiness Status Banner */}
+          <div
             style={{
-              margin: 0,
-              padding: "8px 12px",
-              borderRadius: "6px",
-              backgroundColor: "rgba(239, 68, 68, 0.15)",
-              color: "#FCA5A5",
-              fontSize: "13px",
-            }}
-          >
-            {validationError}
-          </p>
-        )}
-
-        {/* Readiness Status Banner */}
-        <div
-          style={{
-            padding: "12px 16px",
-            borderRadius: "var(--radius-control)",
-            backgroundColor:
-              isStaleValidation
+              padding: "12px 16px",
+              borderRadius: "var(--radius-control)",
+              backgroundColor: isStaleValidation
                 ? "rgba(138, 75, 8, 0.15)"
                 : errors.length > 0
                   ? "rgba(180, 35, 24, 0.15)"
                   : stale.length > 0
                     ? "rgba(245, 158, 11, 0.15)"
                     : "rgba(23, 107, 70, 0.15)",
-            border: `1px solid ${
-              isStaleValidation
-                ? "rgba(138, 75, 8, 0.3)"
-                : errors.length > 0
-                  ? "rgba(180, 35, 24, 0.3)"
-                  : stale.length > 0
-                    ? "rgba(245, 158, 11, 0.3)"
-                    : "rgba(23, 107, 70, 0.3)"
-            }`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            flexWrap: "wrap",
-            gap: "12px",
-          }}
-        >
-          <div>
-            <p
-              data-testid="preflight-status"
-              style={{
-                margin: 0,
-                fontSize: "14px",
-                fontWeight: 600,
-                color:
-                  isStaleValidation
+              border: `1px solid ${
+                isStaleValidation
+                  ? "rgba(138, 75, 8, 0.3)"
+                  : errors.length > 0
+                    ? "rgba(180, 35, 24, 0.3)"
+                    : stale.length > 0
+                      ? "rgba(245, 158, 11, 0.3)"
+                      : "rgba(23, 107, 70, 0.3)"
+              }`,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "12px",
+            }}
+          >
+            <div>
+              <p
+                data-testid="preflight-status"
+                style={{
+                  margin: 0,
+                  fontSize: "14px",
+                  fontWeight: 600,
+                  color: isStaleValidation
                     ? "var(--color-warning-fg, #FBBF24)"
                     : errors.length > 0
                       ? "#FCA5A5"
                       : stale.length > 0
                         ? "#FDE68A"
                         : "#86EFAC",
-              }}
-            >
-              {isStaleValidation
-                ? "Validation results are outdated. Re-run checks to verify readiness."
-                : errors.length > 0
-                  ? `${errors.length} blocking issue${errors.length === 1 ? "" : "s"} must be fixed before rendering.`
-                  : stale.length > 0
-                    ? `${stale.length} scene${stale.length === 1 ? "" : "s"} need media renewal before rendering.`
-                    : validation === null
-                      ? "Checks not run yet. Click 'Run checks again' to verify."
-                      : "✓ All preflight checks passed. Lesson is ready for rendering."}
-            </p>
-            {validation !== null && !isStaleValidation && errors.length === 0 && warnings.length > 0 && (
-              <p
-                style={{
-                  margin: "4px 0 0",
-                  fontSize: "12px",
-                  color: "var(--color-text-muted, #BDB5C7)",
                 }}
               >
-                {warnings.filter((w) => w.acknowledgedAt !== null).length} of{" "}
-                {warnings.length} advisory warning
-                {warnings.length === 1 ? "" : "s"} acknowledged.
+                {isStaleValidation
+                  ? "Validation results are outdated. Re-run checks to verify readiness."
+                  : errors.length > 0
+                    ? `${errors.length} blocking issue${errors.length === 1 ? "" : "s"} must be fixed before rendering.`
+                    : stale.length > 0
+                      ? `${stale.length} scene${stale.length === 1 ? "" : "s"} need media renewal before rendering.`
+                      : validation === null
+                        ? "Checks not run yet. Click 'Run checks again' to verify."
+                        : "✓ All preflight checks passed. Lesson is ready for rendering."}
               </p>
+              {validation !== null &&
+                !isStaleValidation &&
+                errors.length === 0 &&
+                warnings.length > 0 && (
+                  <p
+                    style={{
+                      margin: "4px 0 0",
+                      fontSize: "12px",
+                      color: "var(--color-text-muted, #BDB5C7)",
+                    }}
+                  >
+                    {warnings.filter((w) => w.acknowledgedAt !== null).length}{" "}
+                    of {warnings.length} advisory warning
+                    {warnings.length === 1 ? "" : "s"} acknowledged.
+                  </p>
+                )}
+            </div>
+
+            {isReadyToRender && (
+              <Link
+                href={`/workspace/${encodeURIComponent(projectId)}/render`}
+                prefetch={true}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: "6px",
+                  backgroundColor: "var(--color-brand, #A883FF)",
+                  color: "var(--color-on-brand, #1B1027)",
+                  textDecoration: "none",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                }}
+              >
+                Render lesson →
+              </Link>
             )}
           </div>
 
-          {isReadyToRender && (
-            <Link
-              href={`/workspace/${encodeURIComponent(projectId)}/render`}
-              prefetch={true}
-              style={{
-                padding: "6px 14px",
-                borderRadius: "6px",
-                backgroundColor: "var(--color-brand, #A883FF)",
-                color: "var(--color-on-brand, #1B1027)",
-                textDecoration: "none",
-                fontSize: "13px",
-                fontWeight: 600,
-              }}
+          {/* Grouped Issues List */}
+          {validation !== null && validation.issues.length > 0 && (
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "12px" }}
             >
-              Render lesson →
-            </Link>
-          )}
-        </div>
-
-        {/* Grouped Issues List */}
-        {validation !== null && validation.issues.length > 0 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            {[...groupedIssues].map(([group, issues]) => (
-              <div
-                key={group}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "8px",
-                }}
-              >
-                <h3
+              {[...groupedIssues].map(([group, issues]) => (
+                <div
+                  key={group}
                   style={{
-                    margin: 0,
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    color: "var(--color-text-muted, #BDB5C7)",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.5px",
-                  }}
-                >
-                  {scopeLabels[group] ?? group}
-                </h3>
-                <ul
-                  style={{
-                    margin: 0,
-                    padding: 0,
-                    listStyle: "none",
                     display: "flex",
                     flexDirection: "column",
                     gap: "8px",
                   }}
                 >
-                  {issues.map((issue) => (
-                    <li
-                      key={issue.id}
-                      style={{
-                        padding: "10px 14px",
-                        borderRadius: "var(--radius-control)",
-                        backgroundColor: "var(--color-surface-raised, #292035)",
-                        border: "1px solid var(--color-border, #3A3046)",
-                        fontSize: "13px",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "6px",
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
-                        <span
-                          style={{
-                            color:
-                              issue.severity === "error"
-                                ? "#FCA5A5"
-                                : "var(--color-warning-fg, #FBBF24)",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.5px",
-                            marginTop: "1px",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {issue.severity === "error" ? "Fix required:" : "Warning:"}
-                        </span>
-                        <span style={{ color: "var(--color-text, #F4F1F8)" }}>
-                          {issue.message}
-                        </span>
-                      </div>
-
-                      <div
+                  <h3
+                    style={{
+                      margin: 0,
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      color: "var(--color-text-muted, #BDB5C7)",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.5px",
+                    }}
+                  >
+                    {scopeLabels[group] ?? group}
+                  </h3>
+                  <ul
+                    style={{
+                      margin: 0,
+                      padding: 0,
+                      listStyle: "none",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "8px",
+                    }}
+                  >
+                    {issues.map((issue) => (
+                      <li
+                        key={issue.id}
                         style={{
+                          padding: "10px 14px",
+                          borderRadius: "var(--radius-control)",
+                          backgroundColor:
+                            "var(--color-surface-raised, #292035)",
+                          border: "1px solid var(--color-border, #3A3046)",
+                          fontSize: "13px",
                           display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          flexWrap: "wrap",
-                          marginTop: "2px",
+                          flexDirection: "column",
+                          gap: "6px",
                         }}
                       >
-                        {issue.sceneId !== null ? (
-                          <Link
-                            href={`/workspace/${encodeURIComponent(projectId)}/storyboard#scene=${encodeURIComponent(issue.sceneId)}`}
-                            prefetch={true}
-                            style={{
-                              padding: "4px 8px",
-                              borderRadius: "4px",
-                              backgroundColor: "rgba(255, 255, 255, 0.08)",
-                              border: "1px solid var(--color-border, #3A3046)",
-                              color: "var(--color-brand, #A883FF)",
-                              fontSize: "12px",
-                              textDecoration: "none",
-                              fontWeight: 500,
-                            }}
-                          >
-                            Open affected scene →
-                          </Link>
-                        ) : issue.scopeType === "objective" ? (
-                          <Link
-                            href={`/workspace/${encodeURIComponent(projectId)}/objectives`}
-                            prefetch={true}
-                            style={{
-                              color: "var(--color-brand, #A883FF)",
-                              fontSize: "12px",
-                              textDecoration: "none",
-                            }}
-                          >
-                            Review learning objectives →
-                          </Link>
-                        ) : (
-                          <Link
-                            href={`/workspace/${encodeURIComponent(projectId)}/storyboard`}
-                            prefetch={true}
-                            style={{
-                              color: "var(--color-brand, #A883FF)",
-                              fontSize: "12px",
-                              textDecoration: "none",
-                            }}
-                          >
-                            Review storyboard →
-                          </Link>
-                        )}
-
-                        {issue.acknowledgeable &&
-                        issue.acknowledgedAt === null &&
-                        !validation.stale ? (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              void acknowledgeValidation(
-                                issue.id,
-                                validation.inputHash,
-                              )
-                            }
-                            disabled={validationLoading}
-                            style={{
-                              padding: "4px 8px",
-                              borderRadius: "4px",
-                              backgroundColor: "rgba(245, 158, 11, 0.15)",
-                              border: "1px solid rgba(245, 158, 11, 0.3)",
-                              color: "#FCD34D",
-                              fontSize: "12px",
-                              fontWeight: 500,
-                              cursor: validationLoading ? "not-allowed" : "pointer",
-                            }}
-                          >
-                            Acknowledge warning
-                          </button>
-                        ) : null}
-
-                        {issue.acknowledgedAt !== null ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "flex-start",
+                            gap: "8px",
+                          }}
+                        >
                           <span
                             style={{
-                              fontSize: "12px",
-                              color: "var(--color-success-fg, #86EFAC)",
+                              color:
+                                issue.severity === "error"
+                                  ? "#FCA5A5"
+                                  : "var(--color-warning-fg, #FBBF24)",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              letterSpacing: "0.5px",
+                              marginTop: "1px",
+                              flexShrink: 0,
                             }}
                           >
-                            ✓ Acknowledged
+                            {issue.severity === "error"
+                              ? "Fix required:"
+                              : "Warning:"}
                           </span>
-                        ) : null}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+                          <span style={{ color: "var(--color-text, #F4F1F8)" }}>
+                            {issue.message}
+                          </span>
+                        </div>
+
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            flexWrap: "wrap",
+                            marginTop: "2px",
+                          }}
+                        >
+                          {issue.sceneId !== null ? (
+                            <Link
+                              href={`/workspace/${encodeURIComponent(projectId)}/storyboard#scene=${encodeURIComponent(issue.sceneId)}`}
+                              prefetch={true}
+                              style={{
+                                padding: "4px 8px",
+                                borderRadius: "4px",
+                                backgroundColor: "rgba(255, 255, 255, 0.08)",
+                                border:
+                                  "1px solid var(--color-border, #3A3046)",
+                                color: "var(--color-brand, #A883FF)",
+                                fontSize: "12px",
+                                textDecoration: "none",
+                                fontWeight: 500,
+                              }}
+                            >
+                              Open affected scene →
+                            </Link>
+                          ) : issue.scopeType === "objective" ? (
+                            <Link
+                              href={`/workspace/${encodeURIComponent(projectId)}/objectives`}
+                              prefetch={true}
+                              style={{
+                                color: "var(--color-brand, #A883FF)",
+                                fontSize: "12px",
+                                textDecoration: "none",
+                              }}
+                            >
+                              Review learning objectives →
+                            </Link>
+                          ) : (
+                            <Link
+                              href={`/workspace/${encodeURIComponent(projectId)}/storyboard`}
+                              prefetch={true}
+                              style={{
+                                color: "var(--color-brand, #A883FF)",
+                                fontSize: "12px",
+                                textDecoration: "none",
+                              }}
+                            >
+                              Review storyboard →
+                            </Link>
+                          )}
+
+                          {issue.acknowledgeable &&
+                          issue.acknowledgedAt === null &&
+                          !validation.stale ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void acknowledgeValidation(
+                                  issue.id,
+                                  validation.inputHash,
+                                )
+                              }
+                              disabled={validationLoading}
+                              style={{
+                                padding: "4px 8px",
+                                borderRadius: "4px",
+                                backgroundColor: "rgba(245, 158, 11, 0.15)",
+                                border: "1px solid rgba(245, 158, 11, 0.3)",
+                                color: "#FCD34D",
+                                fontSize: "12px",
+                                fontWeight: 500,
+                                cursor: validationLoading
+                                  ? "not-allowed"
+                                  : "pointer",
+                              }}
+                            >
+                              Acknowledge warning
+                            </button>
+                          ) : null}
+
+                          {issue.acknowledgedAt !== null ? (
+                            <span
+                              style={{
+                                fontSize: "12px",
+                                color: "var(--color-success-fg, #86EFAC)",
+                              }}
+                            >
+                              ✓ Acknowledged
+                            </span>
+                          ) : null}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </details>
     </div>
   );
 }

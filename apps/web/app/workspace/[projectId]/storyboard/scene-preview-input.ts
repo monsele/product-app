@@ -35,6 +35,13 @@ export function buildScenePreviewInput(
   const media = manifest?.scenes.find(
     (entry) => entry.sceneId === detail.scene.stableSceneId,
   );
+  const manifestScene = manifest?.storyboard.scenes?.find(
+    (entry) => entry.stableSceneId === detail.scene.stableSceneId,
+  );
+  const currentAudio =
+    media?.audio.status === "ready" &&
+    detail.status.audio === "ready" &&
+    manifestScene?.scene.narration === detail.scene.scene.narration;
   const assetIds = new Set(
     detail.scene.scene.assetBindings.map((binding) => binding.assetId),
   );
@@ -61,7 +68,9 @@ export function buildScenePreviewInput(
     scene: detail.scene.scene,
     manifest: {
       assets,
-      ...(media?.audio.url === null || media?.audio.url === undefined
+      ...(!currentAudio ||
+      media?.audio.url === null ||
+      media?.audio.url === undefined
         ? {}
         : {
             audio: {
@@ -70,10 +79,17 @@ export function buildScenePreviewInput(
             },
           }),
     },
-    captions: (media?.captions ?? []).map((cue) => ({
-      startFrame: captionMsToFrame(cue.startMs, videoTheme.canvas.fps),
-      endFrame: captionMsToFrame(cue.endMs, videoTheme.canvas.fps),
-      text: cue.text,
-    })),
+    captions: (currentAudio ? (media?.captions ?? []) : [])
+      .filter(
+        (cue) =>
+          cue.startMs >= 0 &&
+          cue.endMs > cue.startMs &&
+          cue.endMs <= detail.scene.durationSeconds * 1000,
+      )
+      .map((cue) => ({
+        startFrame: captionMsToFrame(cue.startMs, videoTheme.canvas.fps),
+        endFrame: captionMsToFrame(cue.endMs, videoTheme.canvas.fps),
+        text: cue.text,
+      })),
   };
 }

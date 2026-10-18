@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState, type JSX } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type JSX,
+} from "react";
 import {
   sceneRegenerationModeValues,
   sceneEditorMetadata,
@@ -59,7 +65,8 @@ export function teacherReplacementPreviewForScene(
   );
 }
 
-export type InspectorTab = "content" | "visual" | "audio" | "sources" | "checks";
+export type InspectorTab =
+  "content" | "visual" | "audio" | "sources" | "checks";
 
 export function SceneDetailPanel({
   projectId,
@@ -86,6 +93,8 @@ export function SceneDetailPanel({
   onPreviewVersion,
   onRestoreVersion,
   initialTab = "content",
+  requestedTab,
+  preparationEnabled = false,
 }: {
   projectId: string;
   detail: StoryboardSceneDetailResponse;
@@ -103,7 +112,12 @@ export function SceneDetailPanel({
   onAcknowledgeValidation?: (issueId: string, inputHash: string) => void;
   onNavigateScene?: (sceneId: string | null) => void;
   versionMetadata?: VersionBrowserMetadata | null;
-  versionPreview?: { id: string; durationSeconds: number; sceneCount: number; schemaVersion: string } | null;
+  versionPreview?: {
+    id: string;
+    durationSeconds: number;
+    sceneCount: number;
+    schemaVersion: string;
+  } | null;
   versionSaveBlockers?: readonly VersionSaveBlocker[];
   restoringVersionId?: string | null;
   savingVersion?: boolean;
@@ -111,17 +125,21 @@ export function SceneDetailPanel({
   onPreviewVersion?: (versionId: string) => void;
   onRestoreVersion?: (versionId: string) => void;
   initialTab?: InspectorTab;
+  requestedTab?: { tab: InspectorTab; request: number };
+  preparationEnabled?: boolean;
 }): JSX.Element {
   const scene = detail.scene;
   const sceneId = scene.stableSceneId;
   const [activeTab, setActiveTab] = useState<InspectorTab>(initialTab);
+  useEffect(() => {
+    if (requestedTab && requestedTab.request > 0)
+      setActiveTab(requestedTab.tab);
+  }, [requestedTab]);
   const [sceneForm, setSceneForm] =
     useState<SceneRegenerationMode>("regenerate");
   const [pending, setPending] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
-  const [, setTeacherAssets] = useState<readonly ProjectAsset[]>(
-    [],
-  );
+  const [, setTeacherAssets] = useState<readonly ProjectAsset[]>([]);
   const [, setAudio] = useState<SceneAudioStatusResponse | null>(null);
   const assetBindingSignature = scene.scene.assetBindings
     .map((binding) => binding.assetId)
@@ -246,10 +264,17 @@ export function SceneDetailPanel({
     padding: "8px 12px",
     fontSize: "12px",
     fontWeight: activeTab === tab ? 600 : 500,
-    color: activeTab === tab ? "var(--color-brand, #A883FF)" : "var(--color-text-muted, #BDB5C7)",
-    backgroundColor: activeTab === tab ? "var(--color-surface, #211A2B)" : "transparent",
+    color:
+      activeTab === tab
+        ? "var(--color-brand, #A883FF)"
+        : "var(--color-text-muted, #BDB5C7)",
+    backgroundColor:
+      activeTab === tab ? "var(--color-surface, #211A2B)" : "transparent",
     border: "none",
-    borderBottom: activeTab === tab ? "2px solid var(--color-brand, #A883FF)" : "2px solid transparent",
+    borderBottom:
+      activeTab === tab
+        ? "2px solid var(--color-brand, #A883FF)"
+        : "2px solid transparent",
     cursor: "pointer",
     transition: "all 0.15s ease",
     whiteSpace: "nowrap",
@@ -277,8 +302,22 @@ export function SceneDetailPanel({
           backgroundColor: "var(--color-surface-subtle, #292035)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
-          <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "var(--color-text, #F4F1F8)" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "8px",
+          }}
+        >
+          <h3
+            style={{
+              margin: 0,
+              fontSize: "15px",
+              fontWeight: 700,
+              color: "var(--color-text, #F4F1F8)",
+            }}
+          >
             Scene {scene.order}
           </h3>
           <span
@@ -387,7 +426,9 @@ export function SceneDetailPanel({
         }}
       >
         {activeTab === "content" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "14px" }}
+          >
             <SceneNarrationEditor
               projectId={projectId}
               detail={detail}
@@ -400,19 +441,58 @@ export function SceneDetailPanel({
               onPersisted={onChanged}
             />
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "4px", fontSize: "12px", color: "var(--color-text-muted, #BDB5C7)" }}>
-              <p style={{ margin: 0 }}>Transition: <span style={{ color: "var(--color-text, #F4F1F8)" }}>{scene.scene.transition}</span></p>
-              <p style={{ margin: 0 }}>Visual: <span style={{ color: "var(--color-text, #F4F1F8)" }}>{visualSummary(detail)}</span></p>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "4px",
+                fontSize: "12px",
+                color: "var(--color-text-muted, #BDB5C7)",
+              }}
+            >
+              <p style={{ margin: 0 }}>
+                Transition:{" "}
+                <span style={{ color: "var(--color-text, #F4F1F8)" }}>
+                  {scene.scene.transition}
+                </span>
+              </p>
+              <p style={{ margin: 0 }}>
+                Visual:{" "}
+                <span style={{ color: "var(--color-text, #F4F1F8)" }}>
+                  {visualSummary(detail)}
+                </span>
+              </p>
             </div>
 
             {scene.assetRequirements.length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <h4 style={{ margin: 0, fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.5px", color: "var(--color-text-muted, #BDB5C7)" }}>
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "6px" }}
+              >
+                <h4
+                  style={{
+                    margin: 0,
+                    fontSize: "12px",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.5px",
+                    color: "var(--color-text-muted, #BDB5C7)",
+                  }}
+                >
                   Planned assets
                 </h4>
-                <ul aria-label="Planned assets" style={{ margin: 0, paddingLeft: "18px", fontSize: "12px", color: "var(--color-text, #F4F1F8)" }}>
+                <ul
+                  aria-label="Planned assets"
+                  style={{
+                    margin: 0,
+                    paddingLeft: "18px",
+                    fontSize: "12px",
+                    color: "var(--color-text, #F4F1F8)",
+                  }}
+                >
                   {scene.assetRequirements.map((requirement, index) => (
-                    <li key={`${requirement.slot}-${index}`} style={{ marginBottom: "2px" }}>
+                    <li
+                      key={`${requirement.slot}-${index}`}
+                      style={{ marginBottom: "2px" }}
+                    >
                       <strong>{requirement.slot}</strong>: {requirement.purpose}
                     </li>
                   ))}
@@ -433,15 +513,34 @@ export function SceneDetailPanel({
                 gap: "10px",
               }}
             >
-              <h4 style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "var(--color-text, #F4F1F8)" }}>
+              <h4
+                style={{
+                  margin: 0,
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  color: "var(--color-text, #F4F1F8)",
+                }}
+              >
                 Regenerate this scene
               </h4>
-              <p style={{ margin: 0, fontSize: "11px", color: "var(--color-text-muted, #BDB5C7)" }}>
-                AI rewrite is scoped strictly to this scene. Unrelated scenes and teacher edits are preserved.
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: "11px",
+                  color: "var(--color-text-muted, #BDB5C7)",
+                }}
+              >
+                AI rewrite is scoped strictly to this scene. Unrelated scenes
+                and teacher edits are preserved.
               </p>
 
-              <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                <label htmlFor={`scene-mode-${sceneId}`} style={{ display: "none" }}>
+              <div
+                style={{ display: "flex", gap: "8px", alignItems: "center" }}
+              >
+                <label
+                  htmlFor={`scene-mode-${sceneId}`}
+                  style={{ display: "none" }}
+                >
                   Regenerate this scene
                 </label>
                 <select
@@ -490,7 +589,10 @@ export function SceneDetailPanel({
               </div>
 
               {actionMessage !== null ? (
-                <p role="alert" style={{ margin: 0, fontSize: "12px", color: "#FCA5A5" }}>
+                <p
+                  role="alert"
+                  style={{ margin: 0, fontSize: "12px", color: "#FCA5A5" }}
+                >
                   {actionMessage}
                 </p>
               ) : null}
@@ -507,7 +609,9 @@ export function SceneDetailPanel({
         )}
 
         {activeTab === "visual" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "16px" }}
+          >
             <SceneEditorForm
               projectId={projectId}
               detail={detail}
@@ -524,8 +628,10 @@ export function SceneDetailPanel({
               sceneId={sceneId}
               sceneRevision={detail.sceneRevision}
               storyboardRevision={lessonSpecRevision}
-              slots={sceneEditorMetadata(scene.template).assetSlotRequirements
-                .filter((requirement) => requirement.visualRole === "decorative")
+              slots={sceneEditorMetadata(scene.template)
+                .assetSlotRequirements.filter(
+                  (requirement) => requirement.visualRole === "decorative",
+                )
                 .map((requirement) => requirement.slot)}
               disabled={pending || generating}
               onChanged={onChanged}
@@ -534,7 +640,9 @@ export function SceneDetailPanel({
         )}
 
         {activeTab === "audio" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "16px" }}
+          >
             <SceneAudioPanel
               projectId={projectId}
               sceneId={sceneId}
@@ -545,7 +653,9 @@ export function SceneDetailPanel({
         )}
 
         {activeTab === "sources" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "16px" }}
+          >
             <SceneCitations projectId={projectId} sceneId={sceneId} />
             <SceneGrounding
               projectId={projectId}
@@ -557,21 +667,29 @@ export function SceneDetailPanel({
         )}
 
         {activeTab === "checks" && (
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-            {validation !== undefined && onRunValidation && onAcknowledgeValidation && onNavigateScene && (
-              <ValidationPanel
-                projectId={projectId}
-                run={validation}
-                scenes={scenes}
-                onRun={onRunValidation}
-                onAcknowledge={onAcknowledgeValidation}
-                onNavigate={(targetSceneId) => {
-                  onNavigateScene(targetSceneId);
-                  if (targetSceneId !== null) setActiveTab("content");
-                }}
-                busy={validationBusy}
-              />
-            )}
+          <div
+            style={{ display: "flex", flexDirection: "column", gap: "16px" }}
+          >
+            {validation !== undefined &&
+              onRunValidation &&
+              onAcknowledgeValidation &&
+              onNavigateScene && (
+                <details open={preparationEnabled ? undefined : true}>
+                  <summary>Validation details and troubleshooting</summary>
+                  <ValidationPanel
+                    projectId={projectId}
+                    run={validation}
+                    scenes={scenes}
+                    onRun={onRunValidation}
+                    onAcknowledge={onAcknowledgeValidation}
+                    onNavigate={(targetSceneId) => {
+                      onNavigateScene(targetSceneId);
+                      if (targetSceneId !== null) setActiveTab("content");
+                    }}
+                    busy={validationBusy}
+                  />
+                </details>
+              )}
 
             {onSaveVersion && onPreviewVersion && onRestoreVersion && (
               <VersionBrowser

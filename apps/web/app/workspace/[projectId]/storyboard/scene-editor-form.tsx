@@ -1,6 +1,8 @@
 "use client";
 
-import React, { useEffect, useMemo, useState, type JSX } from "react";
+import { mergeEditorRefresh } from "./merge-editor-refresh";
+
+import React, { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import {
   sceneEditorMetadata,
   sceneSpecSchema,
@@ -731,7 +733,6 @@ export function writeAssetSlot(
   return next as unknown as SceneSpec;
 }
 
-
 export function SceneEditorForm({
   projectId,
   detail,
@@ -748,6 +749,10 @@ export function SceneEditorForm({
   onTemplateChanged?: (requiresNewVisual: boolean) => void;
 }): JSX.Element {
   const [draft, setDraft] = useState<SceneSpec>(detail.scene.scene);
+  const refreshBase = useRef(detail.scene.scene);
+  const currentDraft = useRef(draft);
+  currentDraft.current = draft;
+  const [refreshConflicts, setRefreshConflicts] = useState<string[]>([]);
   const [saveState, setSaveState] = useState<SaveState>("saved");
   const [message, setMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<
@@ -772,10 +777,21 @@ export function SceneEditorForm({
   const visibleFields = useMemo(() => editorFieldsForScene(draft), [draft]);
 
   useEffect(() => {
-    setDraft(detail.scene.scene);
-    setSaveState("saved");
-    setMessage(null);
-    setFieldErrors({});
+    const result = mergeEditorRefresh(
+      refreshBase.current,
+      currentDraft.current,
+      detail.scene.scene,
+    );
+    refreshBase.current = detail.scene.scene;
+    setDraft(result.value);
+    if (result.conflicts.length > 0) {
+      setRefreshConflicts((current) => [
+        ...new Set([...current, ...result.conflicts]),
+      ]);
+      setMessage(
+        "This scene also changed elsewhere. Your unsaved edits are preserved; review them before saving.",
+      );
+    }
   }, [detail.scene.scene]);
 
   useEffect(() => {
@@ -806,6 +822,13 @@ export function SceneEditorForm({
   }, [draft.template, projectId, tagFiltersBySlot]);
 
   const save = async (): Promise<void> => {
+    if (
+      refreshConflicts.length > 0 &&
+      !window.confirm(
+        `These fields also changed elsewhere: ${refreshConflicts.join(", ")}. Replace those fields with your reviewed edits?`,
+      )
+    )
+      return;
     setSaveState("saving");
     setMessage(null);
     setFieldErrors({});
@@ -830,6 +853,8 @@ export function SceneEditorForm({
         local.data,
         revision,
       );
+      refreshBase.current = result.scene.scene;
+      setRefreshConflicts([]);
       setDraft(result.scene.scene);
       setSaveState("saved");
       const savedMessage =
@@ -873,6 +898,8 @@ export function SceneEditorForm({
           true,
         );
       }
+      refreshBase.current = result.scene.scene;
+      setRefreshConflicts([]);
       setDraft(result.scene.scene);
       setSaveState("saved");
       const requiresNewVisual =
@@ -1133,7 +1160,8 @@ export function SceneEditorForm({
         />
       ) : null}
 
-      {draft.template === "labelled-diagram" && draft.visual.kind === "shapes" ? (
+      {draft.template === "labelled-diagram" &&
+      draft.visual.kind === "shapes" ? (
         <div
           style={{
             display: "flex",

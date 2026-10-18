@@ -1,5 +1,6 @@
 "use client";
 
+import { usePreviewRefresh } from "./preview-refresh.js";
 import { Player, type PlayerRef } from "@remotion/player";
 import { Audio, interpolate, Sequence, useCurrentFrame } from "remotion";
 import React, {
@@ -126,12 +127,15 @@ export const fullLessonCompositionPropsSchema = z
           message: "Pinned beat timing belongs only to a v2 creative design.",
         });
       else
-        for (const [sceneId, timing] of Object.entries(value.cinemaTiming.scenes))
+        for (const [sceneId, timing] of Object.entries(
+          value.cinemaTiming.scenes,
+        ))
           if (design.scenes[sceneId]?.beats.length !== timing.beatFrames.length)
             context.addIssue({
               code: z.ZodIssueCode.custom,
               path: ["cinemaTiming", "scenes", sceneId],
-              message: "Pinned beat timing does not match the scene's planned beats.",
+              message:
+                "Pinned beat timing does not match the scene's planned beats.",
             });
     }
     if (value.creativeDesign !== undefined)
@@ -1124,6 +1128,48 @@ export function CreativeScene({
   );
 }
 
+function PreviewPlaceholder({ message }: { message: string }) {
+  return (
+    <div
+      role="status"
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "grid",
+        placeContent: "center",
+        padding: 100,
+        boxSizing: "border-box",
+        background: "#211a2b",
+        color: "#f4f1f8",
+        fontSize: 40,
+        textAlign: "center",
+      }}
+    >
+      <strong>Scene preview placeholder</strong>
+      <p>{message}</p>
+    </div>
+  );
+}
+class PreviewSceneBoundary extends React.Component<
+  { children: React.ReactNode; resetKey: unknown },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidUpdate(previous: Readonly<{ children: React.ReactNode; resetKey: unknown }>) {
+    if (this.state.failed && previous.resetKey !== this.props.resetKey) this.setState({ failed: false });
+  }
+  render() {
+    return this.state.failed ? (
+      <PreviewPlaceholder message="This scene needs review. Other scenes remain available." />
+    ) : (
+      this.props.children
+    );
+  }
+}
+
 export function FullLessonComposition({
   assets,
   captions,
@@ -1135,11 +1181,13 @@ export function FullLessonComposition({
   soundBed,
   runtimeMode = "preview",
   viewportScale = 1,
+  unavailableScenes = {},
 }: FullLessonCompositionProps &
   Readonly<{
     onAudioError?: () => void;
     runtimeMode?: "preview" | "render";
     viewportScale?: number;
+    unavailableScenes?: Readonly<Record<string, string>>;
   }>): JSX.Element {
   const timeline = calculateLessonTimeline(lesson);
   const narrationBySceneId = new Map(
@@ -1178,16 +1226,37 @@ export function FullLessonComposition({
             from={segment.startFrame}
             key={segment.sceneId}
           >
-            <TransitionedScene
-              {...(creativeDesign === undefined ? {} : { creativeDesign })}
-              durationInFrames={segment.durationInFrames}
-              resolvedAssets={assets}
-              runtimeMode={runtimeMode}
-              scene={scene}
-              sceneCaptions={captionsBySceneId.get(segment.sceneId) ?? []}
-              pinnedBeatFrames={cinemaTiming?.scenes[segment.sceneId]?.beatFrames}
-            />
-            {narration?.kind === "browser-audio" ? (
+            {runtimeMode === "preview" && unavailableScenes[scene.id] ? (
+              <PreviewPlaceholder message={unavailableScenes[scene.id]!} />
+            ) : runtimeMode === "preview" ? (
+              <PreviewSceneBoundary key={JSON.stringify(scene)} resetKey={assets}>
+                <TransitionedScene
+                  {...(creativeDesign === undefined ? {} : { creativeDesign })}
+                  durationInFrames={segment.durationInFrames}
+                  resolvedAssets={assets}
+                  runtimeMode={runtimeMode}
+                  scene={scene}
+                  sceneCaptions={captionsBySceneId.get(segment.sceneId) ?? []}
+                  pinnedBeatFrames={
+                    cinemaTiming?.scenes[segment.sceneId]?.beatFrames
+                  }
+                />
+              </PreviewSceneBoundary>
+            ) : (
+              <TransitionedScene
+                {...(creativeDesign === undefined ? {} : { creativeDesign })}
+                durationInFrames={segment.durationInFrames}
+                resolvedAssets={assets}
+                runtimeMode={runtimeMode}
+                scene={scene}
+                sceneCaptions={captionsBySceneId.get(segment.sceneId) ?? []}
+                pinnedBeatFrames={
+                  cinemaTiming?.scenes[segment.sceneId]?.beatFrames
+                }
+              />
+            )}
+            {narration?.kind === "browser-audio" &&
+            !(runtimeMode === "preview" && unavailableScenes[scene.id]) ? (
               <Audio
                 pauseWhenBuffering
                 onError={onAudioError}
@@ -1207,7 +1276,11 @@ export function FullLessonComposition({
         />
       )}
       <FullLessonCaptionOverlay
-        captions={captions}
+        captions={
+          runtimeMode === "preview"
+            ? captions.filter((cue) => !unavailableScenes[cue.sceneId])
+            : captions
+        }
         {...(creativeDesign === undefined ? {} : { creativeDesign })}
       />
       {creativeDesign?.settings.logoAssetId === null ||
@@ -1228,28 +1301,112 @@ function formatFrameAsTime(frameIndex: number, fps: number): string {
   return `${minutes}:${seconds.toString().padStart(2, "0")}`;
 }
 
+export function remapLessonPreviewFrame(
+  previous: unknown,
+  next: unknown,
+  frame: number,
+): number {
+  const before = fullLessonCompositionPropsSchema.safeParse(previous);
+  const after = fullLessonCompositionPropsSchema.safeParse(next);
+  if (!before.success || !after.success) return 0;
+  const active = getTimelineSegmentAtFrame(
+    calculateLessonTimeline(before.data.lesson),
+    frame,
+  );
+  const updated = calculateLessonTimeline(after.data.lesson).find(
+    (segment) => segment.sceneId === active?.sceneId,
+  );
+  return active && updated
+    ? updated.startFrame +
+        Math.min(
+          Math.max(0, frame - active.startFrame),
+          updated.durationInFrames - 1,
+        )
+    : 0;
+}
+type PreviewRefreshBundle = {
+  input: unknown;
+  unavailableScenes?: Readonly<Record<string, string>> | undefined;
+};
+const remapPreviewBundle = (previous: unknown, next: unknown, frame: number) =>
+  remapLessonPreviewFrame(
+    (previous as PreviewRefreshBundle).input,
+    (next as PreviewRefreshBundle).input,
+    frame,
+  );
+function invalidatesLessonPlayback(
+  previous: unknown,
+  next: unknown,
+  frame: number,
+): boolean {
+  const before = fullLessonCompositionPropsSchema.safeParse(
+    (previous as PreviewRefreshBundle).input,
+  );
+  const after = fullLessonCompositionPropsSchema.safeParse(
+    (next as PreviewRefreshBundle).input,
+  );
+  if (!before.success) return false;
+  if (!after.success) return true;
+  const active = getTimelineSegmentAtFrame(
+    calculateLessonTimeline(before.data.lesson),
+    frame,
+  );
+  if (!active) return false;
+  const priorScene = before.data.lesson.scenes.find(
+    (scene) => scene.id === active.sceneId,
+  );
+  const nextScene = after.data.lesson.scenes.find(
+    (scene) => scene.id === active.sceneId,
+  );
+  return (
+    priorScene?.narration !== nextScene?.narration ||
+    (before.data.narrationTracks.find(
+      (track) => track.sceneId === active.sceneId,
+    )?.kind === "browser-audio" &&
+      after.data.narrationTracks.find(
+        (track) => track.sceneId === active.sceneId,
+      )?.kind !== "browser-audio")
+  );
+}
+
 export function FullLessonPreviewPlayer({
   input,
   onMediaError,
   quality = "standard",
+  unavailableScenes,
 }: Readonly<{
   input: unknown;
   onMediaError?: () => void;
   quality?: PreviewQuality;
+  unavailableScenes?: Readonly<Record<string, string>>;
 }>): JSX.Element {
-  const parsed = useMemo(
-    () => fullLessonCompositionPropsSchema.safeParse(input),
-    [input],
-  );
   const playerRef = useRef<PlayerRef>(null);
+  const incoming = useMemo(
+    () => ({ input, unavailableScenes }),
+    [input, unavailableScenes],
+  );
+  const displayed = usePreviewRefresh(
+    incoming,
+    playerRef,
+    "lesson",
+    remapPreviewBundle,
+    invalidatesLessonPlayback,
+  ) as PreviewRefreshBundle;
+  const parsed = useMemo(
+    () => fullLessonCompositionPropsSchema.safeParse(displayed.input),
+    [displayed],
+  );
   const [frame, setFrame] = useState(0);
   const [playbackError, setPlaybackError] = useState<string>();
+  const mediaErrorCallback = useRef(onMediaError);
+  mediaErrorCallback.current = onMediaError;
   const onAudioError = useCallback(() => {
     setPlaybackError(
       "Preview audio could not be played. Renewing preview media.",
     );
-    onMediaError?.();
-  }, [onMediaError]);
+    playerRef.current?.pause();
+    mediaErrorCallback.current?.();
+  }, []);
   const previewSettings = getPreviewCompositionSettings(quality);
   // Remotion includes inputProps in its playback-clock dependencies. Recreating
   // them on frameupdate restarts that clock and makes audio seek backward.
@@ -1260,14 +1417,17 @@ export function FullLessonPreviewPlayer({
             ...parsed.data,
             onAudioError,
             viewportScale: previewSettings.scale,
+            ...(displayed.unavailableScenes
+              ? { unavailableScenes: displayed.unavailableScenes }
+              : {}),
           }
         : undefined,
-    [parsed, onAudioError, previewSettings.scale],
+    [parsed, onAudioError, previewSettings.scale, displayed.unavailableScenes],
   );
   useEffect(() => {
-    setFrame(0);
+    setFrame(playerRef.current?.getCurrentFrame() ?? 0);
     setPlaybackError(undefined);
-  }, [input]);
+  }, [displayed]);
   useEffect(() => {
     const player = playerRef.current;
     if (player === null) return;
@@ -1330,6 +1490,14 @@ export function FullLessonPreviewPlayer({
           {playbackError}
         </p>
       )}
+      {displayed.unavailableScenes !== undefined &&
+      active &&
+      parsed.data.narrationTracks.find(
+        (track) => track.sceneId === active.sceneId,
+      )?.kind === "deterministic-silence" &&
+      !displayed.unavailableScenes[active.sceneId] ? (
+        <p role="status">Audio preparing · Visual preview</p>
+      ) : null}
 
       <div className="sp-transport-stack">
         <div aria-label="Full lesson controls" className="sp-transport">

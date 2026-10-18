@@ -93,6 +93,9 @@ function rows() {
       {
         id: "01989a3d-8e00-7000-8000-000000000017",
         status: "ready",
+        narrationHash: createHash("sha256")
+          .update(JSON.stringify(scene.narration.trim()))
+          .digest("hex"),
         storageKey: `users/${ownerUserId}/projects/${projectId}/audio.wav`,
       },
     ],
@@ -106,6 +109,29 @@ describe("preview manifest", () => {
 
   afterEach(async () => {
     await app?.close();
+  });
+
+  it("withholds audio and captions when ready media belongs to older narration", async () => {
+    const source: unknown[][] = rows();
+    source[2] = [
+      {
+        id: scene.id,
+        status: "ready",
+        storageKey: "unused",
+        narrationHash: "outdated",
+      },
+    ];
+    source.splice(4, 1); // stale cues must not be read
+    const createSignedDownload = vi.fn();
+    const manifest = await new PreviewManifestService(databaseFor(source), {
+      createSignedDownload,
+    }).get({ ownerUserId, projectId });
+    expect(manifest.scenes[0]).toMatchObject({
+      audio: { status: "stale", url: null },
+      captions: [],
+      stale: true,
+    });
+    expect(createSignedDownload).not.toHaveBeenCalled();
   });
 
   it("renews short-lived signed media URLs on each authorized manifest request", async () => {
@@ -136,7 +162,11 @@ describe("preview manifest", () => {
 
   it("falls back to the current approved storyboard when a draft does not exist", async () => {
     const manifest = await new PreviewManifestService(
-      databaseFor([[], [{ id: "01989a3d-8e00-7000-8000-000000000015", payload: storyboard() }], ...rows().slice(1)]),
+      databaseFor([
+        [],
+        [{ id: "01989a3d-8e00-7000-8000-000000000015", payload: storyboard() }],
+        ...rows().slice(1),
+      ]),
       {
         createSignedDownload: vi.fn().mockResolvedValue({
           url: "https://storage.example.test/audio",
@@ -153,10 +183,7 @@ describe("preview manifest", () => {
       scenes: [{ id: scene.id, template: "hook", durationSeconds: 10 }],
     });
     const manifest = await new PreviewManifestService(
-      databaseFor([
-        ...rows(),
-        [{ manifest: design }],
-      ]),
+      databaseFor([...rows(), [{ manifest: design }]]),
       {
         createSignedDownload: vi.fn().mockResolvedValue({
           url: "https://storage.example.test/audio",
@@ -173,7 +200,13 @@ describe("preview manifest", () => {
       packId: "everyday",
       scenes: [scene],
       seed: "0123456789abcdef",
-      imagery: { [scene.id]: { assetId: heroId, origin: "generated", altText: "A plant kitchen" } },
+      imagery: {
+        [scene.id]: {
+          assetId: heroId,
+          origin: "generated",
+          altText: "A plant kitchen",
+        },
+      },
     });
     const signer = {
       createSignedDownload: vi.fn().mockResolvedValue({
@@ -205,7 +238,9 @@ describe("preview manifest", () => {
       src: "https://storage.example.test/signed",
     });
     expect(signer.createSignedDownload).toHaveBeenCalledWith(
-      expect.objectContaining({ key: `users/${ownerUserId}/projects/${projectId}/hero.png` }),
+      expect.objectContaining({
+        key: `users/${ownerUserId}/projects/${projectId}/hero.png`,
+      }),
     );
   });
 
@@ -215,7 +250,13 @@ describe("preview manifest", () => {
       packId: "everyday",
       scenes: [scene],
       seed: "0123456789abcdef",
-      imagery: { [scene.id]: { assetId: heroId, origin: "library", altText: "A sunny kitchen" } },
+      imagery: {
+        [scene.id]: {
+          assetId: heroId,
+          origin: "library",
+          altText: "A sunny kitchen",
+        },
+      },
     });
     const signer = {
       createSignedDownload: vi.fn().mockResolvedValue({
@@ -239,7 +280,11 @@ describe("preview manifest", () => {
       ]),
       signer,
     ).get({ ownerUserId, projectId });
-    expect(manifest.assets[heroId]).toMatchObject({ assetId: heroId, provenance: "ai_generated", source: "source" });
+    expect(manifest.assets[heroId]).toMatchObject({
+      assetId: heroId,
+      provenance: "ai_generated",
+      source: "source",
+    });
     expect(signer.createSignedDownload).toHaveBeenCalledWith(
       expect.objectContaining({ key: expect.stringMatching(/^users\//u) }),
     );
@@ -376,14 +421,22 @@ describe("preview manifest", () => {
         [], // projectAssetRows
         [{ id: "01989a3d-8e00-7000-8000-000000000025" }], // document (direct)
         [], // sourceFigureRows
-        [{ id: "01989a3d-8e00-7000-8000-000000000016", stableSceneId: tableSceneId }], // sceneRows
+        [
+          {
+            id: "01989a3d-8e00-7000-8000-000000000016",
+            stableSceneId: tableSceneId,
+          },
+        ], // sceneRows
         [], // audio
       ]),
       { createSignedDownload: vi.fn() },
       { latestApprovedVisuals },
     ).get({ ownerUserId, projectId });
 
-    expect(latestApprovedVisuals).toHaveBeenCalledWith({ ownerUserId, projectId });
+    expect(latestApprovedVisuals).toHaveBeenCalledWith({
+      ownerUserId,
+      projectId,
+    });
     const asset = manifest.assets[tableAssetId];
     expect(asset).toMatchObject({
       assetId: tableAssetId,
@@ -422,7 +475,10 @@ describe("preview manifest", () => {
         labels: [{ anchor: "top" as const, id: "note", text: "Alkali metals" }],
       },
     };
-    const wideColumns = Array.from({ length: 9 }, (_, index) => `Column ${index}`);
+    const wideColumns = Array.from(
+      { length: 9 },
+      (_, index) => `Column ${index}`,
+    );
     const latestApprovedVisuals = vi.fn().mockResolvedValue({
       snapshotId: "01989a3d-8e00-7000-8000-000000000028",
       parsedDocumentId: "01989a3d-8e00-7000-8000-000000000029",
@@ -449,7 +505,12 @@ describe("preview manifest", () => {
         [], // projectAssetRows
         [{ id: "01989a3d-8e00-7000-8000-00000000002c" }], // document (direct)
         [], // sourceFigureRows
-        [{ id: "01989a3d-8e00-7000-8000-00000000002d", stableSceneId: tableSceneId }], // sceneRows
+        [
+          {
+            id: "01989a3d-8e00-7000-8000-00000000002d",
+            stableSceneId: tableSceneId,
+          },
+        ], // sceneRows
         [], // audio
       ]),
       { createSignedDownload: vi.fn() },

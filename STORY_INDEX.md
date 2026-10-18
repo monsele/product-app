@@ -172,3 +172,5 @@ development server recovery record.
 | 118 | Storyboard Recovery | [ST-118 - Readiness and recovery foundation](stories/12-storyboard-recovery/ST-118-recovery-foundation.md) | ST-063, ST-064, ST-066, ST-067, ST-107 | Done |
 
 | 119 | Storyboard Recovery | [ST-119 - Bounded technical recovery](stories/12-storyboard-recovery/ST-119-technical-recovery.md) | ST-118 | Done |
+
+| 120 | Storyboard Recovery | [ST-120 - Immediate editing and partial preview](stories/12-storyboard-recovery/ST-120-immediate-editing.md) | ST-119 | Done |
