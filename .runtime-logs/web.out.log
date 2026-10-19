@@ -9,89 +9,46 @@
      · optimizePackageImports
 
  ✓ Starting...
- ✓ Ready in 4.5s
+ ✓ Ready in 9.1s
  ○ Compiling /register ...
- ✓ Compiled /register in 8.8s (1632 modules)
- GET /register 200 in 9578ms
+ ✓ Compiled /register in 6.9s (1632 modules)
+ GET /register 200 in 7655ms
  ○ Compiling /middleware ...
- ✓ Compiled /middleware in 745ms (158 modules)
+ ✓ Compiled /middleware in 551ms (158 modules)
  ○ Compiling /workspace ...
- ✓ Compiled /workspace in 5s (2053 modules)
- GET /workspace 200 in 6150ms
+ ✓ Compiled /workspace in 6.7s (2059 modules)
+ GET /workspace 200 in 11122ms
  ○ Compiling /api/projects ...
- ✓ Compiled /api/projects in 645ms (2009 modules)
- POST /api/projects 303 in 1017ms
+ ✓ Compiled /api/projects in 8.7s (2015 modules)
+ POST /api/projects 303 in 9969ms
  ○ Compiling /workspace/[projectId]/upload ...
- ✓ Compiled /workspace/[projectId]/upload in 1097ms (2056 modules)
- GET /workspace/01a14a3d-0489-75cf-a262-4bead0236261/upload 200 in 3912ms
+ ✓ Compiled /workspace/[projectId]/upload in 5s (2062 modules)
+ GET /workspace/01a1532e-07a3-7c97-b0bd-7faefbf247e0/upload 200 in 12398ms
  ○ Compiling /workspace/[projectId]/review ...
- ✓ Compiled /workspace/[projectId]/review in 1927ms (2133 modules)
- GET /workspace/01a14a3d-0489-75cf-a262-4bead0236261/review 200 in 5114ms
+ ✓ Compiled /workspace/[projectId]/review in 3.9s (2139 modules)
+ GET /workspace/01a1532e-07a3-7c97-b0bd-7faefbf247e0/review 200 in 7546ms
  ○ Compiling /sign-in ...
- ✓ Compiled /sign-in in 1695ms (2106 modules)
- GET /sign-in 200 in 2515ms
- GET /sign-in 200 in 212ms
- ○ Compiling /icon.svg ...
- ✓ Compiled /icon.svg in 1464ms (1217 modules)
- GET /icon.svg?8ece62d05e120b58 200 in 1902ms
- GET /workspace 200 in 2394ms
- ○ Compiling /api/projects/[projectId]/delete ...
- ✓ Compiled /api/projects/[projectId]/delete in 3.4s (2127 modules)
- POST /api/projects/01a09d3a-816f-784c-aa79-d34f36fbcab8/delete 303 in 5858ms
- GET /workspace?done=delete 200 in 2029ms
- GET /workspace?done=delete 200 in 3577ms
- GET /workspace?done=delete 200 in 757ms
- GET /icon.svg?8ece62d05e120b58 200 in 172ms
- GET /sign-in 200 in 524ms
- ○ Compiling /api/projects ...
- ✓ Compiled /api/projects in 5.8s (1219 modules)
- POST /api/projects 303 in 7066ms
- GET /workspace/01a14b3c-2abe-75e5-b1bc-737cd4107b64/upload 200 in 2961ms
- GET /workspace/01a14b3c-2abe-75e5-b1bc-737cd4107b64/review 200 in 384ms
- ○ Compiling /workspace/[projectId]/configuration ...
- ✓ Compiled /workspace/[projectId]/configuration in 8.7s (2193 modules)
- GET /workspace/01a14b3c-2abe-75e5-b1bc-737cd4107b64/configuration 200 in 11061ms
+ ✓ Compiled /sign-in in 1740ms (2112 modules)
+ GET /sign-in 200 in 2572ms
+ GET /sign-in 200 in 381ms
+ GET /workspace 200 in 2490ms
+ ○ Compiling /workspace/[projectId]/preview ...
+ ✓ Compiled /workspace/[projectId]/preview in 16.5s (2548 modules)
+ GET /workspace/01a14b3c-2abe-75e5-b1bc-737cd4107b64/preview 200 in 23546ms
  ○ Compiling /apple-icon.png ...
- ✓ Compiled /apple-icon.png in 1750ms (1251 modules)
- GET /apple-icon.png?46bec63ae385bd93 200 in 2075ms
- ○ Compiling /workspace/[projectId]/objectives ...
- ✓ Compiled /workspace/[projectId]/objectives in 5.5s (2252 modules)
- GET /workspace/01a14b3c-2abe-75e5-b1bc-737cd4107b64/objectives 200 in 7379ms
- GET /workspace/01a14b3c-2abe-75e5-b1bc-737cd4107b64/objectives 200 in 341ms
- ○ Compiling /workspace/[projectId]/outline ...
- ✓ Compiled /workspace/[projectId]/outline in 4.5s (2140 modules)
- GET /workspace/01a14b3c-2abe-75e5-b1bc-737cd4107b64/outline 200 in 6391ms
- GET /workspace/01a14b3c-2abe-75e5-b1bc-737cd4107b64/outline 200 in 349ms
- ○ Compiling /workspace/[projectId]/narration ...
- ✓ Compiled /workspace/[projectId]/narration in 7.3s (2133 modules)
- GET /workspace/01a14b3c-2abe-75e5-b1bc-737cd4107b64/narration 200 in 8909ms
+ ✓ Compiled /apple-icon.png in 5.5s (1305 modules)
+ GET /apple-icon.png?46bec63ae385bd93 200 in 6552ms
  ○ Compiling /workspace/[projectId]/storyboard ...
- ✓ Compiled /workspace/[projectId]/storyboard in 15.5s (2601 modules)
- GET /workspace/01a14b3c-2abe-75e5-b1bc-737cd4107b64/storyboard 200 in 18733ms
- ✓ Compiled in 5.7s (2328 modules)
- GET /workspace/01a14b3c-2abe-75e5-b1bc-737cd4107b64/storyboard 200 in 760ms
- GET /workspace/01a14b3c-2abe-75e5-b1bc-737cd4107b64/storyboard 200 in 1277ms
- ○ Compiling /icon.svg ...
- ✓ Compiled /icon.svg in 2.5s (1229 modules)
- GET /icon.svg?8ece62d05e120b58 200 in 2769ms
- ✓ Compiled in 55s (2320 modules)
- GET /workspace/01a14b3c-2abe-75e5-b1bc-737cd4107b64/storyboard 200 in 5778ms
- ○ Compiling /icon.svg ...
- ✓ Compiled /icon.svg in 21s (2337 modules)
- GET /icon.svg?8ece62d05e120b58 200 in 20504ms
- ✓ Compiled in 11s (2320 modules)
- ✓ Compiled in 17.4s (2320 modules)
- ✓ Compiled in 19.6s (2320 modules)
- ✓ Compiled in 13.8s (2320 modules)
- ✓ Compiled in 24.1s (2320 modules)
- ✓ Compiled in 17.8s (2320 modules)
- GET /workspace/01a14b3c-2abe-75e5-b1bc-737cd4107b64/storyboard 200 in 4438ms
- ✓ Compiled in 14.8s (2320 modules)
- GET /workspace/01a14b3c-2abe-75e5-b1bc-737cd4107b64/storyboard 200 in 3341ms
- ○ Compiling /icon.svg ...
- ✓ Compiled /icon.svg in 5.8s (1230 modules)
- GET /icon.svg?8ece62d05e120b58 200 in 7509ms
- ✓ Compiled in 28.5s (2320 modules)
- ✓ Compiled in 33s (2320 modules)
- ✓ Compiled in 17.6s (2337 modules)
- ✓ Compiled in 10.5s (2329 modules)
+ ✓ Compiled /workspace/[projectId]/storyboard in 18.4s (2392 modules)
+ GET /workspace/01a14b3c-2abe-75e5-b1bc-737cd4107b64/storyboard 200 in 26522ms
+ GET /workspace 200 in 502ms
+ ○ Compiling /api/projects/[projectId]/delete ...
+ ✓ Compiled /api/projects/[projectId]/delete in 6.3s (2383 modules)
+ POST /api/projects/01a14b3c-2abe-75e5-b1bc-737cd4107b64/delete 303 in 9451ms
+ GET /workspace?done=delete 200 in 2425ms
+ ○ Compiling /api/projects ...
+ ✓ Compiled /api/projects in 1523ms (1334 modules)
+ POST /api/projects 303 in 2279ms
+ ○ Compiling /workspace/[projectId]/one-shot ...
+ ✓ Compiled /workspace/[projectId]/one-shot in 8s (2450 modules)
+ GET /workspace/01a1533e-89c7-7f2d-8eb8-752502c8023b/one-shot 200 in 11075ms

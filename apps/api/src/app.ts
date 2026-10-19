@@ -109,6 +109,11 @@ import type { LessonReadinessService } from "./lesson-readiness.js";
 import type { EditThreadService } from "./edit-thread.js";
 import { oneShotEligibilitySchema } from "@avlp/schemas/one-shot";
 import { searchApprovedAssets } from "./approved-assets.js";
+import {
+  DesignSystemService,
+  parseDesignSystemBoundary,
+} from "./design-systems.js";
+const DESIGN_SYSTEM_SERVICE = Symbol("DESIGN_SYSTEM_SERVICE");
 
 const DATABASE_CONNECTION = Symbol("DATABASE_CONNECTION");
 const TELEMETRY_SHUTDOWN = Symbol("TELEMETRY_SHUTDOWN");
@@ -558,6 +563,143 @@ class SoundBedsController {
       throw new PublicError("unauthorized", "Authentication is required.", 401);
     reply.header("cache-control", "private, no-store");
     return this.soundBeds.list();
+  }
+}
+
+@Controller("design-systems")
+class DesignSystemsController {
+  public constructor(
+    @Inject(AUTH_GATEWAY) private readonly auth: AuthGateway,
+    @Inject(TRUSTED_ORIGIN) private readonly trustedOrigin: string | undefined,
+    @Inject(DESIGN_SYSTEM_SERVICE)
+    private readonly service: DesignSystemService | undefined,
+  ) {}
+  private async access(request: RequestWithAuth, write = false) {
+    if (write) assertTrustedOrigin(request, this.trustedOrigin);
+    const token = request.cookies[sessionCookieName];
+    const user =
+      token === undefined ? null : await this.auth.currentSession(token);
+    if (!user)
+      throw new PublicError("unauthorized", "Authentication is required.", 401);
+    if (!this.service)
+      throw new PublicError(
+        "internal_error",
+        "Design systems are unavailable.",
+        503,
+        true,
+      );
+    return { owner: user.id, service: this.service };
+  }
+  private id(value: string) {
+    return parseDesignSystemBoundary(identifierSchema, value);
+  }
+  @Get()
+  public async list(
+    @Req() request: RequestWithAuth,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    reply.header("cache-control", "private, no-store");
+    const { owner, service } = await this.access(request);
+    return service.list(owner);
+  }
+  @Post()
+  public async create(@Req() request: RequestWithAuth, @Body() body: unknown) {
+    const { owner, service } = await this.access(request, true);
+    return service.create(owner, body);
+  }
+  @Get(":systemId")
+  public async get(
+    @Param("systemId") systemId: string,
+    @Req() request: RequestWithAuth,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    reply.header("cache-control", "private, no-store");
+    const { owner, service } = await this.access(request);
+    return service.get(owner, this.id(systemId));
+  }
+  @Put(":systemId")
+  public async update(
+    @Param("systemId") systemId: string,
+    @Req() request: RequestWithAuth,
+    @Body() body: unknown,
+  ) {
+    const { owner, service } = await this.access(request, true);
+    return service.update(owner, this.id(systemId), body);
+  }
+  @Post(":systemId/versions")
+  public async publish(
+    @Param("systemId") systemId: string,
+    @Req() request: RequestWithAuth,
+    @Body() body: unknown,
+  ) {
+    const { owner, service } = await this.access(request, true);
+    return service.publish(owner, this.id(systemId), body);
+  }
+  @Get(":systemId/versions")
+  public async versions(
+    @Param("systemId") systemId: string,
+    @Query() query: unknown,
+    @Req() request: RequestWithAuth,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    reply.header("cache-control", "private, no-store");
+    const { owner, service } = await this.access(request);
+    return service.listVersions(owner, this.id(systemId), query);
+  }
+  @Get(":systemId/versions/:versionId")
+  public async version(
+    @Param("systemId") systemId: string,
+    @Param("versionId") versionId: string,
+    @Req() request: RequestWithAuth,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    reply.header("cache-control", "private, no-store");
+    const { owner, service } = await this.access(request);
+    return service.getVersion(owner, this.id(systemId), this.id(versionId));
+  }
+  @Post(":systemId/archive")
+  public async archive(
+    @Param("systemId") systemId: string,
+    @Req() request: RequestWithAuth,
+    @Body() body: unknown,
+  ) {
+    const { owner, service } = await this.access(request, true);
+    return service.archive(owner, this.id(systemId), body);
+  }
+  @Post(":systemId/uploads")
+  public async upload(
+    @Param("systemId") systemId: string,
+    @Req() request: RequestWithAuth,
+    @Body() body: unknown,
+  ) {
+    const { owner, service } = await this.access(request, true);
+    return service.createUpload(owner, this.id(systemId), body);
+  }
+  @Post(":systemId/uploads/:assetId/complete")
+  @HttpCode(202)
+  public async complete(
+    @Param("systemId") systemId: string,
+    @Param("assetId") assetId: string,
+    @Req() request: RequestWithAuth,
+  ) {
+    const { owner, service } = await this.access(request, true);
+    return service.completeUpload(
+      owner,
+      this.id(systemId),
+      this.id(assetId),
+      request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    );
+  }
+  @Get(":systemId/assets/:assetId/download")
+  public async download(
+    @Param("systemId") systemId: string,
+    @Param("assetId") assetId: string,
+    @Req() request: RequestWithAuth,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    reply.header("cache-control", "private, no-store");
+    const { owner, service } = await this.access(request);
+    return service.download(owner, this.id(systemId), this.id(assetId));
   }
 }
 
@@ -3501,6 +3643,7 @@ class DatabaseShutdown implements OnApplicationShutdown {
     AssetsController,
     VoicesController,
     SoundBedsController,
+    DesignSystemsController,
     ProjectsController,
     OneShotController,
     EditThreadController,
@@ -3558,6 +3701,7 @@ function createAppModule(
   editThreadService: EditThreadService,
   readinessService: Pick<LessonReadinessService, "read">,
   recoveryService: LessonRecoveryApi,
+  designSystemService: DesignSystemService | undefined,
 ): DynamicModule {
   return {
     module: AppModule,
@@ -3570,6 +3714,7 @@ function createAppModule(
       { provide: PROJECT_SERVICE, useValue: projectService },
       { provide: SOURCE_UPLOAD_SERVICE, useValue: sourceUploadService },
       { provide: PROJECT_ASSET_SERVICE, useValue: projectAssetService },
+      { provide: DESIGN_SYSTEM_SERVICE, useValue: designSystemService ?? null },
       {
         provide: ILLUSTRATION_GENERATION_SERVICE,
         useValue: illustrationGenerationService,
@@ -3648,6 +3793,7 @@ export type CreateAppOptions = {
   projectService?: ProjectService;
   sourceUploadService?: SourceUploadApiService;
   projectAssetService?: ProjectAssetApiService;
+  designSystemService?: DesignSystemService;
   illustrationGenerationService?: IllustrationGenerationApiService;
   ingestionStatusService?: IngestionStatusApiService;
   parsedDocumentReviewService?: ParsedDocumentReviewApiService;
@@ -5000,6 +5146,7 @@ export async function createApp(
         start: recoveryUnavailable,
         stop: recoveryUnavailable,
       },
+      options.designSystemService,
     ),
     new FastifyAdapter({
       logger: {

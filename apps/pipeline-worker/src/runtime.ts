@@ -33,6 +33,7 @@ import { z } from "zod";
 import { health } from "./health.js";
 import { createProjectCleanupJobHandler } from "./project-cleanup.js";
 import { createProjectAssetCleanupJobHandler } from "./project-asset-cleanup-job.js";
+import { createDesignSystemValidationJobHandler } from "./design-system-validation-job.js";
 import {
   HttpMalwareScanner,
   PassThroughMalwareScanner,
@@ -270,6 +271,11 @@ export async function runPipelineWorker(
           moderation: { status: "approved", code: "mock_safe" },
         });
       handlers = [
+        createDesignSystemValidationJobHandler({
+          database: database.client,
+          storage,
+          scanner: malwareScanner,
+        }),
         createDocumentValidationJobHandler({
           database: database.client,
           storage,

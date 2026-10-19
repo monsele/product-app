@@ -55,6 +55,30 @@ function validatedKey(value: string): StorageKey {
 }
 
 export const storageKeys = {
+  /** Owner assets are outside project deletion prefixes. No client supplies a key. */
+  designSystemAsset(
+    input: {
+      userId: Identifier;
+      systemId: Identifier;
+      assetId: Identifier;
+    } & ({ stage: "upload" } | { stage: "validated"; contentHash: string }),
+  ): StorageKey {
+    const user = identifierSchema.parse(input.userId);
+    const system = identifierSchema.parse(input.systemId);
+    const asset = identifierSchema.parse(input.assetId);
+    if (input.stage !== "upload" && input.stage !== "validated")
+      throw new Error("Invalid design-system asset stage.");
+    const suffix =
+      input.stage === "upload" ? "upload" : `validated/${input.contentHash}`;
+    if (
+      input.stage === "validated" &&
+      !/^[a-f0-9]{64}$/.test(input.contentHash)
+    )
+      throw new Error("A validated import requires its content hash.");
+    return validatedKey(
+      `users/${user}/design-systems/${system}/assets/${asset}/${suffix}`,
+    );
+  },
   projectPrefix(scope: TenantScope): StorageKey {
     return validatedKey(tenantPrefix(scope));
   },

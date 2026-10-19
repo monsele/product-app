@@ -914,6 +914,17 @@ style selection with the demonstration approach, which remains its own
 bounded matrix (ADR-009).
 See ADR-008.
 
+### Approved custom-design direction — ADR-017, ST-122 through ST-125
+
+The product owner authorized reusable user-owned design systems with custom
+fonts, assets, exact locks and advisory creative principles, sourced from
+guides or personal references. ST-122 delivers owner-scoped drafts, immutable
+versions and validated imports. ST-123 through ST-125 cover custom composition
+and motion, interpretation, moving proofs and explicit project application.
+Existing themes and historical outputs remain reproducible; this extension
+does not authorize arbitrary animation code or model-provided coordinates.
+See `docs/bring-your-own-design-system.md` and ADR-017.
+
 ### Technical Dependencies
 
 - Video design system

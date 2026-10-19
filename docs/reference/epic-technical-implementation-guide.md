@@ -1351,6 +1351,12 @@ Ten deterministic, reusable Remotion scene components render validated structure
 
 - One visual theme uses shared typography, spacing, palette, line weights, caption rules, and motion timing. The ADR-008 bounded pilot is the explicit exception: it uses versioned, resolved creative-design manifests for three packs and four supported scene types; an absent manifest remains `mvp-default`.
 - Template input limits are product constraints, not only UI hints.
+- ADR-017 / ST-122 adds owner-scoped reusable design-system drafts, immutable
+  versions and background-validated fonts/guides/tokens/images. Imports use
+  private owner storage outside project cleanup, with separate content-addressed
+  validated copies. Existing render contracts remain unchanged in ST-122;
+  ST-123 through ST-125 own custom rendering, interpretation, proofs and explicit
+  application. See `docs/design-system-foundation-api.md` for the foundation API.
 - SVG and React primitives are preferred. Motion Canvas can be isolated for specialized diagrams later, not required for every scene.
 - Transitions come from a small controlled preset set.
 

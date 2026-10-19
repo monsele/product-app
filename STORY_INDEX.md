@@ -176,3 +176,8 @@ development server recovery record.
 | 120 | Storyboard Recovery | [ST-120 - Immediate editing and partial preview](stories/12-storyboard-recovery/ST-120-immediate-editing.md) | ST-119 | Done |
 
 | 121 | Storyboard Recovery | [ST-121 - Recovery workflow integration and release](stories/12-storyboard-recovery/ST-121-recovery-integration.md) | ST-120 | Done |
+
+| 122 | Custom Design Systems | [ST-122 - Design-system foundation](stories/13-custom-design-systems/ST-122-design-system-foundation.md) | ST-058, ST-097, ST-109 | Done |
+| 123 | Custom Design Systems | [ST-123 - Manual authoring and custom rendering](stories/13-custom-design-systems/ST-123-manual-design-systems.md) | ST-122 | Ready |
+| 124 | Custom Design Systems | [ST-124 - Guide and philosophy interpretation](stories/13-custom-design-systems/ST-124-design-system-interpretation.md) | ST-123 | Blocked |
+| 125 | Custom Design Systems | [ST-125 - Moving proofs and application](stories/13-custom-design-systems/ST-125-design-system-proofs-and-application.md) | ST-124 | Blocked |

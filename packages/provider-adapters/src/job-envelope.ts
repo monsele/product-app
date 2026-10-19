@@ -18,6 +18,7 @@ export const pipelineJobAdapterEnvelopes = {
   "document.validation.cleanup": [],
   "document.ingestion": ["document-ingestion"],
   "project-asset.validation": ["malware-scanning"],
+  "design-system.validation": ["malware-scanning"],
   "project-asset.cleanup": [],
   "project.cleanup": [],
   "illustration.generate": ["illustration"],

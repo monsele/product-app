@@ -18,6 +18,7 @@ import {
   SourceUploadService,
 } from "./source-uploads.js";
 import { ProjectAssetService } from "./project-assets.js";
+import { DesignSystemService } from "./design-systems.js";
 import { IllustrationGenerationService } from "./illustration-generation.js";
 import { PostgresIngestionStatusService } from "./ingestion-status.js";
 import { PostgresParsedDocumentReviewService } from "./parsed-document-review.js";
@@ -134,6 +135,11 @@ export async function runApi(input: {
         "image/jpeg",
         "image/png",
         "image/webp",
+        "font/ttf",
+        "font/otf",
+        "font/woff2",
+        "text/markdown",
+        "application/json",
       ],
       maxUploadBytes: environment.MAX_UPLOAD_BYTES,
       defaultSignedUrlTtlSeconds: environment.SIGNED_URL_TTL_SECONDS,
@@ -492,6 +498,7 @@ export async function runApi(input: {
       ),
       lessonConfigurationService,
       creativeDesignService,
+      designSystemService: new DesignSystemService(database.client, storage),
       sourceSnapshotService,
       sourceVisualsService: new PostgresSourceVisualsService(
         database.client,
