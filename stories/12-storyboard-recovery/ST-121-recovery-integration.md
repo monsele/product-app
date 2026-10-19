@@ -1,7 +1,7 @@
 ---
 story_id: ST-121
 title: Recovery workflow integration and release
-status: In Review
+status: Done
 depends_on: [ST-120]
 epics: [E11, E14, E16, E21]
 ---
@@ -179,3 +179,8 @@ implementation work is complete on the same story branch; the release stays behi
   ESLint-plugin warning; lint and type validation still pass. Staged whitespace
   verification passes with the repository's CRLF-aware setting; the staged secret
   pattern check passes. No implementation or verification remains pending.
+
+### 2026-10-19 approval
+- Approved by the repository owner in chat: "approve the story".
+- Status changed from In Review to Done in the story and index.
+- Documentation-only approval; implementation and verification evidence above remains applicable.
