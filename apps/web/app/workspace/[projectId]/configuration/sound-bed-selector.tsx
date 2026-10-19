@@ -82,7 +82,7 @@ export function SoundBedSelector({
     {
       value: "none",
       title: "No background music",
-      detail: "Narration only, exactly as before.",
+      detail: "Narration only. No background music will be added.",
     },
     ...tracks.map((track) => ({
       value: track.trackId,
@@ -192,6 +192,11 @@ export function SoundBedSelector({
           );
         })}
       </div>
+      {value !== "none" && !tracks.some((track) => track.trackId === value) ? (
+        <p role="status" style={{ color: "var(--color-text-muted)", fontSize: "12px", margin: 0 }}>
+          Your saved music is unavailable. Choose another track or No background music.
+        </p>
+      ) : null}
       {auditionError === null ? null : (
         <p
           role="alert"

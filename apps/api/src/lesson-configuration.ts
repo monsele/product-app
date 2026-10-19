@@ -33,6 +33,7 @@ import { z } from "zod";
 import { findLatestProjectParsedDocument } from "./project-parsed-document.js";
 import { assertProjectStageTransition } from "./projects.js";
 import { requestActor } from "./audit-actor.js";
+import type { SoundBedAvailability } from "./sound-beds.js";
 
 export interface LessonConfigurationService {
   get(
@@ -74,6 +75,7 @@ export class PostgresLessonConfigurationService implements LessonConfigurationSe
       selectable: false,
       reasons: [],
     }),
+    private readonly soundBedAvailable: SoundBedAvailability = async () => false,
   ) {}
 
   public async get(
@@ -108,6 +110,12 @@ export class PostgresLessonConfigurationService implements LessonConfigurationSe
     oneShotRunId?: Identifier | undefined;
   }): Promise<LessonConfigurationResponse> {
     const parsed = parseBoundary(lessonConfigurationInputSchema, input.body);
+    // Storage reads happen before the transaction. Omitted music preserves
+    // existing configuration; an explicit choice must still be playable.
+    if (parsed.soundBed !== undefined && parsed.soundBed !== soundBedNone &&
+      !(await this.soundBedAvailable(parsed.soundBed)))
+      throw new PublicError("validation_failed", "This background music is unavailable. Choose another track or no background music.", 400, false,
+        { soundBed: "Choose available background music, or none." });
     const timestamp = this.now();
     return this.database.transaction(async (transaction) => {
       const project = await this.loadProject(

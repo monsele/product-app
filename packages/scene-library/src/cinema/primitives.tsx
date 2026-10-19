@@ -151,13 +151,14 @@ export function DisplayText({
       style={{
         color: identity.colors.text,
         fontFamily: identity.fonts.display,
-        fontSize,
+        fontSize: identity.customTypeScale === undefined ? fontSize : Math.max(24, Math.round(fontSize * identity.customTypeScale)),
         fontWeight: identity.displayWeight,
         letterSpacing: fontSize > 90 ? "-0.02em" : "-0.01em",
         lineHeight: 1.08,
         margin: 0,
         overflowWrap: "anywhere",
         ...style,
+        ...(identity.customAlignment === undefined ? {} : { textAlign: identity.customAlignment }),
       }}
     >
       {children}
@@ -183,11 +184,12 @@ export function BodyText({
       style={{
         color: muted ? identity.colors.muted : identity.colors.text,
         fontFamily: identity.fonts.body,
-        fontSize,
+        fontSize: identity.customTypeScale === undefined ? fontSize : Math.max(24, Math.round(fontSize * identity.customTypeScale)),
         lineHeight: 1.3,
         margin: 0,
         overflowWrap: "anywhere",
         ...style,
+        ...(identity.customAlignment === undefined ? {} : { textAlign: identity.customAlignment }),
       }}
     >
       {children}

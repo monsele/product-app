@@ -154,6 +154,16 @@ Maintenance 2026-09-29: ST-103 narration pauses are advisory under ADR-014/rende
 Maintenance 2026-09-29: ST-048 narration repair now patches only failed sentences, preserves valid content and citations, and sends complete correction context. Regression and real-provider checks recovered the reported prompt-to-video run through Narration into Visuals. See ST-048's maintenance Dev Agent Record for tests, screenshots and remaining bounded-repair limitations. Story status remains Done.
 
 
+Maintenance 2026-10-19: ST-106's prompt-to-video run now applies every status
+response, refreshes when the tab becomes active or reconnects, and caps polling
+at five seconds so finished checks expose preview approval without a reload.
+See the ST-106 Dev Agent Record for validation and scope.
+
+Maintenance 2026-10-19: ST-103's music catalog now verifies stored audio before
+offering tracks. Setup saves and prompt-to-video confirmation recheck availability;
+unavailable brief recommendations are disabled, and users can choose no music.
+See the ST-103 maintenance record for tests and versioning behavior.
+
 Maintenance 2026-10-06: ST-083 received the owner-requested premium interface pass
 using apple-design. Presentation and shared interaction changes span the existing
 teacher workflow and authentication/public surfaces. See the
@@ -178,6 +188,6 @@ development server recovery record.
 | 121 | Storyboard Recovery | [ST-121 - Recovery workflow integration and release](stories/12-storyboard-recovery/ST-121-recovery-integration.md) | ST-120 | Done |
 
 | 122 | Custom Design Systems | [ST-122 - Design-system foundation](stories/13-custom-design-systems/ST-122-design-system-foundation.md) | ST-058, ST-097, ST-109 | Done |
-| 123 | Custom Design Systems | [ST-123 - Manual authoring and custom rendering](stories/13-custom-design-systems/ST-123-manual-design-systems.md) | ST-122 | Ready |
-| 124 | Custom Design Systems | [ST-124 - Guide and philosophy interpretation](stories/13-custom-design-systems/ST-124-design-system-interpretation.md) | ST-123 | Blocked |
+| 123 | Custom Design Systems | [ST-123 - Manual authoring and custom rendering](stories/13-custom-design-systems/ST-123-manual-design-systems.md) | ST-122 | Done |
+| 124 | Custom Design Systems | [ST-124 - Guide and philosophy interpretation](stories/13-custom-design-systems/ST-124-design-system-interpretation.md) | ST-123 | Ready |
 | 125 | Custom Design Systems | [ST-125 - Moving proofs and application](stories/13-custom-design-systems/ST-125-design-system-proofs-and-application.md) | ST-124 | Blocked |

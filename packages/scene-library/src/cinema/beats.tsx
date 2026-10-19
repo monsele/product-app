@@ -22,6 +22,7 @@ export type CinemaBeatTimeline = Readonly<{
   frame: number;
   durationInFrames: number;
   energy: CinemaMotionEnergy;
+  customMotion?: Readonly<{ family: "fade" | "settle"; staggerFrames: number; holdFrames: number }>;
   /** Target → earliest resolved start frame. */
   starts: ReadonlyMap<string, number>;
   /** Target → motion family of its first beat. */
@@ -35,12 +36,14 @@ export function createBeatTimeline(
     frame: number;
     durationInFrames: number;
     energy: CinemaMotionEnergy;
+    customMotion?: Readonly<{ family: "fade" | "settle"; staggerFrames: number; holdFrames: number }>;
   }>,
 ): CinemaBeatTimeline {
   const starts = new Map<string, number>();
   const motions = new Map<string, CinemaBeat["motion"]>();
   input.beats.forEach((beat, index) => {
-    const start = input.frames[index] ?? cinemaEstablishFrames;
+    const original = input.frames[index] ?? cinemaEstablishFrames;
+    const start = input.customMotion === undefined ? original : Math.min(original + index * input.customMotion.staggerFrames, Math.max(0, input.durationInFrames - input.customMotion.holdFrames - cinemaBeatRevealFrames - 12));
     const previous = starts.get(beat.target);
     if (previous === undefined || start < previous) {
       starts.set(beat.target, start);
@@ -51,6 +54,7 @@ export function createBeatTimeline(
     frame: input.frame,
     durationInFrames: input.durationInFrames,
     energy: input.energy,
+    ...(input.customMotion === undefined ? {} : { customMotion: input.customMotion }),
     starts,
     motions,
   });
@@ -76,6 +80,7 @@ function revealFrames(energy: CinemaMotionEnergy): number {
 const ease = Easing.bezier(0.22, 1, 0.36, 1);
 
 export type CinemaBeats = Readonly<{
+  arrival: typeof arrival;
   frame: number;
   durationInFrames: number;
   /** When a target starts; unanchored targets start at establish. */
@@ -110,6 +115,7 @@ export function useCinemaBeats(): CinemaBeats {
       extrapolateRight: "clamp",
     });
   return {
+    arrival: (progress, direction, distance) => arrival(progress, timeline.customMotion?.family === "fade" ? "none" : direction, distance),
     frame,
     durationInFrames: timeline.durationInFrames,
     startOf,

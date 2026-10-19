@@ -1,6 +1,6 @@
 # My Design System: bring your own visual identity and creative philosophy
 
-- Status: **Implementation started — ST-122 foundation approved and Done; ST-123 ready**
+- Status: **Implementation started — ST-122 foundation and ST-123 manual authoring approved and Done; ST-124 Ready**
 - Planned: 2026-10-17
 - Documented: 2026-10-18
 - Implementation: ST-122 through ST-125; see the delivery sequence below.

@@ -71,6 +71,7 @@ export default async function WorkspacePage({
       <div className={styles.page}>
         <header className={styles.header}>
           <h1 className={styles.pageTitle}>Your lessons</h1>
+          <a className={styles.systemsLink} href="/workspace/design-systems">My Design Systems</a>
           <p className={styles.pageLead}>
             Manage existing video lessons, monitor generation progress, or
             create a new lesson.

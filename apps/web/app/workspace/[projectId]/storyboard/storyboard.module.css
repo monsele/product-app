@@ -1589,3 +1589,4 @@
 .editThreadSlot {
   margin-bottom: 14px;
 }
+.designSystemsLink { color: var(--color-brand); text-underline-offset: .2em; display: inline-flex; align-items: center; min-height: 44px; }

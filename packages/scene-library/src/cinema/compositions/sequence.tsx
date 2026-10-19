@@ -6,7 +6,7 @@
  */
 import { cinemaSequenceStops } from "@avlp/schemas";
 import type { JSX } from "react";
-import { arrival, useCinemaBeats } from "../beats.js";
+import { useCinemaBeats } from "../beats.js";
 import {
   absolute,
   cinemaCanvas,
@@ -91,7 +91,7 @@ export function SequenceComposition({
         width={headerWidth}
       />
       {pictureHero ? (
-        <div style={{ ...absolute(1520, 70, 280, 260), ...arrival(beats.reveal("image")) }}>
+        <div style={{ ...absolute(1520, 70, 280, 260), ...beats.arrival(beats.reveal("image")) }}>
           <HeroVisual drift={beats.drift} hero={hero} identity={identity} height={260} progress={1} width={280} />
         </div>
       ) : null}
@@ -100,7 +100,7 @@ export function SequenceComposition({
           identity={identity}
           fontSize={problemFit.fontSize}
           muted
-          style={{ ...absolute(cinemaCanvas.left, cinemaCanvas.top + headHeight + 10, headerWidth), ...arrival(beats.reveal("detail")) }}
+          style={{ ...absolute(cinemaCanvas.left, cinemaCanvas.top + headHeight + 10, headerWidth), ...beats.arrival(beats.reveal("detail")) }}
         >
           {problem}
         </BodyText>
@@ -142,7 +142,7 @@ export function SequenceComposition({
         return (
           <div key={`${index}-${stop}`} data-cinema-item={target}>
             {icon === undefined ? null : (
-              <div style={{ ...absolute(x - 70, lineY - 170, 140, 140), ...arrival(reveal, "up", 20), display: "flex", justifyContent: "center" }}>
+              <div style={{ ...absolute(x - 70, lineY - 170, 140, 140), ...beats.arrival(reveal, "up", 20), display: "flex", justifyContent: "center" }}>
                 <ItemIcon icon={icon} identity={identity} size={isActive ? 140 : 120} />
               </div>
             )}
@@ -161,7 +161,7 @@ export function SequenceComposition({
               muted={!isActive && active !== 0}
               style={{
                 ...absolute(labelLeft, lineY + 52, labelWidth),
-                ...arrival(reveal, "up", 18),
+                ...beats.arrival(reveal, "up", 18),
                 fontWeight: isActive ? 700 : 500,
                 lineHeight: 1.25,
                 textAlign: "center",
@@ -177,7 +177,7 @@ export function SequenceComposition({
         <Surface
           identity={identity}
           tone="accent"
-          style={{ ...absolute(cinemaCanvas.left, cinemaCanvas.bottom - 70, 900), padding: "12px 24px", ...arrival(beats.reveal("detail")) }}
+          style={{ ...absolute(cinemaCanvas.left, cinemaCanvas.bottom - 70, 900), padding: "12px 24px", ...beats.arrival(beats.reveal("detail")) }}
         >
           <BodyText identity={identity} fontSize={30} style={{ color: identity.surface === "block" ? identity.colors.onAccent : identity.colors.text, fontWeight: 700 }}>
             {scene.visual.callToAction}

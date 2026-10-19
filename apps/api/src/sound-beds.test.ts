@@ -38,6 +38,12 @@ function signingStorage() {
   return {
     signed,
     storage: {
+      exists: async (key: string) => key.length > 0,
+      getMetadata: async (key: string) => ({
+        object: { bucket: "private", key }, sizeBytes: 100,
+        checksumSha256: key.split("/").at(-1)!.replace(".wav", ""),
+        contentType: "audio/wav", etag: undefined, lastModified: undefined, metadata: {},
+      }),
       createSignedDownload: async (request: {
         key: string;
         expiresInSeconds?: number;
@@ -156,6 +162,26 @@ describeWithPostgres("PostgresSoundBedService (Postgres)", () => {
     expect(
       signed.every((request) => request.key.startsWith("catalog/sound-beds/")),
     ).toBe(true);
+  });
+
+  it("omits missing audio, checksum mismatches and storage failures without hiding healthy tracks", async () => {
+    const { storage, signed } = signingStorage();
+    const getMetadata = storage.getMetadata;
+    storage.exists = async (key) => !key.includes("/morning-pad/");
+    storage.getMetadata = async (key) => {
+      if (key.includes("/quiet-pulse/")) throw new Error("storage unavailable");
+      const metadata = await getMetadata(key);
+      return key.includes("/soft-plucks/") ? { ...metadata, checksumSha256: "0".repeat(64) } : metadata;
+    };
+    const service = new PostgresSoundBedService(database!.client, storage);
+    expect((await service.list()).tracks.map((track) => track.trackId)).toEqual([
+      "warm-drift", "bright-steps", "night-glass",
+    ]);
+    expect(signed).toHaveLength(3);
+    await expect(service.isAvailable("morning-pad")).resolves.toBe(false);
+    await expect(service.isAvailable("soft-plucks")).resolves.toBe(false);
+    await expect(service.isAvailable("warm-drift")).resolves.toBe(true);
+    await expect(service.isAvailable("unknown-track")).resolves.toBe(false);
   });
 
   it("omits a retired track from the catalog", async () => {

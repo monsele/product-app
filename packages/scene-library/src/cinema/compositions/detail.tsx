@@ -5,7 +5,7 @@
  */
 import type { SceneSpec } from "@avlp/schemas";
 import type { JSX } from "react";
-import { arrival, useCinemaBeats } from "../beats.js";
+import { useCinemaBeats } from "../beats.js";
 import type { CinemaIdentity } from "../identity.js";
 import { BodyText, NumberBadge, Surface } from "../primitives.js";
 import { estimateLines, fitText } from "../text-fit.js";
@@ -125,7 +125,7 @@ export function SceneDetail({
         <BodyText
           identity={identity}
           fontSize={fontSize + 4}
-          style={{ ...arrival(beats.reveal("detail")), fontWeight: 600, marginBottom: 2 }}
+          style={{ ...beats.arrival(beats.reveal("detail")), fontWeight: 600, marginBottom: 2 }}
         >
           {content.lead}
         </BodyText>
@@ -141,7 +141,7 @@ export function SceneDetail({
               display: "flex",
               gap: 16,
               justifyContent: align === "center" ? "center" : "flex-start",
-              ...arrival(beats.reveal(line.target), "left", 20),
+              ...beats.arrival(beats.reveal(line.target), "left", 20),
             }}
           >
             {line.numbered === undefined ? null : (
@@ -166,7 +166,7 @@ export function SceneDetail({
               data-cinema-item={chip.target}
               identity={identity}
               active={chip.target === `item-${active}`}
-              style={{ padding: "10px 22px", ...arrival(beats.reveal(chip.target)) }}
+              style={{ padding: "10px 22px", ...beats.arrival(beats.reveal(chip.target)) }}
             >
               <BodyText identity={identity} fontSize={fontSize} style={{ fontWeight: 700 }}>
                 {chip.text}
@@ -179,7 +179,7 @@ export function SceneDetail({
         <Surface
           identity={identity}
           tone="accent"
-          style={{ justifySelf: align === "center" ? "center" : "start", marginTop: 10, padding: "12px 24px", ...arrival(beats.reveal("detail")) }}
+          style={{ justifySelf: align === "center" ? "center" : "start", marginTop: 10, padding: "12px 24px", ...beats.arrival(beats.reveal("detail")) }}
         >
           <BodyText
             identity={identity}

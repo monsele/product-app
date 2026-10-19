@@ -11,7 +11,12 @@ import {
   outboxEvents,
 } from "@avlp/database";
 import { createTestDatabase, type TestDatabase } from "@avlp/database/testing";
-import { emptyDesignSystemDefinition } from "@avlp/schemas";
+import {
+  compileCustomDesign,
+  createDefaultStoryboardSceneSpec,
+  designSystemVersionSnapshotSchema,
+  emptyDesignSystemDefinition,
+} from "@avlp/schemas";
 import {
   storageKeys,
   type ObjectStorage,
@@ -160,6 +165,124 @@ describe.skipIf(!serverUrl)(
       ).rejects.toMatchObject({ statusCode: 400 });
     });
 
+    it("ST-123 publishes custom controls with owner-scoped font pins and preserves archived rendering", async () => {
+      const system = await create();
+      const upload = await service.createUpload(owner, system.id, {
+        projectId,
+        kind: "font",
+        mediaType: "font/otf",
+        originalName: "Owned.otf",
+        sizeBytes: 100,
+        sha256: "a".repeat(64),
+        rightsConfirmed: true,
+      });
+      const definition = {
+        schemaVersion: "1.1",
+        philosophy: "Relationships first",
+        rules: [],
+        assetIds: [upload.assetId],
+        presentation: {
+          colors: {
+            background: "#ffffff",
+            surface: "#ffffff",
+            text: "#111111",
+            accent: "#5b21b6",
+            diagramEmphasis: "#2563eb",
+          },
+          fonts: { heading: upload.assetId, body: upload.assetId },
+          logoAssetId: null,
+          alignment: "left",
+          density: "spacious",
+          emphasis: "text",
+          arrangement: "split",
+          imageFrame: "none",
+          stroke: "fine",
+          corners: "square",
+          motion: {
+            family: "fade",
+            prohibited: ["settle"],
+            intensity: "calm",
+            staggerFrames: 0,
+            holdFrames: 36,
+          },
+        },
+      };
+      await expect(
+        service.update(other, system.id, {
+          expectedRevision: 1,
+          name: "Foreign",
+          definition,
+        }),
+      ).rejects.toMatchObject({ statusCode: 404 });
+      const saved = await service.update(owner, system.id, {
+        expectedRevision: 1,
+        name: "Custom",
+        definition,
+      });
+      await expect(
+        service.publish(owner, system.id, { expectedRevision: saved.revision }),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      await database.client
+        .update(designSystemAssets)
+        .set({
+          status: "active",
+          validatedSha256: "a".repeat(64),
+          storageKey: storageKeys.designSystemAsset({
+            userId: owner,
+            systemId: system.id,
+            assetId: upload.assetId,
+            stage: "validated",
+            contentHash: "a".repeat(64),
+          }),
+          inspection: { characterSet: [32, 65, 66, 67] },
+        })
+        .where(
+          and(
+            eq(designSystemAssets.ownerUserId, owner),
+            eq(designSystemAssets.id, upload.assetId),
+          ),
+        );
+      const version = await service.publish(owner, system.id, {
+        expectedRevision: saved.revision,
+      });
+      const scene = createDefaultStoryboardSceneSpec("hook", {
+        id: createId(),
+        order: 1,
+        durationSeconds: 15,
+      });
+      const compile = (row: typeof version) =>
+        compileCustomDesign({
+          systemId: system.id,
+          versionId: row.id,
+          contentHash: row.contentHash,
+          snapshot: row.snapshot,
+          scenes: [scene],
+        });
+      const original = compile(version);
+      expect(
+        designSystemVersionSnapshotSchema.parse(version.snapshot).definition
+          .schemaVersion,
+      ).toBe("1.1");
+      await service.update(owner, system.id, {
+        expectedRevision: 2,
+        name: "Changed draft",
+        definition: { ...definition, philosophy: "New philosophy" },
+      });
+      await expect(
+        service.update(owner, system.id, {
+          expectedRevision: 2,
+          name: "Stale",
+          definition,
+        }),
+      ).rejects.toMatchObject({ statusCode: 409 });
+      await service.archive(owner, system.id, { expectedRevision: 3 });
+      expect(
+        compile(await service.getVersion(owner, system.id, version.id)),
+      ).toEqual(original);
+      await expect(
+        service.getVersion(other, system.id, version.id),
+      ).rejects.toMatchObject({ statusCode: 404 });
+    });
     it("keeps systems private, publishes idempotently and rejects stale concurrent edits", async () => {
       const system = await create();
       await expect(service.get(other, system.id)).rejects.toMatchObject({

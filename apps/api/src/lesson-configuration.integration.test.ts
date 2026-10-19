@@ -148,6 +148,8 @@ describeWithPostgres("PostgresLessonConfigurationService", () => {
     service = new PostgresLessonConfigurationService(
       database!.client,
       () => new Date("2026-08-14T11:00:00.000Z"),
+      undefined,
+      async () => true,
     );
   });
 
@@ -282,6 +284,19 @@ describeWithPostgres("PostgresLessonConfigurationService", () => {
         .from(lessonConfigurations)
         .where(eq(lessonConfigurations.projectId, projectId)),
     ).toHaveLength(0);
+  });
+
+  it("rejects unavailable music at save time while allowing narration only", async () => {
+    await markSourceReady();
+    const unavailable = new PostgresLessonConfigurationService(database!.client, undefined, undefined, async () => false);
+    await expect(unavailable.save({ ownerUserId, projectId, correlationId,
+      body: { ...validBody, soundBed: "morning-pad" },
+    })).rejects.toMatchObject({ statusCode: 400, fieldErrors: { soundBed: expect.any(String) } });
+    expect((await unavailable.get(ownerUserId, projectId)).configuration).toBeNull();
+    const saved = await unavailable.save({ ownerUserId, projectId, correlationId,
+      body: { ...validBody, soundBed: "none" },
+    });
+    expect(saved.configuration?.soundBed).toBe("none");
   });
 
   it("ST-103: defaults the sound bed to none, persists a catalog track, keeps it when omitted, and clears it with none", async () => {

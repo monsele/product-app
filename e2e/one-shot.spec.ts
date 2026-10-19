@@ -12,6 +12,7 @@
  *   accepted.
  */
 import { expect, test, type Page } from "@playwright/test";
+import { runView } from "../apps/web/lib/one-shot-fixtures";
 
 const api = "http://127.0.0.1:3002";
 const app = "http://127.0.0.1:3000";
@@ -113,6 +114,69 @@ async function expectNoHorizontalScroll(page: Page) {
 }
 
 test.describe.configure({ mode: "serial" });
+
+test("unavailable background music cannot be confirmed and can be removed", async ({ page }) => {
+  test.setTimeout(240_000);
+  await signIn(page, "pilot-session");
+  const projectId = await seed(page, { documentUploaded: true });
+  await page.route("**/sound-beds", (route) => route.fulfill({ json: { tracks: [] } }));
+  await page.goto(`/workspace/${projectId}/one-shot`);
+  await fillRequest(page);
+  await page.getByTestId("one-shot-prepare-brief").click();
+  await expect(page.getByTestId("one-shot-brief")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('#one-shot-sound option[value="morning-pad"]')).toBeDisabled();
+  await expect(page.getByTestId("one-shot-confirm")).toBeDisabled();
+  await expect(page.getByText("This track is unavailable.", { exact: false })).toBeVisible();
+  await page.getByTestId("one-shot-sound").selectOption("none");
+  await expect(page.getByTestId("one-shot-confirm")).toBeEnabled();
+  const confirmation = page.waitForRequest((request) =>
+    request.method() === "POST" && request.url().endsWith(`/projects/${projectId}/one-shot`));
+  await page.getByTestId("one-shot-confirm").click();
+  expect((await confirmation).postDataJSON().soundBed).toBe("none");
+  await expect(page.getByTestId("one-shot-progress")).toBeVisible();
+});
+
+test("finished checks unlock the preview and Render video without reloading", async ({ page }) => {
+  test.setTimeout(240_000);
+  await signIn(page, "pilot-session");
+  const projectId = await seed(page, { documentUploaded: true });
+  await startRun(page, projectId);
+  let checksFinished = false;
+  let failNextPoll = false;
+  let polls = 0;
+  await page.route(`**/projects/${projectId}/one-shot`, async (route) => {
+    polls += 1;
+    if (failNextPoll) {
+      failNextPoll = false;
+      await route.fulfill({ status: 503, json: { error: { message: "Retry" } } });
+      return;
+    }
+    await route.fulfill({ json: {
+      eligibility: { visible: true, canStart: true, reasons: [] },
+      run: runView({
+        projectId,
+        status: checksFinished ? "awaiting_render_approval" : "running",
+        currentStep: checksFinished ? "render" : "validation",
+        steps: [{ step: "validation", state: "done", startedAt: "2026-10-19T08:00:00.000Z", detail: { errors: 0, warnings: 0 } }],
+      }),
+    } });
+  });
+  await expect.poll(() => polls).toBeGreaterThan(0);
+  await expect(page.getByTestId("one-shot-progress")).toBeVisible();
+  await expect(page.getByTestId("one-shot-render")).toHaveCount(0);
+  failNextPoll = true;
+  const beforeFailure = polls;
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect.poll(() => polls).toBeGreaterThan(beforeFailure);
+  await expect(page.getByTestId("one-shot-progress")).toBeVisible();
+  checksFinished = true;
+  const navigations = watchUrls(page);
+  await expect(page.getByTestId("one-shot-render")).toBeEnabled({ timeout: 7_000 });
+  await expect(page.getByTestId("one-shot-approval")).toBeVisible();
+  await expect(page.getByTestId("one-shot-player")).toBeVisible();
+  expect(navigations.pages).toEqual([]);
+  expect((await serverState(page, projectId)).rendersStarted).toBe(0);
+});
 
 test("the workspace entry is shown only to the pilot cohort, and the route is unavailable outside it", async ({
   page,

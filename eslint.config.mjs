@@ -28,5 +28,5 @@ export default [
       "@typescript-eslint/no-unused-vars": "error",
     },
   },
-  { ignores: ["**/dist/**", "**/.next/**", "**/node_modules/**"] },
+  { ignores: ["**/dist/**", "**/.next/**", "**/.next-design-systems-e2e/**", "**/node_modules/**"] },
 ];

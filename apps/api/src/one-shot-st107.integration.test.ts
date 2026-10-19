@@ -155,7 +155,7 @@ describeWithPostgres("ST-107 brief, budget, self-repair and decisions (Postgres)
     includes: (userId) => cohort.members.has(userId),
   };
 
-  function service(maxBriefRevisions = 3) {
+  function service(maxBriefRevisions = 3, soundBedAvailable = async (trackId: string) => trackId.length > 0) {
     return new PostgresOneShotService(
       database!.client,
       pilotCohort,
@@ -171,8 +171,10 @@ describeWithPostgres("ST-107 brief, budget, self-repair and decisions (Postgres)
       {
         pricing,
         maxRunsPerHour: 10,
+        soundBedAvailable,
         briefs: new ProviderOneShotBriefService({
           database: database!.client,
+          soundBedAvailable,
           provider,
           quotaGuard: { assertCanGenerate: async () => {} },
           maxRepairs: 1,
@@ -250,6 +252,24 @@ describeWithPostgres("ST-107 brief, budget, self-repair and decisions (Postgres)
     };
     return pipeline;
   }
+
+  it("excludes unavailable tracks from the brief and refuses a track lost before confirmation", async () => {
+    const noneAvailable = service(3, async () => false);
+    const withoutMusic = await brief("without-music", briefBody, noneAvailable);
+    expect(withoutMusic.brief?.soundBed).toBe("none");
+    const prepared = await brief("with-music");
+    const view = prepared.brief!;
+    await expect(noneAvailable.create({ ...scope,
+      body: { briefRevision: view.revision, acceptedEstimateUsd: view.estimate.totalUsd, soundBed: "morning-pad" },
+      idempotencyKey: undefined, correlationId,
+    })).rejects.toMatchObject({ statusCode: 400, fieldErrors: { soundBed: "This track is not available." } });
+    expect((await latestRun()).status).toBe("brief_ready");
+    const confirmed = await noneAvailable.create({ ...scope,
+      body: { briefRevision: view.revision, acceptedEstimateUsd: view.estimate.totalUsd, soundBed: "none" },
+      idempotencyKey: undefined, correlationId,
+    });
+    expect(confirmed.run?.soundBed).toBe("none");
+  });
 
   it("prepares a grounded brief, runs nothing paid until confirmation, then drives the chain", async () => {
     const prepared = await brief("brief-1");

@@ -132,6 +132,17 @@ ST-075, ST-081, ST-082 and ST-083 are Done. ST-105 must be Done before this star
 
 ## Dev Agent Record
 
+### Maintenance — 2026-10-19: unlock preview after checks
+
+- **Files changed:** `apps/web/app/workspace/[projectId]/one-shot/one-shot-workspace.tsx`, `apps/web/lib/one-shot.ts`, `e2e/one-shot.spec.ts`, this record, and `STORY_INDEX.md`.
+- **Behavior:** apply every successful run-status response; use the run fingerprint only for backoff. Cap polling at five seconds and refresh on tab focus, visibility restoration, or reconnect. Prevent overlapping polls and clean up listeners on unmount. Preview eligibility continues to come from the server's `awaiting_render_approval` status.
+- **Migrations / public contracts:** none.
+- **Validation:** `pnpm --filter @avlp/web lint` and `typecheck` passed; `pnpm --filter @avlp/web exec vitest run lib/one-shot.test.ts app/workspace/[projectId]/one-shot/one-shot-views.test.tsx` passed (54 tests). Hydrated Playwright focus recovery and automatic Checks-to-preview regression passed using an isolated local app and the stateful mock API. One concurrent-build run timed out at initial page navigation; the isolated rerun passed (47.5 seconds), with the preview unlock assertion bounded to seven seconds. Production compilation and type validation passed; final build result recorded below.
+- **Representative output:** browser assertions verify preview approval and an enabled Render video action without navigation or an automatic render, including recovery after a 503 status response.
+- **Production build:** `NEXT_BUILD_DIR=.next-one-shot-poll-build pnpm --filter @avlp/web exec next build --no-lint` passed. Lint ran separately before temporary build folders were generated; the initial combined build was stopped when lint scanned those generated folders. Temporary folders and Next's generated configuration edits were removed after validation.
+- **Decisions / assumptions:** this is maintenance of ST-106's existing adaptive polling. Reading status grants no authority to start paid work. Keep the existing branch and unrelated in-progress ST-123 changes intact.
+- **Risks / deviations:** a network outage or a run that has not reached server approval still keeps preview gated. No architecture or story-scope deviation.
+
 - **Agent:** Claude Code (Opus 5.5)
 - **Started:** 2026-09-27
 - **Completed:** 2026-09-27 (handed off `In Review`)

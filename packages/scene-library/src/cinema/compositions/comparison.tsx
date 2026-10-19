@@ -9,7 +9,7 @@
  */
 import type { SceneSpec } from "@avlp/schemas";
 import type { JSX } from "react";
-import { arrival, useCinemaBeats } from "../beats.js";
+import { useCinemaBeats } from "../beats.js";
 import {
   absolute,
   cinemaCanvas,
@@ -152,7 +152,7 @@ function SidePanel({
       identity={identity}
       style={{
         ...absolute(x, y + (height - panelHeight) / 2, width, panelHeight),
-        ...arrival(reveal, target === "left" ? "left" : "right", 50),
+        ...beats.arrival(reveal, target === "left" ? "left" : "right", 50),
         display: "flex",
         flexDirection: "column",
         gap: 18,
@@ -181,7 +181,7 @@ function SidePanel({
             <div
               key={item.target}
               data-cinema-item={item.target}
-              style={{ alignItems: "center", display: "flex", gap: 16, ...arrival(beats.reveal(item.target), "up", 16) }}
+              style={{ alignItems: "center", display: "flex", gap: 16, ...beats.arrival(beats.reveal(item.target), "up", 16) }}
             >
               {item.icon === undefined ? null : <ItemIcon backdrop={surfaceFill(identity)} icon={item.icon} identity={identity} size={56} />}
               <BodyText
@@ -239,7 +239,7 @@ function PointList({
               display: "flex",
               gap: 14,
               padding: "12px 20px",
-              transform: `${arrival(beats.reveal(point.target), "up", 18).transform} scale(${isActive ? 1.02 : 1})`,
+              transform: `${beats.arrival(beats.reveal(point.target), "up", 18).transform} scale(${isActive ? 1.02 : 1})`,
               opacity: beats.reveal(point.target),
             }}
           >
@@ -519,7 +519,7 @@ function StackedCard({
       data-cinema-side={target}
       identity={identity}
       tone={target === "right" ? "accent" : "plain"}
-      style={{ ...absolute(x, y, width, height), ...arrival(beats.reveal(target), "up", 30), alignItems: "center", display: "flex", gap: 28, padding: 28 }}
+      style={{ ...absolute(x, y, width, height), ...beats.arrival(beats.reveal(target), "up", 30), alignItems: "center", display: "flex", gap: 28, padding: 28 }}
     >
       {side.image !== undefined ? (
         <ItemIcon backdrop={surfaceFill(identity, target === "right" ? "accent" : "plain")} icon={side.image} identity={identity} size={pictureSize} />

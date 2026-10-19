@@ -12,7 +12,7 @@
  */
 import { dataChartPalette, type ResolvedDataChart } from "@avlp/schemas";
 import type { JSX } from "react";
-import { arrival, useCinemaBeats } from "../beats.js";
+import { useCinemaBeats } from "../beats.js";
 import { layoutDataChart } from "../../data-chart/chart-layout.js";
 import {
   dataChartBeatFrames,
@@ -143,7 +143,7 @@ function ChartPanel({
         highlight={motion.highlight}
         idPrefix={`cinema-chart-${sceneId}`}
         layout={layout}
-        palette={dataChartPalette(identity.packId)}
+        palette={dataChartPalette(identity.packId === "custom" ? undefined : identity.packId)}
         progress={motion.progress}
       />
     </div>
@@ -199,7 +199,7 @@ function ChartKey({
 }>): JSX.Element {
   const beats = useCinemaBeats();
   const motion = useChartMotion(chart);
-  const palette = dataChartPalette(identity.packId);
+  const palette = dataChartPalette(identity.packId === "custom" ? undefined : identity.packId);
   const focus = motion.active;
   const focusLabel = focus >= 0 ? chart.categories[focus]?.label : undefined;
   const fittedFocus =
@@ -210,7 +210,7 @@ function ChartKey({
       data-data-chart-key="true"
       style={{
         ...absolute(x, y, keyWidth, height),
-        ...arrival(beats.reveal("headline"), "left"),
+        ...beats.arrival(beats.reveal("headline"), "left"),
         display: "flex",
         flexDirection: "column",
         gap: 20,

@@ -72,3 +72,15 @@ deadline and V8 heap limits as font inspection. Page limits are checked inside
 that process; malformed object streams, parser crashes and timeouts reject the
 import without terminating the job host. Decoder diagnostics are suppressed,
 IPC input/output is validated, and credentials are not passed to the decoder.
+
+### ST-123 manual authoring and custom reader — 2026-10-19
+
+Definition 1.1 adds bounded exact presentation controls beside the unchanged
+1.0 definition. Manual compilation produces independent manifest 3.0 /
+`custom-1.0.0`, with explicit system/font/logo identities, registered composition
+versions, semantic hashes and pinned beat frames. Its reader is separate from
+the frozen v1/v2 production dispatch until ST-125 connects explicit application.
+The same checksum-verified FontFace and final-font gates run in browser Player
+and server Chromium. Unsupported free-text locks block compilation; advisory
+principles remain data for ST-124. No new migration or paid operation is needed.
+See [manual authoring and verification](../manual-design-systems.md).

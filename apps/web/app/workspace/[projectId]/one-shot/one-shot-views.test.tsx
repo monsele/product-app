@@ -487,7 +487,18 @@ describe("ST-107 video brief", () => {
     expect(html).toContain("Suggested: A calm bed that sits under the narration.");
     const changed = briefCard({ stylePackId: "systems", soundBed: "none" });
     expect(changed).toContain("Your choice. The brief suggested Field Notes.");
-    expect(changed).toContain("Your choice. It plays quietly under the narration.");
+    expect(changed).toContain("Narration only. No background music will be added.");
+  });
+
+  it("blocks an unavailable recommendation and permits an explicit no-music choice", () => {
+    const options = soundBedOptions([], "morning-pad");
+    const unavailable = briefCard({ soundBedOptions: options });
+    expect(unavailable).toMatch(/<option[^>]*value="morning-pad"[^>]*disabled=""/);
+    expect(unavailable).toContain("This track is unavailable.");
+    expect(unavailable).toMatch(/<button[^>]*disabled=""[^>]*data-testid="one-shot-confirm"/);
+    const narrationOnly = briefCard({ soundBedOptions: options, soundBed: "none" });
+    expect(narrationOnly).toContain("Narration only.");
+    expect(narrationOnly).toMatch(/<button(?![^>]*disabled)[^>]*data-testid="one-shot-confirm"/);
   });
 
   it("shows the itemised estimate and confirms with one guarded action", () => {

@@ -12,7 +12,7 @@ import {
   type SceneSpec,
 } from "@avlp/schemas";
 import type { CSSProperties, JSX } from "react";
-import { arrival, useCinemaBeats } from "./beats.js";
+import { useCinemaBeats } from "./beats.js";
 import type { CinemaIdentity } from "./identity.js";
 import type { SceneChartResolution } from "../data-chart/resolve.js";
 import {
@@ -151,7 +151,7 @@ export function SceneHeader({
   return (
     <header
       data-cinema-header
-      style={{ ...absolute(x, y, width), textAlign: align, ...arrival(beats.reveal("headline")) }}
+      style={{ ...absolute(x, y, width), textAlign: align, ...beats.arrival(beats.reveal("headline")) }}
     >
       <Kicker identity={identity}>{design.display.kicker}</Kicker>
       {showHeadline ? (

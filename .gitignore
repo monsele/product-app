@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .next/
+.next-design-systems-e2e/
 .turbo/
 *.tsbuildinfo
 coverage/
@@ -11,3 +12,4 @@ test-results/
 __pycache__/
 .venv/
 artifacts/
+output/st123/

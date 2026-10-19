@@ -10,7 +10,7 @@
  */
 import { cinemaPrimaryText } from "@avlp/schemas";
 import type { JSX } from "react";
-import { arrival, useCinemaBeats } from "../beats.js";
+import { useCinemaBeats } from "../beats.js";
 import {
   absolute,
   cinemaCanvas,
@@ -64,7 +64,7 @@ export function IllustratedHeadlineComposition({
       <div
         style={{
           ...absolute(image.x, image.y, image.width, image.height),
-          ...arrival(beats.reveal("image"), "left", 40),
+          ...beats.arrival(beats.reveal("image"), "left", 40),
         }}
       >
         <HeroVisual
@@ -86,10 +86,10 @@ export function IllustratedHeadlineComposition({
           justifyContent: "flex-end",
         }}
       >
-        <div style={arrival(beats.reveal("headline"))}>
+        <div style={beats.arrival(beats.reveal("headline"))}>
           <Kicker identity={identity}>{design.display.kicker}</Kicker>
         </div>
-        <div style={arrival(beats.reveal("headline"), "up", 40)}>
+        <div style={beats.arrival(beats.reveal("headline"), "up", 40)}>
           <PrimaryText identity={identity} scene={scene} design={design} fontSize={fit.fontSize} />
         </div>
         <TitleLine identity={identity} scene={scene} design={design} width={textWidth} />
@@ -142,10 +142,10 @@ export function StatementComposition({
           justifyContent: "center",
         }}
       >
-        <div style={arrival(beats.reveal("headline"))}>
+        <div style={beats.arrival(beats.reveal("headline"))}>
           <Kicker identity={identity}>{design.display.kicker}</Kicker>
         </div>
-        <div style={arrival(beats.reveal("headline"), "up", 48)}>
+        <div style={beats.arrival(beats.reveal("headline"), "up", 48)}>
           <PrimaryText identity={identity} scene={scene} design={design} fontSize={fit.fontSize} />
         </div>
         <div
@@ -217,7 +217,7 @@ export function ChapterComposition({
           transformOrigin: "top",
         }}
       />
-      <div style={{ ...absolute(cinemaCanvas.left, 430, 460, 400), ...arrival(beats.reveal("image"), "up", 30) }}>
+      <div style={{ ...absolute(cinemaCanvas.left, 430, 460, 400), ...beats.arrival(beats.reveal("image"), "up", 30) }}>
         <HeroVisual drift={beats.drift} hero={hero} identity={identity} height={400} progress={1} width={460} />
       </div>
       <div
@@ -229,10 +229,10 @@ export function ChapterComposition({
           justifyContent: "center",
         }}
       >
-        <div style={arrival(beats.reveal("headline"))}>
+        <div style={beats.arrival(beats.reveal("headline"))}>
           <Kicker identity={identity}>{`Chapter ${chapter} · ${design.display.kicker}`}</Kicker>
         </div>
-        <div style={arrival(beats.reveal("headline"), "up", 36)}>
+        <div style={beats.arrival(beats.reveal("headline"), "up", 36)}>
           <PrimaryText identity={identity} scene={scene} design={design} fontSize={fit.fontSize} />
         </div>
         <TitleLine identity={identity} scene={scene} design={design} width={right.width} />

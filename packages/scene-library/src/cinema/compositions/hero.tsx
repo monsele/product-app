@@ -9,7 +9,7 @@
  */
 import type { DiagramAnchor, SceneSpec } from "@avlp/schemas";
 import type { JSX } from "react";
-import { arrival, useCinemaBeats } from "../beats.js";
+import { useCinemaBeats } from "../beats.js";
 import {
   absolute,
   cinemaCanvas,
@@ -140,7 +140,7 @@ function AnnotatedDiagram({ scene, design, identity, hero }: CinemaCompositionPr
   return (
     <>
       <SceneHeader identity={identity} design={design} scene={scene} x={cinemaCanvas.left} y={cinemaCanvas.top} width={1400} maxSize={56} />
-      <div style={{ ...absolute(box.x, box.y, box.width, box.height), ...arrival(beats.reveal("image"), "none") }}>
+      <div style={{ ...absolute(box.x, box.y, box.width, box.height), ...beats.arrival(beats.reveal("image"), "none") }}>
         {shape === undefined ? (
           <HeroVisual drift={beats.drift * 0.5} hero={hero} identity={identity} height={box.height} progress={1} width={box.width} />
         ) : (
@@ -196,7 +196,7 @@ function AnnotatedDiagram({ scene, design, identity, hero }: CinemaCompositionPr
             identity={identity}
             style={{
               ...absolute(card.x, card.y, calloutColumn, card.height),
-              ...arrival(beats.reveal(`item-${card.index + 1}`), card.side === "left" ? "left" : "right", 20),
+              ...beats.arrival(beats.reveal(`item-${card.index + 1}`), card.side === "left" ? "left" : "right", 20),
               alignItems: "center",
               display: "flex",
               padding: "0 20px",
@@ -241,7 +241,7 @@ function AnnotatedDefinition({ scene, design, identity, hero }: CinemaCompositio
       {showHeadline ? (
         <SceneHeader identity={identity} design={design} scene={scene} x={cinemaCanvas.left} y={cinemaCanvas.top} width={1680} maxLines={1} maxSize={48} />
       ) : null}
-      <div style={{ ...absolute(heroBox.x, heroBox.y, heroBox.width, heroBox.height), ...arrival(beats.reveal("image"), "none") }}>
+      <div style={{ ...absolute(heroBox.x, heroBox.y, heroBox.width, heroBox.height), ...beats.arrival(beats.reveal("image"), "none") }}>
         <HeroVisual drift={beats.drift} hero={hero} identity={identity} height={heroBox.height} progress={1} width={heroBox.width} />
       </div>
       <svg aria-hidden height={cinemaCanvas.height} style={{ left: 0, position: "absolute", top: 0 }} width={cinemaCanvas.width}>
@@ -251,18 +251,18 @@ function AnnotatedDefinition({ scene, design, identity, hero }: CinemaCompositio
           <Connector arrow={false} identity={identity} from={{ x: cinemaCanvas.left + column + 10, y: exampleY + 60 }} to={{ x: heroBox.x + 80, y: heroBox.y + heroBox.height * 0.75 }} progress={Math.min(beats.reveal("detail"), beats.reveal("image"))} />
         )}
       </svg>
-      <div style={{ ...absolute(cinemaCanvas.left, termY, column), ...arrival(beats.reveal("headline"), "left", 30) }}>
+      <div style={{ ...absolute(cinemaCanvas.left, termY, column), ...beats.arrival(beats.reveal("headline"), "left", 30) }}>
         {/* With a headline, the header above already carries the kicker. */}
         {showHeadline ? null : <Kicker identity={identity}>{design.display.kicker}</Kicker>}
         <PrimaryText identity={identity} scene={scene} design={design} fontSize={termFit.fontSize} style={{ marginTop: showHeadline ? 0 : 12 }} />
       </div>
-      <Surface identity={identity} style={{ ...absolute(cinemaCanvas.right - column, definitionY, column), padding: 24, ...arrival(beats.reveal("detail"), "right", 30) }}>
+      <Surface identity={identity} style={{ ...absolute(cinemaCanvas.right - column, definitionY, column), padding: 24, ...beats.arrival(beats.reveal("detail"), "right", 30) }}>
         <BodyText identity={identity} fontSize={definitionFit.fontSize} style={{ fontWeight: 600 }}>
           {scene.visual.definition}
         </BodyText>
       </Surface>
       {example === undefined || exampleFit === undefined ? null : (
-        <Surface identity={identity} tone="accent" style={{ ...absolute(cinemaCanvas.left, exampleY, column), padding: 24, ...arrival(beats.reveal("detail"), "up", 24) }}>
+        <Surface identity={identity} tone="accent" style={{ ...absolute(cinemaCanvas.left, exampleY, column), padding: 24, ...beats.arrival(beats.reveal("detail"), "up", 24) }}>
           <BodyText
             identity={identity}
             fontSize={exampleFit.fontSize}
@@ -337,7 +337,7 @@ export function HeroIndexedComposition({ scene, design, identity, hero, itemIcon
       : undefined;
   return (
     <>
-      <div style={{ ...absolute(heroBox.x, heroBox.y, heroBox.width, heroBox.height), ...arrival(beats.reveal("image"), "none") }}>
+      <div style={{ ...absolute(heroBox.x, heroBox.y, heroBox.width, heroBox.height), ...beats.arrival(beats.reveal("image"), "none") }}>
         <HeroVisual
           drift={beats.drift}
           hero={hero}
@@ -393,7 +393,7 @@ export function HeroIndexedComposition({ scene, design, identity, hero, itemIcon
             <li
               key={`${index}-${entry.text}`}
               data-cinema-item={`item-${index + 1}`}
-              style={{ alignItems: "center", display: "flex", gap: 16, ...arrival(beats.reveal(`item-${index + 1}`), "right", 20) }}
+              style={{ alignItems: "center", display: "flex", gap: 16, ...beats.arrival(beats.reveal(`item-${index + 1}`), "right", 20) }}
             >
               {icon === undefined ? (
                 <NumberBadge identity={identity} value={index + 1} size={badge} active={isActive} />

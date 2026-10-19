@@ -16,7 +16,9 @@ import { and, asc, eq } from "drizzle-orm";
 /** Audition and preview URLs are deliberately short-lived. */
 export const soundBedSignedUrlTtlSeconds = 300;
 
-type CatalogStorage = Pick<ObjectStorage, "createSignedDownload">;
+type CatalogStorage = Pick<ObjectStorage, "createSignedDownload" | "exists" | "getMetadata">;
+
+export type SoundBedAvailability = (trackId: string) => Promise<boolean>;
 
 export interface SoundBedService {
   list(): Promise<SoundBedCatalogResponse>;
@@ -68,6 +70,25 @@ export class PostgresSoundBedService implements SoundBedService {
     private readonly catalogStorage: CatalogStorage,
   ) {}
 
+  public async isAvailable(trackId: string): Promise<boolean> {
+    const [row] = await this.database.select().from(soundBedTracks).where(
+      and(eq(soundBedTracks.trackId, trackId), eq(soundBedTracks.status, "active")),
+    ).limit(1);
+    return row !== undefined && this.hasAudio(toEntry(row));
+  }
+
+  private async hasAudio(entry: SoundBedCatalogEntry): Promise<boolean> {
+    try {
+      const key = storageKeySchema.parse(entry.storageKey);
+      if (!(await this.catalogStorage.exists(key))) return false;
+      const metadata = await this.catalogStorage.getMetadata(key);
+      return metadata.sizeBytes > 0 && metadata.checksumSha256 === entry.checksumSha256;
+    } catch {
+      // A catalog record or signed URL alone does not prove playable media.
+      return false;
+    }
+  }
+
   public async list(): Promise<SoundBedCatalogResponse> {
     const rows = await this.database
       .select()
@@ -77,6 +98,7 @@ export class PostgresSoundBedService implements SoundBedService {
     const tracks = await Promise.all(
       rows.map(async (row) => {
         const entry = toEntry(row);
+        if (!(await this.hasAudio(entry))) return null;
         const signed = await this.sign(entry.storageKey);
         return {
           trackId: entry.trackId,
@@ -93,7 +115,7 @@ export class PostgresSoundBedService implements SoundBedService {
         };
       }),
     );
-    return soundBedCatalogResponseSchema.parse({ tracks });
+    return soundBedCatalogResponseSchema.parse({ tracks: tracks.filter((track) => track !== null) });
   }
 
   public async previewForProject(scope: {

@@ -305,13 +305,16 @@ describe("idempotency", () => {
 });
 
 describe("ST-107 brief choices and the decision log", () => {
-  it("offers none, the catalog, and always the brief's own sound bed", () => {
+  it("offers available tracks and disables a missing brief recommendation", () => {
     expect(soundBedOptions([{ trackId: "morning-pad", title: "Morning Pad" }], "morning-pad")).toEqual([
       { value: "none", label: "No background sound" },
       { value: "morning-pad", label: "Morning Pad" },
     ]);
-    // The catalog failed to load: the brief's choice is still selectable.
-    expect(soundBedOptions([], "quiet-pulse").map((option) => option.value)).toEqual(["none", "quiet-pulse"]);
+    expect(soundBedOptions([], "quiet-pulse")).toEqual([
+      { value: "none", label: "No background sound" },
+      { value: "quiet-pulse", label: "quiet-pulse (unavailable)", disabled: true },
+    ]);
+    expect(soundBedOptions([], "none")).toEqual([{ value: "none", label: "No background sound" }]);
   });
 
   it("exports the log without usage-record ids, URLs or tokens", () => {

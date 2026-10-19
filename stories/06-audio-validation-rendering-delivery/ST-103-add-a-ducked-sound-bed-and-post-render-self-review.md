@@ -222,6 +222,22 @@ ST-057, ST-063, ST-064, ST-065, ST-066, ST-068, ST-077, ST-098, ST-102. All are 
 
 ## Dev Agent Record
 
+### Maintenance — 2026-10-19: offer only available background music
+
+- **Scope:** owner-requested prevention of selecting missing music in Setup and the prompt-to-video brief. Existing `none` selection removes music from subsequently saved versions; immutable versions retain their pinned track.
+- **Files changed:**
+  - API: `src/sound-beds.ts`, `lesson-configuration.ts`, `one-shot.ts`, `one-shot-brief.ts`, `runtime.ts` and the sound-bed, configuration, and ST-107 integration tests.
+  - Web: `lib/one-shot.ts`, `lib/one-shot.test.ts`, configuration `sound-bed-selector.tsx`, prompt-to-video `one-shot-workspace.tsx`, `one-shot-views.tsx`, and `one-shot-views.test.tsx`.
+  - `e2e/one-shot.spec.ts`, this story, and `STORY_INDEX.md`.
+- **Migrations / public contracts:** none. Unavailable tracks are omitted from the existing catalog response. Storage-backed availability is an internal injected dependency and defaults to refusing unverified music.
+- **Implementation:** verify catalog audio presence, nonempty content, and pinned checksum before offering it. Filter AI brief recommendations by the same availability check. Recheck explicit music choices at configuration save and brief confirmation; storage reads happen outside database transactions. A missing brief recommendation is displayed disabled with a correction message, and confirmation stays disabled until the user chooses available music or none. Keep omission-preserves-existing-choice behavior for older configuration clients.
+- **Commands / tests:** API and web lint/typecheck passed; Postgres-backed sound-bed, configuration, and ST-107 suites passed (33 tests, including lost audio at confirmation and narration-only saves); web client/view tests passed (55 tests). Hydrated Playwright `unavailable background music cannot be confirmed and can be removed` passed against the isolated local app and mock API (36.8 seconds).
+- **Representative output:** missing suggested music is disabled, confirmation is disabled, selecting `none` enables confirmation, and the browser sends `soundBed: "none"` before the run starts. No paid providers were called by verification.
+- **Builds:** `pnpm --filter @avlp/api build` and `NEXT_BUILD_DIR=.next-music-availability pnpm --filter @avlp/web exec next build --no-lint` passed. Web lint ran separately before generating the temporary build directory. Removed temporary build/config files and restored Next's generated configuration edits afterward.
+- **Decisions / assumptions:** use the existing No background music / No background sound choices; removing music requires saving and rendering a new immutable lesson version. Preserve the existing working branch and unrelated ST-123 edits.
+- **Risks:** storage can still become unavailable after confirmation; the renderer retains its final pinned-asset integrity check. Availability is checked afresh rather than cached. A storage outage hides affected tracks while narration-only remains available.
+- **Deviations:** none; no renderer fallback, immutable-version mutation, or provider changes.
+
 - **Agent:** Claude Opus 5.5
 - **Started:** 2026-09-26
 - **Completed:** 2026-09-27 (implemented 2026-09-26; approved 2026-09-27)

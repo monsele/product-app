@@ -273,6 +273,7 @@ export async function runApi(input: {
       database.client,
       undefined,
       (scope) => demonstrationPilotService.eligibility(scope),
+      (trackId) => soundBedService.isAvailable(trackId),
     );
     const ingestionStatusService = new PostgresIngestionStatusService(
       database.client,
@@ -396,10 +397,12 @@ export async function runApi(input: {
       {
         pricing: oneShotPricingFromEnvironment(environment),
         maxRunsPerHour: environment.MAX_ONE_SHOT_RUNS_PER_HOUR,
+        soundBedAvailable: (trackId) => soundBedService.isAvailable(trackId),
         // ST-107. The brief: one small call per "Prepare brief", with its own
         // hourly quota on top of the per-run brief limit.
         briefs: new ProviderOneShotBriefService({
           database: database.client,
+          soundBedAvailable: (trackId) => soundBedService.isAvailable(trackId),
           provider: createLanguageModelProvider(environment),
           quotaGuard: new PostgresGenerationQuotaGuard(
             database.client,

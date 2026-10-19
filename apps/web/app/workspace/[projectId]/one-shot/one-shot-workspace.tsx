@@ -151,23 +151,44 @@ export function OneShotWorkspace({
     let timer: number | undefined;
     let delay = pollInitialMs;
     let last = fingerprint;
+    let fetching = false;
     const tick = async () => {
+      if (cancelled || fetching) return;
+      window.clearTimeout(timer);
+      fetching = true;
       try {
-        const next = await fetchOneShot(projectId);
-        if (cancelled) return;
-        const changed = runFingerprint(next.run) !== last;
-        last = runFingerprint(next.run);
-        delay = nextPollDelay(delay, changed);
-        if (changed) setState(next);
+        if (!inFlight.current) {
+          const next = await fetchOneShot(projectId);
+          if (cancelled) return;
+          if (!inFlight.current) {
+            const changed = runFingerprint(next.run) !== last;
+            last = runFingerprint(next.run);
+            delay = nextPollDelay(delay, changed);
+            // The fingerprint controls backoff only. Eligibility and other
+            // action guards can change without changing the run fingerprint.
+            setState(next);
+          }
+        }
       } catch {
         delay = nextPollDelay(delay, false);
+      } finally {
+        fetching = false;
       }
       if (!cancelled) timer = window.setTimeout(() => void tick(), delay);
     };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void tick();
+    };
+    window.addEventListener("focus", onVisible);
+    window.addEventListener("online", onVisible);
+    document.addEventListener("visibilitychange", onVisible);
     timer = window.setTimeout(() => void tick(), delay);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
+      window.removeEventListener("focus", onVisible);
+      window.removeEventListener("online", onVisible);
+      document.removeEventListener("visibilitychange", onVisible);
     };
     // Restart only when polling starts or stops, or the run changes; the loop
     // tracks step changes itself, so `fingerprint` is only its starting point.
@@ -647,7 +668,7 @@ function BriefStage({
         if (!cancelled) setTracks(list);
       })
       .catch(() => {
-        // The brief's own choice and "none" are still offered.
+        // No music stays available; an unverified recommendation is disabled.
       });
     return () => {
       cancelled = true;

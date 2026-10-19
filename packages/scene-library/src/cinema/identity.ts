@@ -30,7 +30,9 @@ export type CinemaImageFrame =
   | "block";
 
 export type CinemaIdentity = Readonly<{
-  packId: CreativeDesignPackId;
+  packId: CreativeDesignPackId | "custom";
+  customAlignment?: "left" | "center";
+  customTypeScale?: number;
   name: string;
   colors: Readonly<{
     background: string;

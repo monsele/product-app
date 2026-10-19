@@ -615,6 +615,7 @@ export function CreativeDesignPanel({
     return (
       <section aria-label="Creative design" className={styles.creativePanel}>
         <h3>Appearance settings</h3>
+      <a className={styles.designSystemsLink} href={`/workspace/design-systems?projectId=${encodeURIComponent(projectId)}`}>My Design Systems</a>
         <p>
           This lesson uses the plain default look. Choose a style to give it
           its own colours, type and layouts.
@@ -643,6 +644,7 @@ export function CreativeDesignPanel({
   return (
     <section aria-label="Creative design" className={styles.creativePanel}>
       <h3>Appearance settings</h3>
+      <a className={styles.designSystemsLink} href={`/workspace/design-systems?projectId=${encodeURIComponent(projectId)}`}>My Design Systems</a>
       <p role="status" data-design-status={status}>
         <strong>
           {status === "applied"

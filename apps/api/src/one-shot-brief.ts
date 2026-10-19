@@ -158,6 +158,7 @@ export class ProviderOneShotBriefService implements OneShotBriefGenerator {
   public constructor(
     private readonly options: {
       database: DatabaseClient;
+      soundBedAvailable?: import("./sound-beds.js").SoundBedAvailability;
       provider: LanguageModelProvider;
       quotaGuard: QuotaGuard;
       promptRegistry?: PromptRegistry;
@@ -188,7 +189,7 @@ export class ProviderOneShotBriefService implements OneShotBriefGenerator {
     input: Parameters<OneShotBriefGenerator["prepare"]>[0],
   ): Promise<PreparedBrief> {
     const outline = await this.loadOutline(input.ownerUserId, input.projectId);
-    const trackRows = await this.options.database
+    const catalogRows = await this.options.database
       .select({
         trackId: soundBedTracks.trackId,
         title: soundBedTracks.title,
@@ -197,6 +198,9 @@ export class ProviderOneShotBriefService implements OneShotBriefGenerator {
       .from(soundBedTracks)
       .where(eq(soundBedTracks.status, "active"))
       .orderBy(asc(soundBedTracks.sortOrder));
+    const availability = await Promise.all(catalogRows.map((row) =>
+      this.options.soundBedAvailable?.(row.trackId) ?? false));
+    const trackRows = catalogRows.filter((_, index) => availability[index]);
     const compatibility = currentOneShotBriefCompatibility;
     const schema = createOneShotBriefOutputSchema({
       sectionIds: outline.sections.map((section) => section.sectionId),

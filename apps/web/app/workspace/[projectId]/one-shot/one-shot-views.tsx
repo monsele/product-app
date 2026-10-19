@@ -994,13 +994,16 @@ export function BriefCard({
             data-testid="one-shot-sound"
           >
             {soundBedOptions.map((option) => (
-              <option key={option.value} value={option.value}>
+              <option key={option.value} value={option.value} disabled={option.disabled}>
                 {option.label}
               </option>
             ))}
           </select>
           <p className={styles.helper} id="one-shot-sound-reason">
-            {soundBed === brief.soundBed
+            {soundBedOptions.some((option) => option.value === soundBed && option.disabled)
+              ? "This track is unavailable. Choose another track or No background sound."
+              : soundBed === "none" ? "Narration only. No background music will be added."
+              : soundBed === brief.soundBed
               ? `Suggested: ${brief.soundBedReason}`
               : "Your choice. It plays quietly under the narration."}
           </p>
@@ -1040,7 +1043,7 @@ export function BriefCard({
           variant="primary"
           size="large"
           onClick={onConfirm}
-          disabled={confirming || blockedReason !== null}
+          disabled={confirming || blockedReason !== null || soundBedOptions.some((option) => option.value === soundBed && option.disabled)}
           isLoading={confirming}
           leftIcon={<CheckCircle weight="bold" />}
           data-testid="one-shot-confirm"

@@ -10,7 +10,7 @@
  */
 import { cinemaPrimaryText } from "@avlp/schemas";
 import type { JSX } from "react";
-import { arrival, useCinemaBeats } from "../beats.js";
+import { useCinemaBeats } from "../beats.js";
 import {
   absolute,
   cinemaCanvas,
@@ -72,7 +72,7 @@ function CardsTakeaway({ scene, design, identity, hero }: CinemaCompositionProps
   return (
     <>
       {picture ? (
-        <div style={{ ...absolute(cinemaCanvas.left, cinemaCanvas.top, 420, cardsTop - cinemaCanvas.top - 30), ...arrival(beats.reveal("image")) }}>
+        <div style={{ ...absolute(cinemaCanvas.left, cinemaCanvas.top, 420, cardsTop - cinemaCanvas.top - 30), ...beats.arrival(beats.reveal("image")) }}>
           <HeroVisual drift={beats.drift} hero={hero} identity={identity} height={cardsTop - cinemaCanvas.top - 30} progress={1} width={420} />
         </div>
       ) : null}
@@ -86,10 +86,10 @@ function CardsTakeaway({ scene, design, identity, hero }: CinemaCompositionProps
           textAlign: picture ? "left" : "center",
         }}
       >
-        <div style={arrival(beats.reveal("headline"))}>
+        <div style={beats.arrival(beats.reveal("headline"))}>
           <Kicker identity={identity}>{design.display.kicker}</Kicker>
         </div>
-        <div style={arrival(beats.reveal("headline"), "up", 40)}>
+        <div style={beats.arrival(beats.reveal("headline"), "up", 40)}>
           {isSummary ? (
             <DisplayText identity={identity} fontSize={fit.fontSize}>
               {statement}
@@ -104,7 +104,7 @@ function CardsTakeaway({ scene, design, identity, hero }: CinemaCompositionProps
           </BodyText>
         ) : null}
         {secondary === undefined ? null : (
-          <BodyText identity={identity} fontSize={36} muted style={{ ...arrival(beats.reveal("detail")), fontWeight: 600 }}>
+          <BodyText identity={identity} fontSize={36} muted style={{ ...beats.arrival(beats.reveal("detail")), fontWeight: 600 }}>
             {secondary}
           </BodyText>
         )}
@@ -112,7 +112,7 @@ function CardsTakeaway({ scene, design, identity, hero }: CinemaCompositionProps
           <Surface
             identity={identity}
             tone="accent"
-            style={{ alignSelf: picture ? "flex-start" : "center", padding: "12px 26px", ...arrival(beats.reveal("detail")) }}
+            style={{ alignSelf: picture ? "flex-start" : "center", padding: "12px 26px", ...beats.arrival(beats.reveal("detail")) }}
           >
             <BodyText identity={identity} fontSize={32} style={{ color: identity.surface === "block" ? identity.colors.onAccent : identity.colors.text, fontWeight: 700 }}>
               {closing}
@@ -131,7 +131,7 @@ function CardsTakeaway({ scene, design, identity, hero }: CinemaCompositionProps
             identity={identity}
             style={{
               ...absolute(cinemaCanvas.left + index * (cardWidth + 24), cardsTop, cardWidth, cinemaCanvas.bottom - cardsTop),
-              ...arrival(beats.reveal(target), "up", 30),
+              ...beats.arrival(beats.reveal(target), "up", 30),
               alignItems: "center",
               display: "flex",
               gap: 18,
@@ -216,7 +216,7 @@ function WorkedTakeaway({ scene, design, identity }: CinemaCompositionProps): JS
         identity={identity}
         fontSize={problemFit.fontSize}
         muted
-        style={{ ...absolute(cinemaCanvas.left, cinemaCanvas.top + headHeight + 24, width), ...arrival(beats.reveal("detail")), fontWeight: 500, lineHeight: 1.3 }}
+        style={{ ...absolute(cinemaCanvas.left, cinemaCanvas.top + headHeight + 24, width), ...beats.arrival(beats.reveal("detail")), fontWeight: 500, lineHeight: 1.3 }}
       >
         {scene.visual.problem}
       </BodyText>

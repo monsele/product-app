@@ -195,11 +195,11 @@ export function isPollingStatus(status: OneShotRunStatus): boolean {
 }
 
 export const pollInitialMs = 2_000;
-export const pollMaxMs = 15_000;
+export const pollMaxMs = 5_000;
 
 /**
  * Backoff between polls: start at 2 s, grow 1.5× after every poll that saw no
- * change, capped at 15 s, and snap back to 2 s as soon as something moves.
+ * change, capped at 5 s, and snap back to 2 s as soon as something moves.
  */
 export function nextPollDelay(previousMs: number, changed: boolean): number {
   if (changed) return pollInitialMs;
@@ -453,10 +453,10 @@ export function requestSignature(values: RequestFormValues): string {
 export const stylePackLabels: Readonly<Record<CreativeDesignPackId, string>> =
   creativeDesignPackNames;
 
-export type SoundBedOption = { value: SoundBedChoice; label: string };
+export type SoundBedOption = { value: SoundBedChoice; label: string; disabled?: boolean };
 
-/** The sound-bed choices: none, then the catalog. The brief's own choice is
- * always offered, even if the catalog could not be loaded. */
+/** Only verified catalog tracks can be chosen. Keep a missing saved choice
+ * visible as unavailable so the user explicitly chooses its replacement. */
 export function soundBedOptions(
   tracks: readonly { trackId: string; title: string }[],
   current: SoundBedChoice,
@@ -466,7 +466,7 @@ export function soundBedOptions(
     ...tracks.map((track) => ({ value: track.trackId, label: track.title })),
   ];
   if (!options.some((option) => option.value === current))
-    options.push({ value: current, label: current });
+    options.push({ value: current, label: `${current} (unavailable)`, disabled: true });
   return options;
 }
 

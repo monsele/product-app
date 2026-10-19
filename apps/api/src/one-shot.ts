@@ -132,6 +132,7 @@ export {
 } from "./one-shot-budget.js";
 
 type Scope = { ownerUserId: Identifier; projectId: Identifier };
+type SoundBedAvailability = import("./sound-beds.js").SoundBedAvailability;
 type RunRow = typeof oneShotRuns.$inferSelect;
 
 /** Delay between ticks while a run is working. */
@@ -404,6 +405,7 @@ export class PostgresOneShotService implements OneShotService {
       budgetTolerance: number;
       /** Brief calls per run (ONE_SHOT_MAX_BRIEF_REVISIONS). */
       maxBriefRevisions: number;
+      soundBedAvailable?: SoundBedAvailability;
     },
     private readonly now: () => Date = () => new Date(),
   ) {}
@@ -769,7 +771,7 @@ export class PostgresOneShotService implements OneShotService {
           ),
         )
         .limit(1);
-      if (track === undefined)
+      if (track === undefined || !(await this.options.soundBedAvailable?.(soundBed)))
         throw new PublicError(
           "validation_failed",
           "Choose a sound bed from the catalog, or none.",

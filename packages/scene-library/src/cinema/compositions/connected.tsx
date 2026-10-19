@@ -8,7 +8,7 @@
  */
 import type { SceneSpec } from "@avlp/schemas";
 import type { JSX } from "react";
-import { arrival, useCinemaBeats } from "../beats.js";
+import { useCinemaBeats } from "../beats.js";
 import {
   absolute,
   cinemaCanvas,
@@ -246,13 +246,13 @@ export function ConnectedComposition({
             tone={result ? "accent" : "plain"}
             style={{
               ...absolute(rect.x, rect.y, rect.width, rect.height),
-              ...arrival(reveal, "up", 18),
+              ...beats.arrival(reveal, "up", 18),
               alignItems: "center",
               display: "flex",
               gap: 14,
               justifyContent: "center",
               padding: "10px 18px",
-              transform: `${arrival(reveal, "up", 18).transform} scale(${isActive ? 1.05 : 1})`,
+              transform: `${beats.arrival(reveal, "up", 18).transform} scale(${isActive ? 1.05 : 1})`,
             }}
           >
             {icon === undefined ? null : <ItemIcon backdrop={surfaceFill(identity, result ? "accent" : "plain")} icon={icon} identity={identity} size={iconSize} />}
