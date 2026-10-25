@@ -76,6 +76,16 @@ function context() {
 }
 
 describe("ST-110 visual-plan job", () => {
+  it("passes approved philosophy beside unchanged semantic content under visual-plan@v2",()=>{
+    const base=context();
+    const approvedDesignGuidance={systemVersionId:base.draftId,contentHash:"a".repeat(64),philosophy:"An annotated field journal",principles:[{category:"imagery" as const,instruction:"Avoid decorative icons"}],references:[],constraints:"Preserve facts and exact controls"};
+    const plain=JSON.parse(visualPlanInput(base)) as Record<string,unknown>;
+    const guided=JSON.parse(visualPlanInput({...base,approvedDesignGuidance})) as Record<string,unknown>;
+    expect(guided.scenes).toEqual(plain.scenes);
+    expect(guided.approvedDesignGuidance).toEqual(approvedDesignGuidance);
+    const prompt=new StaticPromptRegistry(repositoryPrompts).get("visual-plan","v2");
+    expect(prompt.system).toContain("Preserve exact locks");
+  });
   it("gives the planner approved content, the identity and each scene's eligible compositions", () => {
     const planContext = context();
     const input = JSON.parse(visualPlanInput(planContext)) as {

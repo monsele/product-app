@@ -84,3 +84,19 @@ The same checksum-verified FontFace and final-font gates run in browser Player
 and server Chromium. Unsupported free-text locks block compilation; advisory
 principles remain data for ST-124. No new migration or paid operation is needed.
 See [manual authoring and verification](../manual-design-systems.md).
+
+### ST-124 interpretation and planning — 2026-10-19
+
+Interpretation is an explicit source-free design operation: a project supplies
+ownership, job and usage context but no approved educational source is required.
+Additive migration 0080 pins draft inputs and paid dispatch receipts. Exact
+controls and existing rules remain authoritative; acceptance creates a new
+design-system draft revision, never project application. Published guidance is
+available to visual-plan@v2 and illustration jobs through explicit version pins.
+
+Confirmed responses are reused on retry. Unconfirmed dispatches stop automatic
+redispatch and retain conservative usage for reconciliation; only explicit
+rate-limit rejections retry. PDF interpretation uses isolated PDF.js text
+extraction with a five-second deadline and a 256 MB old-space limit; foundation
+inspection remains 128 MB. The pinned parser raises the minimum Node version to
+22.13. See [API, boundaries and recovery](../design-system-interpretation.md).

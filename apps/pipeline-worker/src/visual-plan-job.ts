@@ -42,6 +42,7 @@ import {
 } from "@avlp/schemas";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
+import { loadApprovedDesignGuidance, type ApprovedDesignGuidance } from "./design-system-guidance.js";
 import {
   createModelCallGenerationHandler,
   type DeterministicWarning,
@@ -55,6 +56,7 @@ export const visualPlanParamsSchema = z
   .object({
     draftId: z.string().uuid(),
     draftRevision: z.number().int().positive(),
+    designSystemVersionId: z.string().uuid().optional(),
   })
   .passthrough();
 
@@ -65,6 +67,7 @@ type VisualPlanContext = Readonly<{
   draftRevision: number;
   manifest: CreativeDesignManifestV2;
   scenes: readonly SceneSpec[];
+  approvedDesignGuidance?: ApprovedDesignGuidance;
 }>;
 
 /**
@@ -78,6 +81,9 @@ const nonRecoverableCodes = new Set([
   "PAYLOAD_VALIDATION_FAILED",
   "VISUAL_PLAN_DRAFT_NOT_FOUND",
   "VISUAL_PLAN_REQUIRES_V2",
+  "DESIGN_GUIDANCE_NOT_FOUND",
+  "DESIGN_GUIDANCE_BLOCKED",
+  "DESIGN_GUIDANCE_PROMPT_MISMATCH",
 ]);
 
 const supersededCode = "VISUAL_PLAN_DRAFT_SUPERSEDED";
@@ -165,6 +171,7 @@ function hasBoundPicture(scene: SceneSpec): boolean {
 export function visualPlanInput(context: VisualPlanContext): string {
   const ordered = [...context.scenes].sort((left, right) => left.order - right.order);
   return JSON.stringify({
+    ...(context.approvedDesignGuidance===undefined?{}:{approvedDesignGuidance:context.approvedDesignGuidance}),
     identity: {
       style: creativeDesignPackNames[context.manifest.pack.id],
       artDirection: context.manifest.artDirection,
@@ -349,8 +356,9 @@ export function createVisualPlanJobHandler(input: {
     now,
     ...input.modelCallOverrides,
     maxDeterministicRepairs: 1,
-    loadOperationContext: async ({ params, context }) => {
-      const { draftId, draftRevision } = visualPlanParamsSchema.parse(params);
+    loadOperationContext: async ({ params, context, promptVersion }) => {
+      const { draftId, draftRevision, designSystemVersionId } = visualPlanParamsSchema.parse(params);
+      if(designSystemVersionId!==undefined && promptVersion!=="v2") throw new JobExecutionError("terminal","DESIGN_GUIDANCE_PROMPT_MISMATCH","Approved design guidance requires visual-plan@v2.");
       const loaded = await loadVisualPlanContext(
         input.database,
         context,
@@ -358,9 +366,11 @@ export function createVisualPlanJobHandler(input: {
       );
       // Checked before the provider call, so a superseded plan costs nothing.
       if (loaded.revision !== draftRevision) throw superseded();
+      const approvedDesignGuidance=await loadApprovedDesignGuidance(input.database,context.ownerUserId,designSystemVersionId);
+      const planContext={...loaded.context,approvedDesignGuidance};
       return {
-        variables: { visualPlanInput: visualPlanInput(loaded.context) },
-        context: loaded.context,
+        variables: { visualPlanInput: visualPlanInput(planContext) },
+        context: planContext,
       };
     },
     deterministicChecks: (value, _sourcePackage, operationContext) =>

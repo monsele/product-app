@@ -1423,7 +1423,9 @@ export class DynamicMockLanguageModelProvider implements LanguageModelProvider {
 
     let jsonOutput: string;
 
-    if (systemText.includes("storyboard editing planner")) {
+      if (systemText.includes("You interpret design data")) {
+        jsonOutput=JSON.stringify({philosophy:"Calm, clear explanations",rules:[],presentation:null,conflicts:[],unsupported:["Local mock interpretation; use the configured provider to interpret your materials."]});
+      } else if (systemText.includes("storyboard editing planner")) {
       jsonOutput = generateEditPlanJson(fullText);
     } else if (systemText.includes("rewrites ONE narration block")) {
       jsonOutput = generateNarrationBlockTransformJson(fullText, allUuids);

@@ -7,6 +7,7 @@ import {
   designSystems,
   designSystemVersions,
   designSystemAssets,
+  designSystemInterpretations,
   jobs,
   outboxEvents,
 } from "@avlp/database";
@@ -16,6 +17,7 @@ import {
   createDefaultStoryboardSceneSpec,
   designSystemVersionSnapshotSchema,
   emptyDesignSystemDefinition,
+  buildDesignSystemInterpretationProposal,
 } from "@avlp/schemas";
 import {
   storageKeys,
@@ -96,6 +98,149 @@ describe.skipIf(!serverUrl)(
       await database?.destroy();
     });
     const create = () => service.create(owner, { name: "Field journal" });
+
+    it("queues one paid interpretation, rejects foreign/unconfirmed requests, accepts once and rejects stale proposals", async () => {
+      const system = await create();
+      const command = {
+        projectId,
+        expectedRevision: 1,
+        request: "More editorial",
+        assetIds: [],
+        paidActionConfirmed: true,
+      };
+      await expect(
+        service.interpret(other, system.id, command, correlation),
+      ).rejects.toMatchObject({ statusCode: 404 });
+      await expect(
+        service.interpret(
+          owner,
+          system.id,
+          { ...command, projectId: otherProject },
+          correlation,
+        ),
+      ).rejects.toMatchObject({ statusCode: 404 });
+      await expect(
+        service.interpret(
+          owner,
+          system.id,
+          { ...command, paidActionConfirmed: false },
+          correlation,
+        ),
+      ).rejects.toMatchObject({ statusCode: 400 });
+      const [first, second] = await Promise.all([
+        service.interpret(owner, system.id, command, correlation),
+        service.interpret(owner, system.id, command, correlation),
+      ]);
+      expect(first).toEqual(second);
+      expect(await service.listInterpretations(owner, system.id)).toHaveLength(
+        1,
+      );
+      await expect(
+        service.interpretation(other, system.id, first!.id),
+      ).rejects.toMatchObject({ statusCode: 404 });
+      const proposal = buildDesignSystemInterpretationProposal(
+        emptyDesignSystemDefinition,
+        {
+          philosophy: "Editorial",
+          rules: [],
+          presentation: null,
+          conflicts: [],
+          unsupported: [],
+        },
+        [],
+      );
+      await database.client
+        .update(designSystemInterpretations)
+        .set({ proposal, dispatchState: "received" })
+        .where(eq(designSystemInterpretations.id, first!.id));
+      await database.client
+        .update(jobs)
+        .set({ state: "succeeded" })
+        .where(eq(jobs.id, first!.jobId));
+      await expect(
+        service.acceptInterpretation(other, system.id, first!.id, {
+          expectedRevision: 1,
+        }),
+      ).rejects.toMatchObject({ statusCode: 404 });
+      const accepted = await Promise.all([
+        service.acceptInterpretation(owner, system.id, first!.id, {
+          expectedRevision: 1,
+        }),
+        service.acceptInterpretation(owner, system.id, first!.id, {
+          expectedRevision: 1,
+        }),
+      ]);
+      expect(accepted).toEqual([{ revision: 2 }, { revision: 2 }]);
+      expect((await service.get(owner, system.id)).system.definition).toEqual(
+        proposal.definition,
+      );
+      const stale = await service.interpret(
+        owner,
+        system.id,
+        { ...command, expectedRevision: 2, request: "More contrast" },
+        correlation,
+      );
+      await database.client
+        .update(designSystemInterpretations)
+        .set({ proposal, dispatchState: "received" })
+        .where(eq(designSystemInterpretations.id, stale.id));
+      await database.client
+        .update(jobs)
+        .set({ state: "succeeded" })
+        .where(eq(jobs.id, stale.jobId));
+      await service.update(owner, system.id, {
+        expectedRevision: 2,
+        name: "Edited",
+        definition: {
+          ...emptyDesignSystemDefinition,
+          philosophy: "Owner edit",
+        },
+      });
+      expect(
+        (await service.interpretation(owner, system.id, stale.id)).stale,
+      ).toBe(true);
+      await expect(
+        service.acceptInterpretation(owner, system.id, stale.id, {
+          expectedRevision: 3,
+        }),
+      ).rejects.toMatchObject({ statusCode: 409 });
+      expect(
+        (await service.get(owner, system.id)).system.definition,
+      ).toMatchObject({ philosophy: "Owner edit" });
+    });
+
+    it("reserves owner quotas under concurrency, before enqueuing paid jobs", async () => {
+      const systems = await Promise.all([create(), create(), create()]);
+      const results = await Promise.allSettled(
+        systems.map((s) =>
+          service.interpret(
+            owner,
+            s.id,
+            {
+              projectId,
+              expectedRevision: 1,
+              request: "Calm motion",
+              assetIds: [],
+              paidActionConfirmed: true,
+            },
+            correlation,
+          ),
+        ),
+      );
+      expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(2);
+      expect(results.find((r) => r.status === "rejected")).toMatchObject({
+        reason: { statusCode: 429 },
+      });
+      await database.client
+        .update(jobs)
+        .set({ state: "cancelled" })
+        .where(
+          and(
+            eq(jobs.ownerUserId, owner),
+            eq(jobs.jobType, "design-system.interpret"),
+          ),
+        );
+    });
 
     it("retrieves every version beyond 200 through stable pages and direct owner-scoped lookup", async () => {
       const system = await create();
@@ -573,6 +718,57 @@ describe.skipIf(!serverUrl)(
         });
         expect(created.statusCode).toBe(201);
         const id = (created.json() as { id: string }).id;
+        const interpretBody = {
+          projectId,
+          expectedRevision: 1,
+          request: "Quiet motion",
+          assetIds: [],
+          paidActionConfirmed: true,
+        };
+        for (const request of [
+          {
+            cookies: { [sessionCookieName]: "owner" },
+            headers: { origin: "https://foreign.example" },
+          },
+          { cookies: {}, headers: { origin: "http://localhost:3000" } },
+        ])
+          expect(
+            (
+              await server.inject({
+                method: "POST",
+                url: `/design-systems/${id}/interpretations`,
+                payload: interpretBody,
+                ...request,
+              })
+            ).statusCode,
+          ).toBeGreaterThanOrEqual(400);
+        const interpretation = await server.inject({
+          method: "POST",
+          url: `/design-systems/${id}/interpretations`,
+          payload: interpretBody,
+          cookies: { [sessionCookieName]: "owner" },
+          headers: { origin: "http://localhost:3000" },
+        });
+        expect(interpretation.statusCode).toBe(202);
+        const interpretationId = (interpretation.json() as { id: string }).id;
+        const interpretationStatus = await server.inject({
+          method: "GET",
+          url: `/design-systems/${id}/interpretations/${interpretationId}`,
+          cookies: { [sessionCookieName]: "owner" },
+        });
+        expect(interpretationStatus.statusCode).toBe(200);
+        expect(interpretationStatus.headers["cache-control"]).toBe(
+          "private, no-store",
+        );
+        expect(
+          (
+            await server.inject({
+              method: "GET",
+              url: `/design-systems/${id}/interpretations/${interpretationId}`,
+              cookies: { [sessionCookieName]: "other" },
+            })
+          ).statusCode,
+        ).toBe(404);
         const response = await server.inject({
           method: "GET",
           url: `/design-systems/${id}`,

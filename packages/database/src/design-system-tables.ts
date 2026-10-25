@@ -115,3 +115,40 @@ export const designSystemAssets = pgTable(
     ),
   ],
 );
+
+/** Paid dispatch receipt and reviewable result. No educational content is stored here. */
+export const designSystemInterpretations = pgTable(
+  "design_system_interpretations",
+  {
+    id: primaryId(),
+    ownerUserId: ownershipColumn(),
+    systemId: uuid("system_id").notNull(),
+    projectId: uuid("project_id").notNull(),
+    jobId: uuid("job_id").notNull(),
+    inputRevision: integer("input_revision").notNull(),
+    inputHash: text("input_hash").notNull(),
+    input: jsonb("input").notNull(),
+    dispatchState: text("dispatch_state").notNull().default("pending"),
+    response: jsonb("response"),
+    proposal: jsonb("proposal"),
+    acceptedRevision: integer("accepted_revision"),
+    ...auditColumns(),
+  },
+  (t) => [
+    foreignKey({
+      columns: [t.ownerUserId, t.systemId],
+      foreignColumns: [designSystems.ownerUserId, designSystems.id],
+    }).onDelete("restrict"),
+    uniqueIndex("design_interpretations_input_unique").on(
+      t.ownerUserId,
+      t.systemId,
+      t.inputHash,
+    ),
+    uniqueIndex("design_interpretations_job_unique").on(t.jobId),
+    check(
+      "design_interpretations_dispatch_check",
+      sql`${t.dispatchState} in ('pending','calling','received','failed')`,
+    ),
+    check("design_interpretations_revision_check", sql`${t.inputRevision} > 0`),
+  ],
+);

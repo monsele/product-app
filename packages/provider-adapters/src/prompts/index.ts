@@ -4,6 +4,7 @@ import { groundingPromptV1 } from "./grounding/v1.js";
 import { groundingPromptV2 } from "./grounding/v2.js";
 import { creativeDesignPromptV1 } from "./creative-design/v1.js";
 import { visualPlanPromptV1 } from "./visual-plan/v1.js";
+import { visualPlanPromptV2 } from "./visual-plan/v2.js";
 import { narrationBlockPromptV1 } from "./narration-block/v1.js";
 import { narrationPromptV1 } from "./narration/v1.js";
 import { narrationPromptV2 } from "./narration/v2.js";
@@ -27,6 +28,7 @@ import { storyboardPromptV4 } from "./storyboard/v4.js";
 import { lessonIntentPromptV1 } from "./lesson-intent/v1.js";
 import { oneShotBriefPromptV1 } from "./one-shot-brief/v1.js";
 import { editPlanPromptV1 } from "./edit-plan/v1.js";
+import { designSystemInterpretationPromptV1 } from "./design-system-interpretation/v1.js";
 
 /**
  * The repository's versioned prompt files. Every prompt change must bump a
@@ -57,7 +59,9 @@ export const repositoryPrompts: readonly PromptDefinition[] = [
   groundingPromptV2,
   creativeDesignPromptV1,
   visualPlanPromptV1,
+  visualPlanPromptV2,
   lessonIntentPromptV1,
   oneShotBriefPromptV1,
   editPlanPromptV1,
+  designSystemInterpretationPromptV1,
 ];

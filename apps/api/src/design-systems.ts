@@ -3,6 +3,8 @@ import {
   designSystems,
   designSystemVersions,
   designSystemAssets,
+  designSystemInterpretations,
+  users,
   projects,
   jobs,
   outboxEvents,
@@ -21,13 +23,18 @@ import {
   designSystemContentHash,
   designSystemVersionSnapshotSchema,
   designSystemVersionPageInputSchema,
+  requestDesignSystemInterpretationSchema,
+  designSystemInterpretationPayloadSchema,
+  designSystemInterpretationInputSchema,
+  designSystemInterpretationProposalSchema,
 } from "@avlp/schemas";
+import { createModelCallProviderApproval } from "./model-call-approval.js";
 import {
   storageKeys,
   StorageObjectNotFoundError,
   type ObjectStorage,
 } from "@avlp/storage";
-import { and, eq, desc, isNull, inArray, lt } from "drizzle-orm";
+import { and, eq, desc, isNull, inArray, lt, gte } from "drizzle-orm";
 import { z } from "zod";
 
 export function parseDesignSystemBoundary<T>(
@@ -87,6 +94,318 @@ export class DesignSystemService {
     private readonly storage: ObjectStorage,
     private readonly now = () => new Date(),
   ) {}
+
+  public async interpret(
+    ownerUserId: Identifier,
+    systemId: Identifier,
+    body: unknown,
+    correlationId: Identifier,
+  ) {
+    const command = parseDesignSystemBoundary(
+      requestDesignSystemInterpretationSchema,
+      body,
+    );
+    return this.database.transaction(async (tx) => {
+      // Serialize reservations per owner, including across origin projects.
+      await tx
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.id, ownerUserId))
+        .for("update");
+      const system = await this.system(ownerUserId, systemId, tx, true);
+      this.writable(system, command.expectedRevision);
+      const [project] = await tx
+        .select({ id: projects.id })
+        .from(projects)
+        .where(
+          and(
+            eq(projects.id, command.projectId),
+            eq(projects.ownerUserId, ownerUserId),
+            isNull(projects.deletedAt),
+          ),
+        )
+        .limit(1);
+      if (!project) throw missing();
+      const assets = await this.validateReferences(
+        tx,
+        ownerUserId,
+        systemId,
+        command.assetIds,
+      );
+      if (assets.some((a) => a.status !== "active"))
+        throw invalid("Select only imports that passed validation.");
+      if (
+        assets.filter((a) => a.kind === "reference" || a.kind === "logo")
+          .length > 4
+      )
+        throw invalid(
+          "Choose at most four reference images or logos per interpretation.",
+        );
+      const definition = designSystemDefinitionSchema.parse(system.definition);
+      const pins = assets
+        .map((a) => ({ id: a.id, sha256: a.validatedSha256! }))
+        .sort((a, b) => a.id.localeCompare(b.id));
+      const inputHash = designSystemContentHash({
+        systemId,
+        revision: system.revision,
+        request: command.request,
+        assets: pins,
+        prompt: "design-system-interpretation@v1",
+        model: "moonshotai/Kimi-K3",
+      });
+      const [previous] = await tx
+        .select()
+        .from(designSystemInterpretations)
+        .where(
+          and(
+            eq(designSystemInterpretations.ownerUserId, ownerUserId),
+            eq(designSystemInterpretations.systemId, systemId),
+            eq(designSystemInterpretations.inputHash, inputHash),
+          ),
+        )
+        .limit(1);
+      if (previous) return { id: previous.id, jobId: previous.jobId };
+      const recent = await tx
+        .select({ state: jobs.state })
+        .from(jobs)
+        .where(
+          and(
+            eq(jobs.ownerUserId, ownerUserId),
+            eq(jobs.jobType, "design-system.interpret"),
+            gte(jobs.createdAt, new Date(this.now().getTime() - 3600000)),
+          ),
+        );
+      if (
+        recent.length >= 20 ||
+        recent.filter((j) =>
+          ["queued", "running", "retry_wait"].includes(j.state),
+        ).length >= 2
+      )
+        throw new PublicError(
+          "rate_limited",
+          "Interpretation quota reached. Wait for current requests to finish or retry later.",
+          429,
+          true,
+        );
+      const id = createId(),
+        jobId = createId();
+      const input = designSystemInterpretationInputSchema.parse({
+        schemaVersion: "1.0",
+        definition,
+        request: command.request,
+        assets: pins,
+        promptId: "design-system-interpretation",
+        promptVersion: "v1",
+        providerApproval: createModelCallProviderApproval({
+          jobId,
+          model: "moonshotai/Kimi-K3",
+        }),
+      });
+      const envelope = createJobEnvelope(
+        designSystemInterpretationPayloadSchema,
+        {
+          jobId,
+          jobType: "design-system.interpret",
+          projectId: command.projectId,
+          ownerUserId,
+          inputVersion: inputHash,
+          idempotencyKey: createIdempotencyKey({
+            jobType: "design-system.interpret",
+            projectId: command.projectId,
+            inputVersion: inputHash,
+            options: {},
+          }),
+          correlationId,
+          payloadVersion: 1,
+          payload: { schemaVersion: 1, interpretationId: id },
+          requestedAt: this.now(),
+        },
+      );
+      await tx
+        .insert(jobs)
+        .values({
+          id: jobId,
+          projectId: command.projectId,
+          ownerUserId,
+          jobType: envelope.jobType,
+          queueName: "pipeline",
+          inputVersion: inputHash,
+          idempotencyKey: envelope.idempotencyKey,
+          correlationId,
+          payloadVersion: 1,
+          payload: envelope.payload,
+        });
+      await tx
+        .insert(designSystemInterpretations)
+        .values({
+          id,
+          ownerUserId,
+          systemId,
+          projectId: command.projectId,
+          jobId,
+          inputRevision: system.revision,
+          inputHash,
+          input,
+        });
+      await tx
+        .insert(outboxEvents)
+        .values({
+          id: createId(),
+          jobId,
+          eventType: "design_system.interpretation.requested.v1",
+          queueName: "pipeline",
+          envelope,
+          deliveryOptions: { maxAttempts: 3, retryDelayMs: 5000 },
+        });
+      return { id, jobId };
+    });
+  }
+  public async interpretation(
+    ownerUserId: Identifier,
+    systemId: Identifier,
+    id: Identifier,
+  ) {
+    const system = await this.system(ownerUserId, systemId);
+    const [row] = await this.database
+      .select({ proposal: designSystemInterpretations, job: jobs })
+      .from(designSystemInterpretations)
+      .innerJoin(
+        jobs,
+        and(
+          eq(jobs.id, designSystemInterpretations.jobId),
+          eq(jobs.ownerUserId, ownerUserId),
+          eq(jobs.projectId, designSystemInterpretations.projectId),
+        ),
+      )
+      .where(
+        and(
+          eq(designSystemInterpretations.id, id),
+          eq(designSystemInterpretations.ownerUserId, ownerUserId),
+          eq(designSystemInterpretations.systemId, systemId),
+        ),
+      )
+      .limit(1);
+    if (!row) throw missing();
+    const failure = z
+      .object({ code: z.string() })
+      .safeParse(row.job.errorMetadata);
+    return {
+      id,
+      inputRevision: row.proposal.inputRevision,
+      state: row.job.state,
+      stale:
+        system.archivedAt !== null ||
+        (row.proposal.acceptedRevision === null &&
+          system.revision !== row.proposal.inputRevision),
+      acceptedRevision: row.proposal.acceptedRevision,
+      errorCode: failure.success ? failure.data.code : null,
+      proposal:
+        row.proposal.proposal === null
+          ? null
+          : designSystemInterpretationProposalSchema.parse(
+              row.proposal.proposal,
+            ),
+    };
+  }
+  public async listInterpretations(
+    ownerUserId: Identifier,
+    systemId: Identifier,
+  ) {
+    await this.system(ownerUserId, systemId);
+    return this.database
+      .select({
+        id: designSystemInterpretations.id,
+        inputRevision: designSystemInterpretations.inputRevision,
+      })
+      .from(designSystemInterpretations)
+      .where(
+        and(
+          eq(designSystemInterpretations.ownerUserId, ownerUserId),
+          eq(designSystemInterpretations.systemId, systemId),
+        ),
+      )
+      .orderBy(desc(designSystemInterpretations.createdAt))
+      .limit(20);
+  }
+  public async acceptInterpretation(
+    ownerUserId: Identifier,
+    systemId: Identifier,
+    id: Identifier,
+    body: unknown,
+  ) {
+    const command = parseDesignSystemBoundary(
+      designSystemRevisionInputSchema,
+      body,
+    );
+    return this.database.transaction(async (tx) => {
+      const system = await this.system(ownerUserId, systemId, tx, true);
+      const [row] = await tx
+        .select()
+        .from(designSystemInterpretations)
+        .where(
+          and(
+            eq(designSystemInterpretations.id, id),
+            eq(designSystemInterpretations.ownerUserId, ownerUserId),
+            eq(designSystemInterpretations.systemId, systemId),
+          ),
+        )
+        .for("update");
+      if (!row) throw missing();
+      if (row.acceptedRevision !== null)
+        return { revision: row.acceptedRevision };
+      this.writable(system, command.expectedRevision);
+      if (system.revision !== row.inputRevision || row.proposal === null)
+        throw conflict();
+      const [completed] = await tx
+        .select({ id: jobs.id })
+        .from(jobs)
+        .where(
+          and(
+            eq(jobs.id, row.jobId),
+            eq(jobs.ownerUserId, ownerUserId),
+            eq(jobs.projectId, row.projectId),
+            eq(jobs.state, "succeeded"),
+          ),
+        )
+        .limit(1);
+      if (!completed)
+        throw invalid(
+          "Wait for interpretation to finish successfully before accepting its proposal.",
+        );
+      const proposal = designSystemInterpretationProposalSchema.parse(
+        row.proposal,
+      );
+      await this.validateReferences(
+        tx,
+        ownerUserId,
+        systemId,
+        proposal.definition.assetIds,
+      );
+      await tx
+        .update(designSystems)
+        .set({
+          definition: proposal.definition,
+          revision: system.revision + 1,
+          updatedAt: this.now(),
+        })
+        .where(
+          and(
+            eq(designSystems.id, systemId),
+            eq(designSystems.ownerUserId, ownerUserId),
+          ),
+        );
+      await tx
+        .update(designSystemInterpretations)
+        .set({ acceptedRevision: system.revision + 1, updatedAt: this.now() })
+        .where(
+          and(
+            eq(designSystemInterpretations.id, id),
+            eq(designSystemInterpretations.ownerUserId, ownerUserId),
+          ),
+        );
+      return { revision: system.revision + 1 };
+    });
+  }
 
   private async system(
     ownerUserId: Identifier,

@@ -189,5 +189,11 @@ development server recovery record.
 
 | 122 | Custom Design Systems | [ST-122 - Design-system foundation](stories/13-custom-design-systems/ST-122-design-system-foundation.md) | ST-058, ST-097, ST-109 | Done |
 | 123 | Custom Design Systems | [ST-123 - Manual authoring and custom rendering](stories/13-custom-design-systems/ST-123-manual-design-systems.md) | ST-122 | Done |
-| 124 | Custom Design Systems | [ST-124 - Guide and philosophy interpretation](stories/13-custom-design-systems/ST-124-design-system-interpretation.md) | ST-123 | Ready |
+| 124 | Custom Design Systems | [ST-124 - Guide and philosophy interpretation](stories/13-custom-design-systems/ST-124-design-system-interpretation.md) | ST-123 | In Review |
 | 125 | Custom Design Systems | [ST-125 - Moving proofs and application](stories/13-custom-design-systems/ST-125-design-system-proofs-and-application.md) | ST-124 | Blocked |
+
+## Fixups
+
+| Order | Phase | Story | Depends on | Status |
+| ----: | ----- | ----- | ---------- | ------ |
+| 1 | Fixups | [FX-001 - Refresh the Storyboard Revision After Audio Duration Reconciliation](stories/fixups/FX-001-refresh-storyboard-revision-after-audio-duration-reconciliation.md) | ST-059, ST-080, ST-084, ST-089 | Done |

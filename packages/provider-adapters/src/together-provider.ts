@@ -420,12 +420,18 @@ export class TogetherLanguageModelProvider implements LanguageModelProvider {
 
   public async complete(
     request: ProviderCompletionRequest,
-    dispatch?: { disableRetries?: boolean },
+    dispatch?: { disableRetries?: boolean; redactResponse?: boolean },
   ): Promise<ProviderCompletionResponse> {
     const startedAt = Date.now();
     const body: TogetherJson = {
       model: request.model,
-      messages: request.messages,
+      messages: request.messages.map((message, index) =>
+        request.referenceImages?.length && index === request.messages.length - 1 && message.role === "user"
+          ? {role: message.role, content: [
+              {type:"text", text:message.content},
+              ...request.referenceImages.map(url => ({type:"image_url", image_url:{url}})),
+            ]}
+          : message),
       ...(request.temperature === undefined
         ? {}
         : { temperature: request.temperature }),
@@ -472,7 +478,7 @@ export class TogetherLanguageModelProvider implements LanguageModelProvider {
       consume: readChatResponse,
     });
     const latencyMs = Math.max(0, Date.now() - startedAt);
-    const loggedText = responseTextChunks(payload.text);
+    const loggedText = responseTextChunks(dispatch?.redactResponse ? "" : payload.text);
     logTogetherEvent(this.options.logger, "provider.together.response", {
       provider: this.providerId,
       endpoint: "/chat/completions",
@@ -481,7 +487,7 @@ export class TogetherLanguageModelProvider implements LanguageModelProvider {
         contentType: payload.contentType ?? null,
         providerRequestId: payload.providerRequestId ?? null,
         model: payload.model ?? request.model,
-        text: payload.text,
+        text: dispatch?.redactResponse ? "[redacted]" : payload.text,
         textChunks: loggedText.chunks,
         textChunksTruncated: loggedText.truncated,
         textCharacters: payload.text.length,

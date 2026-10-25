@@ -2299,6 +2299,8 @@ export const cinemaIllustrationJobPayloadSchema = z
   .object({
     schemaVersion: z.literal(2),
     candidateId: identifierSchema,
+      /** Explicit immutable approved guidance; attached by the application workflow. */
+      designSystemVersionId: identifierSchema.optional(),
     /** ST-105. The prompt-to-video run that authorised this paid call. */
     oneShotRunId: identifierSchema.optional(),
     draftId: identifierSchema,

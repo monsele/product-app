@@ -24,6 +24,8 @@ export const providerCompletionRequestSchema = z.object({
   maxOutputTokens: z.number().int().positive().max(32_000).optional(),
   responseFormat: z.enum(["text", "json_object", "json_schema"]).optional(),
   jsonSchema: z.unknown().optional(),
+  /** Validated, downscaled private reference bytes; never remote URLs. */
+  referenceImages: z.array(z.string().max(1500000).regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/)).max(4).optional(),
 });
 export type ProviderCompletionRequest = z.infer<
   typeof providerCompletionRequestSchema
@@ -60,7 +62,7 @@ export interface LanguageModelProvider {
   readonly supportedModels?: readonly string[];
   complete(
     request: ProviderCompletionRequest,
-    options?: { disableRetries?: boolean },
+    options?: { disableRetries?: boolean; redactResponse?: boolean },
   ): Promise<ProviderCompletionResponse>;
 }
 

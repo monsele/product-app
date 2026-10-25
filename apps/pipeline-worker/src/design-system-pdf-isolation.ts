@@ -11,7 +11,7 @@ import {
 /** A parser crash, runaway layout or allocation cannot terminate the job host. */
 export async function inspectIsolatedDesignSystemPdf(
   bytes: Uint8Array,
-  options: { timeoutMs?: number } = {},
+  options: { timeoutMs?: number; extractText?: boolean } = {},
 ): Promise<PdfInspection> {
   const input = pdfParserRequestSchema.parse(bytes);
   const timeoutMs = options.timeoutMs ?? 5000;
@@ -28,7 +28,9 @@ export async function inspectIsolatedDesignSystemPdf(
     const child = spawn(
       process.execPath,
       [
-        "--max-old-space-size=128",
+        options.extractText
+          ? "--max-old-space-size=256"
+          : "--max-old-space-size=128",
         "--max-semi-space-size=16",
         ...(source
           ? [
@@ -80,9 +82,12 @@ export async function inspectIsolatedDesignSystemPdf(
         finish();
         return;
       }
-      child.send(input, (error) => {
-        if (error) finish();
-      });
+      child.send(
+        options.extractText ? { bytes: input, extractText: true } : input,
+        (error) => {
+          if (error) finish();
+        },
+      );
     } catch {
       finish();
     }

@@ -626,6 +626,57 @@ class DesignSystemsController {
     const { owner, service } = await this.access(request, true);
     return service.update(owner, this.id(systemId), body);
   }
+  @Post(":systemId/interpretations")
+  @HttpCode(202)
+  public async interpret(
+    @Param("systemId") systemId: string,
+    @Req() request: RequestWithAuth,
+    @Body() body: unknown,
+  ) {
+    const { owner, service } = await this.access(request, true);
+    return service.interpret(
+      owner,
+      this.id(systemId),
+      body,
+      request.correlationId ?? "00000000-0000-7000-8000-000000000000",
+    );
+  }
+  @Get(":systemId/interpretations")
+  public async interpretations(
+    @Param("systemId") systemId: string,
+    @Req() request: RequestWithAuth,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    reply.header("cache-control", "private, no-store");
+    const { owner, service } = await this.access(request);
+    return service.listInterpretations(owner, this.id(systemId));
+  }
+  @Get(":systemId/interpretations/:interpretationId")
+  public async interpretation(
+    @Param("systemId") systemId: string,
+    @Param("interpretationId") id: string,
+    @Req() request: RequestWithAuth,
+    @Res({ passthrough: true }) reply: FastifyReply,
+  ) {
+    reply.header("cache-control", "private, no-store");
+    const { owner, service } = await this.access(request);
+    return service.interpretation(owner, this.id(systemId), this.id(id));
+  }
+  @Post(":systemId/interpretations/:interpretationId/accept")
+  public async acceptInterpretation(
+    @Param("systemId") systemId: string,
+    @Param("interpretationId") id: string,
+    @Req() request: RequestWithAuth,
+    @Body() body: unknown,
+  ) {
+    const { owner, service } = await this.access(request, true);
+    return service.acceptInterpretation(
+      owner,
+      this.id(systemId),
+      this.id(id),
+      body,
+    );
+  }
   @Post(":systemId/versions")
   public async publish(
     @Param("systemId") systemId: string,

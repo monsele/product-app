@@ -7,6 +7,7 @@ export const pdfInspectionSchema = z
   .object({
     kind: z.literal("pdf"),
     pageCount: z.number().int().min(1).max(100),
+    text: z.string().max(70000).optional(),
   })
   .strict();
 export const pdfParserResponseSchema = z.discriminatedUnion("ok", [

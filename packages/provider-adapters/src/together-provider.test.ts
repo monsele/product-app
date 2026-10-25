@@ -60,6 +60,43 @@ function chunk(input: {
 }
 
 describe("Together provider adapters", () => {
+  it("passes private raster references as multimodal content and redacts interpretation output", async () => {
+    const sensitive = "Private supplied design rule";
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        response({
+          model: togetherModelDefaults.llm,
+          choices: [{ message: { content: sensitive }, finish_reason: "stop" }],
+          usage: { prompt_tokens: 12, completion_tokens: 4 },
+        }),
+      );
+    const info = vi.fn();
+    const provider = new TogetherLanguageModelProvider({
+      apiKey: "test-key",
+      fetcher,
+      maxRetries: 0,
+      logger: { info },
+    });
+    const image = `data:image/png;base64,${Buffer.from(png1x1).toString("base64")}`;
+    await provider.complete(
+      {
+        model: togetherModelDefaults.llm,
+        messages: [{ role: "user", content: "Interpret" }],
+        referenceImages: [image],
+      },
+      { disableRetries: true, redactResponse: true },
+    );
+    const body = JSON.parse(fetcher.mock.calls[0]![1]!.body as string) as {
+      messages: { content: unknown }[];
+    };
+    expect(body.messages[0]?.content).toEqual([
+      { type: "text", text: "Interpret" },
+      { type: "image_url", image_url: { url: image } },
+    ]);
+    expect(JSON.stringify(info.mock.calls)).not.toContain(sensitive);
+    expect(JSON.stringify(info.mock.calls)).not.toContain(image);
+  });
   it("maps Together chat completions into the provider-neutral contract", async () => {
     const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
       response({

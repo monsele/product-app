@@ -4,6 +4,39 @@
   padding: 40px;
   color: var(--color-text);
 }
+.interpretation {
+  margin-bottom: 32px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--color-border);
+  overflow-wrap: anywhere;
+}
+.interpretation h3 {
+  margin-top: 0;
+}
+.interpretation form {
+  margin-bottom: 12px;
+}
+.interpretation > label {
+  margin-top: 16px;
+}
+.interpretation blockquote {
+  margin: 12px 0;
+  padding-left: 16px;
+  border-left: 2px solid var(--color-border);
+}
+.interpretation cite {
+  display: block;
+  margin-top: 8px;
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  font-style: normal;
+}
+.interpretation dl > div {
+  margin-block: 8px;
+}
+.interpretation dd {
+  margin-left: 0;
+}
 .page h1 {
   font-size: clamp(2rem, 4vw, 3rem);
   letter-spacing: -0.035em;

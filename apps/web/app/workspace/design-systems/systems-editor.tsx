@@ -19,6 +19,7 @@ import {
   OnionSkinLoader,
 } from "../../../components/brand/onion-skin-loader";
 import styles from "./systems.module.css";
+import { DesignInterpretationPanel } from "./interpretation-panel";
 
 const api = (path: string) =>
   `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"}/design-systems${path}`;
@@ -459,6 +460,7 @@ export function DesignSystemsEditor({
                   {archived ? " · Archived" : ""}
                 </span>
               </div>
+              <DesignInterpretationPanel key={detail.system.id} detail={detail} projectId={projectId} disabled={busy || dirty || archived || conflict} request={request} onBusyChange={setBusy} onAccepted={async()=>{adopt(designSystemDetailSchema.parse(await request(`/${detail.system.id}`)));await list();}} />
               <form onSubmit={save}>
                 <fieldset disabled={busy || archived || conflict}>
                   <label htmlFor="system-name">Name</label>

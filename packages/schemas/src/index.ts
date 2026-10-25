@@ -9581,3 +9581,4 @@ export type EditPlanConflictDetails = z.infer<
 export * from "./recovery.js";
 export * from "./design-systems.js";
 export * from "./custom-design.js";
+export * from "./design-system-interpretation.js";

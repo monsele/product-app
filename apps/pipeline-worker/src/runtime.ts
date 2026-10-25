@@ -34,6 +34,7 @@ import { health } from "./health.js";
 import { createProjectCleanupJobHandler } from "./project-cleanup.js";
 import { createProjectAssetCleanupJobHandler } from "./project-asset-cleanup-job.js";
 import { createDesignSystemValidationJobHandler } from "./design-system-validation-job.js";
+import { createDesignSystemInterpretationJobHandler } from "./design-system-interpretation-job.js";
 import {
   HttpMalwareScanner,
   PassThroughMalwareScanner,
@@ -322,6 +323,16 @@ export async function runPipelineWorker(
           promptRegistry: new StaticPromptRegistry(repositoryPrompts),
           quotaGuard: generationQuotaGuard({
             "ai.objectives": { maxCallsPerHour: 20 },
+          }),
+          pricing: togetherPricing,
+        }),
+        createDesignSystemInterpretationJobHandler({
+          database: database.client,
+          storage,
+          provider: languageModelProvider,
+          promptRegistry: new StaticPromptRegistry(repositoryPrompts),
+          quotaGuard: generationQuotaGuard({
+            "ai.creative_design": { maxCallsPerHour: 20 },
           }),
           pricing: togetherPricing,
         }),

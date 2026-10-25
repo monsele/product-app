@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { recoveryDispatch } from "./recovery-dispatch.js";
 import { createId, type Identifier } from "@avlp/config";
+import { loadApprovedDesignGuidance, illustrationPromptWithDesignGuidance } from "./design-system-guidance.js";
 import {
   activeIllustrationLibraryEntries,
   copyLibraryIllustrationIntoProject,
@@ -626,7 +627,7 @@ export function createCinemaIllustrationJobHandler(input: {
         candidateId: candidate.id as Identifier,
         oneShotRunId: payload.oneShotRunId,
         request: {
-          prompt: cinemaIllustrationPrompt(payload),
+          prompt: illustrationPromptWithDesignGuidance(cinemaIllustrationPrompt(payload),await loadApprovedDesignGuidance(input.database,context.ownerUserId,payload.designSystemVersionId)),
           style: `cinema-${payload.artDirection.treatment}`,
         },
         onFailure: "motif",
