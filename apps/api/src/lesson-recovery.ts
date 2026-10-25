@@ -37,7 +37,18 @@ import {
   generationPreparationEstimateSchema,
   generationPreparationConsentSchema,
 } from "@avlp/schemas";
-import { and, desc, eq, isNull, or, sql } from "drizzle-orm";
+import {
+  and,
+  desc,
+  eq,
+  inArray,
+  isNull,
+  ne,
+  notInArray,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import { z } from "zod";
 import {
   LessonReadinessService,
@@ -53,6 +64,9 @@ type Run = typeof lessonRecoveryRuns.$inferSelect;
 const digest = (value: unknown) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const money = (value: number) => Math.ceil(value * 1_000_000) / 1_000_000;
+/** A consented generation that has not produced an enrollable draft by now never will. */
+const generationGrantEnrollmentWindowMs = 24 * 60 * 60 * 1000;
+const terminalTaskStates = ["succeeded", "failed", "cancelled", "superseded"];
 const activeJob = (state: string | undefined) =>
   state !== undefined && ["queued", "running", "retry_wait"].includes(state);
 function parse<T>(schema: z.ZodType<T>, input: unknown): T {
@@ -148,13 +162,10 @@ export class LessonRecoveryService implements LessonRecoveryApi {
       )
       .orderBy(narrationBlocks.order);
     const audio =
-      sceneAudioProvider.providerId === "fixture-v1"
-        ? 0
-        : 3 *
-          ((blocks.reduce((sum, block) => sum + block.text.length, 0) /
-            1_000_000) *
-            this.pricing.ttsCostUsdPerMillionCharacters +
-            blocks.length * this.pricing.alignmentCostUsdPerAudioMinute);
+      3 *
+      ((blocks.reduce((sum, block) => sum + block.text.length, 0) / 1_000_000) *
+        this.pricing.ttsCostUsdPerMillionCharacters +
+        blocks.length * this.pricing.alignmentCostUsdPerAudioMinute);
     return generationPreparationEstimateSchema.parse({
       enabled: true,
       fingerprint: digest({
@@ -285,6 +296,8 @@ export class LessonRecoveryService implements LessonRecoveryApi {
   }
 
   private async enrollGenerationGrants() {
+    // Least recently checked first: a waiting grant moves to the back of the
+    // queue, so grants that cannot enroll yet never starve the others.
     const grants = await this.database
       .select()
       .from(lessonPreparationGrants)
@@ -294,127 +307,168 @@ export class LessonRecoveryService implements LessonRecoveryApi {
           isNull(lessonPreparationGrants.stoppedAt),
         ),
       )
+      .orderBy(lessonPreparationGrants.updatedAt)
       .limit(100);
     for (const grant of grants) {
-      if (!grant.jobId) {
-        try {
-          await this.dispatchGeneration(grant);
-        } catch (error) {
-          if (!(error instanceof PublicError)) throw error;
-          await this.database
-            .update(lessonPreparationGrants)
-            .set({ stoppedAt: this.now() })
-            .where(eq(lessonPreparationGrants.id, grant.id));
-        }
-        continue;
+      try {
+        await this.enrollGenerationGrant(grant);
+      } catch {
+        // Unexpected failures are transient here; other projects still drain.
+        await this.touchGrant(grant.id);
       }
-      await this.database.transaction(async (tx) => {
-        await tx.execute(
-          sql`select pg_advisory_xact_lock(hashtext(${grant.projectId}))`,
-        );
-        const [fresh] = await tx
-          .select()
-          .from(lessonPreparationGrants)
-          .where(eq(lessonPreparationGrants.id, grant.id))
-          .for("update");
-        if (!fresh || fresh.runId || fresh.stoppedAt) return;
-        const [job] = await tx
-          .select()
-          .from(jobs)
-          .where(
-            and(
-              eq(jobs.id, grant.jobId!),
-              eq(jobs.ownerUserId, grant.ownerUserId),
-              eq(jobs.projectId, grant.projectId),
-            ),
-          );
-        if (!job || activeJob(job.state)) return;
-        const result = z
-          .object({ candidateId: z.string().uuid() })
-          .safeParse(job.resultMetadata);
-        if (job.state !== "succeeded" || !result.success) {
-          await tx
-            .update(lessonPreparationGrants)
-            .set({ stoppedAt: this.now() })
-            .where(eq(lessonPreparationGrants.id, grant.id));
+    }
+  }
+
+  private async touchGrant(id: string) {
+    await this.database
+      .update(lessonPreparationGrants)
+      .set({ updatedAt: this.now() })
+      .where(eq(lessonPreparationGrants.id, id));
+  }
+
+  private async enrollGenerationGrant(
+    grant: typeof lessonPreparationGrants.$inferSelect,
+  ) {
+    if (
+      grant.createdAt.getTime() <
+      this.now().getTime() - generationGrantEnrollmentWindowMs
+    ) {
+      await this.database
+        .update(lessonPreparationGrants)
+        .set({ stoppedAt: this.now(), updatedAt: this.now() })
+        .where(eq(lessonPreparationGrants.id, grant.id));
+      return;
+    }
+    if (!grant.jobId) {
+      try {
+        await this.dispatchGeneration(grant);
+      } catch (error) {
+        if (!(error instanceof PublicError)) throw error;
+        // Rate limits and outages leave the paid consent pending for retry.
+        if (error.statusCode === 429 || error.statusCode >= 500) {
+          await this.touchGrant(grant.id);
           return;
         }
-        const [spec] = await tx
-          .select()
-          .from(lessonSpecs)
-          .where(
-            and(
-              eq(lessonSpecs.id, result.data.candidateId),
-              eq(lessonSpecs.ownerUserId, grant.ownerUserId),
-              eq(lessonSpecs.projectId, grant.projectId),
-            ),
-          );
-        if (!spec || spec.status !== "draft") return;
-        const current = await this.readiness.currentSpec(
-          {
-            ownerUserId: grant.ownerUserId as Identifier,
-            projectId: grant.projectId as Identifier,
-          },
-          tx,
-        );
-        if (current.row.id !== spec.id) {
-          await tx
-            .update(lessonPreparationGrants)
-            .set({ stoppedAt: this.now() })
-            .where(eq(lessonPreparationGrants.id, grant.id));
-          return;
-        }
-        const [active] = await tx
-          .select()
-          .from(lessonRecoveryRuns)
-          .where(
-            and(
-              eq(lessonRecoveryRuns.ownerUserId, grant.ownerUserId),
-              eq(lessonRecoveryRuns.projectId, grant.projectId),
-              isNull(lessonRecoveryRuns.stoppedAt),
-            ),
-          )
-          .for("update");
-        if (active?.leaseUntil) return;
-        const [run] = active
-          ? await tx
-              .update(lessonRecoveryRuns)
-              .set({
-                lessonSpecId: spec.id,
-                revision: spec.revision,
-                state: "queued",
-                failureCode: null,
-                allowanceUsd: String(
-                  money(
-                    Number(active.allowanceUsd) + Number(grant.allowanceUsd),
-                  ),
-                ),
-              })
-              .where(eq(lessonRecoveryRuns.id, active.id))
-              .returning()
-          : await tx
-              .insert(lessonRecoveryRuns)
-              .values({
-                id: createId(),
-                ownerUserId: grant.ownerUserId,
-                projectId: grant.projectId,
-                lessonSpecId: spec.id,
-                revision: spec.revision,
-                idempotencyKey: `generation:${grant.id}`,
-                allowanceUsd: grant.allowanceUsd,
-                correlationId: grant.correlationId,
-                authorizationRequests: {
-                  [grant.idempotencyKey]: grant.fingerprint,
-                },
-              })
-              .returning();
+        await this.database
+          .update(lessonPreparationGrants)
+          .set({ stoppedAt: this.now() })
+          .where(eq(lessonPreparationGrants.id, grant.id));
+      }
+      return;
+    }
+    // Resolves true once the grant is enrolled or stopped, false while it waits.
+    const resolved = await this.database.transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${grant.projectId}))`,
+      );
+      const stop = async () => {
         await tx
           .update(lessonPreparationGrants)
-          .set({ runId: run!.id, updatedAt: this.now() })
+          .set({ stoppedAt: this.now() })
           .where(eq(lessonPreparationGrants.id, grant.id));
-        await this.schedule(tx, run!, run!.sequence, 0);
-      });
-    }
+        return true;
+      };
+      const [fresh] = await tx
+        .select()
+        .from(lessonPreparationGrants)
+        .where(eq(lessonPreparationGrants.id, grant.id))
+        .for("update");
+      if (!fresh || fresh.runId || fresh.stoppedAt) return true;
+      const [job] = await tx
+        .select()
+        .from(jobs)
+        .where(
+          and(
+            eq(jobs.id, grant.jobId!),
+            eq(jobs.ownerUserId, grant.ownerUserId),
+            eq(jobs.projectId, grant.projectId),
+          ),
+        );
+      if (!job || activeJob(job.state)) return false;
+      const result = z
+        .object({ candidateId: z.string().uuid() })
+        .safeParse(job.resultMetadata);
+      if (job.state !== "succeeded" || !result.success) return stop();
+      const [spec] = await tx
+        .select()
+        .from(lessonSpecs)
+        .where(
+          and(
+            eq(lessonSpecs.id, result.data.candidateId),
+            eq(lessonSpecs.ownerUserId, grant.ownerUserId),
+            eq(lessonSpecs.projectId, grant.projectId),
+          ),
+        );
+      if (!spec) return false;
+      // Only a draft can be prepared, and a spec never returns to draft.
+      if (spec.status !== "draft") return stop();
+      const current = await this.readiness.currentSpec(
+        {
+          ownerUserId: grant.ownerUserId as Identifier,
+          projectId: grant.projectId as Identifier,
+        },
+        tx,
+      );
+      if (current.row.id !== spec.id) return stop();
+      const [active] = await tx
+        .select()
+        .from(lessonRecoveryRuns)
+        .where(
+          and(
+            eq(lessonRecoveryRuns.ownerUserId, grant.ownerUserId),
+            eq(lessonRecoveryRuns.projectId, grant.projectId),
+            isNull(lessonRecoveryRuns.stoppedAt),
+          ),
+        )
+        .for("update");
+      if (this.leaseHeld(active)) return false;
+      const [run] = active
+        ? await tx
+            .update(lessonRecoveryRuns)
+            .set({
+              lessonSpecId: spec.id,
+              revision: spec.revision,
+              state: "queued",
+              failureCode: null,
+              allowanceUsd: String(
+                money(Number(active.allowanceUsd) + Number(grant.allowanceUsd)),
+              ),
+            })
+            .where(eq(lessonRecoveryRuns.id, active.id))
+            .returning()
+        : await tx
+            .insert(lessonRecoveryRuns)
+            .values({
+              id: createId(),
+              ownerUserId: grant.ownerUserId,
+              projectId: grant.projectId,
+              lessonSpecId: spec.id,
+              revision: spec.revision,
+              idempotencyKey: `generation:${grant.id}`,
+              allowanceUsd: grant.allowanceUsd,
+              correlationId: grant.correlationId,
+              authorizationRequests: {
+                [grant.idempotencyKey]: grant.fingerprint,
+              },
+            })
+            .returning();
+      await tx
+        .update(lessonPreparationGrants)
+        .set({ runId: run!.id, updatedAt: this.now() })
+        .where(eq(lessonPreparationGrants.id, grant.id));
+      await this.schedule(tx, run!, run!.sequence, 0);
+      return true;
+    });
+    if (!resolved) await this.touchGrant(grant.id);
+  }
+
+  /** A crashed coordinator's lease expires; only a live lease defers work. */
+  private leaseHeld(run: Run | undefined) {
+    return (
+      run?.leaseUntil !== null &&
+      run?.leaseUntil !== undefined &&
+      run.leaseUntil.getTime() > this.now().getTime()
+    );
   }
 
   async oneShotState(
@@ -607,7 +661,7 @@ export class LessonRecoveryService implements LessonRecoveryApi {
           .for("update");
         // A running coordinator may have already read its inputs. Leave the
         // notification for its successor rather than losing that concurrent edit.
-        if (run?.leaseUntil) return 0;
+        if (this.leaseHeld(run)) return 0;
         const consumed = await tx
           .delete(lessonRecoverySignals)
           .where(
@@ -678,16 +732,13 @@ export class LessonRecoveryService implements LessonRecoveryApi {
       );
       const fingerprint = digest({ sceneId: scene.stableSceneId, contentHash });
       // All three dispatches plus alignment for a supported 60-second scene.
-      const cost =
-        sceneAudioProvider.providerId === "fixture-v1"
-          ? 0
-          : money(
-              0.0001 +
-                3 *
-                  ((scene.scene.narration.length / 1_000_000) *
-                    this.pricing.ttsCostUsdPerMillionCharacters +
-                    this.pricing.alignmentCostUsdPerAudioMinute),
-            );
+      const cost = money(
+        0.0001 +
+          3 *
+            ((scene.scene.narration.length / 1_000_000) *
+              this.pricing.ttsCostUsdPerMillionCharacters +
+              this.pricing.alignmentCostUsdPerAudioMinute),
+      );
       return { scene, audio, fingerprint, cost };
     });
     const [source] = await this.database
@@ -841,7 +892,8 @@ export class LessonRecoveryService implements LessonRecoveryApi {
             updatedAt: this.now(),
           })
           .where(eq(lessonRecoveryRuns.id, active.id));
-        // Explicit retries retain lifetime attempts; terminal/no-progress content needs review.
+        // Explicit retries retain lifetime attempts; terminal/no-progress content
+        // needs review. Their unspent reservations were already released.
         await tx
           .update(lessonRecoveryTasks)
           .set({
@@ -858,9 +910,19 @@ export class LessonRecoveryService implements LessonRecoveryApi {
               eq(lessonRecoveryTasks.ownerUserId, input.ownerUserId),
               eq(lessonRecoveryTasks.projectId, input.projectId),
               eq(lessonRecoveryTasks.runId, active.id),
-              eq(lessonRecoveryTasks.state, "failed"),
+              or(
+                eq(lessonRecoveryTasks.state, "failed"),
+                // Parked by a coordinator error rather than by a content finding.
+                and(
+                  eq(lessonRecoveryTasks.state, "needs_action"),
+                  inArray(lessonRecoveryTasks.failureCode, [
+                    "RECOVERY_REVIEW_REQUIRED",
+                    "RECOVERY_SERVICE_UNAVAILABLE",
+                  ]),
+                ),
+              ),
               sql`${lessonRecoveryTasks.attempts} < 3`,
-              sql`${lessonRecoveryTasks.failureCode} <> 'RECOVERY_NO_PROGRESS'`,
+              sql`${lessonRecoveryTasks.failureCode} is distinct from 'RECOVERY_NO_PROGRESS'`,
             ),
           );
         await this.schedule(tx, active, active.sequence, 0);
@@ -922,13 +984,8 @@ export class LessonRecoveryService implements LessonRecoveryApi {
       )
       .limit(1);
     if (stopped) return this.readiness.read(input);
-    const { row } = await this.readiness.currentSpec(input);
-    if (row.revision !== command.expectedRevision)
-      throw new PublicError(
-        "edit_conflict",
-        "The lesson changed. Refresh before stopping preparation.",
-        409,
-      );
+    // Stopping spend is never refused. The coordinator itself advances the
+    // revision (timing reconciliation), so expectedRevision is not checked.
     await this.database.transaction(async (tx) => {
       await tx.execute(
         sql`select pg_advisory_xact_lock(hashtext(${input.projectId}))`,
@@ -1021,6 +1078,67 @@ export class LessonRecoveryService implements LessonRecoveryApi {
       });
   }
 
+  /** Reopens a succeeded media task for a recurring issue with fresh attempts,
+   * reserved against the current run. Returns null when the run has stopped
+   * or the task changed meanwhile. */
+  private async reopenTask(
+    run: Run,
+    task: typeof lessonRecoveryTasks.$inferSelect,
+    issueCodes: string[],
+    reserved: number,
+  ) {
+    return this.database.transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(hashtext(${task.projectId}))`,
+      );
+      const [fresh] = await tx
+        .select()
+        .from(lessonRecoveryRuns)
+        .where(
+          and(
+            eq(lessonRecoveryRuns.id, run.id),
+            isNull(lessonRecoveryRuns.stoppedAt),
+          ),
+        )
+        .for("update");
+      if (!fresh) return null;
+      const affordable =
+        Number(fresh.reservedUsd) + reserved <=
+        Number(fresh.allowanceUsd) + 0.0000001;
+      // The earlier cycle's spend stays debited on its run; calls restart here.
+      const [reopened] = await tx
+        .update(lessonRecoveryTasks)
+        .set({
+          runId: run.id,
+          issueCodes,
+          jobId: null,
+          priorAttempts: 0,
+          attempts: 0,
+          calls: {},
+          state: affordable ? "queued" : "needs_action",
+          failureCode: affordable ? null : "RECOVERY_ALLOWANCE_EXHAUSTED",
+          reservedUsd: String(affordable ? reserved : 0),
+          updatedAt: this.now(),
+        })
+        .where(
+          and(
+            eq(lessonRecoveryTasks.id, task.id),
+            eq(lessonRecoveryTasks.state, "succeeded"),
+          ),
+        )
+        .returning();
+      if (!reopened) return null;
+      if (affordable)
+        await tx
+          .update(lessonRecoveryRuns)
+          .set({
+            reservedUsd: String(money(Number(fresh.reservedUsd) + reserved)),
+          })
+          .where(eq(lessonRecoveryRuns.id, run.id));
+      return reopened;
+    });
+  }
+
   private async reserveTechnicalTask(
     run: Run,
     scope: RecoveryScope,
@@ -1109,39 +1227,54 @@ export class LessonRecoveryService implements LessonRecoveryApi {
     state: "succeeded" | "failed",
     failureCode: string | null = null,
   ) {
+    await this.releaseTasks(
+      task.projectId,
+      and(
+        eq(lessonRecoveryTasks.id, task.id),
+        notInArray(lessonRecoveryTasks.state, terminalTaskStates),
+      ),
+      { state, failureCode },
+    );
+  }
+
+  /** Moves matching tasks to a state that can no longer dispatch and returns
+   * each one's unspent reservation to its run. Spent calls stay debited, and
+   * the task keeps only what it spent, so releasing again returns nothing. */
+  private async releaseTasks(
+    projectId: string,
+    condition: SQL | undefined,
+    values: { state: string; failureCode?: string | null; attempts?: number },
+  ) {
     await this.database.transaction(async (tx) => {
       await tx.execute(
-        sql`select pg_advisory_xact_lock(hashtext(${task.projectId}))`,
+        sql`select pg_advisory_xact_lock(hashtext(${projectId}))`,
       );
-      const [fresh] = await tx
+      const tasks = await tx
         .select()
         .from(lessonRecoveryTasks)
-        .where(eq(lessonRecoveryTasks.id, task.id))
+        .where(condition)
         .for("update");
-      if (
-        !fresh ||
-        ["succeeded", "failed", "cancelled", "superseded"].includes(fresh.state)
-      )
-        return;
-      const spent = Object.values(
-        z.record(z.number()).parse(fresh.calls),
-      ).reduce((sum, cost) => sum + cost, 0);
-      const release = Math.max(0, Number(fresh.reservedUsd) - spent);
-      await tx
-        .update(lessonRecoveryTasks)
-        .set({
-          state,
-          failureCode,
-          reservedUsd: String(money(spent)),
-          updatedAt: this.now(),
-        })
-        .where(eq(lessonRecoveryTasks.id, fresh.id));
-      await tx
-        .update(lessonRecoveryRuns)
-        .set({
-          reservedUsd: sql`greatest(0, ${lessonRecoveryRuns.reservedUsd} - ${release})`,
-        })
-        .where(eq(lessonRecoveryRuns.id, fresh.runId));
+      for (const task of tasks) {
+        const spent = Object.values(
+          z.record(z.number()).parse(task.calls),
+        ).reduce((sum, cost) => sum + cost, 0);
+        const release = Math.max(0, Number(task.reservedUsd) - spent);
+        await tx
+          .update(lessonRecoveryTasks)
+          .set({
+            ...values,
+            reservedUsd: String(money(spent)),
+            updatedAt: this.now(),
+          })
+          .where(eq(lessonRecoveryTasks.id, task.id));
+        if (release > 0)
+          await tx
+            .update(lessonRecoveryRuns)
+            .set({
+              reservedUsd: sql`greatest(0, ${lessonRecoveryRuns.reservedUsd} - ${release})`,
+            })
+            .where(eq(lessonRecoveryRuns.id, task.runId));
+      }
     });
   }
 
@@ -1186,18 +1319,17 @@ export class LessonRecoveryService implements LessonRecoveryApi {
       )
     )
       return false;
-    await this.database
-      .update(lessonRecoveryTasks)
-      .set({ state: "superseded", updatedAt: this.now() })
-      .where(
-        and(
-          eq(lessonRecoveryTasks.ownerUserId, scope.ownerUserId),
-          eq(lessonRecoveryTasks.projectId, scope.projectId),
-          eq(lessonRecoveryTasks.operation, "grounding"),
-          sql`${lessonRecoveryTasks.fingerprint} <> ${fingerprint}`,
-          sql`${lessonRecoveryTasks.state} in ('queued','running','retry_wait')`,
-        ),
-      );
+    await this.releaseTasks(
+      scope.projectId,
+      and(
+        eq(lessonRecoveryTasks.ownerUserId, scope.ownerUserId),
+        eq(lessonRecoveryTasks.projectId, scope.projectId),
+        eq(lessonRecoveryTasks.operation, "grounding"),
+        sql`${lessonRecoveryTasks.fingerprint} <> ${fingerprint}`,
+        sql`${lessonRecoveryTasks.state} in ('queued','running','retry_wait')`,
+      ),
+      { state: "superseded" },
+    );
     const task = await this.reserveTechnicalTask(
       run,
       scope,
@@ -1499,34 +1631,41 @@ export class LessonRecoveryService implements LessonRecoveryApi {
         } catch (error) {
           if (!(error instanceof PublicError) && context.attempt < 3)
             throw error;
-          await this.database
-            .update(lessonRecoveryRuns)
-            .set({
-              state: "needs_action",
-              failureCode:
-                error instanceof PublicError
-                  ? error.code
-                  : "RECOVERY_SERVICE_UNAVAILABLE",
-              updatedAt: this.now(),
-            })
-            .where(eq(lessonRecoveryRuns.id, run.id));
-          await this.database
-            .update(lessonRecoveryTasks)
-            .set({
-              state: "needs_action",
-              failureCode:
-                error instanceof PublicError
-                  ? "RECOVERY_REVIEW_REQUIRED"
-                  : "RECOVERY_SERVICE_UNAVAILABLE",
-              updatedAt: this.now(),
-            })
-            .where(
+          if (error instanceof PublicError && error.code === "edit_conflict") {
+            // A save landed mid-tick. Inputs changed, not their validity: queued
+            // tasks stay queued and the next tick replans against the new revision.
+            await this.database
+              .update(lessonRecoveryRuns)
+              .set({ state: "queued", updatedAt: this.now() })
+              .where(eq(lessonRecoveryRuns.id, run.id));
+          } else {
+            await this.database
+              .update(lessonRecoveryRuns)
+              .set({
+                state: "needs_action",
+                failureCode:
+                  error instanceof PublicError
+                    ? error.code
+                    : "RECOVERY_SERVICE_UNAVAILABLE",
+                updatedAt: this.now(),
+              })
+              .where(eq(lessonRecoveryRuns.id, run.id));
+            await this.releaseTasks(
+              run.projectId,
               and(
                 eq(lessonRecoveryTasks.runId, run.id),
                 eq(lessonRecoveryTasks.state, "queued"),
                 isNull(lessonRecoveryTasks.jobId),
               ),
+              {
+                state: "needs_action",
+                failureCode:
+                  error instanceof PublicError
+                    ? "RECOVERY_REVIEW_REQUIRED"
+                    : "RECOVERY_SERVICE_UNAVAILABLE",
+              },
             );
+          }
           if (!(error instanceof PublicError)) {
             await this.database
               .update(lessonRecoveryRuns)
@@ -1582,10 +1721,18 @@ export class LessonRecoveryService implements LessonRecoveryApi {
       return;
     }
     const state = await this.inputs(scope);
+    // Record or clear only the voice requirement; other failure codes stand.
     await this.database
       .update(lessonRecoveryRuns)
       .set({ failureCode: state.voice ? null : "VOICE_REQUIRED" })
-      .where(eq(lessonRecoveryRuns.id, run.id));
+      .where(
+        and(
+          eq(lessonRecoveryRuns.id, run.id),
+          state.voice
+            ? eq(lessonRecoveryRuns.failureCode, "VOICE_REQUIRED")
+            : undefined,
+        ),
+      );
     if (state.row.id !== run.lessonSpecId) {
       await this.database
         .update(lessonRecoveryRuns)
@@ -1612,16 +1759,29 @@ export class LessonRecoveryService implements LessonRecoveryApi {
     const fingerprints = new Set(
       state.entries.map((entry) => entry.fingerprint),
     );
-    for (const task of previous)
-      if (
-        ["audio", "captions"].includes(task.operation) &&
-        !fingerprints.has(task.fingerprint) &&
-        !["succeeded", "superseded", "cancelled"].includes(task.state)
+    // An edit replaced these inputs. The superseded task can no longer
+    // dispatch, so its unspent reservation funds the replacement work.
+    const replaced = previous
+      .filter(
+        (task) =>
+          ["audio", "captions"].includes(task.operation) &&
+          !fingerprints.has(task.fingerprint) &&
+          !["succeeded", "superseded", "cancelled"].includes(task.state),
       )
-        await this.database
-          .update(lessonRecoveryTasks)
-          .set({ state: "superseded", updatedAt: this.now() })
-          .where(eq(lessonRecoveryTasks.id, task.id));
+      .map((task) => task.id);
+    if (replaced.length > 0)
+      await this.releaseTasks(
+        scope.projectId,
+        and(
+          inArray(lessonRecoveryTasks.id, replaced),
+          notInArray(lessonRecoveryTasks.state, [
+            "succeeded",
+            "superseded",
+            "cancelled",
+          ]),
+        ),
+        { state: "superseded" },
+      );
     let pending = false;
     for (const entry of state.entries) {
       const codes = report.issues
@@ -1668,35 +1828,23 @@ export class LessonRecoveryService implements LessonRecoveryApi {
             task.fingerprint === entry.fingerprint,
         );
       if (codes.length === 0 && entry.audio?.status === "ready") {
-        for (const finished of previous.filter(
-          (task) =>
-            task.fingerprint === entry.fingerprint &&
-            task.state !== "succeeded" &&
-            ["audio", "captions"].includes(task.operation),
-        ))
-          await this.database.transaction(async (tx) => {
-            await tx.execute(
-              sql`select pg_advisory_xact_lock(hashtext(${scope.projectId}))`,
-            );
-            const spent = Object.values(
-              z.record(z.number()).parse(finished.calls),
-            ).reduce((sum, cost) => sum + cost, 0);
-            const release = Math.max(0, Number(finished.reservedUsd) - spent);
-            await tx
-              .update(lessonRecoveryTasks)
-              .set({
-                state: "succeeded",
-                reservedUsd: String(money(spent)),
-                updatedAt: this.now(),
-              })
-              .where(eq(lessonRecoveryTasks.id, finished.id));
-            await tx
-              .update(lessonRecoveryRuns)
-              .set({
-                reservedUsd: sql`greatest(0, ${lessonRecoveryRuns.reservedUsd} - ${release})`,
-              })
-              .where(eq(lessonRecoveryRuns.id, finished.runId));
-          });
+        const finished = previous
+          .filter(
+            (task) =>
+              task.fingerprint === entry.fingerprint &&
+              task.state !== "succeeded" &&
+              ["audio", "captions"].includes(task.operation),
+          )
+          .map((task) => task.id);
+        if (finished.length > 0)
+          await this.releaseTasks(
+            scope.projectId,
+            and(
+              inArray(lessonRecoveryTasks.id, finished),
+              ne(lessonRecoveryTasks.state, "succeeded"),
+            ),
+            { state: "succeeded" },
+          );
         continue;
       }
       const jobId = old?.jobId ?? entry.audio?.jobId;
@@ -1725,19 +1873,31 @@ export class LessonRecoveryService implements LessonRecoveryApi {
             .where(eq(lessonRecoveryTasks.id, old.id));
         continue;
       }
-      if (old?.jobId) {
-        await this.database
-          .update(lessonRecoveryTasks)
-          .set({
+      const reserved =
+        entry.audio?.storageKey && entry.audio.durationMs ? 0 : entry.cost;
+      // A repair that succeeded earlier is new work when its issue returns (for
+      // example, captions invalidated again). Only a job that finished with the
+      // issue still present is "no progress".
+      const reopened =
+        old?.state === "succeeded" &&
+        state.voice &&
+        entry.scene.scene.narration.trim().length > 0
+          ? await this.reopenTask(run, old, codes, reserved)
+          : undefined;
+      if (reopened === null) continue;
+      if (old?.jobId && !reopened) {
+        await this.releaseTasks(
+          scope.projectId,
+          eq(lessonRecoveryTasks.id, old.id),
+          {
             state: "failed",
             attempts: Math.min(3, old.priorAttempts + (job?.attempts ?? 0)),
             failureCode:
               job?.state === "succeeded"
                 ? "RECOVERY_NO_PROGRESS"
                 : (entry.audio?.failureCode ?? "RECOVERY_JOB_FAILED"),
-            updatedAt: this.now(),
-          })
-          .where(eq(lessonRecoveryTasks.id, old.id));
+          },
+        );
         continue;
       }
       if (!state.voice || entry.scene.scene.narration.trim().length === 0)
@@ -1746,9 +1906,8 @@ export class LessonRecoveryService implements LessonRecoveryApi {
         entry.audio?.status === "ready" ? 0 : (job?.attempts ?? 0);
       const canRetry =
         priorAttempts < 3 && job?.errorClassification !== "terminal";
-      const reserved =
-        entry.audio?.storageKey && entry.audio.durationMs ? 0 : entry.cost;
       const task =
+        reopened ??
         old ??
         (await this.database.transaction(async (tx) => {
           await tx.execute(
@@ -1859,7 +2018,9 @@ export class LessonRecoveryService implements LessonRecoveryApi {
         expectedRevision: state.row.revision,
         repairCaptions: codes.includes("caption_timing_invalid"),
         body: {
-          idempotencyKey: `recovery:${task.id}:${task.priorAttempts}:${task.runId}`,
+          // updatedAt is fixed between queueing and dispatch, and changes when a
+          // succeeded task is reopened, so each repair cycle gets its own job.
+          idempotencyKey: `recovery:${task.id}:${task.priorAttempts}:${task.runId}:${task.updatedAt.getTime()}`,
         },
       });
       await this.database

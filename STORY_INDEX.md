@@ -123,6 +123,15 @@ Status values: `Ready`, `In Progress`, `Blocked`, `In Review`, `Done`.
 |   115 | Product UI | [ST-115 - Add Conversational Editing to the Storyboard Workspace](stories/08-product-ui/ST-115-conversational-lesson-editing.md) | ST-049, ST-051, ST-056, ST-080, ST-111 | Done |
 |   116 | Prompt to Video | [ST-116 - Start a Lesson from a Topic Prompt Alone with a Reviewed AI-Written Reference](stories/10-prompt-to-video/ST-116-prompt-only-lessons-without-a-source-document.md) | ST-104, ST-105, ST-106, ST-107 | Blocked |
 |   117 | Ingestion and Lesson Configuration | [ST-117 - Correct Extracted Table Cells as Overlays](stories/03-ingestion-configuration/ST-117-correct-extracted-table-cells-as-overlays.md) | ST-039, ST-093, ST-114 | Done |
+| 118 | Storyboard Recovery | [ST-118 - Readiness and recovery foundation](stories/12-storyboard-recovery/ST-118-recovery-foundation.md) | ST-063, ST-064, ST-066, ST-067, ST-107 | Done |
+| 119 | Storyboard Recovery | [ST-119 - Bounded technical recovery](stories/12-storyboard-recovery/ST-119-technical-recovery.md) | ST-118 | Done |
+| 120 | Storyboard Recovery | [ST-120 - Immediate editing and partial preview](stories/12-storyboard-recovery/ST-120-immediate-editing.md) | ST-119 | Done |
+| 121 | Storyboard Recovery | [ST-121 - Recovery workflow integration and release](stories/12-storyboard-recovery/ST-121-recovery-integration.md) | ST-120 | Done |
+| 122 | Custom Design Systems | [ST-122 - Design-system foundation](stories/13-custom-design-systems/ST-122-design-system-foundation.md) | ST-058, ST-097, ST-109 | Done |
+| 123 | Custom Design Systems | [ST-123 - Manual authoring and custom rendering](stories/13-custom-design-systems/ST-123-manual-design-systems.md) | ST-122 | Done |
+| 124 | Custom Design Systems | [ST-124 - Guide and philosophy interpretation](stories/13-custom-design-systems/ST-124-design-system-interpretation.md) | ST-123 | In Review |
+| 125 | Custom Design Systems | [ST-125 - Moving proofs and application](stories/13-custom-design-systems/ST-125-design-system-proofs-and-application.md) | ST-124 | Blocked |
+| 126 | Storyboard Recovery | [ST-126 - Recovery allowance accounting and liveness fixes](stories/12-storyboard-recovery/ST-126-recovery-accounting-fixes.md) | ST-121 | In Review |
 
 Maintenance 2026-09-08: ST-063 audio-provider failure repair verified on the reported scene (11,776 ms WAV and three caption cues). See its Dev Agent Record for the Together alignment configuration change and regression checks. Story status remains Done.
 
@@ -178,19 +187,6 @@ Follow-up: restored the web server and API after the build replaced the running
 development server's generated output. After owner approval, pipeline and render
 workers were also restored and verified connected to their queues; see ST-082's
 development server recovery record.
-
-| 118 | Storyboard Recovery | [ST-118 - Readiness and recovery foundation](stories/12-storyboard-recovery/ST-118-recovery-foundation.md) | ST-063, ST-064, ST-066, ST-067, ST-107 | Done |
-
-| 119 | Storyboard Recovery | [ST-119 - Bounded technical recovery](stories/12-storyboard-recovery/ST-119-technical-recovery.md) | ST-118 | Done |
-
-| 120 | Storyboard Recovery | [ST-120 - Immediate editing and partial preview](stories/12-storyboard-recovery/ST-120-immediate-editing.md) | ST-119 | Done |
-
-| 121 | Storyboard Recovery | [ST-121 - Recovery workflow integration and release](stories/12-storyboard-recovery/ST-121-recovery-integration.md) | ST-120 | Done |
-
-| 122 | Custom Design Systems | [ST-122 - Design-system foundation](stories/13-custom-design-systems/ST-122-design-system-foundation.md) | ST-058, ST-097, ST-109 | Done |
-| 123 | Custom Design Systems | [ST-123 - Manual authoring and custom rendering](stories/13-custom-design-systems/ST-123-manual-design-systems.md) | ST-122 | Done |
-| 124 | Custom Design Systems | [ST-124 - Guide and philosophy interpretation](stories/13-custom-design-systems/ST-124-design-system-interpretation.md) | ST-123 | In Review |
-| 125 | Custom Design Systems | [ST-125 - Moving proofs and application](stories/13-custom-design-systems/ST-125-design-system-proofs-and-application.md) | ST-124 | Blocked |
 
 ## Fixups
 

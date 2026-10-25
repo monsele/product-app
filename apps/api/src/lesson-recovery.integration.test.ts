@@ -1,5 +1,13 @@
-import { beforeAll, beforeEach, afterAll, describe, expect, it } from "vitest";
-import { createId, type Identifier } from "@avlp/config";
+import {
+  beforeAll,
+  beforeEach,
+  afterAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
+import { createId, PublicError, type Identifier } from "@avlp/config";
 import {
   authorizeRecoveryCall,
   jobs,
@@ -919,4 +927,266 @@ suite("durable technical recovery (Postgres)", () => {
     expect(saved.onScreenText).toEqual(["Teacher's visual edit"]);
     expect(synthesized).toHaveLength(7);
   }, 30000);
+  it("repairs captions again after an earlier repair of the same audio succeeded", async () => {
+    const worker = (await import(
+      new URL("../../pipeline-worker/dist/scene-audio-job.js", import.meta.url)
+        .href
+    )) as {
+      createSceneAudioGenerationJobHandler(input: {
+        database: DatabaseClient;
+        storage: { putBytes: () => Promise<{ checksumSha256: string }> };
+      }): RegisteredJobHandler;
+    };
+    const handler = worker.createSceneAudioGenerationJobHandler({
+      database: database.client,
+      storage: { putBytes: async () => ({ checksumSha256: "a".repeat(64) }) },
+    });
+    const executed = new Set<string>();
+    async function runAudioJobs() {
+      const pending = (
+        await database.client
+          .select()
+          .from(jobs)
+          .where(eq(jobs.jobType, "tts.generate"))
+      ).filter((job) => !executed.has(job.id));
+      for (const job of pending) {
+        executed.add(job.id);
+        await handler.handler(job.payload, {
+          ...scope,
+          jobId: job.id as Identifier,
+          correlationId: job.correlationId as Identifier,
+          idempotencyKey: job.idempotencyKey,
+          attempt: 1,
+          heartbeat: async () => {},
+          reportProgress: async () => {},
+        } as Parameters<RegisteredJobHandler["handler"]>[1]);
+        await database.client
+          .update(jobs)
+          .set({ state: "succeeded", attempts: 1 })
+          .where(eq(jobs.id, job.id));
+      }
+      return pending.length;
+    }
+    await start();
+    await tick();
+    expect(await runAudioJobs()).toBe(2);
+    await tick();
+    for (const repair of [1, 2]) {
+      await database.client.update(captionTracks).set({ status: "stale" });
+      expect(await deliverChanges()).toBe(1);
+      await tick();
+      // Each staleness gets its own repair, not a "no progress" verdict.
+      expect(await runAudioJobs(), `repair ${repair}`).toBe(2);
+      await tick();
+      const tasks = await database.client.select().from(lessonRecoveryTasks);
+      expect(tasks.filter((task) => task.state === "failed")).toEqual([]);
+      expect(
+        (await validation.run({ ...scope, body: {} })).issues.filter(
+          (issue) => issue.scopeType === "captions",
+        ),
+      ).toEqual([]);
+    }
+  }, 30000);
+  async function activeRun() {
+    const [run] = await database.client
+      .select()
+      .from(lessonRecoveryRuns)
+      .where(isNull(lessonRecoveryRuns.stoppedAt));
+    return run!;
+  }
+  it("returns a superseded task's unspent reservation so a saved edit fits the allowance", async () => {
+    await start();
+    await tick();
+    const reserved = await activeRun();
+    // Real pricing applies to the fixture provider too, and every scene is
+    // reserved: the allowance has no slack left.
+    expect(Number(reserved.allowanceUsd)).toBeGreaterThan(0);
+    expect(Number(reserved.reservedUsd)).toBeCloseTo(
+      Number(reserved.allowanceUsd),
+      6,
+    );
+    const editor = new PostgresStoryboardService(database.client, async () => {
+      throw new Error("Source approval is not used by scene editing");
+    });
+    const current = await readiness.currentSpec(scope);
+    const selected = current.storyboard.scenes.find(
+      (scene) => scene.stableSceneId === sceneA,
+    )!;
+    await editor.updateScene({
+      ...scope,
+      sceneId: selected.stableSceneId,
+      correlationId: createId(),
+      body: {
+        expectedRevision: current.row.revision,
+        // Shorter than the original, so it costs no more to prepare.
+        scene: {
+          ...selected.scene,
+          narration: "Heated water evaporates and rises into the sky as vapour.",
+        },
+      },
+    });
+    await tick();
+    const tasks = (await database.client.select().from(lessonRecoveryTasks))
+      .filter((task) => task.sceneId === sceneA);
+    expect(tasks.map((task) => task.state).sort()).toEqual([
+      "running",
+      "superseded",
+    ]);
+    expect(
+      tasks.find((task) => task.state === "superseded")!.reservedUsd,
+    ).toBe("0.000000");
+    const run = await activeRun();
+    expect(Number(run.reservedUsd)).toBeLessThanOrEqual(
+      Number(run.allowanceUsd),
+    );
+  });
+  it("keeps other scenes queued when a save lands during a coordinator tick", async () => {
+    class SaveDuringTick extends SceneAudioService {
+      saved = false;
+      override async generate(
+        input: Parameters<SceneAudioService["generate"]>[0],
+      ) {
+        if (!this.saved) {
+          this.saved = true;
+          await database.client
+            .update(lessonSpecs)
+            .set({ revision: sql`${lessonSpecs.revision} + 1` });
+        }
+        return super.generate(input);
+      }
+    }
+    service = new LessonRecoveryService(
+      database.client,
+      readiness,
+      validation,
+      new SaveDuringTick(database.client),
+      pricing,
+    );
+    await start();
+    await tick();
+    const interrupted = await activeRun();
+    expect(interrupted.state).toBe("queued");
+    expect(interrupted.failureCode).toBeNull();
+    expect(
+      (await database.client.select().from(lessonRecoveryTasks)).map(
+        (task) => task.state,
+      ),
+    ).toEqual(["queued"]);
+    // No user action: the next tick replans against the saved revision.
+    await tick();
+    const tasks = await database.client.select().from(lessonRecoveryTasks);
+    expect(tasks).toHaveLength(2);
+    expect(tasks.every((task) => task.state === "running" && task.jobId)).toBe(
+      true,
+    );
+  });
+  it("delivers saved changes once a crashed coordinator's lease has expired", async () => {
+    await start();
+    await database.client.update(lessonRecoveryRuns).set({
+      leaseJobId: createId(),
+      leaseUntil: new Date(Date.now() - 1000),
+    });
+    await database.client
+      .update(lessonSpecs)
+      .set({ revision: sql`${lessonSpecs.revision} + 1` });
+    expect(await deliverChanges()).toBe(1);
+  });
+  it("stops preparation even after the coordinator changed the revision", async () => {
+    const input = await start();
+    await tick();
+    await database.client
+      .update(lessonSpecs)
+      .set({ revision: sql`${lessonSpecs.revision} + 1` });
+    await service.stop({
+      ...scope,
+      body: {
+        expectedRevision: input.body.expectedRevision,
+        idempotencyKey: "stop-after-reconcile",
+      },
+    });
+    const [run] = await database.client.select().from(lessonRecoveryRuns);
+    expect(run!.stoppedAt).not.toBeNull();
+    const [task] = await database.client.select().from(lessonRecoveryTasks);
+    await expect(
+      authorizeRecoveryCall(database.client, {
+        ...scope,
+        taskId: task!.id,
+        jobId: task!.jobId!,
+        attempt: 1,
+        phase: "after-stop",
+        maximumCostUsd: 0,
+      }),
+    ).rejects.toThrow();
+  });
+  it("keeps a generation grant pending through outages and stops it on conflict", async () => {
+    let failure = new PublicError(
+      "internal_error",
+      "Generation is unavailable.",
+      503,
+    );
+    service = new LessonRecoveryService(
+      database.client,
+      readiness,
+      validation,
+      new SceneAudioService(database.client),
+      pricing,
+      undefined,
+      {
+        storyboard: {
+          generate: async () => {
+            throw failure;
+          },
+        },
+      },
+    );
+    const estimate = await service.generationEstimate(scope);
+    await expect(
+      service.generatePrepared({
+        ...scope,
+        correlationId: createId(),
+        idempotencyKey: "generation-during-outage",
+        body: {
+          estimateFingerprint: estimate.fingerprint,
+          acceptedMaximumCostUsd: estimate.maximumCostUsd,
+        },
+      }),
+    ).rejects.toMatchObject({ statusCode: 503 });
+    await service.drainSignals();
+    const [pending] = await database.client.select().from(lessonPreparationGrants);
+    expect(pending!.stoppedAt).toBeNull();
+    failure = new PublicError("edit_conflict", "Narration changed.", 409);
+    await service.drainSignals();
+    const [stopped] = await database.client.select().from(lessonPreparationGrants);
+    expect(stopped!.stoppedAt).not.toBeNull();
+  });
+  it("revalidates stale readiness once per window however many tabs poll", async () => {
+    const runs = vi.spyOn(validation, "run");
+    const later = () => new Date(Date.now() + 11_000);
+    await database.client
+      .update(lessonSpecs)
+      .set({ revision: sql`${lessonSpecs.revision} + 1` });
+    const polling = new LessonReadinessService(
+      database.client,
+      validation,
+      true,
+      10_000,
+      later,
+    );
+    await Promise.all([
+      polling.read(scope),
+      polling.read(scope),
+      polling.read(scope),
+    ]);
+    expect(runs).toHaveBeenCalledTimes(1);
+    await database.client
+      .update(lessonSpecs)
+      .set({ revision: sql`${lessonSpecs.revision} + 1` });
+    const current = new LessonReadinessService(database.client, validation, true);
+    const throttled = await current.read(scope);
+    await current.read(scope);
+    expect(runs).toHaveBeenCalledTimes(1);
+    expect(throttled.capabilities.render).toBe(false);
+    await polling.read(scope);
+    expect(runs).toHaveBeenCalledTimes(2);
+  });
 });

@@ -1,0 +1,1 @@
+{"nodes": [{"id": "$graphify-root$_apps_pipeline_worker_src_fixtures_design_system_fonts_license_md", "label": "LICENSE.md", "file_type": "document", "node_kind": "page", "source_file": "apps/pipeline-worker/src/fixtures/design-system-fonts/LICENSE.md", "source_location": "L1"}], "edges": [], "raw_calls": [], "input_tokens": 0, "output_tokens": 0}

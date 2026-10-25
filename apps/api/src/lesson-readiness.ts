@@ -114,11 +114,32 @@ export function readinessCapabilities(
 }
 
 export class LessonReadinessService {
+  /** Concurrent reads in this process share one revalidation per project. */
+  private readonly revalidating = new Map<
+    string,
+    ReturnType<LessonValidationService["run"]>
+  >();
+
   constructor(
     private readonly database: DatabaseClient,
     private readonly validation: LessonValidationService,
     public readonly enabled: boolean,
+    /** Polling reads revalidate a stale report at most this often. */
+    private readonly revalidateAfterMs = 10_000,
+    private readonly now: () => Date = () => new Date(),
   ) {}
+
+  private revalidate(scope: RecoveryScope) {
+    const key = `${scope.ownerUserId}:${scope.projectId}`;
+    let pending = this.revalidating.get(key);
+    if (!pending) {
+      pending = this.validation
+        .run({ ...scope, body: {} })
+        .finally(() => this.revalidating.delete(key));
+      this.revalidating.set(key, pending);
+    }
+    return pending;
+  }
 
   async currentSpec(
     scope: RecoveryScope,
@@ -156,8 +177,18 @@ export class LessonReadinessService {
     const { row, storyboard } = await this.currentSpec(scope);
     if (this.enabled) await this.recordMilestone(scope, row);
     let validation = await this.validation.latest(scope);
-    if (this.enabled && (!validation || validation.stale))
-      validation = await this.validation.run({ ...scope, body: {} });
+    // Each open tab polls every few seconds while media prepares. A stale
+    // report is shown (render stays blocked) until the throttle window passes.
+    if (
+      this.enabled &&
+      (!validation ||
+        ((validation.stale ||
+          validation.lessonSpecRevision !== row.revision ||
+          validation.lessonSpecId !== row.id) &&
+          this.now().getTime() - Date.parse(validation.completedAt) >=
+            this.revalidateAfterMs))
+    )
+      validation = await this.revalidate(scope);
     if (
       validation &&
       (validation.lessonSpecRevision !== row.revision ||

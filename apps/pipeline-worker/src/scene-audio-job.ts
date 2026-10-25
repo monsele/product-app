@@ -219,8 +219,11 @@ export const fixtureSceneAudioTtsProvider: SceneAudioTtsProvider = {
   providerId: "fixture-v1",
   outputFormat: "wav",
   contentType: "audio/wav",
-  synthesize: ({ narration, speakingRate }) =>
-    synthesizeFixtureAudio(narration, speakingRate),
+  // Like a paid adapter, authorize the (free) dispatch before producing output.
+  synthesize: async ({ narration, speakingRate, beforeDispatch }) => {
+    await beforeDispatch?.(0);
+    return synthesizeFixtureAudio(narration, speakingRate);
+  },
 };
 
 export function createSceneAudioGenerationJobHandler(input: {
@@ -489,7 +492,6 @@ export function createSceneAudioGenerationJobHandler(input: {
               }
             }
           : undefined;
-        if (provider.providerId === "fixture-v1") await beforeDispatch?.(0);
         const output = await resolvedProvider.adapter.synthesize({
           ...(beforeDispatch ? { beforeDispatch } : {}),
           narration,

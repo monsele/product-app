@@ -5,7 +5,7 @@ status: Done
 depends_on: [ST-119]
 epics: [E11, E15, E16]
 ---
-# ST-120 ? Immediate editing and partial preview
+# ST-120 - Immediate editing and partial preview
 
 ## Implementation plan
 Use shared readiness contracts to show a compact preparation summary with grouped
